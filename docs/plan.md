@@ -27,8 +27,8 @@ Local validation: 28 tests passed on Python 3.12.3, including timeout and interr
 `uv build --offline --no-python-downloads` produced a wheel and source distribution. Independent
 wheel-installed CLI validation passed for multiple repositories, existing-label preservation,
 repeat initialization, argument conflicts, denied access, and invalid NUL-containing settings.
-All GitHub calls in these checks used substitute executables. No Dark Business configuration,
-live GitHub changes, publication, commit, or push occurred.
+All GitHub calls in these local checks used substitute executables. They did not configure
+Dark Business, mutate live GitHub labels, or publish the package.
 
 The initial Unicode checks missed NUL characters that TOML can decode but OS APIs cannot accept.
 A public-loader regression and CLI invalid-config case reproduced the traceback before the fix;
@@ -46,10 +46,15 @@ No other review blockers were reported.
 - [x] Replace commit pins with verified `v7` tags for compatible updates, at Scott's request.
 - [x] Validate workflow YAML, triggers, concurrency, matrix, references, and test command.
   The latest separate local test run passed all 28 tests.
-- [ ] Verify both hosted jobs after the workflow and implementation are committed and pushed.
+- [x] Verify both hosted jobs after the workflow and implementation are committed and pushed.
 
 Action dependency advisories and limits are recorded in [dependency audit](dependency-audit.md).
-No push or hosted execution was performed. Python 3.11 is not installed locally.
+Implementation committed and pushed as `2ee6e6b`; the push workflow passed on 2026-10-10.
+[CI run 38041488129](https://github.com/ScottRBK/factory/actions/runs/38041488129) tested that exact
+commit: all 28 tests passed on Python 3.11 (36.928 seconds) and Python 3.12 (37.253 seconds).
+Local pre-commit validation also passed all 28 tests. PR-event execution and cancellation of
+outdated runs have not been exercised on GitHub; a passing push run does not verify those paths.
+Python 3.11 remains unavailable locally, but is now verified on the hosted runner.
 
 ## Local SonarQube setup
 

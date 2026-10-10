@@ -197,7 +197,9 @@ and 3.12. No Python packages or project secrets are required; tests substitute t
 At Scott's request, official checkout and Python setup actions use movable `v7` tags to receive
 compatible updates. Permissions remain read-only and checkout credentials are not persisted.
 See [dependency audit](dependency-audit.md) for the checked releases, inherited advisories, and
-limits: subsequent tag moves are not covered by that audit. Hosted execution remains unverified.
+limits: subsequent tag moves are not covered by that audit. Hosted push CI passed all 28 tests
+on both Python versions for implementation commit `2ee6e6b`; the [plan](plan.md) links the run.
+PR-event execution and cancellation have not yet been exercised on GitHub.
 
 Local static analysis uses the existing SonarScanner CLI against `http://localhost:9001`, project
 `forgetful-factory`. Ignored `.sonarqube/` metadata and a scan script identify this project and scan
