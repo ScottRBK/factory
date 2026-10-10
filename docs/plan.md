@@ -23,7 +23,7 @@ This slice does not poll, launch agents, create Forgetful plans/worktrees, or ru
 service. GitHub is the first work-tracking adapter behind provider-independent domain contracts.
 Build dependency checks are recorded in [dependency audit](dependency-audit.md).
 
-Local validation: 28 tests passed on Python 3.12.3, including timeout and interruption checks.
+Local validation: 31 tests passed on Python 3.12.3, including timeout and interruption checks.
 `uv build --offline --no-python-downloads` produced a wheel and source distribution. Independent
 wheel-installed CLI validation passed for multiple repositories, existing-label preservation,
 repeat initialization, argument conflicts, denied access, and invalid NUL-containing settings.
@@ -36,6 +36,15 @@ validation now rejects NUL characters before external calls. The independent rev
 an invalid second label allowing an earlier label creation; the exact CLI case now asserts no GitHub
 calls or mutations. The review's unsupported-provider diagnostic advisory was fixed test-first.
 No other review blockers were reported.
+
+### Repository configuration update
+
+- [x] Match Scott's revised spec: repeat `[[repository]]` tables instead of a `repositories` map.
+- [x] Expose ordered repository records through the public loader and update initialization.
+- [x] Reject duplicate local directories and old or mixed formats before GitHub calls.
+- [x] Give existing configs header-conversion guidance without rewriting their bytes.
+- [x] Use the approved CLI/loader seams for RED→GREEN regressions; all 31 local tests pass.
+- [x] Rebuild and validate the local wheel with substitute `gh`; no live label mutations.
 
 ## Test CI
 

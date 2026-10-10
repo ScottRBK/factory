@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 
@@ -122,12 +123,65 @@ class InitTests(unittest.TestCase):
         self.assertEqual(config.watcher_label, ('factory',))
         self.assertEqual(config.foreman_agent_model, 'provider/model')
         self.assertEqual(config.foreman_agent_effort, 'high')
-        reference = next(iter(config.repositories.values()))
+        saved = tomllib.loads((repo / '.factory' / 'factory.toml').read_text())
+        self.assertEqual(saved['repository'], [{
+            'local_dir': str(repo), 'remote': 'git@github.com:team/app.git',
+            'provider': 'github', 'source': 'team/app',
+        }])
+        self.assertNotIn('repositories', saved)
+        reference = config.repository[0]
         self.assertEqual(reference.local_dir, str(repo))
         self.assertEqual(reference.remote, 'git@github.com:team/app.git')
         self.assertEqual(reference.work_source.provider, 'github')
         self.assertEqual(reference.work_source.reference, 'team/app')
         self.assertIn('Created team/app: factory', result.stdout)
+
+    def test_old_repository_format_is_preserved_with_conversion_guidance(self):
+        # Arrange
+        repo = self.repo()
+        path = repo / '.factory' / 'factory.toml'
+        path.parent.mkdir()
+        settings = '''watcher_label = ["factory"]
+foreman_agent_model = "provider/model"
+foreman_agent_effort = "high"
+'''
+        old_table = (f'[repositories.{json.dumps(str(repo))}]\n'
+                     f'local_dir = {json.dumps(str(repo))}\n'
+                     'remote = "git@github.com:team/app.git"\n'
+                     'provider = "github"\nsource = "team/app"\n')
+        for suffix in ('', old_table.replace(old_table.splitlines()[0], '[[repository]]')):
+            with self.subTest(mixed_formats=bool(suffix)):
+                contents = settings + old_table + suffix
+                path.write_text(contents)
+                # Act
+                result = self.run_cli(repo)
+                # Assert
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('Replace each [repositories.', result.stderr)
+                self.assertIn('[[repository]]', result.stderr)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertEqual(path.read_text(), contents)
+                self.assertEqual(json.loads(self.state.read_text()).get('calls', []), [])
+
+    def test_repeated_local_directory_is_rejected_before_github_calls(self):
+        # Arrange
+        repo = self.repo()
+        result = self.run_cli(repo, '--repo', '.', *self.settings())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        path = repo / '.factory' / 'factory.toml'
+        contents = path.read_text()
+        duplicate = contents[contents.index('[[repository]]'):]
+        path.write_text(contents + '\n' + duplicate)
+        self.state.write_text('{}')
+        # Act
+        result = self.run_cli(repo)
+        # Assert
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Duplicate repository local_dir', result.stderr)
+        self.assertIn(str(repo), result.stderr)
+        self.assertNotIn('Traceback', result.stderr)
+        self.assertEqual(path.read_text(), contents + '\n' + duplicate)
+        self.assertEqual(json.loads(self.state.read_text()).get('calls', []), [])
 
     def test_invalid_settings_fail_before_any_labels_or_config(self):
         # Arrange
@@ -279,7 +333,7 @@ class InitTests(unittest.TestCase):
         result = self.run_cli(self.workspace, input='2,3\ny\nfactory\nprovider/model\nhigh\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        references = self.load(self.workspace).repositories.values()
+        references = self.load(self.workspace).repository
         self.assertEqual({item.local_dir for item in references}, {str(other), str(worktree)})
         self.assertIn('https://github.com/team/other.git', result.stdout)
         self.assertIn('git@github.com:team/app.git', result.stdout)
@@ -417,9 +471,9 @@ class InitTests(unittest.TestCase):
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         config = self.load(self.workspace)
-        self.assertEqual({item.local_dir for item in config.repositories.values()},
+        self.assertEqual({item.local_dir for item in config.repository},
                          {str(first), str(second)})
-        self.assertEqual({item.remote for item in config.repositories.values()},
+        self.assertEqual({item.remote for item in config.repository},
                          {'git@github.com:team/app.git', 'https://github.com/Team/App.git'})
         self.assertEqual(json.loads(self.state.read_text())['created'], [['team/app', 'factory']])
 
@@ -440,7 +494,7 @@ class InitTests(unittest.TestCase):
         self.assertEqual(config.foreman_agent_model, model)
         self.assertEqual(config.watcher_label, (label,))
         self.assertEqual(config.foreman_agent_effort, 'very high')
-        self.assertEqual(next(iter(config.repositories.values())).local_dir, str(repo))
+        self.assertEqual(next(iter(config.repository)).local_dir, str(repo))
         self.assertFalse((repo / '.factory').exists())
 
     def test_missing_or_nonexecutable_tools_have_actionable_errors(self):
@@ -517,7 +571,7 @@ class InitTests(unittest.TestCase):
         result = self.run_cli(repo, '--repo', '.', *self.settings())
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(next(iter(self.load(repo).repositories.values())).local_dir, str(repo))
+        self.assertEqual(next(iter(self.load(repo).repository)).local_dir, str(repo))
 
     def test_malformed_create_response_reports_uncertainty_and_does_not_save(self):
         # Arrange
@@ -573,7 +627,7 @@ class InitTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         config = self.load(repo)
         self.assertEqual(config.watcher_label, ('*',))
-        self.assertEqual(next(iter(config.repositories.values())).local_dir, str(repo))
+        self.assertEqual(next(iter(config.repository)).local_dir, str(repo))
         self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
 
     def test_discovery_from_nonroot_child_never_selects_parent_repository(self):

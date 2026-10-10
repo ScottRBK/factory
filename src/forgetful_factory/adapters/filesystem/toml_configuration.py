@@ -47,8 +47,8 @@ class TomlConfigurationStore:
             'foreman_agent_model = ' + quote(configuration.foreman_agent_model),
             'foreman_agent_effort = ' + quote(configuration.foreman_agent_effort),
         ]
-        for key, repository in configuration.repositories.items():
-            lines.extend(['', f'[repositories.{quote(key)}]',
+        for repository in configuration.repository:
+            lines.extend(['', '[[repository]]',
                           'local_dir = ' + quote(repository.local_dir),
                           'remote = ' + quote(repository.remote),
                           'provider = ' + quote(repository.work_source.provider),

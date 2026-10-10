@@ -8,7 +8,7 @@ class FactoryConfiguration:
     watcher_label: tuple[str, ...]
     foreman_agent_model: str
     foreman_agent_effort: str
-    repositories: dict[str, RepositoryReference]
+    repository: tuple[RepositoryReference, ...]
 
 
 def nonblank(value: object, field: str) -> str:
@@ -30,35 +30,43 @@ def validate(configuration: FactoryConfiguration) -> None:
         raise FactoryError('watcher_label must contain at least one nonblank string.')
     for label in configuration.watcher_label:
         nonblank(label, 'watcher_label')
-    if not configuration.repositories:
-        raise FactoryError('repositories must contain at least one repository.')
+    if not configuration.repository:
+        raise FactoryError('repository must contain at least one repository.')
 
-    for key, repository in configuration.repositories.items():
-        nonblank(key, 'repository key')
-        nonblank(repository.local_dir, f'repositories.{key}.local_dir')
-        nonblank(repository.remote, f'repositories.{key}.remote')
-        nonblank(repository.work_source.provider, f'repositories.{key}.provider')
-        nonblank(repository.work_source.reference, f'repositories.{key}.source')
+    paths = set()
+    for index, repository in enumerate(configuration.repository, 1):
+        field = f'repository[{index}]'
+        nonblank(repository.local_dir, f'{field}.local_dir')
+        if repository.local_dir in paths:
+            raise FactoryError(f'Duplicate repository local_dir: {repository.local_dir}')
+        paths.add(repository.local_dir)
+        nonblank(repository.remote, f'{field}.remote')
+        nonblank(repository.work_source.provider, f'{field}.provider')
+        nonblank(repository.work_source.reference, f'{field}.source')
 
 
 def from_mapping(data: dict) -> FactoryConfiguration:
+    if 'repositories' in data:
+        raise FactoryError('Old repositories format is no longer supported. '
+                           'Replace each [repositories."path"] header with [[repository]] '
+                           'in .factory/factory.toml, keeping its fields, then rerun init.')
     labels = data.get('watcher_label')
-    repositories = data.get('repositories')
+    repositories = data.get('repository')
     if not isinstance(labels, list):
         raise FactoryError('watcher_label must be a list of nonblank strings.')
-    if not isinstance(repositories, dict):
-        raise FactoryError('repositories must be a TOML dictionary of repository tables.')
-    references = {}
-    for key, item in repositories.items():
+    if not isinstance(repositories, list):
+        raise FactoryError('repository must be a TOML array of tables using [[repository]].')
+    references = []
+    for index, item in enumerate(repositories, 1):
         if not isinstance(item, dict):
-            raise FactoryError(f'repositories.{key} must be a repository table.')
-        references[key] = RepositoryReference(
+            raise FactoryError(f'repository[{index}] must be a repository table.')
+        references.append(RepositoryReference(
             item.get('local_dir'), item.get('remote'),
             WorkSource(item.get('provider'), item.get('source')),
-        )
+        ))
     configuration = FactoryConfiguration(
         tuple(labels), data.get('foreman_agent_model'), data.get('foreman_agent_effort'),
-        references,
+        tuple(references),
     )
     validate(configuration)
     return configuration

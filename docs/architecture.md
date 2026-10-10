@@ -145,8 +145,13 @@ commands time out after 30 seconds.
 
 ### Configuration and platform scope
 
-The repositories setting is a TOML dictionary keyed by absolute local repository paths. Each entry
-contains `local_dir`, `remote`, `provider`, and `source`.
+The `repository` setting is a TOML array of tables: repeat `[[repository]]` for each local copy.
+Each entry contains `local_dir`, `remote`, `provider`, and `source`. The public configuration
+exposes these records as an ordered tuple named `repository`, not a dictionary keyed by local paths.
+Duplicate `local_dir` values are rejected; different local copies of one remote remain supported.
+Old `[repositories."path"]` tables are rejected before GitHub calls, including mixed-format files.
+To convert an existing config, replace each old table header with `[[repository]]` and keep its
+fields. Initialization does not automatically rewrite or migrate existing files.
 Code location and work tracking are separate. Top-level settings retain the names in `FACTORY.md`:
 `watcher_label`, `foreman_agent_model`, and `foreman_agent_effort`.
 `forgetful_factory.configuration.load_configuration` is the public validated loader.
@@ -157,7 +162,7 @@ watcher_label = ["factory"]
 foreman_agent_model = "openai-codex/gpt-6.1-sol"
 foreman_agent_effort = "max"
 
-[repositories."/home/scott/projects/api"]
+[[repository]]
 local_dir = "/home/scott/projects/api"
 remote = "git@github.com:team/api.git"
 provider = "github"
@@ -184,7 +189,7 @@ Do not add tests coupled to private helpers or internal mock calls. Use Python's
 additional test dependencies. Independently validate the installed package through local `uvx`.
 Live GitHub label validation in Dark Business requires separate confirmation of target repositories.
 
-Local validation passed 28 tests, the offline wheel/source-distribution build, and independent
+Local validation passed 31 tests, the offline wheel/source-distribution build, and independent
 wheel-installed CLI checks for multiple repositories, label preservation, reruns, conflicts, denied
 access, and invalid settings. The package has no runtime Python dependencies. See the
 [plan](plan.md) for remaining live validation.

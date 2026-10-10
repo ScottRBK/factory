@@ -196,7 +196,7 @@ You can configure a factory using the factory.toml file which allows the configu
 
 |Configuration|Type|Example|Description|
 |-------------|-----|------|----------|
-|repositories|dict|See example below.|Repositories monitored by the factory; supports multiple.|
+|repository|string|See example below.|Repositories monitored by the factory; supports multiple.|
 |watcher_label|list[string]|"factory"|list of strings indicating which labels the watcher should pick up, must be specified, accepts * as wild card for all|
 |foreman_agent_model|string|"openai-codex/gpt-6.1-sol"|set the provider and model information for the foreman agent|
 |foreman_agent_effort|string|"max"|thinking effort level of the foreman agent|
@@ -212,11 +212,12 @@ You can configure a factory using the factory.toml file which allows the configu
 
 Repositories example:
 
-```text
-[
-  { remote: "git@github.com:ScottRBK/forgetful.gi", local_dir: "~/gh/forgetful" },
-  { remote: "git@github.com:ScottRBK/agentshell.gi", local_dir: "~/ai/agentshell" }
-]
+ ```toml
+   [[repository]]
+   local_dir = "/home/scott/projects/api"
+   remote = "git@github.com:team/api.git"
+   provider = "github"
+   source = "team/api"
 ```
 
 

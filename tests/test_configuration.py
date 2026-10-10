@@ -9,7 +9,7 @@ from forgetful_factory.domain.models import FactoryError
 VALID = '''watcher_label = ["factory"]
 foreman_agent_model = "provider/model"
 foreman_agent_effort = "high"
-[repositories."team/app"]
+[[repository]]
 local_dir = "/existing/repo"
 remote = "git@github.com:team/app.git"
 provider = "github"
@@ -18,6 +18,30 @@ source = "team/app"
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_loader_reads_repeated_repository_tables_in_order(self):
+        # Arrange
+        contents = VALID + '''
+[[repository]]
+local_dir = "/existing/web"
+remote = "https://github.com/team/web.git"
+provider = "github"
+source = "team/web"
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            config = workspace / '.factory' / 'factory.toml'
+            config.parent.mkdir()
+            config.write_text(contents)
+            # Act
+            loaded = load_configuration(workspace)
+            # Assert
+            self.assertEqual([item.local_dir for item in loaded.repository],
+                             ['/existing/repo', '/existing/web'])
+            self.assertEqual([item.remote for item in loaded.repository],
+                             ['git@github.com:team/app.git', 'https://github.com/team/web.git'])
+            self.assertEqual([item.work_source.reference for item in loaded.repository],
+                             ['team/app', 'team/web'])
+
     def test_loader_rejects_nul_characters_before_settings_reach_external_tools(self):
         # Arrange
         cases = [
@@ -56,7 +80,12 @@ class ConfigurationTests(unittest.TestCase):
             ('remote = "git@github.com:team/app.git"', 'remote = true'),
             ('provider = "github"', 'provider = ""'),
             ('source = "team/app"', 'source = ["team/app"]'),
-            (VALID, 'repositories = []'),
+            (VALID, 'repository = []'),
+            (VALID, 'repository = "team/app"'),
+            (VALID, 'repository = [42]'),
+            ('[[repository]]', '[repository]'),
+            ('[[repository]]', '[other]'),
+            (VALID, VALID + '\n[[repository]]\nlocal_dir = "/existing/web"\n'),
             (VALID, '['),
         ]
         with tempfile.TemporaryDirectory() as directory:

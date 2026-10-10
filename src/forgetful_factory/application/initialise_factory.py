@@ -25,7 +25,7 @@ class InitialiseFactory:
             return None
         conflicts = (
             paths is not None and {str(path) for path in paths} !=
-            {repository.local_dir for repository in config.repositories.values()},
+            {repository.local_dir for repository in config.repository},
             labels is not None and {label.casefold() for label in unique_labels(labels)} !=
             {label.casefold() for label in config.watcher_label},
             model is not None and model != config.foreman_agent_model,
@@ -53,11 +53,12 @@ class InitialiseFactory:
     def configure(self, paths: list[Path], labels: list[str], model: str,
                   effort: str) -> FactoryConfiguration:
         references = self.inspect(paths)
-        return FactoryConfiguration(unique_labels(labels), model, effort, references)
+        return FactoryConfiguration(unique_labels(labels), model, effort,
+                                    tuple(references.values()))
 
     def _preflight(self, config: FactoryConfiguration) -> dict[WorkSource, tuple[Label, ...]]:
         validate(config)
-        for repository in config.repositories.values():
+        for repository in config.repository:
             remote = self.repositories.origin(Path(repository.local_dir))
             source = self.sources.source_from_remote(remote)
             if repository.work_source.provider != source.provider:
@@ -70,7 +71,7 @@ class InitialiseFactory:
                 raise FactoryError(f'Origin/source changed for {repository.local_dir}; '
                                    'edit .factory/factory.toml and rerun init.')
         sources = dict.fromkeys(
-            repository.work_source for repository in config.repositories.values()
+            repository.work_source for repository in config.repository
         )
         for source in sources:
             self.tracking.check_access(source)
