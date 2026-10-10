@@ -1,0 +1,17 @@
+[build-system]
+requires = ["uv_build==0.8.0"]
+build-backend = "uv_build"
+
+[project]
+name = "forgetful-factory"
+version = "0.1.0"
+description = "Initialize a workspace factory for local repositories and GitHub work sources"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+forgetful-factory = "forgetful_factory.cli.main:main"
+
+[tool.uv.build-backend]
+source-include = ["tests/*.py"]

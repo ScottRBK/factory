@@ -1,4 +1,130 @@
-#  Plan for implementing
+# Plan for implementing
+
+## Slice 1: initialize a factory
+
+Status: implemented, independently reviewed, and locally validated. Review findings were fixed
+and regression-checked; live GitHub validation remains separately gated.
+See [architecture](architecture.md) for the implemented first-slice structure.
+
+- [x] Package a `forgetful-factory init` command with interactive and explicit configuration.
+- [x] Configure one or several local repositories, watched labels, Foreman model, and effort.
+- [x] Validate configuration and access before creating missing GitHub labels.
+- [x] Save `.factory/factory.toml`, preserve existing configuration, and support safe reruns.
+- [x] Validate the packaged command locally through `uvx`; do not publish to PyPI in this slice.
+- [x] Independently validate tests and the local initialization journey.
+- [ ] Validate real GitHub label setup against repositories explicitly approved for that step.
+
+Scott approved two public test boundaries: the initialization CLI and configuration loading.
+Use TDD through those boundaries, temporary real Git repositories/files, and a substitute `gh`
+executable for the external GitHub boundary. Do not mutate live GitHub repositories in ordinary
+local tests. Live label validation in Dark Business is a separate confirmation step.
+
+This slice does not poll, launch agents, create Forgetful plans/worktrees, or run a background
+service. GitHub is the first work-tracking adapter behind provider-independent domain contracts.
+Build dependency checks are recorded in [dependency audit](dependency-audit.md).
+
+Local validation: 28 tests passed on Python 3.12.3, including timeout and interruption checks.
+`uv build --offline --no-python-downloads` produced a wheel and source distribution. Independent
+wheel-installed CLI validation passed for multiple repositories, existing-label preservation,
+repeat initialization, argument conflicts, denied access, and invalid NUL-containing settings.
+All GitHub calls in these checks used substitute executables. No Dark Business configuration,
+live GitHub changes, publication, commit, or push occurred.
+
+The initial Unicode checks missed NUL characters that TOML can decode but OS APIs cannot accept.
+A public-loader regression and CLI invalid-config case reproduced the traceback before the fix;
+validation now rejects NUL characters before external calls. The independent review also reproduced
+an invalid second label allowing an earlier label creation; the exact CLI case now asserts no GitHub
+calls or mutations. The review's unsupported-provider diagnostic advisory was fixed test-first.
+No other review blockers were reported.
+
+## Test CI
+
+- [x] Add `.github/workflows/ci.yml` to run the existing suite on every push, without filters.
+- [x] Use `ubuntu-latest` with separate Python 3.11 and 3.12 jobs and no Python dependencies.
+- [x] Add pull-request checks and cancel older runs for the same workflow and ref.
+- [x] Audit official actions; use read-only permissions and no saved checkout credentials.
+- [x] Replace commit pins with verified `v7` tags for compatible updates, at Scott's request.
+- [x] Validate workflow YAML, triggers, concurrency, matrix, references, and test command.
+  The latest separate local test run passed all 28 tests.
+- [ ] Verify both hosted jobs after the workflow and implementation are committed and pushed.
+
+Action dependency advisories and limits are recorded in [dependency audit](dependency-audit.md).
+No push or hosted execution was performed. Python 3.11 is not installed locally.
+
+## Local SonarQube setup
+
+Scott requested local SonarQube scan setup after slice validation.
+
+- [x] Confirm scanner availability and access to the local server at `http://localhost:9001`.
+- [x] Verify that the Python analyzer and `Sonar way sans code coverage` gate are available.
+- [x] Ignore `.sonarqube/` metadata and `.scannerwork/` scanner output.
+- [x] Confirm the project key: subsequent server search verified `forgetful-factory`.
+- [x] Set up ignored project-local metadata and a scan script for `src/` and `tests/`.
+- [x] Supply a project analysis token as `SONAR_TOKEN` in the ignored project `.env`.
+- [x] Verify assignment to `Sonar way sans code coverage` before running/reporting the scan.
+- [x] Run the local scan and retrieve the completed analysis, issues, and measures.
+
+Shared credentials provide read access only; do not use `SONAR_READ_TOKEN` for analysis.
+Project-local setup is in `.sonarqube/project.properties` and `.sonarqube/start-scan.sh`. Run:
+
+```bash
+bash .sonarqube/start-scan.sh
+```
+
+The analysis token stays in the root `.env` and process environment, not scanner arguments or
+metadata. The script detects the current branch, omits the branch parameter for main, and waits
+for the server's quality gate. Local metadata/scripts are ignored and must be recreated in other
+worktrees. No agent-created server project or quality-gate reassignment occurred.
+
+### First scan results
+
+Server: `http://localhost:9001`, project `forgetful-factory`, branch `main`.
+Completed analysis: `2026-10-09T21:12:39Z` (26 Python files indexed).
+Dashboard: <http://localhost:9001/dashboard?id=forgetful-factory>.
+
+- Gate: `Sonar way sans code coverage`, status passed. First analysis returned no evaluated
+  new-code conditions; this is not evidence that the two overall code issues are resolved.
+- Configured gate limits: no new issues, new duplicated lines at most 3%, and all new security
+  hotspots reviewed. No coverage condition or aggregate complexity limit is configured.
+- Reported bugs: 0; vulnerabilities: 0; security hotspots: 0.
+- Duplication: 0 lines, 0 blocks, 0.0%.
+- Code smells/open issues: 2, both `python:S3776`, severity critical:
+  - `src/forgetful_factory/application/initialise_factory.py:58`: cognitive complexity 21,
+    allowed 15.
+  - `src/forgetful_factory/cli/main.py:29`: cognitive complexity 23, allowed 15.
+- Aggregate cyclomatic complexity: 109; aggregate cognitive complexity: 109; source lines: 448.
+  These are project totals, not per-function limits or a complete per-function report.
+- Coverage metric: 0.0%; no coverage report was supplied. This scan did not run the test suite.
+  The separate local validation ran 28 tests successfully.
+
+The scan included the uncommitted working tree. Git blame was unavailable for new source files;
+reported revision `fc5765e` is the existing documentation commit, not a committed implementation.
+Source was not refactored during scan setup; the follow-up below resolves those findings.
+
+### Complexity refactor and follow-up scan
+
+Scott approved simplifying both flagged functions and reducing the README to an introduction,
+local run instructions, and documentation pointers. No runtime behaviour or architectural
+boundaries changed. Extracted preflight and label handling in the application, and argument
+parsing and new-configuration prompts in the CLI. Existing public-boundary regressions were
+used for this refactor; no implementation-coupled helper tests were added.
+
+- Before and after refactoring: all 28 tests passed; the final run took 34.102 seconds.
+- Offline wheel/source build passed. A fresh-path wheel-installed CLI check passed for multiple
+  repositories, preserved labels, safe reruns, conflicts, denied access, and NUL rejection.
+- Latest follow-up analysis: `2026-10-09T21:25:19Z`, project `forgetful-factory`, branch `main`.
+- Both original `python:S3776` findings are closed with resolution `FIXED`; open issues: 0.
+- Gate `Sonar way sans code coverage` passed. Evaluated conditions: 0 new issues and 0.0% new
+  duplicated lines (limits: 0 and 3%). No hotspot condition was returned; hotspot search found 0.
+- Reported bugs, vulnerabilities, security hotspots, and code smells: 0 each.
+- Duplication: 0 lines, 0 blocks, 0.0%. Aggregate cyclomatic complexity: 112; aggregate cognitive
+  complexity: 96; source lines: 455. Aggregate metrics are not per-function limits.
+- Coverage remains 0.0%; no coverage report was supplied and no coverage gate was applied.
+
+The scan still represents uncommitted source, not the documentation revision reported by Git.
+No rules or gates changed. No live GitHub mutation, publication, commit, or push occurred.
+
+## Later slices
 
 - [ ] Build the Python watcher to notify the Foreman of new GitHub issues.
 - [ ] Validate sending a watcher notification to the chosen Foreman Pi session while idle
