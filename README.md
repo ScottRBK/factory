@@ -34,4 +34,4 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 Tests use temporary repositories and a substitute `gh`; they do not contact GitHub.
 See [architecture](docs/architecture.md) for the implementation and [plan](docs/plan.md) for
-progress and local SonarQube scan instructions.
+progress.

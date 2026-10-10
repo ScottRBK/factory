@@ -187,7 +187,7 @@ Live GitHub label validation in Dark Business requires separate confirmation of 
 Local validation passed 28 tests, the offline wheel/source-distribution build, and independent
 wheel-installed CLI checks for multiple repositories, label preservation, reruns, conflicts, denied
 access, and invalid settings. The package has no runtime Python dependencies. See the
-[plan](plan.md) for remaining live validation and recorded SonarQube findings.
+[plan](plan.md) for remaining live validation.
 
 The GitHub Actions workflow `.github/workflows/ci.yml` runs the same test suite on every push,
 without branch, tag, or path filters, and on pull-request opening, reopening, and updates.
