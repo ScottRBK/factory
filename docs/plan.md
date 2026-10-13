@@ -1,93 +1,44 @@
 # Plan for implementing
 
-## Slice 1: initialize a factory
+## Slices
 
-Status: implemented, independently reviewed, and locally validated. Review findings were fixed
-and regression-checked; live GitHub validation remains separately gated.
-See [architecture](architecture.md) for the implemented first-slice structure.
+### Slice 1: initialize a factory
 
-- [x] Package a `forgetful-factory init` command with interactive and explicit configuration.
-- [x] Configure one or several local repositories, watched labels, Foreman model, and effort.
-- [x] Validate configuration and access before creating missing GitHub labels.
-- [x] Save `.factory/factory.toml`, preserve existing configuration, and support safe reruns.
-- [x] Validate the packaged command locally through `uvx`; do not publish to PyPI in this slice.
-- [x] Independently validate tests and the local initialization journey.
-- [ ] Validate real GitHub label setup against repositories explicitly approved for that step.
+Implemented, independently reviewed, and locally validated. Live GitHub label validation remains
+separately gated. See [slice 1](plans/slice-1.md) for scope, progress, and validation evidence.
 
-Scott approved two public test boundaries: the initialization CLI and configuration loading.
-Use TDD through those boundaries, temporary real Git repositories/files, and a substitute `gh`
-executable for the external GitHub boundary. Do not mutate live GitHub repositories in ordinary
-local tests. Live label validation in Dark Business is a separate confirmation step.
+### Slice 2: watch issues and notify Pi
 
-This slice does not poll, launch agents, create Forgetful plans/worktrees, or run a background
-service. GitHub is the first work-tracking adapter behind provider-independent domain contracts.
-Build dependency checks are recorded in [dependency audit](dependency-audit.md).
+Implemented: poll configured GitHub repositories and labels, then forward issue notifications to
+one newly launched Pi session through AgentShell. Local tests, packaged-command checks, real
+idle/busy delivery, and SonarQube passed. Opus found no blockers; message advisories were fixed. See
+[slice 2](plans/slice-2.md) for details. Agent profiles, tools, and skills come later.
 
-Local validation: 31 tests passed on Python 3.12.3, including timeout and interruption checks.
-`uv build --offline --no-python-downloads` produced a wheel and source distribution. Independent
-wheel-installed CLI validation passed for multiple repositories, existing-label preservation,
-repeat initialization, argument conflicts, denied access, and invalid NUL-containing settings.
-All GitHub calls in these local checks used substitute executables. They did not configure
-Dark Business, mutate live GitHub labels, or publish the package.
+### Slice 3: Foreman setup and issue updates
 
-The initial Unicode checks missed NUL characters that TOML can decode but OS APIs cannot accept.
-A public-loader regression and CLI invalid-config case reproduced the traceback before the fix;
-validation now rejects NUL characters before external calls. The independent review also reproduced
-an invalid second label allowing an earlier label creation; the exact CLI case now asserts no GitHub
-calls or mutations. The review's unsupported-provider diagnostic advisory was fixed test-first.
-No other review blockers were reported.
+Deferred until after slice 2:
 
-### Repository configuration update
+- [ ] Configure the Foreman's Pi profile, tools, and extensions; settle Forgetful wiring.
+- [ ] Create the Foreman skill with the agreed dispatch/recovery and completion responsibilities.
+- [ ] Consider issue-update notifications and changes made while the watcher was stopped,
+  including what state to retain and how to handle updates on restart.
 
-- [x] Match Scott's revised spec: repeat `[[repository]]` tables instead of a `repositories` map.
-- [x] Expose ordered repository records through the public loader and update initialization.
-- [x] Reject duplicate local directories and old or mixed formats before GitHub calls.
-- [x] Give existing configs header-conversion guidance without rewriting their bytes.
-- [x] Use the approved CLI/loader seams for RED→GREEN regressions; all 31 local tests pass.
-- [x] Rebuild and validate the local wheel with substitute `gh`; no live label mutations.
+### Later slices
 
-## Test CI
-
-- [x] Add `.github/workflows/ci.yml` to run the existing suite on every push, without filters.
-- [x] Use `ubuntu-latest` with separate Python 3.11 and 3.12 jobs and no Python dependencies.
-- [x] Add pull-request checks and cancel older runs for the same workflow and ref.
-- [x] Audit official actions; use read-only permissions and no saved checkout credentials.
-- [x] Replace commit pins with verified `v7` tags for compatible updates, at Scott's request.
-- [x] Validate workflow YAML, triggers, concurrency, matrix, references, and test command.
-  The latest separate local test run passed all 28 tests.
-- [x] Verify both hosted jobs after the workflow and implementation are committed and pushed.
-
-Action dependency advisories and limits are recorded in [dependency audit](dependency-audit.md).
-Implementation committed and pushed as `2ee6e6b`; the push workflow passed on 2026-10-10.
-[CI run 38041488129](https://github.com/ScottRBK/factory/actions/runs/38041488129) tested that exact
-commit: all 28 tests passed on Python 3.11 (36.928 seconds) and Python 3.12 (37.253 seconds).
-Local pre-commit validation also passed all 28 tests. PR-event execution and cancellation of
-outdated runs have not been exercised on GitHub; a passing push run does not verify those paths.
-Python 3.11 remains unavailable locally, but is now verified on the hosted runner.
-
-## Later slices
-
-- [ ] Build the Python watcher to notify the Foreman of new GitHub issues.
-- [ ] Validate sending a watcher notification to the chosen Foreman Pi session while idle
-  and busy. The watcher just sends a message; the Foreman deals with it from there.
+- [ ] Add existing-Pi-session notifications through AgentShell once attach/send is available:
+  [AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25). No direct tmux fallback.
+- [ ] Configure the feature-owner's Pi profile, tools, and extensions.
+- [ ] Extend the watcher with Forgetful plan scaffolding and initial worktree creation.
+- [ ] Setup linting for the repo
+- [ ] Investigate AgentShell's streamed Pi event-log growth before days-long watcher sessions;
+  pursue an upstream fix rather than factory code reaching into private SDK files.
+- [ ] Revisit provider-side filtering and quota handling for repositories with many open issues.
 - [ ] Validate identifying and reusing live feature-owner sessions after a Foreman restart;
   saved session IDs and AgentShell Job IDs alone do not prove an owner is still running.
-- [ ] Create the Foreman skill with the agreed reference locations, dispatch/recovery rules,
-  and deployment/E2E completion responsibilities.
 - [ ] Create the feature-owner skill with the agreed reference locations, ownership/assignment
   rules, and implementation completion/CI responsibilities.
 - [ ] Validate that post-merge deployment/E2E stages identify the tested application revisions,
   including the deployed combination for a multi-repository epic.
-
-## Watcher implementation decision
-
-- Use Python rather than Bash for the watcher; reuse the existing AgentShell installation.
-- Use AgentShell's experimental interactive tmux host to launch the Foreman's Pi terminal once.
-- Send subsequent notifications through `session.terminal.send_text(message, submit=True)`;
-  do not launch a new Foreman for each notification or add custom queueing behaviour.
-- For a user-selected, already-running Foreman, target its existing tmux pane. AgentShell does
-  not currently expose a public attach-to-existing-Foreman API.
-- Validate the real notification path with both idle and busy Pi sessions before relying on it.
 
 ## Design questions
 
@@ -96,6 +47,18 @@ Checked items record agreed decisions. Work through the remaining questions befo
 Default to the responsible agent's discretion unless `FACTORY.md`, an agreed decision below,
 or the affected repository's instructions specify otherwise. Capture this default in the agent
 skills; do not invent factory-wide templates, retry budgets, or extra subsystems for judgment calls.
+
+### Watcher implementation decision
+
+- Use Python rather than Bash for the watcher. Package AgentShell 0.4.0 as a runtime dependency
+  so `uvx` installs it automatically; require Python 3.12+ and test 3.12/3.13 in CI.
+- Use AgentShell's experimental interactive tmux host to launch the Foreman's Pi terminal once.
+- Send subsequent notifications through `session.terminal.send_text(message, submit=True)`;
+  do not launch a new Foreman for each notification or add custom queueing behaviour.
+- Slice 2 launches a new Pi session only. All terminal interaction goes through AgentShell;
+  do not add direct tmux delivery. Existing-session support is deferred to
+  [AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25).
+- Validate the real notification path with both idle and busy Pi sessions before relying on it.
 
 ### 1. Prevent duplicate work
 
@@ -135,6 +98,8 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
   - If an instance's status is uncertain, report that rather than automatically replace it.
   - Never stop or replace an existing instance without the user's permission.
   - Starting an additional factory instance is not an offered startup option.
+  - Slice 2 launches new sessions only and rejects a concurrent second watcher for the workspace.
+    Discovery/selection of existing sessions is deferred until AgentShell supports attachment.
 - [x] How should a restarted Foreman rediscover an existing owner or recover a failed launch?
   - Read the ownership task to find the recorded feature-owner session.
   - Reuse the owner if it is still running.
@@ -242,7 +207,8 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
 - [x] How should work remain pending when the Foreman is busy or unavailable?
   - The watcher simply sends a message to the existing Foreman Pi session; the Foreman deals
     with it from there. No custom watcher queue or busy-session coordination is required.
-  - Validate this notification path with an idle and a busy Foreman; it is not yet tested.
+  - Slice 2 validated submission to the same new Pi session while idle and busy through AgentShell.
+    Role-specific Foreman behaviour remains deferred.
   - If the session is unavailable, the plan remains pending in Forgetful and restart recovery
     rediscovers it. Do not assume session messages survive a restart.
 - [x] How should clarification replies from GitHub and direct user input reach the feature-owner?

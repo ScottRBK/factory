@@ -21,3 +21,15 @@ class RepositoryReference:
 @dataclass(frozen=True)
 class Label:
     name: str
+
+
+@dataclass(frozen=True)
+class Issue:
+    source: WorkSource
+    number: int
+    title: str
+    url: str
+
+    @property
+    def id(self) -> str:
+        return f'{self.source.provider}:{self.source.reference}#{self.number}'

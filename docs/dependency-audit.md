@@ -1,7 +1,8 @@
 # Dependency audit
 
 Audit date: 2026-10-09. This records checks performed before adding the first build dependency.
-No runtime Python dependencies are required for initialization; tests use Python's `unittest`.
+Initialization originally shipped without runtime Python dependencies; tests use `unittest`.
+The later AgentShell runtime dependency is recorded below.
 
 ## uv_build 0.8.0 — build only
 
@@ -105,3 +106,32 @@ Reaudit before deliberately changing action versions or enabling caches, additio
 privileged triggers. Context7 confirmed major-version tags track compatible minor/patch releases;
 this trades immutable code selection for automatic updates. Manifests at the audited SHAs confirmed
 their inputs and Node runtime. No global tools or Python packages were installed or upgraded.
+
+## AgentShell 0.4.0 — runtime
+
+Audit date: 2026-10-13, before declaring and installing the factory's runtime dependency.
+Scott had waived the existing AgentShell audit requirement; these release checks were still made.
+
+Decision: pin `agent-shell-py==0.4.0`, the latest published release checked on PyPI. It provides
+`AgentShell.open_interactive` and the tmux host API used by the watcher. Its Python 3.12+
+requirement now sets the factory's minimum; CI covers Python 3.12 and 3.13.
+
+Checks:
+
+- Publisher source: <https://github.com/ScottRBK/agent-shell>, confirmed against Scott's existing
+  checkout origin and the official README's `agent-shell-py` installation instructions.
+- Release metadata: <https://pypi.org/pypi/agent-shell-py/0.4.0/json>.
+- Artifact: `agent_shell_py-0.4.0-py3-none-any.whl`, uploaded 2026-09-06, not yanked.
+- Downloaded without executing it; checked archive paths, package metadata, and interactive API
+  source. License MIT, requires Python 3.12+, no transitive Python runtime dependencies.
+- Verified the wheel SHA-256 against PyPI metadata:
+  `fb06a6bba1a0bccc1bcaac07719837a74e09138569ad4938d9a5874bbb889dc3`.
+- OSV query for PyPI `agent-shell-py` 0.4.0 returned `{}`. This is a point-in-time advisory check,
+  not proof of security or a complete source audit.
+- AgentShell starts external agent CLIs and tmux processes at runtime. Those tools, their model
+  credentials, and their own supply chains remain separate host responsibilities.
+
+Context7 only returned the unrelated Emacs Agent Shell; official repository documentation and
+release-wheel source supplied the version-specific evidence. Context7's uv documentation confirmed
+that `uvx` installs tool dependencies into its isolated environment. No global uv or action upgrade
+was performed. CI's package installation executes the already audited `uv_build==0.8.0` backend.

@@ -2,7 +2,7 @@ import json
 import re
 
 from forgetful_factory.adapters.command import run_command
-from forgetful_factory.domain.models import FactoryError, Label, WorkSource
+from forgetful_factory.domain.models import FactoryError, Issue, Label, WorkSource
 
 
 class GitHubWorkTracking:
@@ -53,3 +53,34 @@ class GitHubWorkTracking:
             )
         if result['name'].casefold() != label.name.casefold():
             raise FactoryError(f'GitHub {source.reference}: unexpected created label name.')
+
+    def list_issues(self, source: WorkSource, labels: tuple[str, ...]) -> tuple[Issue, ...]:
+        pages = self._api(source, '/issues?state=open&per_page=100', '--paginate', '--slurp')
+        if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+            raise FactoryError(f'GitHub {source.reference}: malformed issue pages JSON.')
+        watched = {name.casefold() for name in labels}
+        issues = []
+        items = [item for page in pages for item in page]
+        for item in items:
+            if not isinstance(item, dict):
+                raise FactoryError(f'GitHub {source.reference}: malformed issue JSON.')
+            if 'pull_request' in item:
+                continue
+            self._validate_issue(source, item)
+            matches = '*' in watched or any(label['name'].casefold() in watched
+                                            for label in item['labels'])
+            if item['state'] == 'open' and matches:
+                issues.append(Issue(source, item['number'], item['title'], item['html_url']))
+        return tuple(issues)
+
+    @staticmethod
+    def _validate_issue(source: WorkSource, item: dict) -> None:
+        valid = (type(item.get('number')) is int and item['number'] > 0
+                 and isinstance(item.get('title'), str)
+                 and isinstance(item.get('html_url'), str)
+                 and item.get('state') in ('open', 'closed')
+                 and isinstance(item.get('labels'), list)
+                 and all(isinstance(label, dict) and isinstance(label.get('name'), str)
+                         for label in item['labels']))
+        if not valid:
+            raise FactoryError(f'GitHub {source.reference}: malformed issue JSON.')

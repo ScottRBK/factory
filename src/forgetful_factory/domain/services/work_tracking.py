@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from forgetful_factory.domain.models import Label, WorkSource
+from forgetful_factory.domain.models import Issue, Label, WorkSource
 
 
 class WorkTrackingService(Protocol):
@@ -9,3 +9,5 @@ class WorkTrackingService(Protocol):
     def list_labels(self, source: WorkSource) -> tuple[Label, ...]: ...
 
     def create_label(self, source: WorkSource, label: Label) -> None: ...
+
+    def list_issues(self, source: WorkSource, labels: tuple[str, ...]) -> tuple[Issue, ...]: ...

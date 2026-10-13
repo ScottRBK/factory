@@ -3,28 +3,32 @@
 A software factory for one repository or a group of repositories, coordinating work tracking,
 Forgetful planning, and Pi agents. See [FACTORY.md](FACTORY.md) for the intended behaviour.
 
-Currently, only `init` is implemented: it configures repositories, labels, and Foreman settings,
-creates missing GitHub labels, and saves `.factory/factory.toml`. It does not launch agents or poll.
+`init` configures the factory and creates missing GitHub labels. `watch` reads matching issues
+and notifies one newly launched Pi session. Planning and agent dispatch come in later slices.
 
 ## Run locally
 
-Requires Python 3.11+, `uv`, Git, and authenticated GitHub CLI (`gh auth login`) on Linux/WSL or
-another POSIX system. Your GitHub account needs permission to create repository labels.
-The package is not published yet, so build and run the local wheel:
+Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL or another POSIX host.
+Watching also needs Pi and tmux. `uvx` installs the AgentShell dependency automatically.
+
+The package is not published yet. Build it from this checkout:
 
 ```bash
-# From this checkout
 uv build
 wheel="$(realpath dist/forgetful_factory-0.1.0-py3-none-any.whl)"
 
-# From your repository or a directory containing several repositories
+# In the same shell, move to your repository or group of repositories
 cd /absolute/path/to/workspace
-uvx --from "$wheel" forgetful-factory init
+uvx --refresh --from "$wheel" forgetful-factory init
+uvx --refresh --from "$wheel" forgetful-factory watch
 ```
 
-Follow the prompts to select repositories, confirm their origins, and enter labels, model, and
-effort. Run `init` again to reuse existing settings. To change them, edit `.factory/factory.toml`.
-For noninteractive usage, see `forgetful-factory init --help` through the same `uvx` command.
+Follow the prompts. Settings are saved in `.factory/factory.toml`; edit it to change them.
+The watcher prints how to view Pi. **Stopping the watcher closes its Pi session.** Only one
+watcher may run per workspace. Use `watch --help` through the same `uvx` command for options,
+including `--existing`, `--new-only`, and `--interval` (default: 30 seconds).
+See [architecture](docs/architecture.md) for implemented behaviour and [plan](docs/plan.md)
+for progress. Role-specific tools and skills are not configured yet.
 
 ## Development
 
@@ -32,6 +36,4 @@ For noninteractive usage, see `forgetful-factory init --help` through the same `
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Tests use temporary repositories and a substitute `gh`; they do not contact GitHub.
-See [architecture](docs/architecture.md) for the implementation and [plan](docs/plan.md) for
-progress.
+Tests substitute GitHub and AgentShell; they make no live GitHub requests or Pi model calls.

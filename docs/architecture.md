@@ -27,13 +27,129 @@ checks GitHub access and creates missing configured labels without changing exis
 Foreman settings are stored only: this slice does not launch agents, poll issues, use Forgetful,
 create worktrees, or clone repositories.
 
+## Slice 2: watch issues and notify Pi
+
+Status: implemented, locally validated, and independently reviewed by Opus. Its message advisories
+were fixed with regressions; no blockers remain.
+
+Scott agreed to poll configured GitHub work sources for issues matching the watched labels, then
+forward notifications to one newly launched Pi session through AgentShell's tmux runner, using the
+configured Foreman model and effort. Reuse that session; do not silently replace or duplicate it.
+Keep polling behind `WorkTrackingService` and terminal delivery behind an application port.
+The application coordinates polling; GitHub and AgentShell adapters perform external operations.
+All terminal interaction goes through AgentShell, not factory-owned tmux calls. The host still
+requires tmux at runtime. Existing-session delivery is deferred pending
+[AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25); a Pi session ID reopens a
+conversation in a new process, not a connection to the already-running terminal.
+No custom notification queue. Validate idle and busy delivery; submission is not execution.
+
+Prompt at startup whether to forward existing matching open issues or watch for new matches only.
+For new matches only, the initial results form a baseline without notifications. Slice 2 forwards
+new matches, not edits to already-seen issues; restarts use the same startup prompt. Consider update
+notifications and durable restart tracking in slice 3 alongside Foreman setup.
+
+The agreed `forgetful-factory watch` command launches Pi and starts polling every 30 seconds
+by default, with `--interval` overriding it. Keep notified issue IDs in memory, recording successful
+submissions; seed the seen set with initial results when the user chooses new matches only.
+Notifications contain repository, issue number, title, and URL, not the issue body. Retry failed
+GitHub reads next poll; stop with a clear error on terminal delivery failure. For new-only startup,
+each work source is baselined on its first successful read, even if its initial read failed.
+The watcher owns the new Pi process and closes it when it stops; there is no detached operation.
+A workspace lease prevents a second concurrent watcher from launching another Pi. It is an advisory
+lock on the existing `.factory` directory, held until shutdown cleanup completes; no PID or lock
+files are written. The filesystem adapter uses POSIX `flock` with a no-follow directory open, and
+the application depends on the `WatchLease` port. Different workspaces are not globally coordinated.
+The CLI supplies the startup-choice callback; the application acquires the lease before invoking it
+or reporting the terminal adapter's startup hint. Rejected second watchers therefore do not ask
+unused questions or print commands for nonexistent targets.
+If cleanup fails, inspect the printed session before retrying; the watcher never replaces it.
+
+See the [slice 2 plan](plans/slice-2.md) for tests, SonarQube analysis, and Opus review.
+Profiles, role tools/skills, plans, worktrees, and owner dispatch remain out of scope.
+
+### Watcher integration
+
+The package requires Python 3.12+ and declares `agent-shell-py==0.4.0` as a runtime dependency.
+`uvx` installs AgentShell into the factory's isolated environment; no source checkout or separate
+AgentShell installation is needed. Pi, tmux, Git, and authenticated `gh` remain host prerequisites.
+The default controller interpreter is the factory's Python. `--agentshell-python /path/to/python`
+remains an optional override for an already installed compatible AgentShell environment.
+The Python minimum follows AgentShell 0.4.0's requirement.
+See the [dependency audit](dependency-audit.md).
+
+`AgentShellTerminal` starts one small controller using the selected interpreter and the installed
+controller file's absolute path. Its private line-based protocol carries launch settings,
+notification text, and submission acknowledgements. Library output goes to stderr, separate from
+that protocol. The controller owns the interactive session lifetime; keeping it in a subprocess
+also supports the optional interpreter override without mixing Python environments.
+It is an adapter detail, not a domain service or a general messaging framework.
+
+The controller uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
+start event before submitting text, and calls `session.terminal.send_text(..., submit=True)`.
+Startup and submission waits are bounded. Native trust prompts remain enabled; the user may need
+to attach to the displayed session and answer them. Closing the controller closes its owned session.
+The factory does not interpret terminal screenshots or infer that a submitted issue was completed.
+
+```text
+src/forgetful_factory/
+├── application/
+│   ├── watch_factory.py             # Polling, baseline, seen IDs, notifications
+│   └── ports/
+│       ├── foreman_terminal.py      # Startup hint, launch, submit, wait, close
+│       └── watch_lease.py           # Exclusive workspace ownership contract
+├── domain/
+│   ├── models.py                    # Provider-independent Issue
+│   └── services/work_tracking.py    # Adds matching-open-issue reads
+└── adapters/
+    ├── filesystem/watch_lease.py    # Advisory lock on the factory directory
+    ├── github/work_tracking.py      # Paginated issue reads and label matching
+    └── agentshell/
+        ├── terminal.py              # Controller process and acknowledgements
+        └── controller.py            # AgentShell-owned interactive session
+```
+
+GitHub fetches all pages of open issues and applies label matching locally: any configured label
+matches, case-insensitively; `*` includes unlabelled issues. Pull requests are excluded. Multiple
+local copies of a work source are polled once. Notifications use a fixed prose prefix and
+JSON-escaped fields so issue titles cannot become terminal control sequences or slash commands.
+
+Local validation passes 54 tests on Python 3.12 and 3.13, including the slice 1 regressions. An
+isolated public `watch` test delivered three notifications through real AgentShell to the same Pi
+session, including while a Bash tool was active; stopping the watcher removed its session.
+Initial wheel checks used a separately selected interpreter. The rebuilt package also passed a
+fresh-cache watcher check without that override, and isolated `uvx` environments on Python 3.12
+and 3.13 imported the required AgentShell APIs from the installed dependency.
+Regular tests substitute external GitHub and AgentShell and make no live service or model calls.
+SonarQube's gate passed with zero open issues after the static-analysis and review fixes. Opus found
+no blockers; three misleading messages were corrected. Final evidence and the deferred event-log
+and large-repository polling concerns are tracked in the [slice 2 plan](plans/slice-2.md).
+
+## Later agent-profile configuration (proposed)
+
+Use role-specific Pi agent directories at `.factory/agents/foreman/` and
+`.factory/agents/feature-owner/`, selected per process through `PI_CODING_AGENT_DIR`. The agent's
+working directory remains the workspace or assigned repository/worktree. Profile resources and
+host credentials/runtime files have different lifecycles; never commit credentials or session logs.
+
+A profile directory alone does not isolate tools: Pi also discovers shared skills and project
+resources. Explicit resource/tool selection must account for MCP and extension tools, preserve
+repository instructions, and be checked against the actual callable tool set. This is configuration
+isolation, not a host sandbox. Both roles retain Pi's standard `read`, `bash`, `edit`, and `write`
+tools, plus the role capabilities specified in `FACTORY.md`; GitHub uses the existing `gh` CLI
+through `bash`. No custom permissions system is proposed.
+
+The existing interactive Pi adapter does not support `allowed_tools`; profile environment and
+resource-flag support must be checked before profile-aware launches are implemented. Forgetful's
+extension and CLI/skills or MCP arrangement is being worked through separately. These integration
+choices are deferred, not prerequisites for the slice 2 notification journey.
+
 ## Architectural boundaries
 
 Use hexagonal architecture with explicit service contracts and provider-independent models.
 GitHub is the first provider, not the factory's domain model.
 
 - **CLI:** parses commands, gathers user input, and displays results.
-- **Application:** coordinates initialization using domain services and storage ports.
+- **Application:** coordinates initialization and watching using domain services and ports.
 - **Domain:** defines shared concepts and provider-independent service contracts.
 - **Adapters:** implement contracts using external tools and file formats.
 - **Composition:** the CLI bootstrap constructs adapters and supplies them to the application.
@@ -91,8 +207,9 @@ Solid arrows show calls or dependencies; dotted arrows show contract implementat
 
 ### Contracts and provider separation
 
-For this slice, `WorkTrackingService` exposes access checks and label operations for a work source.
-The GitHub adapter translates those operations into `gh` commands and maps failures into clear,
+Initialization uses `WorkTrackingService` access checks and label operations for a work source;
+watching uses its matching-open-issue reads. The GitHub adapter translates these operations into
+`gh` commands and maps failures into clear,
 provider-independent errors. `ConfigurationStore` loads and saves factory configuration.
 `LocalRepositories` provides bounded local discovery and origin inspection. `WorkSourceResolver`
 is a separate application port: this integration maps a GitHub origin to a GitHub work source,
@@ -173,11 +290,13 @@ The first implementation targets POSIX hosts, including WSL, not native Windows.
 no-follow file opens and directory file descriptors to reject symlinked `.factory` directories and
 configuration files. New configuration is written to a temporary file and exposed through an
 atomic, non-overwriting hard link. Explicit repository paths must not contain symlink components.
-No global configuration, credentials, runtime agent state, or service registration is installed.
+Initialization installs no global configuration, credentials, runtime agent state, or services.
+Watching creates AgentShell-owned temporary runtime files and Pi's normal session state; it does
+not install a service or configure role-specific agent directories.
 
 ### Validation
 
-Use TDD at the two public boundaries approved by Scott:
+Use TDD at the public boundaries approved by Scott:
 
 - **Initialization CLI:** exercise the real command with temporary Git repositories and files.
   Substitute only the external `gh` executable, covering configuration, label setup, safe reruns,
@@ -185,25 +304,31 @@ Use TDD at the two public boundaries approved by Scott:
 - **Configuration loading:** read saved TOML through the public loading API, checking round-trips
   and rejection of invalid settings.
 
+- **Watcher CLI:** temporary configuration and substitutes for external GitHub and AgentShell.
+  Cover polling, startup choices, literal notifications, failures, cleanup, and exclusive ownership.
+  Real Pi idle/busy validation is a separate isolated integration check, not a CI model call.
+
 Do not add tests coupled to private helpers or internal mock calls. Use Python's `unittest` without
 additional test dependencies. Independently validate the installed package through local `uvx`.
 Live GitHub label validation in Dark Business requires separate confirmation of target repositories.
 
-Local validation passed 31 tests, the offline wheel/source-distribution build, and independent
+Slice 1 validation passed 31 tests, the offline wheel/source-distribution build, and independent
 wheel-installed CLI checks for multiple repositories, label preservation, reruns, conflicts, denied
-access, and invalid settings. The package has no runtime Python dependencies. See the
-[plan](plan.md) for remaining live validation.
+access, and invalid settings. That slice originally shipped without runtime dependencies; slice 2
+now requires AgentShell. See the [slice 1 plan](plans/slice-1.md) for remaining live validation.
 
 The GitHub Actions workflow `.github/workflows/ci.yml` runs the same test suite on every push,
 without branch, tag, or path filters, and on pull-request opening, reopening, and updates.
 New runs cancel older runs for the same workflow and ref. Push and PR refs remain separate, so
-an open PR's branch push also produces a PR run. Separate `ubuntu-latest` jobs use Python 3.11
-and 3.12. No Python packages or project secrets are required; tests substitute the external `gh`.
+an open PR's branch push also produces a PR run. Separate `ubuntu-latest` jobs use Python 3.12
+and 3.13. Each installs the package and its runtime dependency before running the tests. No project
+secrets are required; tests substitute external GitHub and AgentShell, with no live model calls.
 At Scott's request, official checkout and Python setup actions use movable `v7` tags to receive
 compatible updates. Permissions remain read-only and checkout credentials are not persisted.
 See [dependency audit](dependency-audit.md) for the checked releases, inherited advisories, and
 limits: subsequent tag moves are not covered by that audit. Hosted push CI passed all 28 tests
-on both Python versions for implementation commit `2ee6e6b`; the [plan](plan.md) links the run.
+on both Python versions for implementation commit `2ee6e6b`; the
+[slice 1 plan](plans/slice-1.md) links the run.
 PR-event execution and cancellation have not yet been exercised on GitHub.
 
 Local static analysis uses the existing SonarScanner CLI against `http://localhost:9001`, project
