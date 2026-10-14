@@ -26,8 +26,8 @@ idle/busy delivery, and SonarQube passed. Opus found no blockers; message adviso
 - [x] Add both commands to CI, with development-only dependencies and a reviewed uv lockfile.
 - [x] Complete local validation, SonarQube, and independent review.
 
-See [quality checks](plans/quality-checks.md) for scope and validation evidence. Hosted CI remains
-pending until these changes are committed and pushed with Scott's authorization.
+See [quality checks](plans/quality-checks.md) for scope and validation evidence. Hosted push CI
+passed builds, lint, architecture checks, and all 61 tests on both Python 3.12 and 3.13.
 
 ### Slice 3: Foreman setup and issue updates
 

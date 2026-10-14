@@ -1,6 +1,7 @@
 # Project dependency management with uv
 
-Status: accepted and implemented; locally validated. Hosted CI awaits commit/push.
+Status: accepted and implemented; locally validated and verified by hosted push CI.
+Exact-commit evidence is recorded in the [quality-checks plan](../plans/quality-checks.md).
 
 Back to [architecture](../architecture.md).
 

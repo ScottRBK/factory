@@ -4,7 +4,7 @@ Back to the [implementation plan](../plan.md).
 
 Status: implemented, locally validated, and independently reviewed by Opus. The review blocker
 was corrected and the recheck found no remaining actionable issues.
-No commit, push, or hosted CI run is part of this request.
+Hosted push CI also passed; exact-commit evidence is recorded below.
 
 ## Scope
 
@@ -76,12 +76,11 @@ See the [development-checks ADR](../adrs/development-checks.md) for exact rules 
   Opus independently confirmed all eight target deletions fail, narrow-terminal checks pass,
   and weakened indirect/descendant rules, bad contract types/IDs, and import exemptions are caught.
   The recheck found no remaining actionable issues.
-- Hosted CI is unverified until the final changes are committed and pushed.
 
 ## uv dependency-management migration
 
 Development dependencies now use `[dependency-groups].dev` in `pyproject.toml` and a generated
-`uv.lock` to commit with these changes, replacing the dev extra and separate constraints file.
+`uv.lock` committed with these changes, replacing the dev extra and separate constraints file.
 The migration preserves all nine checker-package versions and AgentShell 0.4.0; no factory runtime
 dependency was upgraded.
 CI installs audited uv 0.13.1, syncs the lock, builds wheel/sdist, and runs the checks.
@@ -103,7 +102,6 @@ Local validation after migration:
 - SonarQube analysis `e5839575-dbba-4840-921a-48f1ecc08d7a` passed the assigned gate with
   zero open issues. The scan covers the uncommitted working tree; SCM revision metadata still
   identifies the previous commit.
-- Hosted CI remains unverified until these changes are committed and pushed.
 
 Migration review follow-up:
 
@@ -117,3 +115,16 @@ Migration review follow-up:
   the separately deleted local audit document.
 - After these fixes, clean sync, build, lint, all contracts, and all 61 tests passed again on
   Python 3.12 (129.8 seconds) and Python 3.13 (129.6 seconds).
+
+## Hosted CI verification
+
+Committed and pushed the implementation as `382c37afa589ed6036e9e208e13d9c9f8b7bd6f6`.
+[Push run 38623491273](https://github.com/ScottRBK/factory/actions/runs/38623491273) passed
+on 2026-10-14 for that exact revision:
+
+- Python 3.12: build, lint, architecture checks, and all 61 tests (139.1 seconds) passed.
+- Python 3.13: build, lint, architecture checks, and all 61 tests (144.3 seconds) passed.
+- Both jobs installed pinned uv and synchronized the committed lock successfully.
+
+This documents the implementation run; later commits have their own required CI results.
+PR-event execution and outdated-run cancellation were not exercised by this push run.
