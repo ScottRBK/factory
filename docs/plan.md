@@ -1,5 +1,9 @@
 # Plan for implementing
 
+The [architecture overview](architecture.md) describes system structure. Detailed implementation
+decisions are in the named [ADRs](architecture.md#decision-records); slice progress and validation
+remain in the linked plans below.
+
 ## Slices
 
 ### Slice 1: initialize a factory
@@ -14,9 +18,20 @@ one newly launched Pi session through AgentShell. Local tests, packaged-command 
 idle/busy delivery, and SonarQube passed. Opus found no blockers; message advisories were fixed. See
 [slice 2](plans/slice-2.md) for details. Agent profiles, tools, and skills come later.
 
+### Before slice 3: lint and architecture checks
+
+- [x] Configure Ruff for common errors, unused imports, import ordering, and 100-column checks.
+- [x] Enforce the agreed hexagonal dependency rules with Import Linter.
+- [x] Retain direct/indirect violation proofs as repeatable unittest checks.
+- [x] Add both commands to CI, with development-only dependencies and a reviewed uv lockfile.
+- [x] Complete local validation, SonarQube, and independent review.
+
+See [quality checks](plans/quality-checks.md) for scope and validation evidence. Hosted CI remains
+pending until these changes are committed and pushed with Scott's authorization.
+
 ### Slice 3: Foreman setup and issue updates
 
-Deferred until after slice 2:
+Deferred until after the development checks:
 
 - [ ] Configure the Foreman's Pi profile, tools, and extensions; settle Forgetful wiring.
 - [ ] Create the Foreman skill with the agreed dispatch/recovery and completion responsibilities.
@@ -29,7 +44,6 @@ Deferred until after slice 2:
   [AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25). No direct tmux fallback.
 - [ ] Configure the feature-owner's Pi profile, tools, and extensions.
 - [ ] Extend the watcher with Forgetful plan scaffolding and initial worktree creation.
-- [ ] Setup linting for the repo
 - [ ] Investigate AgentShell's streamed Pi event-log growth before days-long watcher sessions;
   pursue an upstream fix rather than factory code reaching into private SDK files.
 - [ ] Revisit provider-side filtering and quota handling for repositories with many open issues.

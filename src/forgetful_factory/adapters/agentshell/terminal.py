@@ -1,10 +1,10 @@
 import json
 import os
-from pathlib import Path
 import selectors
 import subprocess
 import time
 import uuid
+from pathlib import Path
 
 from forgetful_factory.domain.models import FactoryError
 

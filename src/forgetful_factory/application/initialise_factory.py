@@ -1,7 +1,9 @@
 from pathlib import Path
 
 from forgetful_factory.application.configuration import (
-    FactoryConfiguration, unique_labels, validate,
+    FactoryConfiguration,
+    unique_labels,
+    validate,
 )
 from forgetful_factory.application.ports.configuration_store import ConfigurationStore
 from forgetful_factory.application.ports.local_repositories import LocalRepositories

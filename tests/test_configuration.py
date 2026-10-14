@@ -1,10 +1,9 @@
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 from forgetful_factory.configuration import load_configuration
 from forgetful_factory.domain.models import FactoryError
-
 
 VALID = '''watcher_label = ["factory"]
 foreman_agent_model = "provider/model"

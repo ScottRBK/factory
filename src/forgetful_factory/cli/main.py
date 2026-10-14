@@ -1,9 +1,9 @@
 import argparse
 import math
 import os
-from pathlib import Path
 import signal
 import sys
+from pathlib import Path
 
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory

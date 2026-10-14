@@ -32,8 +32,15 @@ for progress. Role-specific tools and skills are not configured yet.
 
 ## Development
 
+Use uv 0.13.1 or newer. It creates `.venv` and installs the locked runtime and dev dependencies:
+
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -v
+uv sync --locked
+uv run --locked ruff check src tests
+uv run --locked lint-imports --no-cache
+uv run --locked python -m unittest discover -s tests -v
 ```
 
-Tests substitute GitHub and AgentShell; they make no live GitHub requests or Pi model calls.
+Dependencies live in `pyproject.toml`; commit `uv.lock` after reviewed dependency changes.
+Dev tools are not installed with the published package. CI runs all three checks on Python 3.12
+and 3.13. Tests substitute GitHub and AgentShell; they make no live service or model calls.

@@ -21,7 +21,7 @@ local tests. Live label validation in Dark Business is a separate confirmation s
 
 This slice does not poll, launch agents, create Forgetful plans/worktrees, or run a background
 service. GitHub is the first work-tracking adapter behind provider-independent domain contracts.
-Build dependency checks are recorded in [dependency audit](../dependency-audit.md).
+Build dependency checks are recorded in the [original dependency audit][original-audit].
 
 Local validation: 31 tests passed on Python 3.12.3, including timeout and interruption checks.
 `uv build --offline --no-python-downloads` produced a wheel and source distribution. Independent
@@ -57,10 +57,12 @@ No other review blockers were reported.
   The latest separate local test run passed all 28 tests.
 - [x] Verify both hosted jobs after the workflow and implementation are committed and pushed.
 
-Action dependency advisories and limits are recorded in [dependency audit](../dependency-audit.md).
+Action dependency advisories and limits are recorded in the [original audit][original-audit].
 Implementation committed and pushed as `2ee6e6b`; the push workflow passed on 2026-10-10.
 [CI run 38041488129](https://github.com/ScottRBK/factory/actions/runs/38041488129) tested that exact
 commit: all 28 tests passed on Python 3.11 (36.928 seconds) and Python 3.12 (37.253 seconds).
 Local pre-commit validation also passed all 28 tests. PR-event execution and cancellation of
 outdated runs have not been exercised on GitHub; a passing push run does not verify those paths.
+
+[original-audit]: https://github.com/ScottRBK/factory/blob/31df9bd/docs/dependency-audit.md
 Python 3.11 remains unavailable locally, but is now verified on the hosted runner.

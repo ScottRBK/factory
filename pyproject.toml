@@ -10,8 +10,53 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["agent-shell-py==0.4.0"]
 
+[dependency-groups]
+dev = ["ruff==0.17.0", "import-linter==2.15"]
+
 [project.scripts]
 forgetful-factory = "forgetful_factory.cli.main:main"
 
+[tool.uv]
+required-version = ">=0.13.1"
+
 [tool.uv.build-backend]
 source-include = ["tests/*.py"]
+
+[tool.importlinter]
+root_package = "forgetful_factory"
+
+[[tool.importlinter.contracts]]
+id = "domain-independent"
+name = "Domain stays independent"
+type = "forbidden"
+source_modules = ["forgetful_factory.domain"]
+forbidden_modules = [
+    "forgetful_factory.application",
+    "forgetful_factory.adapters",
+    "forgetful_factory.cli",
+    "forgetful_factory.configuration",
+]
+
+[[tool.importlinter.contracts]]
+id = "application-contracts"
+name = "Application uses contracts, not adapters"
+type = "forbidden"
+source_modules = ["forgetful_factory.application"]
+forbidden_modules = [
+    "forgetful_factory.adapters",
+    "forgetful_factory.cli",
+    "forgetful_factory.configuration",
+]
+
+[[tool.importlinter.contracts]]
+id = "adapters-no-cli"
+name = "Adapters cannot depend on the CLI"
+type = "forbidden"
+source_modules = ["forgetful_factory.adapters"]
+forbidden_modules = ["forgetful_factory.cli"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "E501"]
