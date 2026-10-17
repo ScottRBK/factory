@@ -1,6 +1,6 @@
 # Issue polling and an owned Pi session
 
-Status: accepted and implemented (slice 2).
+Status: Slice 2 lifecycle retained; Slice 4 adds planning, issue revisions and restart recovery.
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 2](../plans/slice-2.md).
 
@@ -15,22 +15,28 @@ configured Foreman model and effort. Reuse that session; do not silently replace
 Keep polling behind `WorkTrackingService` and terminal delivery behind an application port.
 The application coordinates polling; GitHub and AgentShell adapters perform external operations.
 All terminal interaction goes through AgentShell, not factory-owned tmux calls. The host still
-requires tmux at runtime. Existing-session delivery is deferred pending
-[AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25); a Pi session ID reopens a
-conversation in a new process, not a connection to the already-running terminal.
+requires tmux at runtime. Existing-session delivery is not integrated in Factory. AgentShell 0.5.0
+now supplies `attach_interactive()` and `TmuxTarget`; [#25][attachment-issue] remains open.
+A Pi session ID still reopens a conversation in a new process; it is not a terminal target.
+The [main plan](../plan.md) proposes attachment integration with separate borrowed-session cleanup.
+Attachment cannot change an existing process's resources or provide Pi session events; closing the
+borrowed connection leaves its process running. The current watcher still owns every Pi it launches.
 No custom notification queue. Validate idle and busy delivery; submission is not execution.
 
-Prompt at startup whether to forward existing matching open issues or watch for new matches only.
-For new matches only, the initial results form a baseline without notifications. Slice 2 forwards
-new matches, not edits to already-seen issues; restarts use the same startup prompt. Consider update
-notifications and durable restart tracking in slice 3 alongside Foreman setup.
+Watch first checks native Forgetful project/planning access. Browser sign-in or refresh may occur
+for an attended watcher. The startup prompt then selects existing open matches or new matches only.
+The command polls every 30 seconds by default; `--interval` overrides it.
 
-The agreed `forgetful-factory watch` command launches Pi and starts polling every 30 seconds
-by default, with `--interval` overriding it. Keep notified issue IDs in memory, recording successful
-submissions; seed the seen set with initial results when the user chooses new matches only.
-Notifications contain repository, issue number, title, and URL, not the issue body. Retry failed
-GitHub reads next poll; stop with a clear error on terminal delivery failure. For new-only startup,
-each work source is baselined on its first successful read, even if its initial read failed.
+Before each notification, `ScaffoldIssue` creates or reuses the plan, ownership task and ordinary
+issue worktree. The extra `epic` label defers worktrees to the owner. Full recovery and metadata
+rules are in [issue planning](issue-planning.md). The watcher never dispatches owners itself.
+
+In-memory submitted revisions allow issue updates. Restart restores draft/active Factory plans,
+including closed issues; new-only startup still sends replies to recovered work. Other initial
+matches form a baseline. Retry failed GitHub reads on the next poll; stop on unresolved scaffold
+or terminal failures. No work is deleted on failure. Notifications carry body/revision and saved
+plan/task/worktree IDs as escaped external data; agents must reread current issue/comments.
+
 The watcher owns the new Pi process and closes it when it stops; there is no detached operation.
 A workspace lease prevents a second concurrent watcher from launching another Pi. It is an advisory
 lock on the existing `.factory` directory, held until shutdown cleanup completes; no PID or lock
@@ -42,16 +48,19 @@ unused questions or print commands for nonexistent targets.
 If cleanup fails, inspect the printed session before retrying; the watcher never replaces it.
 
 See the [slice 2 plan](../plans/slice-2.md) for tests, SonarQube analysis, and Opus review.
-Profiles, role tools/skills, plans, worktrees, and owner dispatch remain out of scope.
+Profiles and role tools/skills were outside Slice 2 and are now covered by the
+[agent-profiles ADR](agent-profiles.md). Slice 4 adds the planning/worktree ports; Slice 5 supplies
+the Foreman's owner roster and native role instructions.
 
 ### Watcher integration
 
-The package requires Python 3.12+ and declares `agent-shell-py==0.4.0` as a runtime dependency.
+The package requires Python 3.12+ and now pins `agent-shell-py==0.5.0` as a runtime dependency
+following the [shared-login audit](../plans/agentshell-0.5-audit.md); Slice 2 originally used 0.4.0.
 `uvx` installs AgentShell into the factory's isolated environment; no source checkout or separate
 AgentShell installation is needed. Pi, tmux, Git, and authenticated `gh` remain host prerequisites.
 The default controller interpreter is the factory's Python. `--agentshell-python /path/to/python`
 remains an optional override for an already installed compatible AgentShell environment.
-The Python minimum follows AgentShell 0.4.0's requirement.
+The Python minimum follows AgentShell's requirement.
 Dependency changes require a pre-install audit.
 
 `AgentShellTerminal` starts one small controller using the selected interpreter and the installed
@@ -70,7 +79,7 @@ The factory does not interpret terminal screenshots or infer that a submitted is
 ```text
 src/forgetful_factory/
 ├── application/
-│   ├── watch_factory.py             # Polling, baseline, seen IDs, notifications
+│   ├── watch_factory.py             # Polling, baseline, revisions, notifications
 │   └── ports/
 │       ├── foreman_terminal.py      # Startup hint, launch, submit, wait, close
 │       └── watch_lease.py           # Exclusive workspace ownership contract
@@ -94,9 +103,19 @@ JSON-escaped fields so issue titles cannot become terminal control sequences or 
 
 Submission acknowledgement means text reached the terminal, not that the agent executed it or
 completed the issue. Session failure stops the watcher rather than silently replacing the agent.
-Seen IDs are not durable; a restart requires a new startup choice.
+Submitted revisions are not durable. Restart replays unfinished plans from Forgetful; it does not
+claim exactly-once notification delivery or restore the previous agent process.
 
 The [slice 2 plan](../plans/slice-2.md) records public-boundary tests, packaged-command checks,
 real idle/busy Pi delivery, SonarQube, and independent review. It also records deferred event-log
-growth and large-repository polling concerns. Routine tests substitute external GitHub and
-AgentShell and make no live service or model calls.
+growth and large-repository polling concerns. Routine tests substitute external commands and make
+no live service or model calls. The
+[current validation record](../plans/slices-4-5.md) separates those tests from native local
+Forgetful and no-inference Pi checks.
+
+[attachment-issue]: https://github.com/ScottRBK/agent-shell/issues/25
+
+Upstream availability was rechecked against the [0.5.0 release][attachment-release] and installed
+public API during Slice 3 close-out; no Factory attachment or live borrowed-Pi test ran.
+
+[attachment-release]: https://github.com/ScottRBK/agent-shell/releases/tag/v0.5.0

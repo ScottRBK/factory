@@ -39,11 +39,12 @@ async def interact(session, reader, reply, name) -> None:
 async def serve(reader, config, reply) -> None:
     try:
         from agent_shell.models.agent import AgentType
+        from agent_shell.models.resources import SessionResources
         from agent_shell.shell import AgentShell
         from agent_shell.tmux import TmuxExecutionHost, TmuxPlacement
     except ImportError as error:
         raise RuntimeError('Select --agentshell-python pointing to an installed interpreter '
-                           'with AgentShell open_interactive and tmux support: '
+                           'with AgentShell 0.5 SessionResources and interactive tmux support: '
                            f'{error}') from error
     if not callable(getattr(AgentShell, 'open_interactive', None)):
         raise RuntimeError('AgentShell lacks open_interactive. Select --agentshell-python '
@@ -56,8 +57,15 @@ async def serve(reader, config, reply) -> None:
     try:
         try:
             async with asyncio.timeout(30):
-                session = await shell.open_interactive(config['cwd'], model=config['model'],
-                                                       effort=config['effort'])
+                resources = SessionResources(
+                    **config['resources'], mcp_servers=[],
+                    inherit_personal_resources=False, inherit_project_resources=False,
+                    include_instruction_files=True, include_home_system_prompt=False,
+                )
+                session = await shell.open_interactive(
+                    config['cwd'], model=config['model'], effort=config['effort'],
+                    resources=resources, prompt=config['prompt'],
+                )
         except TimeoutError as error:
             raise RuntimeError('AgentShell launch timed out after 30 seconds; '
                                'check Pi and tmux installations.') from error

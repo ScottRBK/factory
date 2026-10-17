@@ -2,6 +2,7 @@ import json
 import os
 import stat
 import tomllib
+from dataclasses import asdict, replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -35,7 +36,16 @@ class TomlConfigurationStore:
                 if not stat.S_ISREG(os.fstat(file.fileno()).st_mode):
                     raise FactoryError(f'Configuration must be a regular file: {self.path}')
                 data = tomllib.load(file)
-            return from_mapping(data)
+            configuration = from_mapping(data)
+            connection = configuration.forgetful
+            if connection and ('/' in connection.executable
+                               or connection.executable.startswith('~')):
+                executable = Path(connection.executable).expanduser()
+                if not Path(connection.executable).is_absolute():
+                    executable = (self.path.parent.parent / executable).resolve()
+                    configuration = replace(configuration, forgetful=replace(
+                        connection, executable=str(executable)))
+            return configuration
         except (OSError, ValueError) as error:
             raise FactoryError(f'Cannot load {self.path}: {error}') from error
         finally:
@@ -47,12 +57,22 @@ class TomlConfigurationStore:
             'foreman_agent_model = ' + quote(configuration.foreman_agent_model),
             'foreman_agent_effort = ' + quote(configuration.foreman_agent_effort),
         ]
+        for field in ('feature_owner_agent_model', 'feature_owner_agent_effort',
+                      'feature_owner_agent_harness', 'grill_me_skill'):
+            value = getattr(configuration, field)
+            if value is not None:
+                lines.append(f'{field} = {quote(value)}')
         for repository in configuration.repository:
             lines.extend(['', '[[repository]]',
                           'local_dir = ' + quote(repository.local_dir),
                           'remote = ' + quote(repository.remote),
                           'provider = ' + quote(repository.work_source.provider),
                           'source = ' + quote(repository.work_source.reference)])
+        if configuration.forgetful is not None:
+            lines.extend(['', '[forgetful]'])
+            lines.extend(f'{key} = {value if type(value) is int else quote(value)}'
+                         for key, value in asdict(configuration.forgetful).items()
+                         if value is not None)
         self.path.parent.mkdir(exist_ok=True)
         directory = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         temporary = f'.factory-{uuid4().hex}.tmp'

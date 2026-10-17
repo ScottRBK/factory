@@ -12,8 +12,14 @@ from forgetful_factory.domain.models import FactoryError
 class AgentShellTerminal:
     """Keep AgentShell in its own installed interpreter, including inside uvx isolation."""
 
-    def __init__(self, python: str):
+    def __init__(self, python: str, environment: dict[str, str] | None = None,
+                 resources: dict | None = None, prompt: str | None = None,
+                 cwd: str | None = None):
         self.python = python
+        self.environment = environment
+        self.resources = resources
+        self.prompt = prompt
+        self.cwd = cwd
         self.process: subprocess.Popen | None = None
         self.buffer = b''
         self.session_name = f'factory-foreman-{uuid.uuid4().hex[:12]}'
@@ -75,14 +81,15 @@ class AgentShellTerminal:
             self.process = subprocess.Popen(
                 [self.python, '-u', str(helper)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 # Library diagnostics stay on stderr, separate from the protocol and user stdin.
-                stderr=None, start_new_session=True,
+                stderr=None, start_new_session=True, env=self.environment,
             )
         except OSError as error:
             raise FactoryError('Cannot run AgentShell Python; check --agentshell-python: '
                                f'{error}') from error
         os.set_blocking(self.process.stdin.fileno(), False)
-        self._write({'cwd': cwd, 'model': model, 'effort': effort,
-                     'session_name': self.session_name}, 10)
+        self._write({'cwd': self.cwd or cwd, 'model': model, 'effort': effort,
+                     'session_name': self.session_name, 'resources': self.resources,
+                     'prompt': self.prompt}, 10)
         self._read(35, 'ready')
 
     def send(self, message: str) -> None:

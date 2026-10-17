@@ -1,0 +1,29 @@
+{
+  "agentshell": {
+    "repository": "git@github.com:ScottRBK/pi-agentshell-extension.git",
+    "revision": "df2855129ed2dd9d5aadc27554719ceb62fd38e1",
+    "files": {
+      "package.json": "de53a23bd912b42cb24e8de4ec7edd5bd62c915a7f81214c1c320ce23da33fe2",
+      "LICENSE": "7e53ef0379f162ea200d90727f78313d1a3b4ecf174b1bbbcc329a52b267709b",
+      "config.ts": "a52e3f581e2f717c1371762a9a2371cf419695abbed0e5cab3928a5588f78f37",
+      "index.ts": "ae1c12d9b447337ebce71020c5239a1da479a402c52c7a8bd26aa4d4d9bf1c22",
+      "jobs.ts": "91dac181d8fc58125d8868b060d9a6b43304db9d9fb60135a047423e0126676a",
+      "limits.ts": "5435e6161eaeba85f2c44e015e4c5d1107168c487a5cf189de76d3d937ea3f28",
+      "runner.ts": "f36be9c2962f50484e6dcb96a35774a15b8a1c2aa34da52638fb2d6473c57182",
+      "extensions/agentshell.ts": "9fb02db3e7aada6aae54af5dbd1a093f7b2c0d107b93e45933b6967142ae6ed7",
+      "python/worker.py": "58fc8f45c90876d2a14e3badc102e5de395f9a3d14b10d03efbda2eb4d8b4d7c",
+      "python/pyproject.toml": "959c7a7cd99f91a4ceb626bad2dc277ea95c410d1c360263697c2a3056a55586",
+      "python/uv.lock": "e252760aac56ef507efdeaa00502ce89ef5e90b9f9c486b977dfeb4b32eb476e"
+    }
+  },
+  "hide-tools": {
+    "repository": "git@github.com:ScottRBK/pi-hide-tools-extension.git",
+    "revision": "a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029",
+    "files": {
+      "package.json": "556f39cbc523bc2cf5a0dd34d8f30b6ed572274fb3c2602aa25284412216f6dc",
+      "index.ts": "fbbd756dcf0c9389ec15d1bc2999f7d1957e5f3bbef17f5fbe6494b288f1f86e",
+      "src/preferences.ts": "af99f4c478de4d2295311c6905648641a5685a349eea265440219b348e8864fe",
+      "src/tool-rendering.ts": "2729786be6d4a7ee46a0a08e5142102a88e62c3f7eed7d47f5a88493bea88953"
+    }
+  }
+}

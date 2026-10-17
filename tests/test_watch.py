@@ -8,6 +8,10 @@ import time
 import unittest
 from pathlib import Path
 
+from profile_support import install_commands, install_grill_skill
+from test_init import GH as INIT_GH
+from test_init import INIT_SETTINGS
+
 ROOT = Path(__file__).resolve().parents[1]
 
 GH = '''#!/usr/bin/env python3
@@ -65,8 +69,13 @@ class Session:
         self.terminal = Terminal()
 
     async def events(self):
+        yield SimpleNamespace(type='system', session_id=None)
         if os.environ.get('WATCH_NO_READY'):
             await asyncio.Event().wait()
+        if os.environ.get('WATCH_READY_GATE'):
+            from pathlib import Path
+            while not Path(os.environ['WATCH_READY_GATE']).exists():
+                await asyncio.sleep(0.01)
         await asyncio.sleep(0.05)
         record('ready')
         yield SimpleNamespace(type='system', session_id='pi-conversation')
@@ -82,15 +91,31 @@ class Session:
 
 
 class AgentShell:
-    def __init__(self, agent_type, execution_host):
+    def __init__(self, agent_type, execution_host=None):
         self.agent_type = agent_type
         self.host = execution_host
 
-    async def open_interactive(self, cwd, *, model=None, effort=None):
+    async def list_models(self, cwd, timeout=30):
+        return ['provider/model']
+
+    async def open_interactive(self, cwd, *, model=None, effort=None, resources=None, prompt=None):
         print('library stdout banner', flush=True)
         os.write(1, b'native library stdout banner\\n')
         record('launch', cwd=cwd, model=model, effort=effort, agent_type=self.agent_type,
-               placement=self.host.placement, controller_pid=os.getpid())
+               roster=os.environ.get('PI_AGENTSHELL_ROSTER_FILE'), prompt=prompt,
+               forgetful_dir=os.environ.get('FACTORY_FORGETFUL_DIR'),
+               forgetful_config=os.environ.get('FACTORY_FORGETFUL_CONFIG_DIR'),
+               project=os.environ.get('FACTORY_FORGETFUL_PROJECT_ID'),
+               placement=self.host.placement, controller_pid=os.getpid(),
+               agent_dir=os.environ.get('PI_CODING_AGENT_DIR'),
+               config_home=os.environ.get('XDG_CONFIG_HOME'),
+               target=os.environ.get('FACTORY_FORGETFUL_METHOD'))
+        if os.environ.get('WATCH_SKILL_COMMANDS'):
+            import subprocess
+            for command in json.loads(os.environ['WATCH_SKILL_COMMANDS']):
+                result = subprocess.run(['bash', '-c', command], cwd=cwd,
+                                        capture_output=True, text=True, timeout=5)
+                record('skill-command', code=result.returncode, stdout=result.stdout)
         if os.environ.get('WATCH_LAUNCH_DELAY'):
             await asyncio.sleep(float(os.environ['WATCH_LAUNCH_DELAY']))
         return Session()
@@ -108,11 +133,12 @@ class TmuxExecutionHost:
 '''
 
 
-class WatchCliTests(unittest.TestCase):
+class WatchFixture(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.workspace = Path(self.temporary.name)
+        self.grill_skill = install_grill_skill(self.workspace)
         self.bin = self.workspace / 'bin'
         self.bin.mkdir()
         (self.bin / 'gh').write_text(GH)
@@ -124,6 +150,9 @@ class WatchCliTests(unittest.TestCase):
         (package / 'shell.py').write_text(SHELL)
         (package / 'tmux.py').write_text(TMUX)
         (package / 'models' / '__init__.py').write_text('')
+        (package / 'models/resources.py').write_text(
+            'class SessionResources:\n'
+            '    def __init__(self, **kwargs): self.__dict__.update(kwargs)\n')
         (package / 'models' / 'agent.py').write_text('class AgentType:\n    PI = "pi"\n')
         self.state_path = self.workspace / 'gh.json'
         self.terminal_log = self.workspace / 'terminal.jsonl'
@@ -131,27 +160,71 @@ class WatchCliTests(unittest.TestCase):
         self.env = dict(os.environ,
                         PYTHONPATH=os.pathsep.join((str(external), str(ROOT / 'src'))),
                         PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
+                        PI_CODING_AGENT_DIR=str(self.workspace / 'native pi'),
+                        XDG_STATE_HOME=str(self.workspace / 'state'),
                         GH_HOST='wrong.example', WATCH_GH_STATE=str(self.state_path),
                         WATCH_TERMINAL_LOG=str(self.terminal_log))
+        # The external program fixture models a standalone root, not this test runner's ancestry.
+        for key in ('PI_AGENT_SHELL_CHILD', 'PI_AGENT_SHELL_DEPTH', 'PI_AGENT_SHELL_MAX_DEPTH'):
+            self.env.pop(key, None)
+        (self.workspace / 'native pi/extensions').mkdir(parents=True)
+        (self.workspace / 'native pi/extensions/agentshell.json').write_text(
+            '{"max_sub_agent_depth": 1}')
+        self.initialize_profile()
         self.configure()
+
+    def initialize_profile(self):
+        install_commands(self.bin)
+        subprocess.run(['git', 'init', '-q', str(self.workspace)], check=True)
+        subprocess.run(['git', '-C', str(self.workspace), 'remote', 'add', 'origin',
+                        'git@github.com:team/app.git'], check=True)
+        subprocess.run(['git', '-C', str(self.workspace), '-c', 'user.name=Fixture',
+                        '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty',
+                        '-qm', 'fixture'], check=True)
+        state = self.workspace / 'init-gh.json'
+        state.write_text('{}')
+        (self.bin / 'gh').write_text(INIT_GH)
+        result = subprocess.run(
+            [sys.executable, '-m', 'forgetful_factory', 'init', '--repo', '.', *INIT_SETTINGS,
+             '--forgetful-instance', 'server', '--forgetful-server', 'https://memory.example/mcp',
+             '--install-role-runtime', '--share-pi-profile', '--check-connection',
+             '--forgetful-project', '12', '--grill-me-skill', str(self.grill_skill)],
+            cwd=self.workspace,
+            env=dict(self.env, GH_STATE=str(state)), input='', capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        (self.bin / 'gh').write_text(GH)
 
     def configure(self, labels=('factory',), sources=('team/app',), provider='github'):
         directory = self.workspace / '.factory'
         directory.mkdir(exist_ok=True)
         contents = (f'watcher_label = {json.dumps(labels)}\n'
                     'foreman_agent_model = "provider/model"\n'
-                    'foreman_agent_effort = "high"\n')
+                    'foreman_agent_effort = "high"\n'
+                    'feature_owner_agent_model = "provider/model"\n'
+                    'feature_owner_agent_effort = "high"\n'
+                    'feature_owner_agent_harness = "pi"\n'
+                    f'grill_me_skill = {json.dumps(str(self.grill_skill))}\n')
         for index, source in enumerate(sources):
+            local = self.workspace if index == 0 else self.workspace / f'repository-{index}'
+            if not local.exists():
+                subprocess.run(['git', 'init', '-q', str(local)], check=True)
+                subprocess.run(['git', '-C', str(local), 'remote', 'add', 'origin',
+                                f'git@github.com:{source}.git'], check=True)
+                subprocess.run(['git', '-C', str(local), '-c', 'user.name=Fixture',
+                                '-c', 'user.email=fixture@example.invalid', 'commit',
+                                '--allow-empty', '-qm', 'fixture'], check=True)
             contents += ('\n[[repository]]\n'
-                         f'local_dir = {json.dumps(str(self.workspace / str(index)))}\n'
+                         f'local_dir = {json.dumps(str(local))}\n'
                          f'remote = "git@github.com:{source}.git"\n'
                          f'provider = {json.dumps(provider)}\nsource = {json.dumps(source)}\n')
+        contents += ('\n[forgetful]\ninstance = "server"\nproject_id = 12\n'
+                     'server = "https://memory.example/mcp"\n')
         (directory / 'factory.toml').write_text(contents)
 
     def issue(self, number=1, title='Implement feature', labels=('factory',), **extra):
         return {'number': number, 'title': title, 'labels': [{'name': v} for v in labels],
                 'html_url': f'https://github.com/team/app/issues/{number}',
-                'state': 'open', 'body': 'BODY MUST NOT BE SENT', **extra}
+                'state': 'open', 'body': 'Issue requirements', **extra}
 
     def script(self, sources):
         self.state_path.write_text(json.dumps({'sources': sources}))
@@ -161,12 +234,12 @@ class WatchCliTests(unittest.TestCase):
             return []
         return [json.loads(line) for line in self.terminal_log.read_text().splitlines()]
 
-    def start(self, *arguments, input=''):
+    def start(self, *arguments, input='', stdout=subprocess.PIPE):
         process = subprocess.Popen(
             [sys.executable, '-m', 'forgetful_factory', 'watch', '--workspace',
              str(self.workspace), '--interval', '0.05',
              *arguments], cwd=self.workspace, env=self.env, stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            stdout=stdout, stderr=subprocess.PIPE, text=True,
         )
         self.addCleanup(self.cleanup_process, process)
         if input:
@@ -195,6 +268,38 @@ class WatchCliTests(unittest.TestCase):
         stdout, stderr = process.communicate(timeout=15)
         return process.returncode, stdout, stderr
 
+
+class WatchCliTests(WatchFixture):
+    def test_missing_connection_does_not_fall_back_to_personal_pi(self):
+        # Arrange
+        path = self.workspace / '.factory/factory.toml'
+        path.write_text(path.read_text().split('[forgetful]')[0])
+        # Act
+        process = self.start('--new-only')
+        stdout, stderr = process.communicate(timeout=5)
+        # Assert
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('Forgetful', stderr)
+        self.assertEqual(self.events(), [])
+
+    def test_foreman_profile_reaches_agentshell_through_inherited_environment(self):
+        # Arrange
+        self.env['XDG_CONFIG_HOME'] = str(self.workspace / 'personal-config')
+        path = self.workspace / '.factory/factory.toml'
+        path.write_text(path.read_text().replace('[forgetful]', '[forgetful]\nmethod = "cli"'))
+        (self.workspace / '.factory/agents/foreman/mcp.json').write_text('{"mcpServers": {}}')
+        # Act
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
+        code, _, stderr = self.stop(process)
+        # Assert
+        self.assertEqual(code, 130, stderr)
+        launch = self.events()[0]
+        self.assertEqual(launch['agent_dir'], str(self.workspace / 'native pi'))
+        self.assertEqual(launch['config_home'],
+                         str(self.workspace / 'personal-config'))
+        self.assertEqual(launch['target'], 'cli')
+
     def test_existing_issue_is_submitted_to_one_owned_ready_pi_session(self):
         # Arrange
         self.script({'team/app': [[[self.issue()]]]})
@@ -208,13 +313,14 @@ class WatchCliTests(unittest.TestCase):
         self.assertEqual([e['kind'] for e in events], ['launch', 'ready', 'send', 'close'])
         launch, _, sent, _ = events
         self.assertEqual((launch['cwd'], launch['model'], launch['effort'], launch['agent_type']),
-                         (str(self.workspace), 'provider/model', 'high', 'pi'))
+                         (str(self.workspace / '.factory/agents/foreman'),
+                          'provider/model', 'high', 'pi'))
         self.assertEqual(launch['placement']['kind'], 'new-session')
         self.assertTrue(sent['submit'])
         self.assertIn('github:team/app#1', sent['text'])
         self.assertIn('Implement feature', sent['text'])
         self.assertIn('https://github.com/team/app/issues/1', sent['text'])
-        self.assertNotIn('BODY MUST NOT BE SENT', sent['text'])
+        self.assertIn('Issue requirements', sent['text'])
         self.assertIn('tmux attach', stdout)
         self.assertIn(launch['placement']['name'], stdout)
         self.assertIn('close', stdout.lower())
@@ -223,6 +329,37 @@ class WatchCliTests(unittest.TestCase):
         calls = json.loads(self.state_path.read_text())['calls']
         self.assertEqual(calls[0], ['api', 'repos/team/app/issues?state=open&per_page=100',
                                     '--hostname', 'github.com', '--paginate', '--slurp'])
+
+    def test_startup_checks_planning_and_waits_for_native_session_readiness(self):
+        # Arrange
+        gate = self.workspace / 'ready-gate'
+        output = self.workspace / 'watch-output'
+        commands = self.workspace / 'commands.jsonl'
+        self.env.update(WATCH_READY_GATE=str(gate), PROFILE_LOG=str(commands))
+        # Act
+        with output.open('w') as stream:
+            process = self.start('--new-only', stdout=stream)
+            self.wait_until(process, lambda: any(e['kind'] == 'launch' for e in self.events()))
+            # Assert: launch and unrelated system events are not session readiness.
+            self.assertIn('tmux attach-session', output.read_text())
+            self.assertNotIn('Foreman session ready', output.read_text())
+            # Act
+            gate.touch()
+            self.wait_until(process, lambda: 'Baseline' in output.read_text())
+            code, _, stderr = self.stop(process)
+        # Assert
+        self.assertEqual(code, 130, stderr)
+        text = output.read_text()
+        self.assertIn('Foreman session ready; model access unverified.', text)
+        self.assertIn('Forgetful planning access checked', text)
+        self.assertNotIn('Forgetful: connected', text)
+        self.assertLess(text.index('Foreman session ready'), text.index('Baseline'))
+        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'close'])
+        calls = [json.loads(line)['args'] for line in commands.read_text().splitlines()]
+        self.assertEqual([c[:2] for c in calls[:2]],
+                         [['call', 'get_project'], ['tools', 'list']])
+        self.assertFalse(any(c[:2] == ['call', 'get_current_user'] for c in calls))
+        self.assertFalse(any(c[:2] == ['auth', 'login'] for c in calls))
 
     def test_pagination_label_or_pr_filter_and_duplicate_sources(self):
         # Arrange
@@ -272,6 +409,8 @@ class WatchCliTests(unittest.TestCase):
             with self.subTest(arguments=arguments, answer=answer):
                 # Arrange
                 self.terminal_log.unlink(missing_ok=True)
+                (self.workspace / '.factory/agents/foreman/fixture-plans.json').unlink(
+                    missing_ok=True)
                 self.script({'team/app': [[[self.issue(1)]],
                                          [[self.issue(1, title='Edited'), self.issue(2)]]]})
                 # Act
@@ -315,6 +454,8 @@ class WatchCliTests(unittest.TestCase):
             with self.subTest(malformed=malformed):
                 # Arrange
                 self.terminal_log.unlink(missing_ok=True)
+                (self.workspace / '.factory/agents/foreman/fixture-plans.json').unlink(
+                    missing_ok=True)
                 self.script({'team/app': [malformed, [[self.issue(10)]]]})
                 # Act
                 process = self.start('--existing')
@@ -454,6 +595,7 @@ class WatchCliTests(unittest.TestCase):
                 self.assertEqual(process.returncode, 1, stderr)
                 self.assertEqual([e['kind'] for e in self.events()], ['launch', 'close'])
                 self.assertNotIn('Submitted', stdout)
+                self.assertNotIn('Foreman session ready', stdout)
                 self.assertEqual(json.loads(self.state_path.read_text()).get('calls', []), [])
 
     def test_readiness_timeout_gives_trust_dialog_help_and_closes_pi(self):
@@ -472,6 +614,7 @@ class WatchCliTests(unittest.TestCase):
         old_name = self.events()[0]['placement']['name']
         self.assertNotIn(f'tmux attach-session -t {old_name}', stderr)
         self.assertNotIn('Submitted', stdout)
+        self.assertNotIn('Foreman session ready', stdout)
         self.assertEqual([e['kind'] for e in self.events()], ['launch', 'close'])
         self.assertEqual(json.loads(self.state_path.read_text()).get('calls', []), [])
 

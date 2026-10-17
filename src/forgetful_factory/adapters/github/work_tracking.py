@@ -70,7 +70,10 @@ class GitHubWorkTracking:
             matches = '*' in watched or any(label['name'].casefold() in watched
                                             for label in item['labels'])
             if item['state'] == 'open' and matches:
-                issues.append(Issue(source, item['number'], item['title'], item['html_url']))
+                issues.append(Issue(source, item['number'], item['title'], item['html_url'],
+                                    item.get('body') or '', item.get('updated_at', ''),
+                                    any(label['name'].casefold() == 'epic'
+                                        for label in item['labels'])))
         return tuple(issues)
 
     @staticmethod

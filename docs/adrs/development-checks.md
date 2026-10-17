@@ -55,14 +55,17 @@ Local commands are in the README. Validation and hosted-CI status are tracked in
 Use TDD at the public boundaries approved by Scott:
 
 - **Initialization CLI:** exercise the real command with temporary Git repositories and files.
-  Substitute only the external `gh` executable, covering configuration, label setup, safe reruns,
-  and failures without touching live GitHub repositories.
+  Control external GitHub, Pi, Forgetful and installer commands. Cover consent, project/model
+  selection, native schema responses, provisioning, safe reruns and failures without live accounts.
 - **Configuration loading:** read saved TOML through the public loading API, checking round-trips
   and rejection of invalid settings.
 
-- **Watcher CLI:** temporary configuration and substitutes for external GitHub and AgentShell.
-  Cover polling, startup choices, literal notifications, failures, cleanup, and exclusive ownership.
-  Real Pi idle/busy validation is a separate isolated integration check, not a CI model call.
+- **Watcher CLI:** temporary configuration and controlled external commands, using real Git for
+  worktree safety. Cover plan/task creation, uncertain outcomes, revisions, restart, notification,
+  cleanup and exclusive workspace ownership. Run the real AgentShell lifecycle with Pi/tmux doubles.
+- **Native integration:** opt-in isolated Pi SDK/lifecycle and local Forgetful checks. Use temporary
+  HOME/config/database paths and no-inference probes. No real login or provider requests. These
+  validate native wiring and contracts, not an autonomous agent's planning quality.
 
 Do not add tests coupled to private helpers or internal mock calls. Use Python's `unittest`;
 the architecture proof tests additionally invoke the development-only Import Linter command.
@@ -88,11 +91,21 @@ PR-event execution and cancellation have not yet been exercised on GitHub.
 ## Local static analysis
 
 Local static analysis uses the existing SonarScanner CLI against `http://localhost:9001`, project
-`forgetful-factory`. Ignored `.sonarqube/` metadata and a scan script identify this project and scan
-`src/` plus `tests/`; the root ignored `.env` supplies the analysis token through environment
-variables. This is a development check, not a factory runtime dependency. The selected server gate
-is `Sonar way sans code coverage`; complexity rules come from the Python quality profile. Local
-scanner setup does not follow Git worktrees and must be repeated where needed.
+`forgetful-factory`. Ignored `.sonarqube/project.properties` identifies this project; scans include
+`src/` plus `tests/`. The local `.sonarqube/start-scan.sh` passes the shared vault aliases
+explicitly:
+
+```bash
+envault run --env SONAR_TOKEN=sonar-token --env SONAR_HOST_URL=sonar-host-url -- \
+  sonar-scanner -Dproject.settings=.sonarqube/project.properties
+```
+
+These mappings need no per-repository `envault.toml`. Use explicit mappings for result queries too;
+never put token values in arguments or source `.env`. This development check is not a factory
+runtime dependency. The expected server gate is `Sonar way sans code coverage`; complexity rules
+come from the Python quality profile. Local scanner setup does not follow Git worktrees and must
+be repeated where needed. See [CLI onboarding](../plans/cli-onboarding.md) for the latest gate
+result and credential-permission limits.
 
 ## Consequences
 

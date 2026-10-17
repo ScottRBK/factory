@@ -8,7 +8,13 @@ import tomllib
 import unittest
 from pathlib import Path
 
+from profile_support import install_commands, install_grill_skill
+
+from forgetful_factory.configuration import load_configuration
+
 ROOT = Path(__file__).resolve().parents[1]
+INIT_SETTINGS = ('--label', 'factory', '--foreman-model', 'provider/model',
+                 '--foreman-effort', 'high')
 
 GH = '''#!/usr/bin/env python3
 import json
@@ -54,8 +60,10 @@ if args[:1] == ['api']:
                 target.parent.mkdir(exist_ok=True)
                 target.write_text(state['concurrent_config']['content'])
             if 'symlink_factory' in state:
-                Path(state['symlink_factory']['path']).symlink_to(
-                    state['symlink_factory']['target'], target_is_directory=True)
+                factory = Path(state['symlink_factory']['path'])
+                if factory.exists():
+                    factory.rename(factory.with_name('.factory.previous'))
+                factory.symlink_to(state['symlink_factory']['target'], target_is_directory=True)
             print(json.dumps([] if name == state.get('malformed_create') else {'name': name}))
         else:
             pages = state.get('pages', {}).get(source)
@@ -72,20 +80,30 @@ else:
 '''
 
 
-class InitTests(unittest.TestCase):
+class InitFixture(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.workspace = Path(self.temp.name)
+        self.grill_skill = install_grill_skill(self.workspace)
         self.bin = self.workspace / 'bin'
         self.bin.mkdir()
+        install_commands(self.bin)
         (self.bin / 'gh').write_text(GH)
         (self.bin / 'gh').chmod(0o755)
         self.state = self.workspace / 'gh-state.json'
         self.state.write_text('{}')
         self.env = dict(os.environ, PYTHONPATH=str(ROOT / 'src'),
                         PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
-                        GH_STATE=str(self.state))
+                        GH_STATE=str(self.state),
+                        XDG_STATE_HOME=str(self.workspace / "state"),
+                        PI_CODING_AGENT_DIR=str(self.workspace / 'native pi'))
+        # The external program fixture models a standalone root, not this test runner's ancestry.
+        for key in ('PI_AGENT_SHELL_CHILD', 'PI_AGENT_SHELL_DEPTH', 'PI_AGENT_SHELL_MAX_DEPTH'):
+            self.env.pop(key, None)
+        (self.workspace / 'native pi/extensions').mkdir(parents=True)
+        (self.workspace / 'native pi/extensions/agentshell.json').write_text(
+            '{"max_sub_agent_depth": 1}')
 
     def git(self, path, *args):
         return subprocess.run(['git', '-C', str(path), *args], check=True,
@@ -98,27 +116,32 @@ class InitTests(unittest.TestCase):
         self.git(path, 'remote', 'add', 'origin', remote)
         return path
 
-    def run_cli(self, cwd, *args, input='', timeout=10):
+    def run_cli(self, cwd, *args, input='', timeout=10, connection_defaults=True,
+                role_defaults=True, pi_defaults=True):
+        if '--grill-me-skill' not in args and not (cwd / '.factory/factory.toml').exists():
+            args = (*args, '--grill-me-skill', str(self.grill_skill))
+        if '--forgetful-project' not in args:
+            args = (*args, '--forgetful-project', '12')
+        if pi_defaults:
+            args = (*args, '--share-pi-profile')
+        if connection_defaults and '--forgetful-instance' not in args:
+            args = (*args, '--forgetful-instance', 'local')
+        if role_defaults:
+            args = (*args, '--install-role-runtime')
         return subprocess.run([sys.executable, '-m', 'forgetful_factory', 'init', *args],
                               cwd=cwd, env=self.env, input=input, text=True,
                               capture_output=True, timeout=timeout)
 
-    def settings(self):
-        return ('--label', 'factory', '--foreman-model', 'provider/model',
-                '--foreman-effort', 'high')
 
-    def load(self, workspace):
-        from forgetful_factory.configuration import load_configuration
-        return load_configuration(workspace)
-
+class InitTests(InitFixture):
     def test_single_repo_initializes_and_loads_actual_path_and_remote(self):
         # Arrange
         repo = self.repo()
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings())
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = self.load(repo)
+        config = load_configuration(repo)
         self.assertEqual(config.watcher_label, ('factory',))
         self.assertEqual(config.foreman_agent_model, 'provider/model')
         self.assertEqual(config.foreman_agent_effort, 'high')
@@ -165,11 +188,11 @@ foreman_agent_effort = "high"
     def test_repeated_local_directory_is_rejected_before_github_calls(self):
         # Arrange
         repo = self.repo()
-        result = self.run_cli(repo, '--repo', '.', *self.settings())
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(result.returncode, 0, result.stderr)
         path = repo / '.factory' / 'factory.toml'
         contents = path.read_text()
-        duplicate = contents[contents.index('[[repository]]'):]
+        duplicate = contents[contents.index('[[repository]]'):contents.index('[forgetful]')]
         path.write_text(contents + '\n' + duplicate)
         self.state.write_text('{}')
         # Act
@@ -188,7 +211,7 @@ foreman_agent_effort = "high"
         cases = [('--label', '  '), ('--foreman-model', ' '), ('--foreman-effort', '')]
         for flag, value in cases:
             with self.subTest(flag=flag):
-                settings = list(self.settings())
+                settings = list(INIT_SETTINGS)
                 settings[settings.index(flag) + 1] = value
                 # Act
                 result = self.run_cli(repo, '--repo', '.', *settings)
@@ -210,7 +233,7 @@ foreman_agent_effort = "high"
                 self.state.write_text(json.dumps(state))
                 # Act
                 result = self.run_cli(self.workspace, '--repo', str(first),
-                                      '--repo', str(second), *self.settings())
+                                      '--repo', str(second), *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('team/other', result.stderr)
@@ -225,14 +248,14 @@ foreman_agent_effort = "high"
         self.state.write_text(json.dumps({'labels': {'team/app': [label]},
                                           'pages': {'team/app': [[], [label]]}}))
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'FACTORY')
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'FACTORY')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         state = json.loads(self.state.read_text())
         self.assertEqual(state.get('created', []), [])
         self.assertEqual(state['labels']['team/app'], [label])
         self.assertIn('Reused team/app: factory', result.stdout)
-        self.assertEqual(self.load(repo).watcher_label, ('factory',))
+        self.assertEqual(load_configuration(repo).watcher_label, ('factory',))
 
     def test_wildcard_never_created_and_mixed_concrete_labels_are_ensured(self):
         # Arrange
@@ -244,13 +267,13 @@ foreman_agent_effort = "high"
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.state.read_text())['created'], [['team/app', 'factory']])
-        self.assertEqual(self.load(repo).watcher_label, ('*', 'factory'))
+        self.assertEqual(load_configuration(repo).watcher_label, ('*', 'factory'))
         self.assertIn('Wildcard', result.stdout)
 
     def test_repeat_loads_existing_bytes_and_conflicting_flags_fail_before_github(self):
         # Arrange
         repo = self.repo()
-        initial = self.run_cli(repo, '--repo', '.', *self.settings())
+        initial = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(initial.returncode, 0, initial.stderr)
         config_path = repo / '.factory' / 'factory.toml'
         config_path.write_text('# Hand edited comment\n' + config_path.read_text())
@@ -278,7 +301,7 @@ foreman_agent_effort = "high"
     def test_existing_config_revalidates_current_origins_and_invalid_settings(self):
         # Arrange
         repo = self.repo()
-        initial = self.run_cli(repo, '--repo', '.', *self.settings())
+        initial = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(initial.returncode, 0, initial.stderr)
         path = repo / '.factory' / 'factory.toml'
         original = path.read_text()
@@ -329,10 +352,10 @@ foreman_agent_effort = "high"
         nested.mkdir()
         self.git(nested, 'init', '-q')
         # Act
-        result = self.run_cli(self.workspace, input='2,3\ny\nfactory\nprovider/model\nhigh\n')
+        result = self.run_cli(self.workspace, input='2,3\ny\nfactory\n1\nhigh\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        references = self.load(self.workspace).repository
+        references = load_configuration(self.workspace).repository
         self.assertEqual({item.local_dir for item in references}, {str(other), str(worktree)})
         self.assertIn('https://github.com/team/other.git', result.stdout)
         self.assertIn('git@github.com:team/app.git', result.stdout)
@@ -369,7 +392,7 @@ foreman_agent_effort = "high"
             with self.subTest(path=bad):
                 # Act
                 result = self.run_cli(self.workspace, '--repo', str(good),
-                                      '--repo', str(bad), *self.settings())
+                                      '--repo', str(bad), *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(str(bad), result.stderr)
@@ -382,7 +405,7 @@ foreman_agent_effort = "high"
         repo = self.repo()
         self.state.write_text(json.dumps({'fail_create': 'second'}))
         # Act
-        failed = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'second')
+        failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'second')
         # Assert
         self.assertNotEqual(failed.returncode, 0)
         self.assertNotIn('Traceback', failed.stderr)
@@ -396,7 +419,7 @@ foreman_agent_effort = "high"
         del state['fail_create']
         self.state.write_text(json.dumps(state))
         # Act
-        retry = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'second')
+        retry = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'second')
         # Assert
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertIn('Reused team/app: factory', retry.stdout)
@@ -422,7 +445,7 @@ foreman_agent_effort = "high"
                     destination = target if kind == 'config' else outside / 'missing'
                     (factory / 'factory.toml').symlink_to(destination)
                 # Act
-                result = self.run_cli(repo, '--repo', '.', *self.settings())
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
@@ -447,7 +470,7 @@ foreman_agent_effort = "high"
                          {'symlink_factory': {'path': str(path.parent), 'target': str(outside)}})
                 self.state.write_text(json.dumps(state))
                 # Act
-                result = self.run_cli(repo, '--repo', '.', *self.settings())
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
@@ -455,8 +478,9 @@ foreman_agent_effort = "high"
                 self.assertIn('Saving', result.stderr)
                 if kind == 'config':
                     self.assertEqual(path.read_text(), contents)
-                    self.assertEqual(self.load(repo).foreman_agent_model, 'other/model')
-                    self.assertEqual(list(path.parent.iterdir()), [path])
+                    self.assertEqual(load_configuration(repo).foreman_agent_model, 'other/model')
+                    self.assertEqual(list(path.parent.glob('.factory-*.tmp')), [])
+                    self.assertFalse((path.parent / 'agents/foreman/model-selection.json').exists())
                 else:
                     self.assertEqual(list(outside.iterdir()), [])
 
@@ -466,10 +490,10 @@ foreman_agent_effort = "high"
         second = self.repo('copy', 'https://github.com/Team/App.git')
         # Act
         result = self.run_cli(self.workspace, '--repo', str(first), '--repo', str(second),
-                              '--repo', str(first), *self.settings())
+                              '--repo', str(first), *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = self.load(self.workspace)
+        config = load_configuration(self.workspace)
         self.assertEqual({item.local_dir for item in config.repository},
                          {str(first), str(second)})
         self.assertEqual({item.remote for item in config.repository},
@@ -481,18 +505,21 @@ foreman_agent_effort = "high"
         repo = self.repo('space "café" 😀')
         workspace = self.workspace / 'factory workspace'
         workspace.mkdir()
-        model = 'provider/"β" 😀\\variant\nnext\x7f'
+        model = 'provider/"β" 😀\\variant'
+        self.env['PROFILE_MODELS'] = (
+            'provider  model  context  max-out  thinking  images\n'
+            'provider  "β" 😀\\variant  128000  8192  yes  yes')
         label = 'factory "café" \\support'
         # Act
         result = self.run_cli(repo, '--workspace', str(workspace), '--repo', '.',
                               '--label', label, '--foreman-model', model,
-                              '--foreman-effort', 'very high')
+                              '--foreman-effort', 'xhigh')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = self.load(workspace)
+        config = load_configuration(workspace)
         self.assertEqual(config.foreman_agent_model, model)
         self.assertEqual(config.watcher_label, (label,))
-        self.assertEqual(config.foreman_agent_effort, 'very high')
+        self.assertEqual(config.foreman_agent_effort, 'xhigh')
         self.assertEqual(next(iter(config.repository)).local_dir, str(repo))
         self.assertFalse((repo / '.factory').exists())
 
@@ -513,7 +540,7 @@ foreman_agent_effort = "high"
                     gh.write_text(GH)
                     gh.chmod(0o644)
                 # Act
-                result = self.run_cli(repo, '--repo', '.', *self.settings())
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
@@ -527,7 +554,7 @@ foreman_agent_effort = "high"
         repo = self.repo()
         self.env['GH_HOST'] = 'enterprise.example.com'
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings())
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(self.state.read_text())['created'], [['team/app', 'factory']])
@@ -543,7 +570,7 @@ foreman_agent_effort = "high"
             with self.subTest(remote=remote):
                 self.git(repo, 'remote', 'set-url', 'origin', remote)
                 # Act
-                result = self.run_cli(repo, '--repo', '.', *self.settings())
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('Unsupported origin', result.stderr)
@@ -567,17 +594,17 @@ foreman_agent_effort = "high"
         # Arrange
         repo = self.repo('app with trailing space ')
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings())
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(next(iter(self.load(repo).repository)).local_dir, str(repo))
+        self.assertEqual(next(iter(load_configuration(repo).repository)).local_dir, str(repo))
 
     def test_malformed_create_response_reports_uncertainty_and_does_not_save(self):
         # Arrange
         repo = self.repo()
         self.state.write_text(json.dumps({'malformed_create': 'second'}))
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'second')
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'second')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('Traceback', result.stderr)
@@ -593,7 +620,7 @@ foreman_agent_effort = "high"
         repo = self.repo()
         self.state.write_text(json.dumps({'timeout_create': 'slow'}))
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'slow',
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'slow',
                               timeout=45)
         # Assert
         self.assertNotEqual(result.returncode, 0)
@@ -608,7 +635,7 @@ foreman_agent_effort = "high"
         repo = self.repo()
         self.state.write_text(json.dumps({'interrupt_create': 'second'}))
         # Act
-        result = self.run_cli(repo, '--repo', '.', *self.settings(), '--label', 'second')
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'second')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('Traceback', result.stderr)
@@ -621,10 +648,10 @@ foreman_agent_effort = "high"
         # Arrange
         repo = self.repo()
         # Act
-        result = self.run_cli(repo, input='\ny\n*\nprovider/model\nhigh\n')
+        result = self.run_cli(repo, input='\ny\n*\n1\nhigh\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = self.load(repo)
+        config = load_configuration(repo)
         self.assertEqual(config.watcher_label, ('*',))
         self.assertEqual(next(iter(config.repository)).local_dir, str(repo))
         self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
@@ -635,7 +662,7 @@ foreman_agent_effort = "high"
         child = repo / 'ordinary-child'
         child.mkdir()
         # Act
-        result = self.run_cli(child, *self.settings())
+        result = self.run_cli(child, *INIT_SETTINGS)
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('No local repository roots', result.stderr)
@@ -650,7 +677,7 @@ foreman_agent_effort = "high"
             with self.subTest(workspace=workspace):
                 # Act
                 result = self.run_cli(repo, '--repo', '.', '--workspace', str(workspace),
-                                      *self.settings())
+                                      *INIT_SETTINGS)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('Workspace', result.stderr)

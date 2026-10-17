@@ -1,62 +1,152 @@
-# Plan for implementing
+# Implementation plan
 
-The [architecture overview](architecture.md) describes system structure. Detailed implementation
-decisions are in the named [ADRs](architecture.md#decision-records); slice progress and validation
-remain in the linked plans below.
+The first five slices are implemented. Factory prepares issue plans and worktrees, and configures
+Foreman, feature-owner and research roles for clarification and planning. Local checks passed;
+autonomous agent planning has not been tested with a live model.
 
-## Slices
+This document covers the work order. The [architecture overview](architecture.md) explains the
+code structure. The [design decisions below](#design-questions) record the agreed behaviour.
 
-### Slice 1: initialize a factory
+## Completed slices
 
-Implemented, independently reviewed, and locally validated. Live GitHub label validation remains
-separately gated. See [slice 1](plans/slice-1.md) for scope, progress, and validation evidence.
+### Slice 1: set up a factory
 
-### Slice 2: watch issues and notify Pi
+Choose the repositories and GitHub labels to watch, then save the factory configuration.
+Implemented and reviewed; live GitHub label testing remains a separate check.
+[Details and test results](plans/slice-1.md).
 
-Implemented: poll configured GitHub repositories and labels, then forward issue notifications to
-one newly launched Pi session through AgentShell. Local tests, packaged-command checks, real
-idle/busy delivery, and SonarQube passed. Opus found no blockers; message advisories were fixed. See
-[slice 2](plans/slice-2.md) for details. Agent profiles, tools, and skills come later.
+### Slice 2: send new issues to Pi
 
-### Before slice 3: lint and architecture checks
+The watcher checks GitHub and sends matching issues to one Pi session started through AgentShell.
+Delivery was tested while Pi was idle and busy. Sending a message does not prove Pi processed it.
+[Details and test results](plans/slice-2.md).
 
-- [x] Configure Ruff for common errors, unused imports, import ordering, and 100-column checks.
-- [x] Enforce the agreed hexagonal dependency rules with Import Linter.
-- [x] Retain direct/indirect violation proofs as repeatable unittest checks.
-- [x] Add both commands to CI, with development-only dependencies and a reviewed uv lockfile.
-- [x] Complete local validation, SonarQube, and independent review.
+We also added automatic code-style and architecture checks, locally and in CI.
+[Quality checks](plans/quality-checks.md).
 
-See [quality checks](plans/quality-checks.md) for scope and validation evidence. Hosted push CI
-passed builds, lint, architecture checks, and all 61 tests on both Python 3.12 and 3.13.
+### Slice 3: set up the Foreman and Forgetful
 
-### Slice 3: Foreman setup and issue updates
+Closed on 2026-10-16 after Scott's DinoLand trial.
 
-Deferred until after the development checks:
+- Reuse the user's Pi login with permission, and choose the Foreman's model.
+- Set up editable Foreman skills/extensions and native Forgetful CLI access, locally or to a server.
+- Ask before installing missing tools. Block the watcher if setup is incomplete.
+- Let the Foreman discuss incoming issues. Automatic planning and feature-owner work come later.
 
-- [ ] Configure the Foreman's Pi profile, tools, and extensions; settle Forgetful wiring.
-- [ ] Create the Foreman skill with the agreed dispatch/recovery and completion responsibilities.
-- [ ] Consider issue-update notifications and changes made while the watcher was stopped,
-  including what state to retain and how to handle updates on restart.
+Tests, packaging, local smoke checks, SonarQube and independent review passed.
+Live logins, token refresh, model calls and fresh host installs remain unverified.
+[Current results and limits][trial-feedback]. The [original record](plans/slice-3.md)
+includes earlier MCP and separate-login choices that no longer apply.
 
-### Later slices
+## Current and next slices
 
-- [ ] Add existing-Pi-session notifications through AgentShell once attach/send is available:
-  [AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25). No direct tmux fallback.
-- [ ] Configure the feature-owner's Pi profile, tools, and extensions.
-- [ ] Extend the watcher with Forgetful plan scaffolding and initial worktree creation.
-- [ ] Investigate AgentShell's streamed Pi event-log growth before days-long watcher sessions;
-  pursue an upstream fix rather than factory code reaching into private SDK files.
-- [ ] Revisit provider-side filtering and quota handling for repositories with many open issues.
-- [ ] Validate identifying and reusing live feature-owner sessions after a Foreman restart;
-  saved session IDs and AgentShell Job IDs alone do not prove an owner is still running.
-- [ ] Create the feature-owner skill with the agreed reference locations, ownership/assignment
-  rules, and implementation completion/CI responsibilities.
-- [ ] Validate that post-merge deployment/E2E stages identify the tested application revisions,
-  including the deployed combination for a multi-repository epic.
+Slices 4 and 5 are implemented and locally validated. Later slices remain planned work.
+[Checks and remaining limits](plans/slices-4-5.md).
+
+### Slice 4: create a plan and working copy for each issue
+
+- Create one Forgetful plan per issue, with a task recording who owns the feature.
+- For a single-repository issue, create a branch and worktree (a separate working copy).
+- Save their details in Forgetful before notifying the Foreman.
+- Notify the Foreman when an issue changes. Reuse the plan and worktree after failures or restarts,
+  rather than creating duplicates.
+
+Init lets you select an existing Forgetful project or create one. It suggests the workspace name
+and asks before creating. A project is required for planning. Init always checks connection and
+planning access before completing setup; no extra flag is needed. The watcher and agents use the
+same Forgetful login and project. Browser sign-in is allowed during setup and attended watching;
+cancellation or failure leaves saved work available for retry.
+
+An issue carrying the additional `epic` label leaves repository and worktree selection to its owner.
+Other issues get an initial worktree in their source repository, using native Git commands.
+No worktree extension is required.
+
+[Forgetful 0.5.5][published-plan-model] includes the unique issue reference (`external_ref`). Its
+bundled-installer upgrade passed the dependency audit. Setup checks the selected local backend
+or remote server; updating the bundled CLI does not upgrade an existing server.
+
+### Slice 5: let a feature-owner plan the work
+
+The Foreman starts one feature-owner for an issue. That agent manages the feature's tasks.
+
+- Give it its own model, skills and instructions, using the shared Pi login and Forgetful instance.
+- Use the grill-me skill to ask for missing details, then resume the same conversation with answers.
+- Break the feature into tasks. For work spanning repositories, prepare each branch and worktree.
+- Record the owner's session. Reuse it while running; recover stopped owners without starting
+  duplicates when their status is uncertain.
+
+Scott has added research agents to `FACTORY.md`. The feature-owner can delegate fact-finding while
+using the unchanged grill-me skill. Research agents report back to the owner; implementation and
+PR review remain Slice 6 work.
+
+The audited AgentShell extension 1.4.1 supports the required child rosters and role resources.
+Factory provisions and selects them. Native role `AGENTS.md` files provide the coordinators'
+instructions. Existing edited guidance is preserved or requires explicit reconciliation.
+Owner delegation needs Pi's root maximum depth to be at least 1; Factory must not silently change
+that shared preference. See the [profile limits](adrs/agent-profiles.md).
+
+For a busy owner, wait for its run to finish before resuming with updates. A missing job record is
+not proof that its process stopped. Keep work pending when the owner's status is uncertain.
+
+### Slice 6: implement, review and merge
+
+- Set up the implementation and review agents' models, tools and skills.
+- Implementation agents make changes, run tests and fix CI failures for their commits.
+- The feature-owner opens PRs, arranges review and sends findings back for fixes. It updates
+  Forgetful; implementation and review agents do not.
+- Include architecture decision records and check the final commit before merging.
+- For multiple repositories, merge in a compatible order. Clean up branches/worktrees only when
+  safe, and keep the overall plan open for deployment checks.
+
+### Slice 7: check the deployed feature and finish the plan
+
+The Foreman checks deployment and end-to-end tests for the merged changes. For multiple
+repositories, it checks that the tests used the intended combination of deployed versions.
+
+- Complete the plan only after those checks pass.
+- On failure, raise or reuse a linked follow-up issue and keep the original plan open.
+- After a restart, find unfinished work in Forgetful and continue, even if its GitHub issue closed
+  at merge. Check whether agents are still running before starting replacements.
+
+### Slice 8: use a Foreman that is already running
+
+Let the user select an existing Foreman instead of always starting a new one.
+
+- Keep the option to start a new Foreman.
+- Confirm the selected terminal has a ready Foreman with the right settings.
+- Leave an existing Foreman running when the watcher stops. Stop a Foreman the watcher started.
+- Test delivery while idle and busy. Report missing or stopped sessions without replacing them.
+
+AgentShell [0.5.0 already supports attachment][agentshell-release], although [issue #25][attach]
+is still open. Factory needs to connect this to its startup flow. Attachment cannot change an
+existing agent's settings or prove it read a message; see the [attachment docs][attach-contract].
+
+## Other follow-ups
+
+- Explain the remote Forgetful `/mcp` URL more clearly during setup.
+- Personal AGENTS/append instructions can still apply. Model listing during setup can also read
+  personal SYSTEM instructions. Role AGENTS loading does not provide full profile isolation.
+- Check log growth during days-long runs, and GitHub request limits for large repositories.
+- Docker remains a possible later investigation; no container work is planned.
+
+Older status notes in the protected Design questions section describe their original slice.
+The summaries above give the current implementation status.
+
+[trial-feedback]:
+  plans/cli-onboarding.md#trial-feedback-clearer-consent-prompt-exclusion-and-python-selection
+[agentshell-release]: https://github.com/ScottRBK/agent-shell/releases/tag/v0.5.0
+[attach]: https://github.com/ScottRBK/agent-shell/issues/25
+[attach-contract]:
+  https://github.com/ScottRBK/agent-shell/blob/v0.5.0/docs/examples.md
+[external-ref]: https://github.com/ScottRBK/forgetful/issues/83
+[published-plan-model]:
+  https://github.com/ScottRBK/forgetful/blob/v0.5.5/app/models/plan_models.py
+
 
 ## Design questions
 
-Checked items record agreed decisions. Work through the remaining questions before implementation.
+Checked items record agreed design decisions, not implemented features. The slice statuses above
+state what is shipped. Resolve the remaining per-slice choices before implementation.
 
 Default to the responsible agent's discretion unless `FACTORY.md`, an agreed decision below,
 or the affected repository's instructions specify otherwise. Capture this default in the agent
@@ -64,14 +154,15 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
 
 ### Watcher implementation decision
 
-- Use Python rather than Bash for the watcher. Package AgentShell 0.4.0 as a runtime dependency
-  so `uvx` installs it automatically; require Python 3.12+ and test 3.12/3.13 in CI.
+- Use Python rather than Bash for the watcher. Package AgentShell as a runtime dependency so
+  `uvx` installs it automatically; require Python 3.12+ and test 3.12/3.13 in CI. Slice 2 used
+  0.4.0; shared-login resource selection now pins audited 0.5.0.
 - Use AgentShell's experimental interactive tmux host to launch the Foreman's Pi terminal once.
 - Send subsequent notifications through `session.terminal.send_text(message, submit=True)`;
   do not launch a new Foreman for each notification or add custom queueing behaviour.
-- Slice 2 launches a new Pi session only. All terminal interaction goes through AgentShell;
-  do not add direct tmux delivery. Existing-session support is deferred to
-  [AgentShell #25](https://github.com/ScottRBK/agent-shell/issues/25).
+- Factory currently launches a new Pi session only. All terminal interaction goes through
+  AgentShell; do not add direct tmux delivery. Upstream attachment shipped in 0.5.0; proposed
+  Slice 8 integrates it while preserving the different owned/borrowed cleanup contracts.
 - Validate the real notification path with both idle and busy Pi sessions before relying on it.
 
 ### 1. Prevent duplicate work
@@ -79,7 +170,8 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
 - [x] How should repeated polls identify and reuse the existing plan for an issue?
   - Use the plan's `external_ref` to associate the issue with its existing Forgetful plan.
   - The field will be optional and unique per user; factory-created issue plans will supply it.
-  - Forgetful enhancement: [issue #83](https://github.com/ScottRBK/forgetful/issues/83).
+  - Forgetful [issue #83][external-ref] is implemented upstream but absent from published 0.5.4;
+    verify the backend/version before implementing this dependency.
   - This prevents duplicate plans, not duplicate running agents.
 - [x] Who is responsible for ensuring only one feature-owner runs for an issue?
   - The Foreman is the sole dispatcher of feature-owners; the watcher only notifies the Foreman.
@@ -113,7 +205,7 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
   - Never stop or replace an existing instance without the user's permission.
   - Starting an additional factory instance is not an offered startup option.
   - Slice 2 launches new sessions only and rejects a concurrent second watcher for the workspace.
-    Discovery/selection of existing sessions is deferred until AgentShell supports attachment.
+    AgentShell 0.5.0 now supports attachment; Factory discovery/selection is still unimplemented.
 - [x] How should a restarted Foreman rediscover an existing owner or recover a failed launch?
   - Read the ownership task to find the recorded feature-owner session.
   - Reuse the owner if it is still running.
@@ -222,7 +314,7 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
   - The watcher simply sends a message to the existing Foreman Pi session; the Foreman deals
     with it from there. No custom watcher queue or busy-session coordination is required.
   - Slice 2 validated submission to the same new Pi session while idle and busy through AgentShell.
-    Role-specific Foreman behaviour remains deferred.
+    Slice 3 adds discussion-only Foreman guidance; feature coordination remains future work.
   - If the session is unavailable, the plan remains pending in Forgetful and restart recovery
     rediscovers it. Do not assume session messages survive a restart.
 - [x] How should clarification replies from GitHub and direct user input reach the feature-owner?

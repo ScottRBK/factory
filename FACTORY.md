@@ -16,6 +16,7 @@ Inspired by [jovaneyck/software-factory-demo](https://github.com/jovaneyck/softw
 |End to End test environment|Isolated test environment that has changes deployed to and can be used to run end to end verification tests|
 |Foreman Agent|Pi agent that is the primary interaction point for the user or the watcher script|
 |Feature Owner|Pi sub-agent that owns a feature or multi-repository epic|
+|Research Agent|Sub agent that is launched to gather further context for the Feature Owner agent|
 |Implementation Agent|Sub agent that is launched by the feature owner that is designated with implementing the changes|
 |Review Agent|Sub agent that is launched by the feature owner that is designated with reviewing the changes|
 
@@ -35,6 +36,7 @@ config:
     participant e2e as End to End test environment
     actor foreman as Foreman Agent
     actor fo as Feature Owner
+    actor ra as Research Agent
     actor ia as Implementation Agent 
     actor ra as Review Agent
 
@@ -57,6 +59,12 @@ config:
     foreman ->> fo: send issue, scaffolded Forgetful plan, and repository context
     activate fo
     fo ->> fo: invoke grill me on issue
+    alt feature owner decides to launch research agent
+        fo ->> ra: launches agent to gather more context
+        activate ra 
+        ra ->> fo: provides relevant content
+        deactivate ra
+    end 
     alt requested more feedback
         fo ->> gh: requests further feedback
         fo -->> foreman: returns clarification request and Pi session ID
@@ -160,6 +168,7 @@ their own system prompt, tools (inc mcp) and skills.
 |-----|-----|------|---------------|
 |Foreman|`forgetful`,`agent-shell`, `github`|`foreman`|Notified on new issues -> launches feature owners -> monitors feature owners -> communicates with user|
 |Feature Owner|`forgetful`,`agent-shell`, `github`|`feature-owner`|Launched by Foreman -> uses grill me skill -> updates issues and foreman if more info needed -> builds proper plan -> launches implementation_agent_effort -> launches reviewer -> updates forgetful -> speaks to foreman|
+|Research Agent|`bash`, `browser-tools/computer-use`||Launched by the feature owner -> gathers context/research -> returns it back to feature owner|
 |Implementation Agent|`bash`, `browser-tools/computer-use`, `github`|`tdd`, `{application-specific-architecture-skills}`|Launched by the feature owner -> implements changes -> commits -> fixes issues|
 |Reviewer Agent|`bash`, `browser-tools/computer-use`, `github`|`{application or organisation specific coding standards}`|Launched by the feature owner -> reviews pr -> reoports back to github|
 
@@ -219,7 +228,3 @@ Repositories example:
    provider = "github"
    source = "team/api"
 ```
-
-
-
-

@@ -29,7 +29,10 @@ class Issue:
     number: int
     title: str
     url: str
+    body: str = ''
+    revision: str = ''
+    epic: bool = False
 
     @property
     def id(self) -> str:
-        return f'{self.source.provider}:{self.source.reference}#{self.number}'
+        return f'{self.source.provider}:{self.source.reference.casefold()}#{self.number}'

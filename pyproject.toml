@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Initialize a workspace factory for local repositories and GitHub work sources"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = ["agent-shell-py==0.4.0"]
+dependencies = ["agent-shell-py==0.5.0"]
 
 [dependency-groups]
 dev = ["ruff==0.17.0", "import-linter==2.15"]
@@ -20,7 +20,7 @@ forgetful-factory = "forgetful_factory.cli.main:main"
 required-version = ">=0.13.1"
 
 [tool.uv.build-backend]
-source-include = ["tests/*.py"]
+source-include = ["tests/*.py", "tests/fixtures/*.md"]
 
 [tool.importlinter]
 root_package = "forgetful_factory"

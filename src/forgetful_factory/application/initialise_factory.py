@@ -1,11 +1,14 @@
+from collections.abc import Callable
 from pathlib import Path
 
 from forgetful_factory.application.configuration import (
     FactoryConfiguration,
+    ForgetfulConnection,
     unique_labels,
     validate,
 )
 from forgetful_factory.application.ports.configuration_store import ConfigurationStore
+from forgetful_factory.application.ports.foreman_profile import ForemanProfile
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.domain.models import FactoryError, Label, RepositoryReference, WorkSource
@@ -14,11 +17,37 @@ from forgetful_factory.domain.services.work_tracking import WorkTrackingService
 
 class InitialiseFactory:
     def __init__(self, tracking: WorkTrackingService, storage: ConfigurationStore,
-                 repositories: LocalRepositories, sources: WorkSourceResolver):
+                 repositories: LocalRepositories, sources: WorkSourceResolver,
+                 profile: ForemanProfile):
         self.tracking = tracking
         self.storage = storage
         self.repositories = repositories
         self.sources = sources
+        self.profile = profile
+
+    def prepare_foreman(self, connection: ForgetfulConnection,
+                        install: Callable[[list[str]], None],
+                        confirm: Callable[[str, str], bool]) -> None:
+        self.profile.prepare(connection)
+        missing = self.profile.missing_executables(connection)
+        if missing:
+            for command in missing:
+                recipe = self.profile.installation(command)
+                if recipe is None:
+                    install([command])
+                elif confirm(command, recipe):
+                    self.profile.install(command)
+                else:
+                    raise FactoryError('Installation declined; executable missing. '
+                                       'Setup is incomplete; rerun init to retry.')
+            if self.profile.missing_executables(connection):
+                raise FactoryError('Required executable still missing; setup is incomplete. '
+                                   'Complete the reviewed installation and rerun init.')
+
+    def check_foreman(self, config: FactoryConfiguration, *, login: bool) -> str:
+        if login:
+            self.profile.login(config.forgetful)
+        return self.profile.check(config.forgetful)
 
     def load_existing(self, paths: list[Path] | None, labels: list[str] | None,
                       model: str | None, effort: str | None) -> FactoryConfiguration | None:
@@ -33,6 +62,15 @@ class InitialiseFactory:
             model is not None and model != config.foreman_agent_model,
             effort is not None and effort != config.foreman_agent_effort,
         )
+        if config.forgetful is None:
+            raise FactoryError('Existing testing factory lacks shared Forgetful settings. '
+                               'Initialize a fresh factory; migration is not supported.')
+        if config.forgetful.project_id is None:
+            raise FactoryError('Existing .factory/factory.toml lacks forgetful.project_id. '
+                               'Edit its [forgetful] section to add project_id = <existing '
+                               'numeric project ID>, then rerun init. Init does not migrate '
+                               'existing config or save project choices over it; edits are '
+                               'preserved.')
         if any(conflicts):
             raise FactoryError('Arguments conflict with existing config; edit '
                                '.factory/factory.toml explicitly, then rerun init.')
@@ -88,8 +126,11 @@ class InitialiseFactory:
         existing.add(name.casefold())
         return f'Created {source.reference}: {name}'
 
-    def initialise(self, config: FactoryConfiguration, *, save: bool = True) -> list[str]:
+    def initialise(self, config: FactoryConfiguration, *,
+                   before_writes: Callable[[], FactoryConfiguration | None],
+                   save: bool = True) -> list[str]:
         labels_by_source = self._preflight(config)
+        config = before_writes() or config
         messages = []
         operation = ''
         try:
