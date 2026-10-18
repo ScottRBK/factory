@@ -91,7 +91,8 @@ class ProfileRecoveryTests(InitFixture):
         (package / 'models/resources.py').write_text(
             'class SessionResources:\n'
             '    def __init__(self, **kwargs): self.__dict__.update(kwargs)\n')
-        (package / 'models/agent.py').write_text('class AgentType:\n    PI = "pi"\n')
+        (package / 'models/agent.py').write_text(
+            'from enum import Enum\nclass AgentType(str, Enum):\n    PI = "pi"\n')
         self.terminal_log = self.workspace / 'terminal.jsonl'
         self.env.update(PYTHONPATH=str(package.parent) + ':' + self.env['PYTHONPATH'],
                         WATCH_TERMINAL_LOG=str(self.terminal_log), WATCH_EXIT_DELAY='0.1')
@@ -160,7 +161,8 @@ class ProfileRecoveryTests(InitFixture):
                 (repo / 'docker').mkdir()
                 (repo / 'docker/.env').write_text('DATABASE=Postgres\n')
                 extra = () if instance == 'local' else (
-                    '--forgetful-server', 'https://memory.example/mcp', '--check-connection')
+                    '--forgetful-server', 'https://memory.example/custom-endpoint',
+                    '--check-connection')
                 setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                                      '--forgetful-method', 'cli', '--forgetful-instance', instance,
                                      '--forgetful-executable', str(executable), *extra)
@@ -176,7 +178,7 @@ class ProfileRecoveryTests(InitFixture):
                 self.assertEqual(len(calls), 1)
                 call = calls[0]
                 expected = (['--local'] if instance == 'local' else
-                            ['--server', 'https://memory.example/mcp'])
+                            ['--server', 'https://memory.example/custom-endpoint'])
                 self.assertEqual(call['args'], ['project', 'list', *expected, '--json'])
                 self.assertEqual(call['configured_executable'], str(executable))
                 self.assertEqual(call['cwd'], str(repo / '.factory/agents/foreman'))
@@ -184,7 +186,7 @@ class ProfileRecoveryTests(InitFixture):
                                  str(repo / '.factory/agents/foreman/cli-config'))
                 self.assertFalse(call['has_token'])
                 self.assertEqual(call['server'], '' if instance == 'local'
-                                 else 'https://memory.example/mcp')
+                                 else 'https://memory.example/custom-endpoint')
                 if instance == 'local':
                     self.assertEqual(call['database'], str(repo / '.factory/data/forgetful.db'))
                     self.assertEqual(call['database_type'], 'SQLite')
@@ -205,7 +207,7 @@ class ProfileRecoveryTests(InitFixture):
                         FORGETFUL_TOKEN='TOP_SECRET')
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                              '--forgetful-method', 'cli', '--forgetful-instance', 'server',
-                             '--forgetful-server', 'https://memory.example/mcp',
+                             '--forgetful-server', 'https://memory.example/custom-endpoint',
                              '--check-connection')
         self.assertEqual(setup.returncode, 0, setup.stderr)
         log.unlink(missing_ok=True)
@@ -217,7 +219,7 @@ class ProfileRecoveryTests(InitFixture):
         # Assert
         calls = [e for e in events(log) if e['args'][:1] == ['auth']]
         self.assertEqual([call['args'] for call in calls], [
-            ['auth', 'login', '--server', 'https://memory.example/mcp'],
+            ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'],
             ['auth', 'status'], ['auth', 'logout']])
         for call in calls:
             self.assertEqual(call['configured_executable'], 'forgetful')
@@ -225,7 +227,7 @@ class ProfileRecoveryTests(InitFixture):
                              str(repo / '.factory/agents/foreman/cli-config'))
             self.assertFalse(call['has_token'])
             self.assertEqual(call['cwd'], str(repo / '.factory/agents/foreman'))
-            self.assertEqual(call['server'], 'https://memory.example/mcp')
+            self.assertEqual(call['server'], 'https://memory.example/custom-endpoint')
         for command in (e for e in events(self.terminal_log) if e['kind'] == 'skill-command'):
             self.assertEqual(command['code'], 0)
             self.assertEqual(command['stdout'].splitlines()[-2:],
@@ -422,7 +424,7 @@ class ProfileRecoveryTests(InitFixture):
         self.env['PROFILE_LOG'] = str(commands)
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                              '--forgetful-instance', 'server',
-                             '--forgetful-server', 'https://memory.example/mcp',
+                             '--forgetful-server', 'https://memory.example/custom-endpoint',
                              '--check-connection')
         self.assertEqual(setup.returncode, 0, setup.stderr)
         commands.unlink()

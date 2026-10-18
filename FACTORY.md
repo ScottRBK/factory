@@ -36,7 +36,7 @@ config:
     participant e2e as End to End test environment
     actor foreman as Foreman Agent
     actor fo as Feature Owner
-    actor ra as Research Agent
+    actor re as Research Agent
     actor ia as Implementation Agent 
     actor ra as Review Agent
 
@@ -60,10 +60,10 @@ config:
     activate fo
     fo ->> fo: invoke grill me on issue
     alt feature owner decides to launch research agent
-        fo ->> ra: launches agent to gather more context
-        activate ra 
-        ra ->> fo: provides relevant content
-        deactivate ra
+        fo ->> re: launches agent to gather more context
+        activate re 
+        re ->> fo: provides relevant content
+        deactivate re
     end 
     alt requested more feedback
         fo ->> gh: requests further feedback
@@ -84,7 +84,7 @@ config:
 
     activate ia 
     ia ->> host: implements changes, runs local tests, commits and pushes
-    ia ->> gh: invokes CI and checks results for exact commit
+    ia ->> gh: invokes CI/Raises PR and checks results for exact commit
     loop correctable CI failures
         ia ->> host: fixes failures, reruns local tests, commits and pushes
         ia ->> gh: reruns CI and checks results for exact commit
@@ -101,7 +101,6 @@ config:
     end
     deactivate ia
 
-    fo ->> gh: raise pr 
     fo ->> forgetful: update tasks
     fo ->> ra: prompt agent to review pr
     fo ->> forgetful: record agent assigned to task

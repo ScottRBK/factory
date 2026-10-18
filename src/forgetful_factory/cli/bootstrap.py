@@ -48,5 +48,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path) ->
     return WatchFactory(github, AgentShellTerminal(python, environment, profile.launch_resources(),
                                                   cwd=str(profile.directory)),
                         WorkspaceWatchLease(workspace),
-                        ScaffoldIssue(ForgetfulPlanning(workspace, config.forgetful),
+                        ScaffoldIssue(ForgetfulPlanning(
+                            workspace, config.forgetful,
+                            execution_enabled=config.execution_enabled),
                                       GitWorktrees(), workspace, config))

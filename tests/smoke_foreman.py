@@ -200,7 +200,8 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
             or not versions['uv'].startswith('uv 0.13.1 ')
             or not re.search(r'\b0\.5\.5\b', versions['forgetful'])):
         raise AssertionError('Expected Pi 1.3.0, AgentShell 0.5.0, Forgetful 0.5.5 and uv 0.13.1')
-    init_command = [sys.executable, '-m', 'forgetful_factory', 'init', '--workspace', str(repo),
+    init_command = [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
+         '--workspace', str(repo),
          '--repo', str(repo), '--label', 'factory', '--foreman-model', MODEL,
          '--foreman-effort', 'low', '--forgetful-instance', 'local',
          '--forgetful-executable', executable, '--install-role-runtime',

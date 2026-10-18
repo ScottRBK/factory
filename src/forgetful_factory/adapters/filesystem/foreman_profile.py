@@ -48,6 +48,7 @@ class ForemanProfile:
         self.directory = workspace / '.factory/agents/foreman'
         self.resources_path = self.directory / 'resources.json'
         self._pi_choice: dict | None = None
+        self._model_catalogs: dict[tuple[str, Path], list[str]] = {}
 
     def missing_executables(self, connection: ForgetfulConnection) -> list[str]:
         required = ['pi', 'tmux']
@@ -129,8 +130,9 @@ class ForemanProfile:
     def login(self, connection: ForgetfulConnection) -> None:
         AgentForgetfulConnection(self.workspace).login(connection)
 
-    def check(self, connection: ForgetfulConnection) -> str:
-        AgentForgetfulConnection(self.workspace).check(connection)
+    def check(self, connection: ForgetfulConnection, *, execution_enabled: bool) -> str:
+        AgentForgetfulConnection(self.workspace).check(
+            connection, execution_enabled=execution_enabled)
         return 'Forgetful: connected; selected project and planning permissions verified.'
 
     def projects(self, connection: ForgetfulConnection) -> list[dict]:
@@ -177,12 +179,31 @@ class ForemanProfile:
     def prepare_roles(self, config) -> None:
         profiles = CoordinatorProfiles(self.workspace)
         profiles.validate_depth(self.pi_home())
+        if config.execution_enabled:
+            self.validate_worker_models(config)
         try:
             profiles.prepare(config)
             profiles.selection(config)
         except (ValueError, TypeError, KeyError) as error:
             raise FactoryError('Invalid owner resources/roster; explicitly reconcile the '
                                'preserved files and rerun init.') from error
+
+    def validate_worker_models(self, config: FactoryConfiguration) -> None:
+        for role in ('implementation', 'review'):
+            harness = getattr(config, f'{role}_agent_harness')
+            model = getattr(config, f'{role}_agent_model')
+            for repository in config.repository:
+                try:
+                    models = self.list_models(config.forgetful, harness=harness,
+                                              cwd=Path(repository.local_dir))
+                    if model not in models:
+                        raise ValueError('Unlisted selector')
+                except (FactoryError, ValueError) as error:
+                    raise FactoryError(f'{role} model {model!r} is not selectable through '
+                                       f'native {harness} in {repository.local_dir}. Use an exact '
+                                       'native catalog selector; access and model-specific effort '
+                                       'support remain unverified. Diagnostics withheld.'
+                                       ) from error
 
     def choose_pi_home(self, requested: str | None, confirm) -> str:
         path = self.directory / PI_PROFILE_FILE
@@ -234,20 +255,30 @@ class ForemanProfile:
                                'Review .factory/agents/foreman/pi-profile.json if it exists.'
                                ) from error
 
-    def list_models(self, connection: ForgetfulConnection) -> list[str]:
+    def list_models(self, connection: ForgetfulConnection, *, harness: str = 'pi',
+                    cwd: Path | None = None) -> list[str]:
+        cwd = cwd or self.workspace
+        key = (harness, cwd)
+        if key in self._model_catalogs:
+            return self._model_catalogs[key].copy()
         self.require_pi_home(self.pi_home())
         helper = Path(__file__).parents[1] / 'agentshell/model_catalog.py'
         environment = role_environment(self.workspace, connection, self.pi_home())
         try:
-            output = run_owned([sys.executable, str(helper)], self.workspace, environment)
+            output = run_owned([sys.executable, str(helper), harness],
+                               cwd, environment)
             models = json.loads(output)
             if not isinstance(models, list) or any(not isinstance(m, str) for m in models):
                 raise ValueError('Invalid catalog')
         except (FactoryError, ValueError) as error:
-            raise FactoryError('Pi model listing failed; setup is incomplete. Use native Pi /login '
-                               'in the chosen home and rerun init. External diagnostics withheld.'
+            raise FactoryError(f'{harness} model listing failed; native catalog unavailable. '
+                               'Setup is incomplete; check the native login and rerun init. '
+                               'External diagnostics withheld.'
                                ) from error
-        return sorted(set(models))
+        models = sorted(set(models))
+        if models:
+            self._model_catalogs[key] = models
+        return models.copy()
 
     def _selection(self, config: FactoryConfiguration) -> dict:
         return {'agent_directory': self.pi_home(), 'model': config.foreman_agent_model,

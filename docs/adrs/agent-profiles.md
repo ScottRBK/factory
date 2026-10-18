@@ -1,6 +1,6 @@
 # Role resources, shared Pi login and Forgetful CLI
 
-Status: shared Pi setup and Slice 4/5 role integration implemented and locally validated.
+Status: shared Pi setup, coordinator roles and optional worker setup implemented and locally tested.
 See [CLI onboarding](../plans/cli-onboarding.md) for the earlier setup checks and
 [Slice 4/5 validation](../plans/slices-4-5.md) for the current role integration.
 
@@ -10,7 +10,8 @@ Back to [architecture](../architecture.md).
 
 The watcher prepares plans and ordinary-issue worktrees, then notifies the Foreman. The Foreman
 alone dispatches feature-owners. An owner conducts grill-me, may launch research agents, and
-prepares the task plan. Implementation and review execution remain later work.
+prepares the task plan. Slice 6 adds optional implementation/review workers; its validation is
+recorded separately in [Slice 6](../plans/slice-6.md).
 
 Initialization uses application ports. The profile adapter prepares editable resources, delegates
 host provisioning and native Forgetful commands, and uses a process boundary for AgentShell model
@@ -85,7 +86,8 @@ resource selections are checked against configuration and recorded with setup co
 Edited selections require explicit reconciliation, not silent replacement. Foreman's own skill
 and AgentShell extension are mandatory; hide-tools is optional.
 
-Both automatic inheritance flags are false, packages/plugins are empty, native MCP is disabled,
+For these Pi coordinator/research roles, both automatic inheritance flags are false,
+packages/plugins are empty, native MCP is disabled,
 and ordinary instruction files remain enabled. `include_home_system_prompt=False` excludes
 personal `SYSTEM.md` while retaining Pi's built-in prompt. `APPEND_SYSTEM.md` remains independent.
 AgentShell 0.5 rejects the interactive combination if the Foreman's launch directory contains
@@ -102,6 +104,28 @@ from inside a Pi subagent is rejected. No roster field can override the native d
 
 Only selected upstream extensions are provisioned. There is no Factory status/auth extension,
 replacement Pi executable, Forgetful wrapper, or remote-package auto-install.
+
+## Optional implementation and review workers
+
+Worker configuration is all-or-none: both harness/model/effort selections plus a local TDD skill.
+Factories with no worker settings remain planning-only. New init asks explicitly; `--planning-only`
+selects that mode without prompting. Optional implementation/review skills are existing local files.
+
+Worker roster entries omit `cwd`: the owner must supply the assigned worktree on every launch.
+That retains the worktree's native repository instructions. Both roles have local Factory skills;
+the task prompt tells the worker to read those and its selected TDD/repository guidance. Pi also
+receives explicit selected skills and a disabled child roster. Codex and Claude receive no Pi-only
+resource options or child roster; their native instruction and tool settings still apply.
+
+Exact model selectors come from the selected harness's catalog in each configured repository.
+The supported effort vocabulary is checked per harness; catalogs do not establish model-specific
+effort support, live access or tool permissions. Discovery results are reused only during one init,
+not across sessions. Watch does not list models.
+
+Readiness binds worker selections, executable paths and selected skill-file bytes. It does not
+freeze native settings, every referenced document or executable contents. Editing selected skills
+requires re-init. Existing role files remain create-only; configuration changes can require explicit
+reconciliation. See [delivery](feature-delivery.md) for native permission and resume limitations.
 
 ## Provisioning and editable files
 

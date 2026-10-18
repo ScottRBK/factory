@@ -81,10 +81,11 @@ elif name in ('forgetful', 'custom forgetful'):
     if args[:2] == ['tools', 'list']:
         names = ('create_plan', 'list_plans', 'get_plan', 'update_plan', 'create_task',
                  'query_tasks', 'get_task', 'update_task', 'claim_task', 'transition_task',
-                 'add_criterion', 'add_dependency')
+                 'add_criterion', 'add_dependency', 'verify_criterion')
         tools = [{'name': tool, 'parameters': {
             ('old' if failure == 'external_ref' else 'external_ref'): {'type': 'string'}}}
-            for tool in names if not (failure == 'permission' and tool == 'claim_task')]
+            for tool in names if not (failure == 'permission' and tool == 'claim_task')
+            and not (failure == 'verification' and tool == 'verify_criterion')]
         print(os.environ.get('PROFILE_TOOL_CATALOG', json.dumps({
             'tools_by_category': {'plan': tools[:4], 'task': tools[4:]}})))
         sys.exit(0)

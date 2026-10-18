@@ -40,8 +40,9 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
-Slices 4 and 5 are implemented and locally validated. Later slices remain planned work.
-[Checks and remaining limits](plans/slices-4-5.md).
+Slices 4, 5 and 6 are implemented and locally validated; Slice 6 still needs a live delivery trial.
+Slices 7 and 8 remain planned work. [Slice 4/5 checks](plans/slices-4-5.md) and [Slice 6
+progress](plans/slice-6.md).
 
 ### Slice 4: create a plan and working copy for each issue
 
@@ -90,10 +91,17 @@ not proof that its process stopped. Keep work pending when the owner's status is
 
 ### Slice 6: implement, review and merge
 
+Implemented and locally tested; see [validation and remaining checks](plans/slice-6.md).
+Owner guidance requires actual changes and tests in the plan, not just workflow stages. It proceeds
+when requirements are clear, unless repository rules require explicit plan approval. A real delivery
+trial still needs a disposable repository agreed with Scott and suitable native worker permissions.
+Scott's updated `FACTORY.md` assigns PR creation to implementation, so PR-triggered CI can run.
+Required checks still must pass before implementation is complete; no draft-only rule is imposed.
+
 - Set up the implementation and review agents' models, tools and skills.
-- Implementation agents make changes, run tests and fix CI failures for their commits.
-- The feature-owner opens PRs, arranges review and sends findings back for fixes. It updates
-  Forgetful; implementation and review agents do not.
+- Implementation agents make changes, run tests, open or reuse PRs and fix CI for their commits.
+- The feature-owner verifies PRs and CI evidence, arranges review and sends findings back for fixes.
+  It updates Forgetful; implementation and review agents do not.
 - Include architecture decision records and check the final commit before merging.
 - For multiple repositories, merge in a compatible order. Clean up branches/worktrees only when
   safe, and keep the overall plan open for deployment checks.
@@ -130,7 +138,9 @@ existing agent's settings or prove it read a message; see the [attachment docs][
 - Docker remains a possible later investigation; no container work is planned.
 
 Older status notes in the protected Design questions section describe their original slice.
-The summaries above give the current implementation status.
+The summaries above give the current implementation status. The protected section's earlier
+assignment of PR creation to the feature-owner is superseded by Scott's updated `FACTORY.md` and
+the Slice 6 summary above; the protected section is preserved as requested.
 
 [trial-feedback]:
   plans/cli-onboarding.md#trial-feedback-clearer-consent-prompt-exclusion-and-python-selection

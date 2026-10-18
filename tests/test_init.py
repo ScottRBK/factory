@@ -117,7 +117,11 @@ class InitFixture(unittest.TestCase):
         return path
 
     def run_cli(self, cwd, *args, input='', timeout=10, connection_defaults=True,
-                role_defaults=True, pi_defaults=True):
+                role_defaults=True, pi_defaults=True, worker_defaults=True):
+        if worker_defaults and not any(
+                arg.startswith(('--implementation-', '--review-', '--tdd-', '--planning-only'))
+                for arg in args):
+            args = (*args, '--planning-only')
         if '--grill-me-skill' not in args and not (cwd / '.factory/factory.toml').exists():
             args = (*args, '--grill-me-skill', str(self.grill_skill))
         if '--forgetful-project' not in args:

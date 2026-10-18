@@ -19,16 +19,36 @@ def _worktree_entries(output: str) -> list[dict]:
 
 
 class GitWorktrees:
-    def ensure(self, repository: str, branch: str, path: str, *, recorded: bool,
-               remote: str) -> None:
+    @staticmethod
+    def _repository_entries(repository: str, remote: str) -> tuple[Path, list[dict]]:
         root = Path(repository).resolve()
         actual = run_command(['git', '-C', str(root), 'remote', 'get-url', 'origin'])
         if actual != remote:
             raise FactoryError('Repository origin changed; reconcile factory.toml and the '
                                'recorded worktree before continuing. Existing work is preserved.')
-        target = Path(path)
         output = run_command(['git', '-C', str(root), 'worktree', 'list', '--porcelain', '-z'])
-        entries = _worktree_entries(output)
+        return root, _worktree_entries(output)
+
+    def verify_removed(self, repository: str, branch: str, path: str, *, remote: str) -> None:
+        _, entries = self._repository_entries(repository, remote)
+        target = Path(path)
+        conflict = FactoryError(f'Removed worktree cleanup conflicts with path or registration: '
+                                f'{target}; reconcile the cleanup record. '
+                                'Existing work is preserved.')
+        if any(parent.is_symlink() for parent in (target, *target.parents)) or target.exists():
+            raise conflict
+        try:
+            registered = any(Path(entry['worktree']).resolve() == target.resolve()
+                             or entry.get('branch') == f'refs/heads/{branch}' for entry in entries)
+        except (OSError, RuntimeError, ValueError, KeyError) as error:
+            raise conflict from error
+        if registered:
+            raise conflict
+
+    def ensure(self, repository: str, branch: str, path: str, *, recorded: bool,
+               remote: str) -> None:
+        root, entries = self._repository_entries(repository, remote)
+        target = Path(path)
         match = next((e for e in entries if e.get('worktree') == str(target)), None)
         if match:
             if (match.get('branch') != f'refs/heads/{branch}' or not target.is_dir()

@@ -153,7 +153,8 @@ class WatchFixture(unittest.TestCase):
         (package / 'models/resources.py').write_text(
             'class SessionResources:\n'
             '    def __init__(self, **kwargs): self.__dict__.update(kwargs)\n')
-        (package / 'models' / 'agent.py').write_text('class AgentType:\n    PI = "pi"\n')
+        (package / 'models' / 'agent.py').write_text(
+            'from enum import Enum\nclass AgentType(str, Enum):\n    PI = "pi"\n')
         self.state_path = self.workspace / 'gh.json'
         self.terminal_log = self.workspace / 'terminal.jsonl'
         self.state_path.write_text(json.dumps({'sources': {'team/app': [[[]]]}}))
@@ -174,6 +175,7 @@ class WatchFixture(unittest.TestCase):
         self.configure()
 
     def initialize_profile(self):
+        # A custom endpoint skips optional HTTP policy discovery; native access stays doubled.
         install_commands(self.bin)
         subprocess.run(['git', 'init', '-q', str(self.workspace)], check=True)
         subprocess.run(['git', '-C', str(self.workspace), 'remote', 'add', 'origin',
@@ -185,8 +187,10 @@ class WatchFixture(unittest.TestCase):
         state.write_text('{}')
         (self.bin / 'gh').write_text(INIT_GH)
         result = subprocess.run(
-            [sys.executable, '-m', 'forgetful_factory', 'init', '--repo', '.', *INIT_SETTINGS,
-             '--forgetful-instance', 'server', '--forgetful-server', 'https://memory.example/mcp',
+            [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
+             '--repo', '.', *INIT_SETTINGS,
+             '--forgetful-instance', 'server', '--forgetful-server',
+             'https://memory.example/custom-endpoint',
              '--install-role-runtime', '--share-pi-profile', '--check-connection',
              '--forgetful-project', '12', '--grill-me-skill', str(self.grill_skill)],
             cwd=self.workspace,
@@ -218,7 +222,7 @@ class WatchFixture(unittest.TestCase):
                          f'remote = "git@github.com:{source}.git"\n'
                          f'provider = {json.dumps(provider)}\nsource = {json.dumps(source)}\n')
         contents += ('\n[forgetful]\ninstance = "server"\nproject_id = 12\n'
-                     'server = "https://memory.example/mcp"\n')
+                     'server = "https://memory.example/custom-endpoint"\n')
         (directory / 'factory.toml').write_text(contents)
 
     def issue(self, number=1, title='Implement feature', labels=('factory',), **extra):

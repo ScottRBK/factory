@@ -9,7 +9,9 @@ Implementation decisions and their rationale live in the [ADRs below](#decision-
 Factory sets up shared native Pi login, local role resources and native Forgetful CLI access.
 The watcher creates or reuses an issue plan, ownership task and ordinary-issue Git worktree before
 notifying the Foreman. The Foreman's selected roster launches a feature-owner for clarification,
-research and task planning. Implementation, review, merge and deployment execution remain planned.
+research and task planning. Optional implementation/review workers and owner-led merge guidance
+are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
+Deployment and final E2E verification remain planned.
 
 Slices 4/5 are implemented and locally validated; see the
 [validation record](plans/slices-4-5.md). Earlier setup results remain in
@@ -91,10 +93,9 @@ import or call graph.
   and planning support before recording completion. Server checks may start native browser sign-in;
   no extra check flag is required. A bounded public-policy request controls whether init shows the
   browser notice; it sends no credentials and never replaces the access check. The profile port
-  delegates resource preparation, installation,
-  project creation and checks/sign-in to adapters. Credentials remain native; Factory never copies
-  or prints token values. Forgetful installation
-  selects an existing Python 3.12 independently of Factory's interpreter, checking prerequisites
+  delegates resources, installation, project creation and checks/sign-in to adapters. Credentials
+  remain native; Factory never copies or prints token values. Forgetful installation selects an
+  existing Python 3.12 independently of Factory's interpreter, checking prerequisites
   before asking for installation consent; it never downloads Python.
 - Forgetful settings identify the native CLI, project and database/endpoint. Watcher and agents
   share one CLI cwd/configuration scope through `FACTORY_FORGETFUL_DIR` and
@@ -102,18 +103,21 @@ import or call graph.
   Native browser login/refresh is permitted for an attended watcher. Factory does not handle tokens.
   Init/watch preflight uses two native CLI processes: project and permitted tool catalog.
   Project access also verifies the connection/login. Required tools and parameter support are
-  checked from the catalog, not individual tool requests.
+  checked from the catalog, not individual tool requests. Execution-enabled factories additionally
+  require criterion verification; planning-only access requirements remain unchanged.
 - Watch checks completed setup, selected role files, worker metadata and native delegation depth.
   Under the workspace lease it checks Forgetful planning access, starts Foreman, restores unfinished
   plans, then polls GitHub. `ScaffoldIssue` coordinates the `Planning` and `Worktrees` ports before
   terminal submission. Uncertain non-idempotent creates stop for reconciliation.
 - The Git adapter uses native worktree registration, branch/common-directory and origin checks.
   It never resets or deletes existing work. An `epic` label defers worktree selection to the owner.
+  Valid owner-recorded cleanup permits an absent merged tree only after read-only origin/path and
+  registration checks. Missing unmarked or pending trees still require reconciliation.
 - AgentShell 0.5 selects local skills/extensions while disabling automatic personal/project resource
   discovery and native MCP. Native instruction loading remains enabled; home `SYSTEM.md` is
   excluded at launch. Personal append/context files and shared settings can still apply. Model
   listing during setup has a separate loading policy. This is not a security sandbox.
-- Foreman and children start in their role cwd, where native `AGENTS.md` supplies instructions.
+- Foreman, owner and research start in their role cwd, with native `AGENTS.md` instructions.
   Foreman's preserved `APPEND_SYSTEM.md` is read by that guidance, not sent as an opening prompt.
   Explicit extension 1.4.1 rosters select owner and research children, including their resources.
   The extension's worker independently pins AgentShell 0.5. Native `max_sub_agent_depth` must be
@@ -121,7 +125,13 @@ import or call graph.
 - Foreman alone dispatches owners. Skills describe versioned ownership claims, grill-me,
   clarification, task planning and safe continuation. Native job status/history has recovery limits;
   unknown liveness stops replacement. These agent actions are instructed behavior, not Python
-  enforcement. Implementation/review execution is excluded from these slices.
+  enforcement. Optional Slice 6 worker settings add implementation/review roster entries. Those
+  workers start in an assigned worktree, not a role directory; prompts reference their local role
+  and selected skills. Non-Pi harnesses retain native resources because Pi selection options are
+  unsupported. Existing factories stay planning-only until explicitly configured. Implementation
+  workers open or reuse PRs and own exact-commit CI; the owner verifies that evidence, arranges
+  independent review and controls merge. PR creation may precede PR-triggered CI, but implementation
+  completion still requires passing checks. These remain agent instructions, not Python enforcement.
 - Session readiness proves startup. Terminal acknowledgement proves submission, not agent receipt
   or inference. In-memory revisions detect issue changes; unfinished Forgetful plans are replayed
   after restart. This deliberately permits repeat notifications without a custom queue.
@@ -144,40 +154,46 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   installation, child rosters and shared-credential limits.
 - [Issue planning and feature ownership](adrs/issue-planning.md): plan identity, partial-create
   recovery, native worktrees, revision notifications and owner continuation.
+- [Implementation, review and merge](adrs/feature-delivery.md): Slice 6 worker setup, native harness
+  limits, exact-commit evidence, owner coordination and safe cleanup; live validation pending.
 
 ## Source navigation
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 334; init: line 293; project choice: line 250.
-  Adapter wiring: `cli/bootstrap.py`, line 25.
+- CLI entry: `cli/main.py`, line 452; init: line 396; project choice: line 265;
+  worker setup: line 369. Adapter wiring: `cli/bootstrap.py`, lines 19 and 25.
 - Workflows: `application/initialise_factory.py`, line 18;
-  `application/watch_factory.py`, line 13; `application/scaffold_issue.py`, line 11.
+  `application/watch_factory.py`, line 13; `application/scaffold_issue.py`, line 31.
+  Cleanup metadata validation: `application/scaffold_issue.py`, line 12.
 - Planning: `application/ports/planning.py`, line 4; `adapters/forgetful/planning.py`, line 8;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 113;
   project listing/creation: lines 86 and 96.
 - Worktrees: `application/ports/worktrees.py`, line 4;
-  `adapters/filesystem/git_worktrees.py`, line 21.
+  `adapters/filesystem/git_worktrees.py`, line 21; removed-tree verification: line 32.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
 - Profiles: `adapters/filesystem/foreman_profile.py`, line 45;
-  `adapters/filesystem/coordinator_profiles.py`, line 39. Templates: `resources/foreman/`,
-  `resources/feature-owner/` and `resources/research/`.
-- Model discovery: `adapters/agentshell/model_catalog.py`, line 9;
+  `adapters/filesystem/coordinator_profiles.py`, line 59;
+  `adapters/filesystem/worker_profiles.py`, line 21. Templates live under `resources/` for
+  Foreman, feature-owner, research, implementation and review.
+- Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
   controller: `adapters/agentshell/controller.py`, line 37.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
   `application/configuration.py`, lines 11 and 80; public loader: `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
   and `tests/test_watch.py`. `tests/test_project_onboarding.py` covers project selection/creation.
-  `tests/test_architecture.py` proves the import rules reject violations.
-- Optional native loading checks: `tests/test_native_roles.py`. See the validation record for
-  which Pi lifecycle, local CLI and autonomous-agent behaviors were actually exercised.
+  `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
+  `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
+  cleanup replay. `tests/test_architecture.py` proves the import rules reject violations.
+- Optional native probes: `tests/test_native_roles.py`, `tests/test_native_workers.py`.
+  See the validation records for which native and autonomous-agent behaviors were actually tested.
 
 ## Using the detailed map
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 exported the current source with full member detail;
-recognized tests were excluded using `--test-path tests`. Its 45 boxes include module containers.
+recognized tests were excluded using `--test-path tests`. Its 47 boxes include module containers.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.
@@ -193,4 +209,4 @@ same-name call edges are incorrect: command execution's `run` is associated with
 and external session/file `close` calls with `AgentShellTerminal.close`. Use source and import
 checks, not those inferred edges, to judge dependencies. The compact diagram above was checked
 against source and bootstrap wiring. Regenerate the detailed map after code changes and review
-this overview and the relevant ADRs for accuracy.
+this overview and the relevant ADRs for accuracy. Mermaid was checked as text, not rendered.

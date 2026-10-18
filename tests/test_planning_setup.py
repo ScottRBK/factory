@@ -14,7 +14,8 @@ class PlanningSetupTests(InitFixture):
         repo = self.repo()
         # Act: no fixture-supplied --forgetful-project argument.
         result = subprocess.run(
-            [sys.executable, '-m', 'forgetful_factory', 'init', '--repo', '.', *INIT_SETTINGS,
+            [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
+             '--repo', '.', *INIT_SETTINGS,
              '--forgetful-instance', 'local', '--share-pi-profile', '--install-role-runtime',
              '--grill-me-skill', str(self.grill_skill)], cwd=repo, env=self.env,
             input='12\n', capture_output=True, text=True, timeout=10)
@@ -44,7 +45,8 @@ class PlanningSetupTests(InitFixture):
                 log.unlink(missing_ok=True)
                 # Act: bypass fixture defaults, which normally supply the project argument.
                 result = subprocess.run(
-                    [sys.executable, '-m', 'forgetful_factory', 'init', '--share-pi-profile',
+                    [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
+                     '--share-pi-profile',
                      '--install-role-runtime', *arguments], cwd=repo, env=self.env,
                     input='12\n', capture_output=True, text=True, timeout=10)
                 # Assert

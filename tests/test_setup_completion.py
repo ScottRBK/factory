@@ -8,6 +8,8 @@ from profile_support import events
 from test_init import INIT_SETTINGS, InitFixture
 
 
+# Custom endpoint routes skip optional policy discovery. Native access is still checked;
+# AuthNoticeTests covers HTTP policy discovery with a fixture-owned loopback server.
 class SetupCompletionTests(InitFixture):
     def setUp(self):
         super().setUp()
@@ -48,7 +50,8 @@ class SetupCompletionTests(InitFixture):
         for old, new in [('forgetful.db', 'other.db'),
                          ('executable = "forgetful"', 'executable = "other-forgetful"'),
                          ('instance = "local"',
-                          'instance = "server"\nserver = "https://memory.example/mcp"')]:
+                          'instance = "server"\n'
+                          'server = "https://memory.example/custom-endpoint"')]:
             with self.subTest(change=new):
                 changed = original.replace(old, new)
                 if old == 'instance = "local"':
@@ -81,13 +84,16 @@ class SetupCompletionTests(InitFixture):
                 # Act
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                                       '--forgetful-instance', 'server', '--forgetful-server',
-                                      'https://memory.example/mcp')
+                                      'https://memory.example/custom-endpoint')
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('Forgetful planning check failed', result.stderr)
                 self.assertNotIn('TOP_SECRET', result.stdout + result.stderr)
                 calls = [e for e in events(self.log) if e['name'] == 'forgetful']
                 self.assertEqual(calls[0]['args'][:2], ['call', 'get_project'])
+                server_index = calls[0]['args'].index('--server')
+                self.assertEqual(calls[0]['args'][server_index + 1],
+                                 'https://memory.example/custom-endpoint')
                 self.assertTrue((repo / '.factory/factory.toml').exists())
                 self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
                 self.assert_watch_stopped(repo, 'incomplete')
@@ -100,7 +106,7 @@ class SetupCompletionTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server', '--forgetful-server',
-                              'https://memory.example/mcp')
+                              'https://memory.example/custom-endpoint')
         # Assert
         self.assertEqual(result.returncode, 130, result.stderr)
         self.assertIn('interrupted', result.stderr)
@@ -396,7 +402,7 @@ class SetupCompletionTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                              '--forgetful-instance', 'server', '--forgetful-server',
-                             'https://memory.example/mcp', '--check-connection')
+                             'https://memory.example/custom-endpoint', '--check-connection')
         self.assertEqual(setup.returncode, 0, setup.stderr)
         config = repo / '.factory/factory.toml'
         config.write_text(config.read_text().replace('memory.example', 'other.example'))
@@ -406,7 +412,7 @@ class SetupCompletionTests(InitFixture):
         self.assertEqual(checked.returncode, 0, checked.stderr)
         receipt = repo / '.factory/agents/foreman/model-selection.json'
         self.assertEqual(json.loads(receipt.read_text())['forgetful']['server'],
-                         'https://other.example/mcp')
+                         'https://other.example/custom-endpoint')
         self.log.unlink()
         retry = self.run_cli(repo, connection_defaults=False)
         self.assertEqual(retry.returncode, 0, retry.stderr)

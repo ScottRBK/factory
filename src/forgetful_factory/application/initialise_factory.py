@@ -47,7 +47,7 @@ class InitialiseFactory:
     def check_foreman(self, config: FactoryConfiguration, *, login: bool) -> str:
         if login:
             self.profile.login(config.forgetful)
-        return self.profile.check(config.forgetful)
+        return self.profile.check(config.forgetful, execution_enabled=config.execution_enabled)
 
     def load_existing(self, paths: list[Path] | None, labels: list[str] | None,
                       model: str | None, effort: str | None) -> FactoryConfiguration | None:

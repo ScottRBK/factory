@@ -19,7 +19,8 @@ class ProjectOnboardingTests(InitFixture):
 
     def init(self, repo, answers):
         return subprocess.run(
-            [sys.executable, '-m', 'forgetful_factory', 'init', '--repo', '.', *INIT_SETTINGS,
+            [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
+             '--repo', '.', *INIT_SETTINGS,
              '--forgetful-instance', 'local', '--share-pi-profile', '--install-role-runtime',
              '--grill-me-skill', str(self.grill_skill)], cwd=repo, env=self.env,
             input=answers, capture_output=True, text=True, timeout=10)

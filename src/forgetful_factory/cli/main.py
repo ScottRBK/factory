@@ -7,7 +7,11 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from forgetful_factory.application.configuration import FactoryConfiguration, ForgetfulConnection
+from forgetful_factory.application.configuration import (
+    WORKER_EFFORTS,
+    FactoryConfiguration,
+    ForgetfulConnection,
+)
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
 from forgetful_factory.domain.models import FactoryError
@@ -45,6 +49,15 @@ def _parse_arguments() -> argparse.Namespace:
     init.add_argument('--feature-owner-model', help='Native Pi model; defaults to Foreman model')
     init.add_argument('--feature-owner-effort', help='Native Pi effort; defaults to Foreman effort')
     init.add_argument('--grill-me-skill', type=Path, help='Existing unchanged grill-me SKILL.md')
+    for role in ('implementation', 'review'):
+        init.add_argument(f'--{role}-model', help=f'Native {role} model selector')
+        init.add_argument(f'--{role}-harness', help='Native harness: pi, codex or claude_code')
+        init.add_argument(f'--{role}-effort', help=f'Native {role} reasoning effort')
+        init.add_argument(f'--{role}-skill', action='append', type=Path,
+                          help='Existing local skill file; repeat for additional skills')
+    init.add_argument('--planning-only', action='store_true',
+                      help='Explicitly defer implementation/review worker setup')
+    init.add_argument('--tdd-skill', type=Path, help='Existing local TDD skill file')
     init.add_argument('--install-role-runtime', action='store_true',
                       help='Consent to the locked AgentShell extension runtime installation')
     init.add_argument('--pi-agent-dir', help='Normal native Pi agent directory to share')
@@ -129,7 +142,9 @@ def _connection(args: argparse.Namespace, workspace: Path,
     return connection
 
 
-def _prepare_foreman(application, connection, args):
+def _prepare_foreman(application, connection, args, *, prepared=False):
+    if prepared:
+        return
     application.prepare_foreman(connection, _install_missing,
                                 lambda command, prompt: (
                                     command == 'agentshell-runtime'
@@ -290,6 +305,94 @@ def _owner_configuration(args: argparse.Namespace, config: FactoryConfiguration,
     return config
 
 
+def _worker_arguments(args: argparse.Namespace) -> dict:
+    supplied = {}
+    for role in ('implementation', 'review'):
+        for field in ('model', 'harness', 'effort'):
+            value = getattr(args, f'{role}_{field}')
+            if value is not None:
+                supplied[f'{role}_agent_{field}'] = value
+        paths = getattr(args, f'{role}_skill')
+        if paths is not None:
+            supplied[f'{role}_skills'] = tuple(str(path.expanduser().resolve()) for path in paths)
+    if args.tdd_skill is not None:
+        supplied['tdd_skill'] = str(args.tdd_skill.expanduser().resolve())
+    return supplied
+
+
+def _prompt_worker(role: str, discover_models) -> dict:
+    print('Harnesses: ' + ', '.join(WORKER_EFFORTS))
+    harness = input(f'{role.capitalize()} harness: ').strip()
+    if harness not in WORKER_EFFORTS:
+        raise FactoryError('Select one of the advertised worker harnesses.')
+    models = discover_models(harness)
+    if not models:
+        raise FactoryError(f'No common {harness} model catalog choices '
+                           'in selected repositories.')
+    print(f'{harness} model catalog choices:')
+    for model in models:
+        print('  ' + _safe_diagnostic(model))
+    model = input(f'{role.capitalize()} model: ').strip()
+    if model not in models:
+        raise FactoryError('Model is not selectable; use an exact advertised catalog selector.')
+    print(f'Efforts for {harness}: ' + ', '.join(WORKER_EFFORTS[harness]))
+    effort = input(f'{role.capitalize()} effort: ').strip()
+    if effort not in WORKER_EFFORTS[harness]:
+        raise FactoryError('Select one of the advertised harness efforts.')
+    return {f'{role}_agent_harness': harness, f'{role}_agent_model': model,
+            f'{role}_agent_effort': effort}
+
+
+def _prompt_workers(discover_models) -> dict:
+    print('Worker setup uses your existing native accounts. Listing may read native settings, '
+          'credentials and network catalogs; no inference or model access check is made.')
+    answer = input('Configure implementation/review workers [w] or planning only [p]? ').strip()
+    if answer == 'p':
+        return {}
+    if answer != 'w':
+        raise FactoryError('Choose w for worker setup or p for planning only.')
+    supplied = {}
+    for role in ('implementation', 'review'):
+        supplied.update(_prompt_worker(role, discover_models))
+    value = input('Local TDD skill file: ').strip()
+    if not value:
+        raise FactoryError('TDD skill file cannot be blank; select an existing local skill file.')
+    supplied['tdd_skill'] = str(Path(value).expanduser().resolve())
+    for role in ('implementation', 'review'):
+        prompt = f'Local {role} architecture/standards skill (Enter for none): '
+        path = input(prompt).strip()
+        if path:
+            supplied[f'{role}_skills'] = (str(Path(path).expanduser().resolve()),)
+    return supplied
+
+
+def _worker_configuration(args: argparse.Namespace, config: FactoryConfiguration,
+                          existing: bool, discover_models=None) -> FactoryConfiguration:
+    supplied = _worker_arguments(args)
+    if args.planning_only and (supplied or config.execution_enabled):
+        raise FactoryError('--planning-only conflicts with explicit worker configuration.')
+    if existing:
+        if any(value != getattr(config, field) for field, value in supplied.items()):
+            raise FactoryError('Worker arguments conflict with config; edit factory.toml '
+                               'explicitly and reconcile role files before rerunning init.')
+        return config
+    if not supplied and not args.planning_only:
+        supplied = _prompt_workers(discover_models)
+    updated: FactoryConfiguration = replace(config, **supplied)
+    return updated
+
+
+def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration,
+                    workspace: Path, *, login: bool) -> None:
+    print('Foreman model selected; access unverified (no model request made).')
+    print(f'Factory configuration: {workspace}/.factory/factory.toml')
+    print('Checking Forgetful connection and planning access...', flush=True)
+    if application.profile.uses_browser_login(config.forgetful):
+        print('If your browser opens, complete Forgetful sign-in there.', flush=True)
+    print(application.check_foreman(config, login=login))
+    application.profile.record_completion(config)
+
+
 def _initialise(args: argparse.Namespace, workspace: Path) -> int:
     application = build_initialiser(workspace)
     paths = ([Path(os.path.abspath(path.expanduser())) for path in args.repo]
@@ -297,18 +400,35 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
     config = application.load_existing(paths, args.label, args.foreman_model,
                                        args.foreman_effort)
     existing = config is not None
+    if existing:
+        config = _worker_configuration(args, config, True)
     connection = _connection(args, workspace, config.forgetful if config else None)
     home = application.profile.choose_pi_home(args.pi_agent_dir,
                                              lambda home: _confirm_pi_home(home, args))
     application.profile.begin_setup()
+    prepared = False
     if config is None:
         config = _configure_new_factory(application, workspace, args, paths, connection, home)
+        prepared = args.foreman_model is None
     config = _owner_configuration(args, config, existing)
+
+    def discover_worker_models(harness):
+        nonlocal prepared
+        if not prepared:
+            _prepare_foreman(application, connection, args)
+            prepared = True
+        catalogs = [set(application.profile.list_models(
+            connection, harness=harness, cwd=Path(repository.local_dir)))
+            for repository in config.repository]
+        return sorted(set.intersection(*catalogs))
+
+    if not existing:
+        config = _worker_configuration(args, config, False, discover_worker_models)
     config = replace(config, forgetful=connection)
     def validate_model():
         nonlocal connection, config
         if existing or args.foreman_model is not None:
-            _prepare_foreman(application, connection, args)
+            _prepare_foreman(application, connection, args, prepared=prepared)
             _select_model(application, connection, home, config.foreman_agent_model,
                           config.feature_owner_agent_model)
 
@@ -316,18 +436,16 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
             project_id = _select_project(application, connection, workspace)
             connection = replace(connection, project_id=project_id)
             config = replace(config, forgetful=connection)
+        if config.execution_enabled:
+            print('Checking worker model catalogs using the selected native harnesses/accounts. '
+                  'Listing may read native settings, credentials and network catalogs; '
+                  'it does not verify model access or model-specific effort support.')
         application.profile.prepare_roles(config)
         return config
     for message in application.initialise(config, before_writes=validate_model,
                                            save=not existing):
         print(message)
-    print('Foreman model selected; access unverified (no model request made).')
-    print(f'Factory configuration: {workspace}/.factory/factory.toml')
-    print('Checking Forgetful connection and planning access...', flush=True)
-    if application.profile.uses_browser_login(connection):
-        print('If your browser opens, complete Forgetful sign-in there.', flush=True)
-    print(application.check_foreman(config, login=args.login))
-    application.profile.record_completion(config)
+    _complete_setup(application, config, workspace, login=args.login)
     return 0
 
 
@@ -346,6 +464,7 @@ def main() -> int:
                    'For noninteractive init provide --repo, --label, '
                    '--foreman-model, --foreman-effort, --forgetful-instance, '
                    'and --share-pi-profile. '
+                   'Choose --planning-only or provide complete worker settings. '
                    'Setup may need installation consent. Forgetful access is always checked; '
                    'server checks may open browser sign-in. '
                    'Existing saved setup is kept; rerun init to retry.')

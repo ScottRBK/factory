@@ -110,7 +110,7 @@ class AgentForgetfulConnection:
             raise FactoryError(message) from error
         return project_id
 
-    def check(self, connection: ForgetfulConnection) -> None:
+    def check(self, connection: ForgetfulConnection, *, execution_enabled: bool) -> None:
         if connection.project_id is None:
             raise FactoryError('Select forgetful.project_id with init before planning.')
         try:
@@ -123,6 +123,8 @@ class AgentForgetfulConnection:
             required = {'create_plan', 'list_plans', 'get_plan', 'update_plan', 'create_task',
                         'query_tasks', 'get_task', 'update_task', 'claim_task',
                         'transition_task', 'add_criterion', 'add_dependency'}
+            if execution_enabled:
+                required.add('verify_criterion')
             if not required.issubset(tools):
                 raise ValueError('Missing permission')
             for name in ('create_plan', 'list_plans'):

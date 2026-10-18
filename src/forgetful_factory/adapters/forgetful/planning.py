@@ -6,12 +6,14 @@ from forgetful_factory.domain.models import FactoryError
 
 
 class ForgetfulPlanning:
-    def __init__(self, workspace: Path, connection: ForgetfulConnection):
+    def __init__(self, workspace: Path, connection: ForgetfulConnection, *,
+                 execution_enabled: bool):
         self.cli = AgentForgetfulConnection(workspace)
         self.connection = connection
+        self.execution_enabled = execution_enabled
 
     def check(self) -> None:
-        self.cli.check(self.connection)
+        self.cli.check(self.connection, execution_enabled=self.execution_enabled)
 
     def _call(self, tool: str, **fields) -> dict:
         return self.cli.call(self.connection, tool, **fields)

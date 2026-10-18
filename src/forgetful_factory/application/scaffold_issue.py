@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 
@@ -6,6 +7,25 @@ from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.planning import Planning
 from forgetful_factory.application.ports.worktrees import Worktrees
 from forgetful_factory.domain.models import FactoryError, Issue, WorkSource
+
+
+def _cleanup_state(mapping: dict) -> str | None:
+    if 'cleanup' not in mapping:
+        return None
+    cleanup = mapping['cleanup']
+    if not isinstance(cleanup, dict):
+        raise FactoryError('Invalid worktree cleanup record; reconcile it before continuing.')
+    state = cleanup.get('state')
+    url = cleanup.get('pull_request_url')
+    commit = cleanup.get('merge_commit')
+    repository = re.escape(mapping['repository'])
+    expected = rf'https://github\.com/(?ai:{repository})/pull/[1-9][0-9]*'
+    if (state not in ('pending', 'removed') or not isinstance(url, str)
+            or re.fullmatch(expected, url) is None or not isinstance(commit, str)
+            or re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) is None):
+        raise FactoryError('Invalid worktree cleanup state or merge evidence; reconcile the '
+                           'matching canonical GitHub PR URL and full merge commit SHA.')
+    return state
 
 
 class ScaffoldIssue:
@@ -161,5 +181,19 @@ class ScaffoldIssue:
             except (ValueError, StopIteration) as error:
                 raise FactoryError('Invalid ownership worktree mapping; reconcile it with the '
                                    'configured repositories; work is preserved.') from error
+            self._ensure_mapping(repository, mapping, recorded=recorded)
+
+    def _ensure_mapping(self, repository, mapping: dict, *, recorded: bool) -> None:
+        state = _cleanup_state(mapping)
+        if state == 'removed':
+            self.worktrees.verify_removed(repository.local_dir, mapping['branch'], mapping['path'],
+                                          remote=repository.remote)
+            return
+        try:
             self.worktrees.ensure(repository.local_dir, mapping['branch'], mapping['path'],
                                   recorded=recorded, remote=repository.remote)
+        except FactoryError as error:
+            if state == 'pending':
+                raise FactoryError('Worktree cleanup is pending; reconcile the interrupted '
+                                   'removal before changing its record. ' + str(error)) from error
+            raise

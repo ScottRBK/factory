@@ -118,7 +118,7 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/mcp')
+                              '--forgetful-server', 'https://memory.example/custom-endpoint')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Checking Forgetful connection and planning access', result.stdout)
@@ -138,12 +138,13 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/mcp', '--login')
+                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--login')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = [e for e in events(self.log) if e['name'] == 'forgetful']
         self.assertEqual(calls[0]['args'],
-                         ['auth', 'login', '--server', 'https://memory.example/mcp'])
+                         ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
         self.assertEqual(calls[1]['args'][:2], ['call', 'get_project'])
         self.assertTrue(any(e['args'][:2] == ['tools', 'list'] for e in calls))
         self.assertTrue(all(e['config_home'] == str(repo / '.factory/agents/foreman/cli-config')
@@ -156,12 +157,13 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-method', 'cli', '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/mcp', '--login')
+                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--login')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         calls = [e for e in events(self.log) if e['name'] == 'forgetful']
         self.assertEqual(calls[0]['args'],
-                         ['auth', 'login', '--server', 'https://memory.example/mcp'])
+                         ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
         self.assertEqual(calls[0]['config_home'],
                          str(repo / '.factory/agents/foreman/cli-config'))
         self.assertNotIn('Forgetful: connected', result.stdout)
@@ -393,7 +395,8 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/mcp', '--login')
+                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--login')
         # Assert
         self.assertEqual(result.returncode, 130, result.stderr)
         self.assertIn('incomplete', result.stderr)

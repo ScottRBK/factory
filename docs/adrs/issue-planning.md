@@ -35,10 +35,11 @@ Init and watch check access to that project and the required planning tools. The
 two sequential native CLI calls: `get_project` and `tools list`. Project access also verifies the
 connection and native login, so preflight needs no separate user-profile request. Agents may still
 request user information for context; their instructions retain that distinct step. The catalog is
-filtered by the caller's permissions and includes parameter names. Factory requires all twelve
-planning operations, and both `create_plan` and `list_plans` must advertise `external_ref`.
-Malformed or incomplete catalogs fail setup. This replaces twelve separate `tools info` processes
-without removing the permission or compatibility checks. Catalogs are not cached across runs.
+filtered by the caller's permissions and includes parameter names. Planning-only factories require
+all twelve planning operations; execution-enabled factories also require `verify_criterion` so the
+owner can record checked acceptance criteria. Both `create_plan` and `list_plans` must advertise
+`external_ref`. Malformed or incomplete catalogs fail setup. This replaces separate `tools info`
+processes without removing permission or compatibility checks. Catalogs are not cached across runs.
 
 Forgetful 0.5.5 supplies that field and its database uniqueness migration. Updating Factory's
 bundled CLI does not update an existing executable or remote server.
@@ -67,6 +68,7 @@ Factory uses existing Forgetful text fields for a small JSON record:
 - Plan `context`: absolute `workspace`, initial `issue` snapshot and `ownership_create_started`.
 - Ownership task `description`: `kind="factory-ownership"`, `workspace`, `external_ref` and
   `worktrees`. Each mapping contains `repository`, `local_dir`, `branch` and absolute `path`.
+  After verified merge, the owner can add per-mapping `cleanup` metadata; see below.
 - Ownership task `assigned_agent`: the owner's real native Pi session ID, set by `claim_task`.
 
 Agents preserve these fields while adding questions, notes, parent/session references and PR links.
@@ -96,9 +98,20 @@ issues get an initial worktree in their source repository. Both use native Git; 
 extension is required.
 
 The Git adapter checks origin, registered path, branch and common Git directory. Existing matching
-registrations can be reused after interruption. A missing or mismatched recorded worktree stops
+registrations can be reused after interruption. A missing or mismatched active worktree stops
 rather than being silently recreated. Generated worktrees live under `.factory/worktrees/` and are
 ignored by Git. Uncommitted changes in the original working copy are not copied into a new tree.
+
+Slice 6 adds an optional cleanup record for safely removed, merged worktrees. The owner saves the
+canonical matching GitHub PR URL, full merge SHA and `pending` intent before removal; it records
+`removed` only after confirming path and registration absence. On restart, only a valid `removed`
+record permits absence. The adapter checks the origin and refuses occupied paths, symlinks or
+remaining registrations. Missing unmarked or pending work still stops for reconciliation.
+
+The watcher does not delete worktrees or verify GitHub merge evidence. It preserves the reported
+cleanup metadata in the notification so the Foreman can inspect unfinished post-merge work without
+launching into a removed tree. The
+[cleanup record](feature-delivery.md#worktree-cleanup-and-restart) describes these checks.
 
 ## Updates and restart
 

@@ -87,6 +87,60 @@ class FactoryConfiguration:
     feature_owner_agent_effort: str | None = None
     feature_owner_agent_harness: str = 'pi'
     grill_me_skill: str | None = None
+    implementation_agent_model: str | None = None
+    implementation_agent_harness: str | None = None
+    implementation_agent_effort: str | None = None
+    review_agent_model: str | None = None
+    review_agent_harness: str | None = None
+    review_agent_effort: str | None = None
+    tdd_skill: str | None = None
+    implementation_skills: tuple[str, ...] = ()
+    review_skills: tuple[str, ...] = ()
+
+    @property
+    def execution_enabled(self) -> bool:
+        return self.implementation_agent_model is not None
+
+
+WORKER_FIELDS = ('implementation_agent_model', 'implementation_agent_harness',
+                 'implementation_agent_effort', 'review_agent_model', 'review_agent_harness',
+                 'review_agent_effort', 'tdd_skill')
+WORKER_EFFORTS = {
+    'pi': ('off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'),
+    'codex': ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'persistent'),
+    'claude_code': ('low', 'medium', 'high', 'xhigh', 'max'),
+}
+
+
+def validate_workers(configuration: FactoryConfiguration) -> None:
+    values = [getattr(configuration, field) for field in WORKER_FIELDS]
+    if not any(value is not None for value in values) and not (
+            configuration.implementation_skills or configuration.review_skills):
+        return
+    if any(value is None for value in values):
+        raise FactoryError('Incomplete worker setup: configure both workers model/harness/effort '
+                           'and tdd_skill, or omit all worker settings for planning only.')
+    for field in WORKER_FIELDS:
+        nonblank(getattr(configuration, field), field)
+    for role in ('implementation', 'review'):
+        harness = getattr(configuration, f'{role}_agent_harness')
+        if harness not in WORKER_EFFORTS:
+            raise FactoryError(f'{role} harness must be pi, codex or claude_code.')
+        effort = getattr(configuration, f'{role}_agent_effort')
+        if effort not in WORKER_EFFORTS[harness]:
+            raise FactoryError(f'{role} effort for {harness} must be one of: '
+                               + ', '.join(WORKER_EFFORTS[harness]))
+        model = getattr(configuration, f'{role}_agent_model')
+        if model.startswith('-') or any(ord(c) < 32 or ord(c) == 127 for c in model):
+            raise FactoryError(f'{role} model must be a native selector '
+                               'without control characters.')
+
+
+def skill_paths(data: dict, field: str) -> tuple[str, ...]:
+    paths = data.get(field, [])
+    if not isinstance(paths, list):
+        raise FactoryError(f'{field} must be a list of local skill paths.')
+    return tuple(nonblank(path, field) for path in paths)
 
 
 def nonblank(value: object, field: str) -> str:
@@ -102,6 +156,7 @@ def nonblank(value: object, field: str) -> str:
 
 
 def validate(configuration: FactoryConfiguration) -> None:
+    validate_workers(configuration)
     if configuration.forgetful is not None:
         configuration.forgetful.validate()
     nonblank(configuration.foreman_agent_model, 'foreman_agent_model')
@@ -157,6 +212,10 @@ def from_mapping(data: dict) -> FactoryConfiguration:
         tuple(references), connection_from_mapping(data.get('forgetful')),
         data.get('feature_owner_agent_model'), data.get('feature_owner_agent_effort'),
         data.get('feature_owner_agent_harness', 'pi'), data.get('grill_me_skill'),
+        data.get('implementation_agent_model'), data.get('implementation_agent_harness'),
+        data.get('implementation_agent_effort'), data.get('review_agent_model'),
+        data.get('review_agent_harness'), data.get('review_agent_effort'), data.get('tdd_skill'),
+        skill_paths(data, 'implementation_skills'), skill_paths(data, 'review_skills'),
     )
     validate(configuration)
     return configuration

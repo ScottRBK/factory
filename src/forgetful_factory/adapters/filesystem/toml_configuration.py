@@ -6,7 +6,11 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from uuid import uuid4
 
-from forgetful_factory.application.configuration import FactoryConfiguration, from_mapping
+from forgetful_factory.application.configuration import (
+    WORKER_FIELDS,
+    FactoryConfiguration,
+    from_mapping,
+)
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -58,10 +62,14 @@ class TomlConfigurationStore:
             'foreman_agent_effort = ' + quote(configuration.foreman_agent_effort),
         ]
         for field in ('feature_owner_agent_model', 'feature_owner_agent_effort',
-                      'feature_owner_agent_harness', 'grill_me_skill'):
+                      'feature_owner_agent_harness', 'grill_me_skill', *WORKER_FIELDS):
             value = getattr(configuration, field)
             if value is not None:
                 lines.append(f'{field} = {quote(value)}')
+        for field in ('implementation_skills', 'review_skills'):
+            values = getattr(configuration, field)
+            if values:
+                lines.append(f'{field} = [' + ', '.join(map(quote, values)) + ']')
         for repository in configuration.repository:
             lines.extend(['', '[[repository]]',
                           'local_dir = ' + quote(repository.local_dir),

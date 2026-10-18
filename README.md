@@ -5,9 +5,9 @@ Forgetful planning, and Pi agents. See [FACTORY.md](FACTORY.md) for the intended
 
 `init` configures the factory and creates missing GitHub labels. `watch` reads matching issues
 and saves a Forgetful plan, ownership task and ordinary-issue worktree before notifying the Foreman.
-The Foreman can launch a feature-owner for clarification, research and task planning.
-Implementation,
-review, merge and deployment execution remain later slices.
+The Foreman launches a feature-owner for clarification, research and task planning. With execution
+workers configured, the owner also coordinates implementation, independent PR review and merge.
+Deployment and end-to-end verification remain a later slice; live delivery validation is pending.
 
 ## Run locally
 
@@ -63,6 +63,68 @@ Owner model/effort defaults to the Foreman's choices. Override with `--feature-o
 `--grill-me-skill /absolute/path/SKILL.md` selects your existing, unchanged grill-me skill;
 the default is `~/.agents/skills/grill-me/SKILL.md`. Factory does not download that skill.
 
+### Implementation and review workers
+
+New setup offers worker configuration or planning only. Existing factories without worker settings
+remain planning-only; updating the Factory package does not silently enable implementation.
+Use `--planning-only` for noninteractive planning-only setup. Interactive setup shows harness, model
+and effort choices, then asks for local skills. Models must be listed in every configured
+repository; matching catalogs are reused during that init rather than repeatedly launched.
+
+Execution requires a harness, exact native model selector and effort for both implementation and
+review, plus an existing local TDD skill. Supported worker harnesses are `pi`, `codex` and
+`claude_code`. They use their normal native accounts and permissions; a Pi login does not sign you
+into Codex or Claude. Listing models does not verify inference or a model's supported effort.
+
+**Check native permissions before using workers.** They need access to the assigned worktree and
+its Git metadata, plus network/tool permission for push, CI and GitHub review. A linked worktree's
+Git metadata lives in the original repository, outside the worker's cwd. AgentShell 0.5 starts
+Codex with `workspace-write` when automatic approval is off; this may not permit the workflow.
+Claude's noninteractive tool permissions can also block edits, shell commands or review submission.
+Factory does not widen those permissions or enable bypass mode. The owner must report blocked work.
+Browser/computer-use tools are not installed by Factory; only available native tools can be used.
+
+For example, add these options to a fresh `init`, replacing the model and skill placeholders:
+
+```bash
+--implementation-harness codex --implementation-model NATIVE_CODEX_MODEL \
+--implementation-effort high \
+--review-harness claude_code --review-model NATIVE_CLAUDE_MODEL --review-effort high \
+--tdd-skill /absolute/path/to/tdd/SKILL.md \
+--implementation-skill /absolute/path/to/architecture/SKILL.md \
+--review-skill /absolute/path/to/coding-standards/SKILL.md
+```
+
+The architecture and review skill options are optional and repeatable. Factory reads local files;
+it does not download skills or overwrite repository instructions. Settings are saved in
+`implementation_agent_*`, `review_agent_*`, `tdd_skill`, `implementation_skills` and `review_skills`
+in `factory.toml`. Partial worker configuration is an error. Existing configurations require
+explicit edits and reconciliation of their preserved role files, followed by `init`.
+
+When changing an existing factory, the error names any conflicting roster or resource file.
+Back up custom edits before reconciling it. For an uncustomized generated roster, remove only that
+file and rerun init to regenerate it from configuration; do not delete the role directory or login
+state. For example, enabling workers changes `.factory/agents/feature-owner/roster.json`.
+Preserved role instructions also need manual reconciliation with the current templates, including
+older planning-only guidance and instructions that still assign PR creation to the feature-owner.
+
+The owner makes a feature-specific plan with actual changes, acceptance criteria and tests. Once
+requirements are clear it can proceed; only repository-required approvals or unresolved decisions
+need another user response. Workers use the assigned worktree, not the coordinator's role directory.
+Implementation owns commits, pushes, opening or reusing the PR, and CI corrections. It can open the
+PR before checks that need a PR, but required CI must pass before implementation is complete. The
+owner verifies the returned PR and exact-commit evidence, arranges independent review and merges
+only when repository gates pass. Draft status follows repository rules and owner guidance; Factory
+does not require it. Native tool permissions are not bypassed. Agent review using the author's
+account cannot supply a required approval from another GitHub user.
+
+The owner preserves uncertain or unfinished work, and reports merged revisions to the Foreman.
+It records worktree removal so watcher restart can distinguish cleanup from missing active work.
+Deployment/E2E tasks and the plan stay open. The [delivery ADR](docs/adrs/feature-delivery.md) and
+[Slice 6 validation](docs/plans/slice-6.md) describe the implementation boundary and test limits.
+
+### Shared Pi profile
+
 Owner research delegation needs `max_sub_agent_depth` at least 1 in the shared Pi home's
 `extensions/agentshell.json`. Review that native preference yourself: it affects your other Pi
 sessions too. Factory checks it but never changes it. Run Factory from a normal shell, not from
@@ -99,13 +161,13 @@ choose recheck or rerun init. Factory does not perform model login or refresh cr
 
 ```bash
 forgetful-factory init --repo /path/to/repo --label factory \
-  --foreman-model provider/model --foreman-effort high --share-pi-profile \
+  --foreman-model provider/model --foreman-effort high --share-pi-profile --planning-only \
   --forgetful-instance local --forgetful-project 12 --install-role-runtime \
   --grill-me-skill /path/to/grill-me/SKILL.md
 
 # Remote Forgetful checks can start the server's OAuth flow
 forgetful-factory init --repo /path/to/repo --label factory \
-  --foreman-model provider/model --foreman-effort high --share-pi-profile \
+  --foreman-model provider/model --foreman-effort high --share-pi-profile --planning-only \
   --forgetful-instance server --forgetful-server https://memory.example/mcp \
   --forgetful-project 12 --install-role-runtime \
   --grill-me-skill /path/to/grill-me/SKILL.md
@@ -138,13 +200,21 @@ Foreman's instructions also ask it to read the preserved `APPEND_SYSTEM.md`; tha
 native system-prompt append file. Watch supplies no opening model prompt. The first notification
 or user input can start a chargeable turn; setup does not make a model request.
 
-Each role's `resources.json` selects existing local skill/extension paths. Foreman's `roster.json`
-selects feature-owner; the owner's selects research. Research has no child roster or AgentShell
-extension selected. Model, effort, cwd and resource choices are passed through the native extension,
-not copied into ad-hoc prompts. Review both resource and roster files when changing selections;
-init rejects conflicts and preserves edits.
+The Pi coordinators' `resources.json` files select local skills/extensions. Foreman's `roster.json`
+selects feature-owner; the owner's selects research and, when configured, implementation and review.
+Research and Pi workers have disabled child rosters and no AgentShell extension selected. Worker
+entries omit a fixed cwd so the owner can supply the assigned worktree. Model and effort remain
+bound to the named entry. Review resources and rosters when changing selections; init rejects
+conflicts and preserves edits.
 
-Automatic personal/project resource discovery and native MCP are disabled. Ordinary instructions
+Implementation/review role skills live under `.factory/agents/implementation` and `review`.
+The owner includes their briefing and selected skill references in task prompts. Codex and Claude
+cannot accept Pi skill/resource switches through the pinned AgentShell API, so they read those
+files as task instructions instead. Their native settings, tools and instructions still apply;
+this is not resource isolation. Repository instruction files are not rewritten.
+
+For the selected Pi roles, automatic personal/project resource discovery and native MCP are
+disabled. Ordinary instructions
 and built-in tools remain available. Personal `SYSTEM.md` is excluded at launch; Pi keeps its own
 built-in prompt. AgentShell 0.5 rejects the interactive combination if the Foreman launch directory
 has `.pi/SYSTEM.md`. Init/watch preserve that file and ask for reconciliation. No remote package
@@ -166,7 +236,9 @@ Changing the saved Pi home requires explicitly reviewing `pi-profile.json`; chan
 Forgetful target in `factory.toml`, then rerun init. `model-selection.json` is generated completion
 evidence, not an editable role resource. Init invalidates it before setup work and atomically
 regenerates it only after all required checks succeed. It binds both models/efforts, Pi home,
-Forgetful project/target, role selectors/rosters and the grill-me source hash. Failed or skipped
+Forgetful project/target, role selectors/rosters and the grill-me source hash. Execution setup also
+binds worker settings and selected skill sources; changed selections require rechecking setup.
+Failed or skipped
 checks cannot reuse an older receipt. Both local metadata files
 are git-ignored; no credential values are recorded.
 
@@ -185,7 +257,9 @@ setup complete, for both local databases and servers. Server checks reuse native
 and may open browser sign-in if needed. Failed or cancelled checks leave setup incomplete and keep
 saved work for retry. The old `--check-connection` flag is accepted but no longer needed.
 The check uses two CLI calls: selected project and the permitted tool catalog.
-Project access also verifies the connection and native login; no user-profile request is needed.
+Project access also verifies the connection and native login; preflight needs no user-profile
+request.
+Agents may still request user context separately.
 It does not start a new CLI process for each planning tool.
 
 The browser notice appears only when the server's public `/api/v1/auth/info` reports OAuth.
