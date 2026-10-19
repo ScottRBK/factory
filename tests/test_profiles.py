@@ -26,7 +26,7 @@ class ProfileTests(InitFixture):
         self.assertEqual(connection.database, str(repo / '.factory/data/forgetful.db'))
         profile = repo / '.factory/agents/foreman'
         settings = json.loads((profile / 'resources.json').read_text())
-        self.assertEqual(settings['skills'], ['skills/foreman'])
+        self.assertEqual(settings['skills'], ['skills/foreman', 'skills/factory-maintenance'])
         self.assertFalse((profile / 'mcp.json').exists())
         self.assertTrue((profile / 'skills/foreman/SKILL.md').is_file())
         self.assertIn('Additional Foreman guidance',

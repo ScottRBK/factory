@@ -66,8 +66,9 @@ class WorkerProfiles:
         path = self.directory / role / 'resources.json'
         check_real_path(path)
         selected = json.loads(path.read_text())
-        expected = {'skills': self.skills(role, config), 'extensions': []}
-        if selected != expected:
+        if (not isinstance(selected, dict) or set(selected) != {'skills', 'extensions'}
+                or not isinstance(selected['skills'], list) or selected['extensions'] != []
+                or not set(self.skills(role, config)) <= set(selected['skills'])):
             raise ValueError(f'Reconcile {role}/resources.json with configured skills')
         return selected
 

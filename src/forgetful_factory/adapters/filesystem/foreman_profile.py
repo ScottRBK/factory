@@ -12,12 +12,14 @@ from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.coordinator_profiles import CoordinatorProfiles
 from forgetful_factory.adapters.filesystem.resource_files import (
+    check_real_path,
     read_generated_json,
     remove_generated,
     replace_generated_json,
     write_json,
     write_new,
 )
+from forgetful_factory.adapters.filesystem.skill_registration import SkillRegistration
 from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
 from forgetful_factory.adapters.forgetful.connection import (
     AgentForgetfulConnection,
@@ -36,6 +38,7 @@ from forgetful_factory.domain.models import FactoryError
 
 RESOURCES = Path(__file__).resolve().parents[2] / 'resources' / 'foreman'
 FOREMAN_SKILL_PATH = 'skills/foreman/SKILL.md'
+MAINTENANCE_SKILL_PATH = 'skills/factory-maintenance/SKILL.md'
 ROLE_GUIDANCE_FILE = 'APPEND_SYSTEM.md'
 PI_PROFILE_FILE = 'pi-profile.json'
 MODEL_SELECTION_FILE = 'model-selection.json'
@@ -80,7 +83,8 @@ class ForemanProfile:
         self.validate_guidance()
         self.require_pi_home(self.pi_home())
         manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
-        required = ['resources.json', ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH]
+        required = ['resources.json', ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH,
+                    MAINTENANCE_SKILL_PATH]
         required.extend(f'resources/{name}/{relative}'
                         for name, source in manifest.items() for relative in source['files'])
         if (any(not (self.directory / name).is_file() for name in required)
@@ -165,12 +169,12 @@ class ForemanProfile:
             write_json(self.directory / PI_PROFILE_FILE, self._pi_choice)
         self._protect_runtime()
         write_json(self.resources_path, {
-            'skills': ['skills/foreman'],
+            'skills': ['skills/foreman', 'skills/factory-maintenance'],
             'extensions': ['resources/agentshell/extensions/agentshell.ts',
                            'resources/hide-tools/index.ts'],
         })
         self._install_resources()
-        for relative in (ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH):
+        for relative in (ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH, MAINTENANCE_SKILL_PATH):
             write_new(self.directory / relative, (RESOURCES / relative).read_text())
         self.launch_resources()
         if connection.instance == 'local':
@@ -182,7 +186,18 @@ class ForemanProfile:
         if config.execution_enabled:
             self.validate_worker_models(config)
         try:
+            if config.research_agent_model is not None:
+                directory = self.workspace / '.factory/agents/research'
+                check_real_path(directory)
+                directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+                models = self.list_models(config.forgetful, harness=config.research_agent_harness,
+                                          cwd=directory)
+                if config.research_agent_model not in models:
+                    raise FactoryError('Research model is not selectable in the native catalog; '
+                                       'choose an exact selector and rerun init.')
             profiles.prepare(config)
+            profiles.selection(config)
+            profiles.register_local_skills(config)
             profiles.selection(config)
         except (ValueError, TypeError, KeyError) as error:
             raise FactoryError('Invalid owner resources/roster; explicitly reconcile the '
@@ -296,6 +311,7 @@ class ForemanProfile:
 
     def begin_setup(self) -> None:
         remove_generated(self.directory / MODEL_SELECTION_FILE)
+        SkillRegistration(self.directory.parent).recover()
 
     def validate_completion(self, config: FactoryConfiguration) -> None:
         try:
@@ -318,16 +334,17 @@ class ForemanProfile:
                 if not isinstance(values, list):
                     raise ValueError('Invalid paths')
                 resources[key] = [self._local_resource_path(value) for value in values]
-            skill = (self.directory / FOREMAN_SKILL_PATH).resolve()
+            skills = {Path(path).resolve() for path in resources['skills']}
+            required = [(self.directory / relative).resolve()
+                        for relative in (FOREMAN_SKILL_PATH, MAINTENANCE_SKILL_PATH)]
             extension = (self.directory / 'resources/agentshell/extensions/agentshell.ts').resolve()
-            if (not {skill, skill.parent}.intersection(Path(p).resolve()
-                                                       for p in resources['skills'])
+            if (any(not {skill, skill.parent}.intersection(skills) for skill in required)
                     or extension not in {Path(p).resolve() for p in resources['extensions']}):
                 raise FactoryError('Incomplete Foreman resources.json: select skills/foreman '
-                                   '(or skills/foreman/SKILL.md) under skills and '
-                                   'resources/agentshell/extensions/agentshell.ts under '
-                                   'extensions. Edits are preserved; reconcile the selections '
-                                   'and rerun init.')
+                                   'and skills/factory-maintenance (each folder or its SKILL.md) '
+                                   'under skills and resources/agentshell/extensions/agentshell.ts '
+                                   'under extensions. Edits are preserved; reconcile the '
+                                   'selections and rerun init.')
             return resources
         except (OSError, ValueError, TypeError) as error:
             raise FactoryError('Invalid Foreman resources.json: select only existing local '

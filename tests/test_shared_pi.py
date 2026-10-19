@@ -76,6 +76,44 @@ class SharedPiTests(InitFixture):
         self.assertIn('2. z-provider/special/model', result.stdout)
         self.assertEqual(load_configuration(repo).foreman_agent_model, 'z-provider/special/model')
 
+    def test_numbered_foreman_effort_is_saved_and_used_as_owner_default(self):
+        # Arrange
+        from forgetful_factory.configuration import load_configuration
+        repo = self.repo()
+        # Act
+        result = self.run_cli(repo, '--repo', '.', '--label', 'factory', input='1\n5\n')
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('1. off\n  2. minimal\n  3. low\n  4. medium\n  5. high\n'
+                      '  6. xhigh\n  7. max', result.stdout)
+        self.assertIn('Select Foreman effort number:', result.stdout)
+        config = load_configuration(repo)
+        self.assertEqual(config.foreman_agent_model, 'provider/model')
+        self.assertEqual(config.foreman_agent_effort, 'high')
+        self.assertEqual(config.feature_owner_agent_model, 'provider/model')
+        self.assertEqual(config.feature_owner_agent_effort, 'high')
+
+    def test_invalid_foreman_numbers_stop_before_config_or_label_changes(self):
+        for field, prefix, upper, old_name in (
+                ('model', '', '2', 'provider/model'), ('effort', '1\n', '8', 'high')):
+            for index, answer in enumerate(('', 'not-a-number', '0', '-1', upper, old_name)):
+                with self.subTest(field=field, answer=answer):
+                    # Arrange
+                    repo = self.repo(f'{field}-{index}')
+                    self.state.write_text('{}')
+                    # Act
+                    result = self.run_cli(repo, '--repo', '.', '--label', 'factory',
+                                          input=prefix + answer + '\n')
+                    # Assert
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(f'Foreman {field}', result.stderr)
+                    self.assertIn('select a number from 1 to', result.stderr)
+                    self.assertNotIn('Traceback', result.stderr)
+                    self.assertFalse((repo / '.factory/factory.toml').exists())
+                    receipt = repo / '.factory/agents/foreman/model-selection.json'
+                    self.assertFalse(receipt.exists())
+                    self.assertEqual(json.loads(self.state.read_text()), {})
+
     def test_no_models_gives_native_login_in_chosen_home_and_allows_recheck(self):
         # Arrange
         repo = self.repo()

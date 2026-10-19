@@ -119,9 +119,14 @@ repositories, it checks that the tests used the intended combination of deployed
 ### Slice 8: use a Foreman that is already running
 
 Let the user select an existing Foreman instead of always starting a new one.
+The next onboarding phase brings forward attachment to the setup Foreman launched by init.
+That Foreman should be able to start its watcher without leaving the conversation; general
+terminal discovery remains later work. See [the onboarding plan](plans/agent-onboarding.md).
 
 - Keep the option to start a new Foreman.
-- Confirm the selected terminal has a ready Foreman with the right settings.
+- Confirm the selected terminal is the intended Foreman, is ready, and remains alive.
+  Setup and maintenance validate configuration; attachment does not inspect live model,
+  effort or loaded resources.
 - Leave an existing Foreman running when the watcher stops. Stop a Foreman the watcher started.
 - Test delivery while idle and busy. Report missing or stopped sessions without replacing them.
 
@@ -131,6 +136,13 @@ existing agent's settings or prove it read a message; see the [attachment docs][
 
 ## Other follow-ups
 
+- Agent onboarding: numbered choices, maintenance guidance, init/watch exclusion and separate Pi
+  research settings are implemented. Role-folder registration/recovery checks paths and selections;
+  YAML, metadata and skill-name validation are delegated to the native harness.
+  Manual or assisted setup, a dedicated setup Foreman and same-Foreman watcher attachment remain
+  unimplemented. Attachment needs identity/readiness/liveness, not live model/effort/resource
+  checks. Broader downstream apps and native skill delivery need separate upstream work. See the
+  [work plan](plans/agent-onboarding.md) and [design boundaries](adrs/agent-onboarding.md).
 - Explain the remote Forgetful `/mcp` URL more clearly during setup.
 - Personal AGENTS/append instructions can still apply. Model listing during setup can also read
   personal SYSTEM instructions. Role AGENTS loading does not provide full profile isolation.

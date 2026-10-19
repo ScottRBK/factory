@@ -5,7 +5,6 @@ from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
 from forgetful_factory.adapters.filesystem.git_repositories import GitRepositories
 from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
-from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
 from forgetful_factory.adapters.forgetful.connection import role_environment
 from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
 from forgetful_factory.adapters.github.work_tracking import GitHubWorkTracking
@@ -47,7 +46,6 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path) ->
     environment['PI_AGENTSHELL_ROSTER_FILE'] = str(profile.directory / 'roster.json')
     return WatchFactory(github, AgentShellTerminal(python, environment, profile.launch_resources(),
                                                   cwd=str(profile.directory)),
-                        WorkspaceWatchLease(workspace),
                         ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,
                             execution_enabled=config.execution_enabled),

@@ -29,8 +29,9 @@ uvx --refresh --from "$wheel" forgetful-factory watch
 
 Follow the prompts. Settings are saved in `.factory/factory.toml`; edit it to change them.
 The watcher prints how to view Pi. **Stopping the watcher closes its Pi session.** Only one
-watcher may run per workspace. Use `watch --help` through the same `uvx` command for options,
-including `--existing`, `--new-only`, and `--interval` (default: 30 seconds).
+watcher may run per workspace. Init and watch also exclude each other before reading or changing
+setup, so init cannot invalidate a running watcher's readiness. Use `watch --help` through the same
+`uvx` command for options, including `--existing`, `--new-only`, and `--interval` (30 seconds).
 See [architecture](docs/architecture.md) for implemented behaviour and [plan](docs/plan.md)
 for progress. Foreman profile details and connection choices are below.
 
@@ -59,7 +60,10 @@ needs planning enabled and the `external_ref` capability supplied by Forgetful 0
 installation does not upgrade an existing server.
 
 Owner model/effort defaults to the Foreman's choices. Override with `--feature-owner-model` and
-`--feature-owner-effort`. Both coordinators use Pi; research uses the owner's model/effort.
+`--feature-owner-effort`. Both coordinators use Pi. Research defaults to the owner's model/effort;
+for a fresh factory, supply `--research-harness pi`, `--research-model` and `--research-effort`
+together to choose independently. Existing configurations keep their defaults unless explicitly
+edited. Other research apps currently report upstream skill/effort limitations rather than launch.
 `--grill-me-skill /absolute/path/SKILL.md` selects your existing, unchanged grill-me skill;
 the default is `~/.agents/skills/grill-me/SKILL.md`. Factory does not download that skill.
 
@@ -67,9 +71,11 @@ the default is `~/.agents/skills/grill-me/SKILL.md`. Factory does not download t
 
 New setup offers worker configuration or planning only. Existing factories without worker settings
 remain planning-only; updating the Factory package does not silently enable implementation.
-Use `--planning-only` for noninteractive planning-only setup. Interactive setup shows harness, model
-and effort choices, then asks for local skills. Models must be listed in every configured
-repository; matching catalogs are reused during that init rather than repeatedly launched.
+Use `--planning-only` for noninteractive planning-only setup. Interactive setup uses numbered
+choices for Foreman model/effort and worker app/model/effort, then asks for local skills.
+Enter the displayed number, not a provider/model name. Command-line options still take exact native
+values. Models must be listed in every configured repository; matching catalogs are reused during
+that init rather than repeatedly launched.
 
 Execution requires a harness, exact native model selector and effort for both implementation and
 review, plus an existing local TDD skill. Supported worker harnesses are `pi`, `codex` and
@@ -122,6 +128,40 @@ The owner preserves uncertain or unfinished work, and reports merged revisions t
 It records worktree removal so watcher restart can distinguish cleanup from missing active work.
 Deployment/E2E tasks and the plan stay open. The [delivery ADR](docs/adrs/feature-delivery.md) and
 [Slice 6 validation](docs/plans/slice-6.md) describe the implementation boundary and test limits.
+
+### Factory setup and maintenance help
+
+The Foreman has a selected `factory-maintenance` skill for configuration, local skills and setup
+failures. Ask it for help or use `/skill:factory-maintenance`. It preserves plans, worktrees, native
+accounts and user edits; it does not bypass setup validation or widen native permissions.
+
+For an existing factory, init preserves `resources.json`. If it reports a missing maintenance skill,
+retain existing selections and add `skills/factory-maintenance` under the Foreman's `skills` list,
+then rerun init. The new skill file is provisioned without replacing custom instructions.
+New factories reference it in AGENTS.md; existing AGENTS.md files are preserved.
+Pi can discover its selected description without that pointer. Factory checks selected paths;
+Pi or the chosen harness validates YAML, skill metadata and duplicate names. Successful init does
+not prove the harness accepts a skill's contents or advertises it to the model.
+
+Stop the watcher and confirm child agents stopped before changing launch settings. Since the
+watcher owns the Foreman session, that Foreman can prepare the changes with you; apply and validate
+those changes from a separate session before restarting.
+
+Add local skills under `.factory/agents/<role>/skills/<name>/SKILL.md`, then rerun init with
+watching and delegated work stopped. Init adds those files to resource selections and parent
+rosters, preserving file contents, required guidance and TOML comments. Conflicting selections,
+unreadable or non-file paths and symlinks stop setup. External worker skill paths still use the
+configuration arrays. Factory tracks its automatic additions so deleting or renaming one and
+rerunning init updates the corresponding selections. Interrupted changes can be retried; conflicting
+manual edits are preserved for reconciliation. Older untracked/manual selections remain manual.
+Registration affects future launches: restart for changed selections/settings; Pi `/reload` can
+refresh edits to already-selected skill files.
+
+Foreman-first onboarding and same-Foreman watcher attachment are not implemented. Attachment will
+check terminal identity, readiness and liveness; it does not need live model/effort/resource checks.
+Broader apps need optional roster effort and native skill-delivery work upstream. The worker menu
+still offers Pi, Codex and Claude Code.
+See [agent onboarding](docs/adrs/agent-onboarding.md) for the implemented subset and remaining work.
 
 ### Shared Pi profile
 

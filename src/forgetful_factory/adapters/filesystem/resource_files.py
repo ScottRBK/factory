@@ -15,6 +15,18 @@ def check_real_path(path: Path) -> None:
                                'symlinks are not supported.')
 
 
+def check_skill_file(path: Path) -> None:
+    """Check a selected file's availability; its harness interprets the contents."""
+    check_real_path(path)
+    if not path.is_file():
+        raise FactoryError(f'Local skill must be a regular file: {path}. File preserved.')
+    try:
+        with path.open('rb'):
+            pass
+    except OSError as error:
+        raise FactoryError(f'Local skill must be readable: {path}. File preserved.') from error
+
+
 def write_new(path: Path, content: str) -> None:
     check_real_path(path)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)

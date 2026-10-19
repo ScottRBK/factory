@@ -387,7 +387,8 @@ class ProfileRecoveryTests(InitFixture):
         self.assertEqual(setup.returncode, 0, setup.stderr)
         role = repo / '.factory/agents/foreman'
         for relative in ('resources.json', 'resources/hide-tools/index.ts',
-                         'skills/foreman/SKILL.md', 'resources/agentshell/python/uv.lock',
+                         'skills/foreman/SKILL.md', 'skills/factory-maintenance/SKILL.md',
+                         'resources/agentshell/python/uv.lock',
                          'resources/agentshell/python/.venv/bin/.fixture-package',
                          'resources/agentshell/python/.venv/pyvenv.cfg',
                          'resources/agentshell/python/.venv/.factory-sync', 'model-selection.json'):

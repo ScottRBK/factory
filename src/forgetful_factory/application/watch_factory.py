@@ -4,7 +4,6 @@ from pathlib import Path
 
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
-from forgetful_factory.application.ports.watch_lease import WatchLease
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.domain.models import FactoryError, Issue, WorkSource
 from forgetful_factory.domain.services.work_tracking import WorkTrackingService
@@ -12,22 +11,20 @@ from forgetful_factory.domain.services.work_tracking import WorkTrackingService
 
 class WatchFactory:
     def __init__(self, tracking: WorkTrackingService, terminal: ForemanTerminal,
-                 lease: WatchLease, scaffold: ScaffoldIssue):
+                 scaffold: ScaffoldIssue):
         self.tracking = tracking
         self.terminal = terminal
-        self.lease = lease
         self.scaffold = scaffold
 
     def run(self, config: FactoryConfiguration, workspace: Path, interval: float,
             choose_existing: Callable[[], bool], report: Callable[[str], None],
             report_error: Callable[[str], None]) -> None:
-        with self.lease.hold():
-            report('Checking Forgetful planning access; waiting for native sign-in/refresh if '
-                   'needed. Browser OAuth may open; Ctrl-C cancels and preserves saved work.')
-            self.scaffold.check()
-            existing = choose_existing()
-            report(f'Watcher owns Pi and closes it on stop. {self.terminal.startup_hint()}')
-            self._watch(config, workspace, interval, existing, report, report_error)
+        report('Checking Forgetful planning access; waiting for native sign-in/refresh if '
+               'needed. Browser OAuth may open; Ctrl-C cancels and preserves saved work.')
+        self.scaffold.check()
+        existing = choose_existing()
+        report(f'Watcher owns Pi and closes it on stop. {self.terminal.startup_hint()}')
+        self._watch(config, workspace, interval, existing, report, report_error)
 
     def _watch(self, config: FactoryConfiguration, workspace: Path, interval: float,
                existing: bool, report: Callable[[str], None],

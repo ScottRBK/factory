@@ -356,7 +356,7 @@ foreman_agent_effort = "high"
         nested.mkdir()
         self.git(nested, 'init', '-q')
         # Act
-        result = self.run_cli(self.workspace, input='2,3\ny\nfactory\n1\nhigh\n')
+        result = self.run_cli(self.workspace, input='2,3\ny\nfactory\n1\n5\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         references = load_configuration(self.workspace).repository
@@ -652,7 +652,7 @@ foreman_agent_effort = "high"
         # Arrange
         repo = self.repo()
         # Act
-        result = self.run_cli(repo, input='\ny\n*\n1\nhigh\n')
+        result = self.run_cli(repo, input='\ny\n*\n1\n5\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         config = load_configuration(repo)

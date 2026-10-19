@@ -220,7 +220,8 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
         raise AssertionError('Public configuration did not retain CLI/model selection')
     role = repo / '.factory/agents/foreman'
     resources = json.loads((role / 'resources.json').read_text())
-    if resources != {'extensions': ROLE_EXTENSIONS, 'skills': ['skills/foreman']}:
+    if resources != {'extensions': ROLE_EXTENSIONS,
+                     'skills': ['skills/foreman', 'skills/factory-maintenance']}:
         raise AssertionError('Unexpected generated role resources')
     if (role / 'resources/factory-status.ts').exists():
         raise AssertionError('A production Factory status extension was generated')
@@ -358,7 +359,8 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
             or tools & {'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource'}):
         raise AssertionError('Native MCP tools leaked into the session')
     commands = {entry['name'] for entry in data['commands']}
-    if not {'hide-tools', 'skill:foreman', 'skill:selected-probe'} <= commands:
+    if not {'hide-tools', 'skill:foreman', 'skill:factory-maintenance',
+            'skill:selected-probe'} <= commands:
         raise AssertionError('Explicit role extensions/skills or repository skill did not load')
     if 'mcp' in commands:
         raise AssertionError('Native /mcp unexpectedly available')
@@ -376,6 +378,7 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
     expected = {'agentshell-jobs': role / ROLE_EXTENSIONS[0],
                 'hide-tools': role / ROLE_EXTENSIONS[1],
                 'skill:foreman': role / 'skills/foreman/SKILL.md',
+                'skill:factory-maintenance': role / 'skills/factory-maintenance/SKILL.md',
                 'skill:selected-probe': repo / '.pi/skills/selected-probe/SKILL.md'}
     if any(command_paths.get(name) != str(path) for name, path in expected.items()):
         raise AssertionError('Native commands did not come from the selected local resources')

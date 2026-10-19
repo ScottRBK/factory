@@ -96,6 +96,9 @@ class FactoryConfiguration:
     tdd_skill: str | None = None
     implementation_skills: tuple[str, ...] = ()
     review_skills: tuple[str, ...] = ()
+    research_agent_model: str | None = None
+    research_agent_harness: str | None = None
+    research_agent_effort: str | None = None
 
     @property
     def execution_enabled(self) -> bool:
@@ -105,11 +108,29 @@ class FactoryConfiguration:
 WORKER_FIELDS = ('implementation_agent_model', 'implementation_agent_harness',
                  'implementation_agent_effort', 'review_agent_model', 'review_agent_harness',
                  'review_agent_effort', 'tdd_skill')
+RESEARCH_FIELDS = ('research_agent_model', 'research_agent_harness', 'research_agent_effort')
 WORKER_EFFORTS = {
     'pi': ('off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'),
     'codex': ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'persistent'),
     'claude_code': ('low', 'medium', 'high', 'xhigh', 'max'),
 }
+# AgentShell 0.5 AgentType values. Launch support alone does not imply skill support.
+DOWNSTREAM_APPS = (*WORKER_EFFORTS, 'opencode', 'copilot_cli', 'cursor', 'grok')
+
+
+def validate_role_app(harness: str, role: str) -> None:
+    if harness not in DOWNSTREAM_APPS:
+        raise FactoryError(f'{role} harness must be one of: ' + ', '.join(DOWNSTREAM_APPS))
+    if harness in ('opencode', 'cursor'):
+        raise FactoryError(f'{role}: AgentShell supports {harness}, but the bundled roster '
+                           'requires effort and this app needs optional effort. Upstream roster '
+                           'support is required; Factory will not invent an effort value. '
+                           'Native selected skills also require validation before use.')
+    if harness in ('copilot_cli', 'grok') or (
+            role == 'research' and harness in ('codex', 'claude_code')):
+        raise FactoryError(f'{role}: AgentShell 0.5 supports {harness} launches but not native '
+                           'selected skills for this role. Upstream adapter support is required. '
+                           'Existing Codex/Claude worker prompt compatibility is unchanged.')
 
 
 def validate_workers(configuration: FactoryConfiguration) -> None:
@@ -124,8 +145,7 @@ def validate_workers(configuration: FactoryConfiguration) -> None:
         nonblank(getattr(configuration, field), field)
     for role in ('implementation', 'review'):
         harness = getattr(configuration, f'{role}_agent_harness')
-        if harness not in WORKER_EFFORTS:
-            raise FactoryError(f'{role} harness must be pi, codex or claude_code.')
+        validate_role_app(harness, role)
         effort = getattr(configuration, f'{role}_agent_effort')
         if effort not in WORKER_EFFORTS[harness]:
             raise FactoryError(f'{role} effort for {harness} must be one of: '
@@ -157,6 +177,14 @@ def nonblank(value: object, field: str) -> str:
 
 def validate(configuration: FactoryConfiguration) -> None:
     validate_workers(configuration)
+    research = [getattr(configuration, field) for field in RESEARCH_FIELDS]
+    if any(value is not None for value in research):
+        for field in RESEARCH_FIELDS:
+            nonblank(getattr(configuration, field), field)
+        validate_role_app(configuration.research_agent_harness, 'research')
+        if configuration.research_agent_effort not in WORKER_EFFORTS['pi']:
+            raise FactoryError('Research effort for pi must be one of: '
+                               + ', '.join(WORKER_EFFORTS['pi']))
     if configuration.forgetful is not None:
         configuration.forgetful.validate()
     nonblank(configuration.foreman_agent_model, 'foreman_agent_model')
@@ -216,6 +244,7 @@ def from_mapping(data: dict) -> FactoryConfiguration:
         data.get('implementation_agent_effort'), data.get('review_agent_model'),
         data.get('review_agent_harness'), data.get('review_agent_effort'), data.get('tdd_skill'),
         skill_paths(data, 'implementation_skills'), skill_paths(data, 'review_skills'),
+        *(data.get(field) for field in RESEARCH_FIELDS),
     )
     validate(configuration)
     return configuration

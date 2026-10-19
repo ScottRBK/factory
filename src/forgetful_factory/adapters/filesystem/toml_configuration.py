@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from forgetful_factory.application.configuration import (
+    RESEARCH_FIELDS,
     WORKER_FIELDS,
     FactoryConfiguration,
     from_mapping,
@@ -62,7 +63,8 @@ class TomlConfigurationStore:
             'foreman_agent_effort = ' + quote(configuration.foreman_agent_effort),
         ]
         for field in ('feature_owner_agent_model', 'feature_owner_agent_effort',
-                      'feature_owner_agent_harness', 'grill_me_skill', *WORKER_FIELDS):
+                      'feature_owner_agent_harness', 'grill_me_skill', *WORKER_FIELDS,
+                      *RESEARCH_FIELDS):
             value = getattr(configuration, field)
             if value is not None:
                 lines.append(f'{field} = {quote(value)}')

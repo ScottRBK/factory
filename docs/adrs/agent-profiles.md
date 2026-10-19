@@ -55,7 +55,9 @@ never asks for a token value. Missing model login is handled through native inte
 The Factory does not invent a standalone `pi auth login` command.
 
 Model discovery uses AgentShell's public `list_models` and preserves its exact selectors.
-CLI groups the returned models by provider. Listing follows Pi's native behavior and may load
+CLI groups Foreman models by provider and uses numbered model/effort choices. Implementation and
+review also use numbered app/model/effort choices, preserving the exact returned selectors.
+Listing follows Pi's native behavior and may load
 personal resources or resolve configured keys; it does not use the launch resource filter.
 It can still read home `SYSTEM.md` during setup: home-prompt exclusion applies only to Foreman
 launch. The public listing API has no resource filter; do not claim complete instruction exclusion.
@@ -81,10 +83,16 @@ files can still apply. Agents read the relevant repository instructions before w
   are not provisioned for research in this slice; its guidance reports unavailable tools.
 
 The roster entry fixes the child's Pi model, effort, cwd and resources. Owner defaults to Foreman's
-model/effort; init accepts separate owner choices. Research uses those owner choices. Roster and
-resource selections are checked against configuration and recorded with setup completion.
-Edited selections require explicit reconciliation, not silent replacement. Foreman's own skill
-and AgentShell extension are mandatory; hide-tools is optional.
+model/effort; init accepts separate owner choices. Research defaults to the owner or uses its own
+explicit Pi model/harness/effort settings. Roster and resource selections are checked against
+configuration and recorded with setup completion. Init registers readable role-local skill files
+and records its automatic additions for bounded removal/rename and interrupted-write recovery.
+Native harnesses validate skill contents; Factory does not parse YAML or resolve skill names.
+Conflicting manually edited selections require explicit reconciliation, not silent replacement.
+Foreman's dispatch and factory-maintenance skills and AgentShell extension are mandatory;
+hide-tools is optional.
+The [maintenance skill and onboarding ADR](agent-onboarding.md) explains setup advice, preserved
+selections, stopped-session requirements and the still-pending Foreman-first setup flow.
 
 For these Pi coordinator/research roles, both automatic inheritance flags are false,
 packages/plugins are empty, native MCP is disabled,
@@ -136,8 +144,10 @@ Python worker uses the audited 0.5.0 lock. Extension 1.4.1 accepts named child r
 forwards their selected resources. Bundled bytes and the installed worker runtime must match the
 reviewed inputs; an old 1.3.0 extension or 0.4.0 worker does not count as ready.
 
-Resources are create-only and reject symlink destinations. Bundled upstream bytes are checked
-against their per-file hashes before copying missing files. User edits are preserved. Obsolete
+Role guidance and initial selections are create-only and reject symlink destinations. Registration
+updates only the affected skill lists and uses a recovery receipt; it never rewrites skill contents
+or entire rosters. Bundled upstream bytes are checked against their per-file hashes before copying
+missing files. User edits are preserved. Obsolete
 instructions must be reconciled explicitly, not silently overwritten or accepted as equivalent.
 There is no migration framework for previous testing factories.
 

@@ -113,7 +113,8 @@ class PlanningSetupTests(InitFixture):
         self.assertEqual(setup.returncode, 0, setup.stderr)
         role = repo / '.factory/agents/foreman'
         path = role / 'resources.json'
-        edited = json.dumps({'skills': [str(role / 'skills/foreman/SKILL.md')],
+        edited = json.dumps({'skills': [str(role / 'skills/foreman/SKILL.md'),
+                                       str(role / 'skills/factory-maintenance/SKILL.md')],
                              'extensions': ['resources/agentshell/extensions/agentshell.ts']})
         path.write_text(edited)
         # Act

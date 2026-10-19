@@ -53,9 +53,6 @@ classDiagram
     class ForemanProfile {
         <<interface>>
     }
-    class WatchLease {
-        <<interface>>
-    }
     InitialiseFactory --> WorkTrackingService
     InitialiseFactory --> ConfigurationStore
     InitialiseFactory --> LocalRepositories
@@ -63,7 +60,6 @@ classDiagram
     InitialiseFactory --> ForemanProfile
     WatchFactory --> WorkTrackingService
     WatchFactory --> ForemanTerminal
-    WatchFactory --> WatchLease
     WatchFactory --> ScaffoldIssue
     ScaffoldIssue --> Planning
     ScaffoldIssue --> Worktrees
@@ -74,7 +70,6 @@ classDiagram
     TomlConfigurationStore ..|> ConfigurationStore
     GitRepositories ..|> LocalRepositories
     AgentShellTerminal ..|> ForemanTerminal
-    WorkspaceWatchLease ..|> WatchLease
 ```
 
 Solid arrows show workflow dependencies. Dashed arrows show source-verified structural matches to
@@ -88,11 +83,12 @@ import or call graph.
 - CLI bootstrap supplies concrete implementations. The public configuration loader is also a
   composition entry point; adapters do not depend on CLI.
 - Initialization gathers shared-Pi-profile consent and uses AgentShell's native model listing.
-  It validates repository settings, offers existing-project selection or confirmed project creation,
-  ensures labels, and stores configuration. Every init checks Forgetful connection, project access
-  and planning support before recording completion. Server checks may start native browser sign-in;
-  no extra check flag is required. A bounded public-policy request controls whether init shows the
-  browser notice; it sends no credentials and never replaces the access check. The profile port
+  It uses numbered agent choices, validates repository settings, offers project selection or
+  confirmed project creation, ensures labels, and stores configuration. Every init checks Forgetful
+  connection, project access and planning support before recording completion. Server checks may
+  start native browser sign-in; no extra check flag is required. A bounded public-policy request
+  controls whether init shows the browser notice; it sends no credentials and never replaces the
+  access check. The profile port
   delegates resources, installation, project creation and checks/sign-in to adapters. Credentials
   remain native; Factory never copies or prints token values. Forgetful installation selects an
   existing Python 3.12 independently of Factory's interpreter, checking prerequisites
@@ -105,10 +101,12 @@ import or call graph.
   Project access also verifies the connection/login. Required tools and parameter support are
   checked from the catalog, not individual tool requests. Execution-enabled factories additionally
   require criterion verification; planning-only access requirements remain unchanged.
-- Watch checks completed setup, selected role files, worker metadata and native delegation depth.
-  Under the workspace lease it checks Forgetful planning access, starts Foreman, restores unfinished
-  plans, then polls GitHub. `ScaffoldIssue` coordinates the `Planning` and `Worktrees` ports before
-  terminal submission. Uncertain non-idempotent creates stop for reconciliation.
+- Init and watch acquire a workspace lease at the CLI boundary before configuration reads or
+  mutations. Existing `.factory` directory locks are also honored for older watchers. Watch checks
+  completed setup, selected role files, worker metadata and native delegation depth, then checks
+  Forgetful planning access, starts Foreman, restores unfinished plans and polls GitHub.
+  `ScaffoldIssue` coordinates the `Planning` and `Worktrees` ports before terminal submission.
+  Uncertain non-idempotent creates stop for reconciliation.
 - The Git adapter uses native worktree registration, branch/common-directory and origin checks.
   It never resets or deletes existing work. An `epic` label defers worktree selection to the owner.
   Valid owner-recorded cleanup permits an absent merged tree only after read-only origin/path and
@@ -117,6 +115,17 @@ import or call graph.
   discovery and native MCP. Native instruction loading remains enabled; home `SYSTEM.md` is
   excluded at launch. Personal append/context files and shared settings can still apply. Model
   listing during setup has a separate loading policy. This is not a security sandbox.
+- Foreman includes a selected, model-invokable factory-maintenance skill. It explains safe setup
+  changes and revalidation through existing init; it is not a new setup launcher or migration tool.
+  Existing resource selections must explicitly include it. Independent research settings and
+  init-time role-folder registration have been added. Registration checks file availability and
+  keeps child/parent selections consistent through bounded recovery records. YAML, metadata and
+  name resolution belong to the native harness; Factory does not reproduce that validation.
+  A setup Foreman in tmux, same-Foreman watcher attachment and broader downstream apps remain
+  unimplemented. Attachment needs identity/readiness/liveness, not current model/effort/resources.
+  Factory selects resources, the extension forwards them, and native skill-delivery gaps belong in
+  AgentShell's adapters. See the
+  [agreed design](adrs/agent-onboarding.md) and [work plan](plans/agent-onboarding.md).
 - Foreman, owner and research start in their role cwd, with native `AGENTS.md` instructions.
   Foreman's preserved `APPEND_SYSTEM.md` is read by that guidance, not sent as an opening prompt.
   Explicit extension 1.4.1 rosters select owner and research children, including their resources.
@@ -156,15 +165,18 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   recovery, native worktrees, revision notifications and owner continuation.
 - [Implementation, review and merge](adrs/feature-delivery.md): Slice 6 worker setup, native harness
   limits, exact-commit evidence, owner coordination and safe cleanup; live validation pending.
+- [Agent onboarding and maintenance](adrs/agent-onboarding.md): numbered choices, selected Foreman
+  maintenance guidance and the boundary between implemented setup and the Foreman-first proposal.
 
 ## Source navigation
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 452; init: line 396; project choice: line 265;
-  worker setup: line 369. Adapter wiring: `cli/bootstrap.py`, lines 19 and 25.
+- CLI entry: `cli/main.py`, line 494; init: line 427; project choice: line 285;
+  numbered choices: line 168; worker setup: line 396.
+  Adapter wiring: `cli/bootstrap.py`, lines 18 and 24.
 - Workflows: `application/initialise_factory.py`, line 18;
-  `application/watch_factory.py`, line 13; `application/scaffold_issue.py`, line 31.
+  `application/watch_factory.py`, line 12; `application/scaffold_issue.py`, line 31.
   Cleanup metadata validation: `application/scaffold_issue.py`, line 12.
 - Planning: `application/ports/planning.py`, line 4; `adapters/forgetful/planning.py`, line 8;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 113;
@@ -172,10 +184,13 @@ Paths below are relative to `src/forgetful_factory/`:
 - Worktrees: `application/ports/worktrees.py`, line 4;
   `adapters/filesystem/git_worktrees.py`, line 21; removed-tree verification: line 32.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 45;
-  `adapters/filesystem/coordinator_profiles.py`, line 59;
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 48;
+  `adapters/filesystem/coordinator_profiles.py`, line 61;
   `adapters/filesystem/worker_profiles.py`, line 21. Templates live under `resources/` for
   Foreman, feature-owner, research, implementation and review.
+- Registration recovery: `adapters/filesystem/skill_registration.py`, line 15;
+  file checks: `adapters/filesystem/resource_files.py`, line 18.
+  `tests/test_local_skills.py` covers path forwarding, preservation and recovery.
 - Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
   controller: `adapters/agentshell/controller.py`, line 37.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
@@ -183,6 +198,7 @@ Paths below are relative to `src/forgetful_factory/`:
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
   and `tests/test_watch.py`. `tests/test_project_onboarding.py` covers project selection/creation.
+  `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
   `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
   `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
   cleanup replay. `tests/test_architecture.py` proves the import rules reject violations.
@@ -193,7 +209,7 @@ Paths below are relative to `src/forgetful_factory/`:
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 exported the current source with full member detail;
-recognized tests were excluded using `--test-path tests`. Its 47 boxes include module containers.
+recognized tests were excluded using `--test-path tests`. Its 48 boxes include module containers.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.

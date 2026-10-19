@@ -50,6 +50,34 @@ console.log(JSON.stringify({
 
 @unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native loading')
 class NativeRoleTests(InitFixture):
+    def test_native_pi_loads_registered_local_skill_without_inference(self):
+        # Arrange
+        repo = self.repo()
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        role = repo / '.factory/agents/research'
+        skill = role / 'skills/team-context/SKILL.md'
+        skill.parent.mkdir()
+        skill.write_text('---\nname: team-context\ndescription: >-\n'
+                         '  Gather our team context.\n---\nPreserve this guidance.\n')
+        refreshed = self.run_cli(repo)
+        self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
+        env = {'PATH': os.environ['PATH'], 'HOME': str(self.workspace), 'PI_OFFLINE': '1',
+               'PI_CODING_AGENT_DIR': str(self.workspace / 'native pi'),
+               'PROBE_ROLE': str(role), 'PI_AGENTSHELL_ROSTER_FILE': str(role / 'roster.json'),
+               'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve())}
+
+        # Act
+        result = subprocess.run(['node', '--input-type=module', '-e', PROBE], cwd=role,
+                                env=env, capture_output=True, text=True, timeout=30, check=True)
+
+        # Assert
+        skills = json.loads(result.stdout)['skills']
+        selected = next(item for item in skills if item['name'] == 'team-context')
+        self.assertEqual(selected['filePath'], str(skill))
+        self.assertEqual(selected['description'], 'Gather our team context.')
+        self.assertFalse(selected['disableModelInvocation'])
+
     def test_native_pi_loads_coordinator_instructions_and_explicit_child_rosters(self):
         # Arrange
         # Public init provisions the files using controlled external setup programs.
@@ -82,6 +110,13 @@ class NativeRoleTests(InitFixture):
                 self.assertIn(str(home / 'AGENTS.md'), observation['agents'])
                 self.assertNotIn('PERSONAL_SYSTEM_MUST_NOT_LOAD', observation['systemPrompt'] or '')
                 self.assertEqual([r['name'] for r in observation['roles']], children)
+                if role == 'foreman':
+                    maintenance = next(s for s in observation['skills']
+                                       if s['name'] == 'factory-maintenance')
+                    self.assertFalse(maintenance['disableModelInvocation'])
+                    self.assertIn('configuring agent apps', maintenance['description'])
+                    self.assertEqual(maintenance['filePath'],
+                                     str(directory / 'skills/factory-maintenance/SKILL.md'))
                 if role == 'feature-owner':
                     grill = next(s for s in observation['skills'] if s['name'] == 'grill-me')
                     self.assertIs(grill['disableModelInvocation'], True)

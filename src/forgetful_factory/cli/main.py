@@ -48,10 +48,13 @@ def _parse_arguments() -> argparse.Namespace:
     init.add_argument('--foreman-effort', help='Foreman effort text setting')
     init.add_argument('--feature-owner-model', help='Native Pi model; defaults to Foreman model')
     init.add_argument('--feature-owner-effort', help='Native Pi effort; defaults to Foreman effort')
+    init.add_argument('--research-model', help='Independent native research model selector')
+    init.add_argument('--research-harness', help='Native research app')
+    init.add_argument('--research-effort', help='Native research reasoning effort')
     init.add_argument('--grill-me-skill', type=Path, help='Existing unchanged grill-me SKILL.md')
     for role in ('implementation', 'review'):
         init.add_argument(f'--{role}-model', help=f'Native {role} model selector')
-        init.add_argument(f'--{role}-harness', help='Native harness: pi, codex or claude_code')
+        init.add_argument(f'--{role}-harness', help='Native app: pi, codex or claude_code')
         init.add_argument(f'--{role}-effort', help=f'Native {role} reasoning effort')
         init.add_argument(f'--{role}-skill', action='append', type=Path,
                           help='Existing local skill file; repeat for additional skills')
@@ -100,8 +103,8 @@ def _configure_new_factory(application: InitialiseFactory, workspace: Path,
     if model is None:
         _prepare_foreman(application, connection, args)
         model = _select_model(application, connection, home, None, args.feature_owner_model)
-    effort = args.foreman_effort if args.foreman_effort is not None else input(
-        'Foreman effort: ')
+    effort = args.foreman_effort if args.foreman_effort is not None else _select_numbered(
+        'Foreman effort', WORKER_EFFORTS['pi'])
     return application.configure(paths, labels, model, effort)
 
 
@@ -162,6 +165,22 @@ def _print_models(models: list[str]) -> None:
         print(f'  {index}. {_safe_diagnostic(model)}')
 
 
+def _select_numbered(label: str, choices: list[str] | tuple[str, ...],
+                     *, show_choices: bool = True) -> str:
+    if show_choices:
+        print(f'{label} choices:')
+        for index, choice in enumerate(choices, 1):
+            print(f'  {index}. {_safe_diagnostic(choice)}')
+    try:
+        index = int(input(f'Select {label} number: '))
+    except ValueError as error:
+        raise FactoryError(f'{label}: select a number from 1 to {len(choices)}.') from error
+    if index < 1 or index > len(choices):
+        raise FactoryError(f'{label} selection is out of range; '
+                           f'select a number from 1 to {len(choices)}.')
+    return choices[index - 1]
+
+
 def _select_model(application, connection, home: str, requested: str | None,
                   owner: str | None = None) -> str:
     print(f'Native Pi login: in another terminal run PI_CODING_AGENT_DIR={shlex.quote(home)} pi, '
@@ -184,13 +203,7 @@ def _select_model(application, connection, home: str, requested: str | None,
                                'Correct --foreman-model (or edit existing factory.toml) '
                                'and rerun init.')
         return requested
-    try:
-        index = int(input('Select Foreman model number: '))
-    except ValueError as error:
-        raise FactoryError('Select a model number from the native Pi list.') from error
-    if index < 1 or index > len(models):
-        raise FactoryError('Model selection is out of range.')
-    return models[index - 1]
+    return _select_numbered('Foreman model', models, show_choices=False)
 
 
 def _confirm_pi_home(home: str, args: argparse.Namespace) -> bool:
@@ -231,6 +244,13 @@ def _choose_existing(args: argparse.Namespace) -> bool:
 
 
 def _watch(args: argparse.Namespace, workspace: Path) -> int:
+    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+
+    with WorkspaceWatchLease(workspace).hold():
+        return _watch_locked(args, workspace)
+
+
+def _watch_locked(args: argparse.Namespace, workspace: Path) -> int:
     from forgetful_factory.configuration import load_configuration
 
     if not math.isfinite(args.interval) or args.interval <= 0:
@@ -320,25 +340,32 @@ def _worker_arguments(args: argparse.Namespace) -> dict:
     return supplied
 
 
+def _research_configuration(args, config, existing):
+    supplied = {f'research_agent_{field}': getattr(args, f'research_{field}')
+                for field in ('model', 'harness', 'effort')
+                if getattr(args, f'research_{field}') is not None}
+    if existing:
+        if any(value != getattr(config, field) for field, value in supplied.items()):
+            raise FactoryError('Research arguments conflict with config; edit factory.toml.')
+        return config
+    if not supplied:
+        return config
+    return replace(config, **{
+        'research_agent_model': config.feature_owner_agent_model,
+        'research_agent_harness': 'pi',
+        'research_agent_effort': config.feature_owner_agent_effort,
+        **supplied,
+    })
+
+
 def _prompt_worker(role: str, discover_models) -> dict:
-    print('Harnesses: ' + ', '.join(WORKER_EFFORTS))
-    harness = input(f'{role.capitalize()} harness: ').strip()
-    if harness not in WORKER_EFFORTS:
-        raise FactoryError('Select one of the advertised worker harnesses.')
+    harness = _select_numbered(f'{role.capitalize()} app', tuple(WORKER_EFFORTS))
     models = discover_models(harness)
     if not models:
         raise FactoryError(f'No common {harness} model catalog choices '
                            'in selected repositories.')
-    print(f'{harness} model catalog choices:')
-    for model in models:
-        print('  ' + _safe_diagnostic(model))
-    model = input(f'{role.capitalize()} model: ').strip()
-    if model not in models:
-        raise FactoryError('Model is not selectable; use an exact advertised catalog selector.')
-    print(f'Efforts for {harness}: ' + ', '.join(WORKER_EFFORTS[harness]))
-    effort = input(f'{role.capitalize()} effort: ').strip()
-    if effort not in WORKER_EFFORTS[harness]:
-        raise FactoryError('Select one of the advertised harness efforts.')
+    model = _select_numbered(f'{role.capitalize()} model', models)
+    effort = _select_numbered(f'{role.capitalize()} effort', WORKER_EFFORTS[harness])
     return {f'{role}_agent_harness': harness, f'{role}_agent_model': model,
             f'{role}_agent_effort': effort}
 
@@ -391,9 +418,20 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
         print('If your browser opens, complete Forgetful sign-in there.', flush=True)
     print(application.check_foreman(config, login=login))
     application.profile.record_completion(config)
+    print('Local skills: .factory/agents/<role>/skills/<name>/SKILL.md. '
+          'Init registers these files for future launches. For a running Pi, use /reload '
+          'only for edits to already-selected skills; restart for changed selections or settings. '
+          'Running sessions are not changed by init.')
 
 
 def _initialise(args: argparse.Namespace, workspace: Path) -> int:
+    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+
+    with WorkspaceWatchLease(workspace).hold():
+        return _initialise_locked(args, workspace)
+
+
+def _initialise_locked(args: argparse.Namespace, workspace: Path) -> int:
     application = build_initialiser(workspace)
     paths = ([Path(os.path.abspath(path.expanduser())) for path in args.repo]
              if args.repo is not None else None)
@@ -402,6 +440,8 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
     existing = config is not None
     if existing:
         config = _worker_configuration(args, config, True)
+        config = _owner_configuration(args, config, True)
+        config = _research_configuration(args, config, True)
     connection = _connection(args, workspace, config.forgetful if config else None)
     home = application.profile.choose_pi_home(args.pi_agent_dir,
                                              lambda home: _confirm_pi_home(home, args))
@@ -410,7 +450,9 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
     if config is None:
         config = _configure_new_factory(application, workspace, args, paths, connection, home)
         prepared = args.foreman_model is None
-    config = _owner_configuration(args, config, existing)
+    if not existing:
+        config = _owner_configuration(args, config, False)
+        config = _research_configuration(args, config, False)
 
     def discover_worker_models(harness):
         nonlocal prepared
@@ -437,7 +479,7 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
             connection = replace(connection, project_id=project_id)
             config = replace(config, forgetful=connection)
         if config.execution_enabled:
-            print('Checking worker model catalogs using the selected native harnesses/accounts. '
+            print('Checking worker model catalogs using the selected native apps/accounts. '
                   'Listing may read native settings, credentials and network catalogs; '
                   'it does not verify model access or model-specific effort support.')
         application.profile.prepare_roles(config)

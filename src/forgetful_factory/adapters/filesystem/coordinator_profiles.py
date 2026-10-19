@@ -5,9 +5,11 @@ from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.resource_files import (
     check_real_path,
+    check_skill_file,
     write_json,
     write_new,
 )
+from forgetful_factory.adapters.filesystem.skill_registration import SkillRegistration
 from forgetful_factory.adapters.filesystem.worker_profiles import WorkerProfiles
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.domain.models import FactoryError
@@ -77,6 +79,27 @@ class CoordinatorProfiles:
                                'research delegation. Review extensions/agentshell.json in the '
                                'shared Pi home; Factory preserves those preferences.') from error
 
+    def register_local_skills(self, config: FactoryConfiguration) -> None:
+        """Register files for future launches, after validating preserved role contracts."""
+        changes = {}
+        registration = SkillRegistration(self.directory)
+        roles = ['foreman', 'feature-owner', 'research']
+        if config.execution_enabled:
+            roles.extend(('implementation', 'review'))
+        for role in roles:
+            directory = self.directory / role
+            path = directory / RESOURCE_SELECTION_FILE
+            selected = _read_selection(path)
+            existing = {Path(value) if Path(value).is_absolute() else directory / value
+                        for value in selected['skills']}
+            for skill in sorted((directory / 'skills').glob('*/SKILL.md')):
+                check_skill_file(skill)
+                if skill not in existing and skill.parent not in existing:
+                    selected['skills'].append(str(skill))
+            if selected != _read_selection(path):
+                changes[role] = selected['skills']
+        registration.update(changes)
+
     def prepare(self, config: FactoryConfiguration) -> None:
         self.validate_guidance(config)
         if (not config.feature_owner_agent_model or not config.feature_owner_agent_effort
@@ -134,10 +157,15 @@ class CoordinatorProfiles:
                 resources[key] = _local_resource_paths(directory, paths)
         except (ValueError, TypeError) as error:
             raise _selection_conflict(path) from error
+        model = config.feature_owner_agent_model
+        effort = config.feature_owner_agent_effort
+        if name == 'research':
+            model = config.research_agent_model or model
+            effort = config.research_agent_effort or effort
         return {'name': name, 'description': ('Plan and own a feature' if name == 'feature-owner'
                                               else 'Gather facts and return context'),
-                'agent_type': 'pi', 'model': config.feature_owner_agent_model,
-                'effort': config.feature_owner_agent_effort, 'cwd': str(directory),
+                'agent_type': 'pi', 'model': model,
+                'effort': effort, 'cwd': str(directory),
                 'roster_file': str(directory / ROSTER_FILE),
                 'resources': selected_resources(**resources)}
 

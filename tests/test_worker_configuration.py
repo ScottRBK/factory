@@ -149,7 +149,7 @@ class WorkerConfigurationTests(InitFixture):
         from worker_support import worker_settings
         repo = self.repo()
         worker_settings(self)
-        answers = ('w\ncodex\ngpt-5.4\nxhigh\nclaude_code\nopus\nhigh\n'
+        answers = ('w\n2\n1\n6\n3\n1\n3\n'
                    + str(self.workspace / 'tdd/SKILL.md') + '\n'
                    + str(self.workspace / 'standards/SKILL.md') + '\n\n')
         # Act
@@ -162,28 +162,123 @@ class WorkerConfigurationTests(InitFixture):
         self.assertEqual(config.review_agent_harness, 'claude_code')
         self.assertEqual(config.implementation_agent_model, 'gpt-5.4')
         self.assertEqual(config.review_agent_model, 'opus')
+        self.assertEqual(config.implementation_agent_effort, 'xhigh')
+        self.assertEqual(config.review_agent_effort, 'high')
+        self.assertIn('Implementation app choices:\n  1. pi\n  2. codex\n  3. claude_code',
+                      result.stdout)
+        self.assertIn('Select Implementation app number:', result.stdout)
+        self.assertIn('Implementation model choices:\n  1. gpt-5.4', result.stdout)
+        self.assertIn('Select Implementation model number:', result.stdout)
+        self.assertIn('Implementation effort choices:\n  1. none\n  2. minimal\n  3. low\n'
+                      '  4. medium\n  5. high\n  6. xhigh\n  7. max\n  8. ultra\n'
+                      '  9. persistent', result.stdout)
+        self.assertIn('Select Implementation effort number:', result.stdout)
+        self.assertIn('Review app choices:\n  1. pi\n  2. codex\n  3. claude_code',
+                      result.stdout)
+        self.assertIn('Select Review app number:', result.stdout)
+        self.assertIn('Review model choices:\n  1. opus', result.stdout)
+        self.assertIn('Select Review model number:', result.stdout)
+        self.assertIn('Review effort choices:\n  1. low\n  2. medium\n  3. high\n'
+                      '  4. xhigh\n  5. max', result.stdout)
+        self.assertIn('Select Review effort number:', result.stdout)
         self.assertEqual(config.review_skills, ())
 
+    def test_invalid_worker_numbers_stop_before_config_or_label_changes(self):
+        # Arrange: exact former text answers now require their displayed menu number.
+        from worker_support import worker_settings
+        worker_settings(self)
+        prompts = (
+            ('Implementation app', 'w\n', '4', 'codex'),
+            ('Implementation model', 'w\n2\n', '2', 'gpt-5.4'),
+            ('Implementation effort', 'w\n2\n1\n', '10', 'xhigh'),
+            ('Review app', 'w\n2\n1\n6\n', '4', 'claude_code'),
+            ('Review model', 'w\n2\n1\n6\n3\n', '2', 'opus'),
+            ('Review effort', 'w\n2\n1\n6\n3\n1\n', '6', 'high'),
+        )
+        for prompt_index, (label, prefix, upper, old_name) in enumerate(prompts):
+            for answer_index, answer in enumerate(('', 'not-a-number', '0', '-1', upper, old_name)):
+                with self.subTest(prompt=label, answer=answer):
+                    repo = self.repo(f'choice-{prompt_index}-{answer_index}')
+                    self.state.write_text('{}')
+                    # Act
+                    result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
+                                          worker_defaults=False, input=prefix + answer + '\n')
+                    # Assert
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(label, result.stderr)
+                    self.assertIn('select a number from 1 to', result.stderr)
+                    self.assertNotIn('Traceback', result.stderr)
+                    self.assertFalse((repo / '.factory/factory.toml').exists())
+                    receipt = repo / '.factory/agents/foreman/model-selection.json'
+                    self.assertFalse(receipt.exists())
+                    self.assertEqual(json.loads(self.state.read_text()), {})
+
+    def test_numbered_pi_workers_preserve_exact_models_and_native_effort_order(self):
+        # Arrange
+        from worker_support import worker_settings
+        repo = self.repo()
+        worker_settings(self)
+        self.env['PROFILE_MODELS'] = (
+            'provider  model  context  max-out  thinking  images\n'
+            'z-provider  special/model  128000  8192  yes  yes\n'
+            'provider  model  128000  8192  yes  yes')
+        answers = ('w\n1\n2\n1\n1\n1\n7\n'
+                   + str(self.workspace / 'tdd/SKILL.md') + '\n\n\n')
+        # Act
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
+                              worker_defaults=False, input=answers)
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('Implementation model choices:\n  1. provider/model\n'
+                      '  2. z-provider/special/model', result.stdout)
+        self.assertIn('Implementation effort choices:\n  1. off\n  2. minimal\n  3. low\n'
+                      '  4. medium\n  5. high\n  6. xhigh\n  7. max', result.stdout)
+        config = load_configuration(repo)
+        self.assertEqual(config.implementation_agent_harness, 'pi')
+        self.assertEqual(config.review_agent_harness, 'pi')
+        self.assertEqual(config.implementation_agent_model, 'z-provider/special/model')
+        self.assertEqual(config.review_agent_model, 'provider/model')
+        self.assertEqual(config.implementation_agent_effort, 'off')
+        self.assertEqual(config.review_agent_effort, 'max')
+
     def test_interactive_catalog_is_advertised_and_reused_for_each_actual_repository(self):
+        # Arrange: catalogs differ in order and in choices available to only one repository.
         from worker_support import worker_settings
         repo = self.repo()
         other = self.repo('other')
         worker_settings(self)
         log = self.workspace / 'catalogs.jsonl'
-        self.env['WORKER_CATALOG_LOG'] = str(log)
-        self.env['WORKER_CODEX_MODELS'] = '["catalog-choice"]'
-        answers = ('w\ncodex\ncatalog-choice\nxhigh\ncodex\ncatalog-choice\nlow\n'
+        catalogs = {str(repo): ['z/special/model', 'catalog-choice', 'only-first-repo'],
+                    str(other): ['only-other-repo', 'catalog-choice', 'z/special/model']}
+        (self.bin / 'codex').write_text(
+            '#!/usr/bin/env python3\n'
+            'import json, os, sys\n'
+            'from pathlib import Path\n'
+            'assert sys.argv[1:] == ["debug", "models"]\n'
+            f'catalogs = {catalogs!r}\n'
+            f'with Path({str(log)!r}).open("a") as stream:\n'
+            '    stream.write(json.dumps({"harness": "codex", "cwd": os.getcwd()}) + "\\n")\n'
+            'print(json.dumps({"models": [{"slug": value, "visibility": "list"}\n'
+            '                             for value in catalogs[os.getcwd()]]}))\n')
+        answers = ('w\n2\n2\n6\n2\n1\n3\n'
                    + str(self.workspace / 'tdd/SKILL.md') + '\n\n\n')
+        # Act
         result = self.run_cli(repo, '--repo', '.', '--repo', str(other), *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
+        # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         output = result.stdout
-        self.assertIn('Harnesses: pi, codex, claude_code', output)
-        self.assertLess(output.index('catalog-choice'), output.index('Implementation model:'))
-        self.assertIn('Efforts for codex: none, minimal, low, medium, high, xhigh, max', output)
+        self.assertIn('Implementation app choices:\n  1. pi\n  2. codex\n  3. claude_code', output)
+        self.assertLess(output.index('catalog-choice'), output.index('Select Implementation model'))
+        self.assertIn('Implementation effort choices:\n  1. none\n  2. minimal\n  3. low\n'
+                      '  4. medium\n  5. high\n  6. xhigh\n  7. max', output)
         self.assertIn('network', output)
+        self.assertIn('Implementation model choices:\n  1. catalog-choice\n'
+                      '  2. z/special/model', output)
+        self.assertNotIn('only-first-repo', output)
+        self.assertNotIn('only-other-repo', output)
         config = load_configuration(repo)
-        self.assertEqual(config.implementation_agent_model, 'catalog-choice')
+        self.assertEqual(config.implementation_agent_model, 'z/special/model')
         self.assertEqual(config.review_agent_model, 'catalog-choice')
         self.assertEqual([json.loads(line) for line in log.read_text().splitlines()],
                          [{'harness': 'codex', 'cwd': str(repo)},
@@ -201,9 +296,10 @@ class WorkerConfigurationTests(InitFixture):
                 else:
                     self.env.pop('WORKER_CATALOG_FAIL', None)
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
-                                      worker_defaults=False, input='w\ncodex\nnot-listed\n')
+                                      worker_defaults=False, input='w\n2\nnot-listed\n')
                 self.assertNotEqual(result.returncode, 0)
-                self.assertRegex(result.stderr, 'catalog|not selectable')
+                expected = 'catalog' if case != 'invalid' else 'model: select a number'
+                self.assertIn(expected, result.stderr)
                 self.assertNotIn('TOP_SECRET', result.stderr)
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertFalse((repo / '.factory/factory.toml').exists())
@@ -214,7 +310,7 @@ class WorkerConfigurationTests(InitFixture):
         repo = self.repo()
         worker_settings(self)
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False,
-                              input='w\ncodex\ngpt-5.4\nxhigh\nclaude_code\nopus\nhigh\n\n')
+                              input='w\n2\n1\n6\n3\n1\n3\n\n')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('TDD skill file cannot be blank', result.stderr)
         self.assertNotIn('Local implementation architecture', result.stdout)

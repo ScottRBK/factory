@@ -38,13 +38,14 @@ or terminal failures. No work is deleted on failure. Notifications carry body/re
 plan/task/worktree IDs as escaped external data; agents must reread current issue/comments.
 
 The watcher owns the new Pi process and closes it when it stops; there is no detached operation.
-A workspace lease prevents a second concurrent watcher from launching another Pi. It is an advisory
-lock on the existing `.factory` directory, held until shutdown cleanup completes; no PID or lock
-files are written. The filesystem adapter uses POSIX `flock` with a no-follow directory open, and
-the application depends on the `WatchLease` port. Different workspaces are not globally coordinated.
-The CLI supplies the startup-choice callback; the application acquires the lease before invoking it
-or reporting the terminal adapter's startup hint. Rejected second watchers therefore do not ask
-unused questions or print commands for nonexistent targets.
+A workspace lease prevents concurrent init/watch commands. The CLI acquires it before configuration
+reads, readiness checks or setup mutations, and holds it until cleanup completes. The filesystem
+adapter uses POSIX `flock` with no-follow directory opens: it locks the existing workspace, plus
+`.factory` when present to remain compatible with older watchers. Fresh init need not create
+`.factory` to acquire the lock. No PID or lock files are written. Different workspaces are not
+globally coordinated. The application receives an already-guarded invocation and the CLI's
+startup-choice callback. Rejected commands do not invalidate setup receipts, ask unused questions
+or print commands for nonexistent targets.
 If cleanup fails, inspect the printed session before retrying; the watcher never replaces it.
 
 See the [slice 2 plan](../plans/slice-2.md) for tests, SonarQube analysis, and Opus review.
@@ -81,13 +82,12 @@ src/forgetful_factory/
 ├── application/
 │   ├── watch_factory.py             # Polling, baseline, revisions, notifications
 │   └── ports/
-│       ├── foreman_terminal.py      # Startup hint, launch, submit, wait, close
-│       └── watch_lease.py           # Exclusive workspace ownership contract
+│       └── foreman_terminal.py      # Startup hint, launch, submit, wait, close
 ├── domain/
 │   ├── models.py                    # Provider-independent Issue
 │   └── services/work_tracking.py    # Adds matching-open-issue reads
 └── adapters/
-    ├── filesystem/watch_lease.py    # Advisory lock on the factory directory
+    ├── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
     ├── github/work_tracking.py      # Paginated issue reads and label matching
     └── agentshell/
         ├── terminal.py              # Controller process and acknowledgements
