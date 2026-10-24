@@ -42,16 +42,13 @@ class SharedPiTests(InitFixture):
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         role = repo / '.factory/agents/foreman'
-        choice = json.loads((role / 'pi-profile.json').read_text())
+        choice = json.loads((repo / '.factory/pi-profile.json').read_text())
         self.assertEqual(choice, {'agent_directory': self.env['PI_CODING_AGENT_DIR'],
                                   'shared_profile_consent': True})
-        receipt = json.loads((role / 'model-selection.json').read_text())
-        self.assertEqual(receipt['agent_directory'], self.env['PI_CODING_AGENT_DIR'])
-        self.assertEqual(receipt['model'], 'provider/model')
-        self.assertEqual(receipt['forgetful']['project_id'], 12)
-        self.assertEqual(receipt['forgetful'], {
-            'method': 'cli', 'instance': 'local', 'executable': 'forgetful', 'server': None,
-            'database': str(repo / '.factory/data/forgetful.db'), 'project_id': 12})
+        receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
+        self.assertEqual(receipt, {'complete': True})
+        agent = json.loads((role / 'agent.json').read_text())['agent']
+        self.assertEqual(agent['model'], 'provider/model')
         calls = [e for e in events(self.log) if e['name'] == 'pi']
         self.assertEqual([e['args'] for e in calls], [['--no-approve', '--list-models']])
         self.assertEqual(calls[0]['agent_dir'], self.env['PI_CODING_AGENT_DIR'])
@@ -69,16 +66,15 @@ class SharedPiTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', '--label', 'factory',
                               '--foreman-effort', 'high', input='2\n')
         # Assert
-        from forgetful_factory.configuration import load_configuration
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('a-provider:', result.stdout)
         self.assertIn('z-provider:', result.stdout)
         self.assertIn('2. z-provider/special/model', result.stdout)
-        self.assertEqual(load_configuration(repo).foreman_agent_model, 'z-provider/special/model')
+        selected = json.loads((repo / '.factory/agents/foreman/agent.json').read_text())
+        self.assertEqual(selected['agent']['model'], 'z-provider/special/model')
 
     def test_numbered_foreman_effort_is_saved_and_used_as_owner_default(self):
         # Arrange
-        from forgetful_factory.configuration import load_configuration
         repo = self.repo()
         # Act
         result = self.run_cli(repo, '--repo', '.', '--label', 'factory', input='1\n5\n')
@@ -87,11 +83,10 @@ class SharedPiTests(InitFixture):
         self.assertIn('1. off\n  2. minimal\n  3. low\n  4. medium\n  5. high\n'
                       '  6. xhigh\n  7. max', result.stdout)
         self.assertIn('Select Foreman effort number:', result.stdout)
-        config = load_configuration(repo)
-        self.assertEqual(config.foreman_agent_model, 'provider/model')
-        self.assertEqual(config.foreman_agent_effort, 'high')
-        self.assertEqual(config.feature_owner_agent_model, 'provider/model')
-        self.assertEqual(config.feature_owner_agent_effort, 'high')
+        for role in ('foreman', 'feature-owner'):
+            agent = json.loads((repo / f'.factory/agents/{role}/agent.json').read_text())['agent']
+            self.assertEqual(agent['model'], 'provider/model')
+            self.assertEqual(agent['effort'], 'high')
 
     def test_invalid_foreman_numbers_stop_before_config_or_label_changes(self):
         for field, prefix, upper, old_name in (
@@ -110,7 +105,7 @@ class SharedPiTests(InitFixture):
                     self.assertIn('select a number from 1 to', result.stderr)
                     self.assertNotIn('Traceback', result.stderr)
                     self.assertFalse((repo / '.factory/factory.toml').exists())
-                    receipt = repo / '.factory/agents/foreman/model-selection.json'
+                    receipt = repo / '.factory/setup-complete.json'
                     self.assertFalse(receipt.exists())
                     self.assertEqual(json.loads(self.state.read_text()), {})
 
@@ -127,26 +122,32 @@ class SharedPiTests(InitFixture):
         self.assertIn('another terminal', result.stdout)
         calls = [e['args'] for e in events(self.log) if e['name'] == 'pi']
         self.assertEqual(calls, [['--no-approve', '--list-models']] * 2)
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
-    def test_saved_home_is_used_when_environment_changes_and_explicit_conflict_stops(self):
+    def test_saved_home_is_preserved_when_environment_and_repeated_init_flags_change(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        chosen = self.env['PI_CODING_AGENT_DIR']
+        choice = repo / '.factory/pi-profile.json'
+        original = choice.read_bytes()
         self.env['PI_CODING_AGENT_DIR'] = str(self.workspace / 'different home')
         self.log.unlink()
         # Act
         retry = self.run_cli(repo, pi_defaults=False)
-        conflict = self.run_cli(repo, '--pi-agent-dir', self.env['PI_CODING_AGENT_DIR'])
+        ignored = self.run_cli(repo, '--pi-agent-dir', self.env['PI_CODING_AGENT_DIR'])
         # Assert
         self.assertEqual(retry.returncode, 0, retry.stderr)
+        self.assertEqual(ignored.returncode, 0, ignored.stderr)
+        self.assertEqual(choice.read_bytes(), original)
+        self.assertEqual(events(self.log), [])
+        # Explicit first-setup validation cannot silently switch the approved shared home.
+        conflict = self.run_cli(repo, '--finalize', '--pi-agent-dir',
+                                self.env['PI_CODING_AGENT_DIR'])
         self.assertNotEqual(conflict.returncode, 0)
         self.assertIn('conflicts with saved consent', conflict.stderr)
-        calls = [e for e in events(self.log) if e['name'] == 'pi']
-        self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0]['agent_dir'], chosen)
+        self.assertIn('init --finalize', conflict.stderr)
+        self.assertEqual(choice.read_bytes(), original)
 
     def watch(self, repo):
         import subprocess
@@ -160,11 +161,10 @@ class SharedPiTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        role = repo / '.factory/agents/foreman'
         for name, message in (('pi-profile.json', 'consent'),
-                              ('model-selection.json', 'model setup')):
+                              ('setup-complete.json', 'incomplete')):
             with self.subTest(missing=name):
-                path = role / name
+                path = repo / '.factory' / name
                 original = path.read_bytes()
                 path.unlink()
                 self.state.write_text('{}')
@@ -184,14 +184,16 @@ class SharedPiTests(InitFixture):
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         role = repo / '.factory/agents/foreman'
-        path = role / 'resources.json'
+        path = role / 'agent.json'
         original = path.read_bytes()
         for selection in ({'extensions': ['npm:unreviewed']},
                           {'skills': ['https://example.com/skill']},
                           {'skills': ['missing-skill']}, {'packages': ['npm:package']},
-                          {'inherit_personal_resources': True}):
+                          {'inherit_personal_resources': 'true'}):
             with self.subTest(selection=selection):
-                path.write_text(json.dumps(selection))
+                document = json.loads(original)
+                document['agent']['resources'].update(selection)
+                path.write_text(json.dumps(document))
                 self.state.write_text('{}')
                 self.log.unlink(missing_ok=True)
                 # Act
@@ -200,12 +202,11 @@ class SharedPiTests(InitFixture):
                 retry = self.run_cli(repo)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
-                self.assertNotEqual(retry.returncode, 0)
-                self.assertIn('resources.json', retry.stderr)
-                self.assertIn('resources.json', result.stderr)
+                self.assertEqual(retry.returncode, 0, retry.stderr)
+                self.assertRegex(result.stderr, 'resource|audited local')
                 self.assertEqual(state_after_watch, {})
                 self.assertEqual(events(self.log), [])
-                self.assertEqual(json.loads(path.read_text()), selection)
+                self.assertEqual(json.loads(path.read_text()), document)
                 path.write_bytes(original)
                 setup = self.run_cli(repo)
                 self.assertEqual(setup.returncode, 0, setup.stderr)
@@ -229,10 +230,11 @@ class SharedPiTests(InitFixture):
         extra = repo / 'repository-skill'
         extra.mkdir()
         (extra / 'SKILL.md').write_text('---\nname: repo\ndescription: repo\n---\nRepo skill')
-        selection = role / 'resources.json'
-        resources = json.loads(selection.read_text())
+        selection = role / 'agent.json'
+        document = json.loads(selection.read_text())
+        resources = document['agent']['resources']
         resources['skills'].append(str(extra))
-        selection.write_text(json.dumps(resources))
+        selection.write_text(json.dumps(document))
         retry = self.run_cli(repo)
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertEqual(skill.read_text(), edited_skill)
@@ -269,7 +271,7 @@ class SharedPiTests(InitFixture):
         self.assertEqual(len(launches), 1)
         launch = launches[0]
         self.assertEqual(launch['agent_dir'], str(self.workspace / 'native pi'))
-        self.assertEqual(launch['role_dir'], str(role))
+        self.assertEqual(launch['role_dir'], str(repo / '.factory'))
         args = launch['args']
         for flag in ('--no-extensions', '--no-skills', '--no-mcp', '--offline'):
             self.assertIn(flag, args)
@@ -277,9 +279,9 @@ class SharedPiTests(InitFixture):
         self.assertEqual(args[args.index('--system-prompt') + 1], '')
         for flag in ('--no-context-files', '--tools', '--no-approve'):
             self.assertNotIn(flag, args)
-        self.assertIn(str(role / 'skills/foreman'), args)
+        self.assertIn(str(role / 'skills'), args)
         self.assertIn(str(extra), args)
-        self.assertIn(str(role / 'resources/hide-tools/index.ts'), args)
+        self.assertIn(str(repo / '.factory/resources/hide-tools/index.ts'), args)
         self.assertNotIn('Discuss only. Custom role guidance.', args)
         self.assertEqual(launch['cwd'], str(role))
         self.assertIn('APPEND_SYSTEM.md', (role / 'AGENTS.md').read_text())
@@ -302,7 +304,8 @@ class SharedPiTests(InitFixture):
         watch_state = json.loads(self.state.read_text())
         retry = self.run_cli(repo)
         # Assert
-        for result in (watch, retry):
+        self.assertEqual(retry.returncode, 0, retry.stderr)
+        for result in (watch,):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn('.pi/SYSTEM.md', result.stderr)
             self.assertIn('AgentShell', result.stderr)
@@ -312,7 +315,8 @@ class SharedPiTests(InitFixture):
         self.assertEqual(events(self.log), [])
         self.assertEqual(project_prompt.read_text(),
                          'Keep these repository instructions unchanged.\n')
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertEqual(json.loads((repo / '.factory/setup-complete.json').read_text()),
+                         {'complete': True})
 
     def test_unlisted_explicit_model_cannot_complete_setup_or_watch(self):
         # Arrange
@@ -345,7 +349,7 @@ class SharedPiTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        choice = json.loads((repo / '.factory/agents/foreman/pi-profile.json').read_text())
+        choice = json.loads((repo / '.factory/pi-profile.json').read_text())
         self.assertEqual(choice['agent_directory'], self.env['HOME'] + '/.pi/agent')
         self.assertFalse((repo / '.factory/agents/foreman/auth.json').exists())
 

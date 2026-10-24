@@ -26,7 +26,7 @@ class WatchLockTests(unittest.TestCase):
             f'Path({str(marker)!r}).touch()\n'
             f'while not Path({str(gate)!r}).exists(): time.sleep(0.01)', 1))
         process = subprocess.Popen(
-            [sys.executable, '-m', 'forgetful_factory', 'init', '--workspace',
+            [sys.executable, '-m', 'forgetful_factory', 'init', '--finalize', '--workspace',
              str(fixture.workspace)], env=fixture.env, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         self.addCleanup(fixture.cleanup_process, process)
@@ -54,7 +54,7 @@ class WatchLockTests(unittest.TestCase):
         first = fixture.start('--existing')
         fixture.wait_until(first, lambda: any(e['kind'] == 'ready' for e in fixture.events()))
         directory = fixture.workspace / '.factory'
-        receipt = directory / 'agents/foreman/model-selection.json'
+        receipt = directory / 'setup-complete.json'
         original = receipt.read_bytes()
         config = (directory / 'factory.toml').read_bytes()
 

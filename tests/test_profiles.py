@@ -25,8 +25,9 @@ class ProfileTests(InitFixture):
         self.assertEqual(connection.method, 'cli')
         self.assertEqual(connection.database, str(repo / '.factory/data/forgetful.db'))
         profile = repo / '.factory/agents/foreman'
-        settings = json.loads((profile / 'resources.json').read_text())
-        self.assertEqual(settings['skills'], ['skills/foreman', 'skills/factory-maintenance'])
+        document = json.loads((profile / 'agent.json').read_text())
+        settings = document['agent']['resources']
+        self.assertEqual(settings['skills'], ['./skills'])
         self.assertFalse((profile / 'mcp.json').exists())
         self.assertTrue((profile / 'skills/foreman/SKILL.md').is_file())
         self.assertIn('Additional Foreman guidance',
@@ -44,12 +45,13 @@ class ProfileTests(InitFixture):
         profile = repo / '.factory/agents/foreman'
         original = (repo / '.factory/factory.toml').read_bytes()
         (profile / 'APPEND_SYSTEM.md').write_text('My edited Foreman instructions')
-        settings = json.loads((profile / 'resources.json').read_text())
+        document = json.loads((profile / 'agent.json').read_text())
+        settings = document['agent']['resources']
         extra = repo / 'extra-skill'
         extra.mkdir()
         (extra / 'SKILL.md').write_text('My extra skill')
         settings['skills'].append(str(extra))
-        (profile / 'resources.json').write_text(json.dumps(settings))
+        (profile / 'agent.json').write_text(json.dumps(document))
         # Act
         result = self.run_cli(repo)
         # Assert
@@ -57,7 +59,7 @@ class ProfileTests(InitFixture):
         self.assertEqual((repo / '.factory/factory.toml').read_bytes(), original)
         self.assertEqual((profile / 'APPEND_SYSTEM.md').read_text(),
                          'My edited Foreman instructions')
-        self.assertEqual(json.loads((profile / 'resources.json').read_text()), settings)
+        self.assertEqual(json.loads((profile / 'agent.json').read_text()), document)
 
     def test_local_cli_uses_database_and_isolated_configuration(self):
         # Arrange
@@ -77,7 +79,7 @@ class ProfileTests(InitFixture):
         self.assertEqual(calls[-1]['database'], str(repo / '.factory/data/forgetful.db'))
         self.assertEqual(calls[-1]['database_type'], 'SQLite')
         self.assertEqual(calls[-1]['config_home'],
-                         str(repo / '.factory/agents/foreman/cli-config'))
+                         str(repo / '.factory/cli-config'))
         self.assertFalse((repo / '.factory/agents/foreman/mcp.json').exists())
 
     def test_failed_cli_check_never_claims_ready_and_can_be_retried(self):
@@ -91,12 +93,12 @@ class ProfileTests(InitFixture):
         self.assertNotEqual(failed.returncode, 0)
         self.assertNotIn('Forgetful: connected', failed.stdout)
         self.assertNotIn('TOP_SECRET', failed.stdout + failed.stderr)
-        self.assertIn('rerun init', failed.stderr)
+        self.assertIn('init --finalize', failed.stderr)
         self.assertTrue((repo / '.factory/factory.toml').exists())
         # Arrange
         del self.env['PROFILE_FAIL']
         # Act
-        retry = self.run_cli(repo)
+        retry = self.run_cli(repo, '--finalize')
         # Assert
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertIn('Forgetful: connected', retry.stdout)
@@ -128,9 +130,9 @@ class ProfileTests(InitFixture):
         self.assertTrue(any(e['args'][:2] == ['call', 'get_project'] for e in calls))
         self.assertTrue(any(e['args'][:2] == ['tools', 'list'] for e in calls))
         self.assertFalse(any(e['args'][:2] == ['auth', 'login'] for e in calls))
-        self.assertTrue(all(e['config_home'] == str(repo / '.factory/agents/foreman/cli-config')
+        self.assertTrue(all(e['config_home'] == str(repo / '.factory/cli-config')
                             for e in calls))
-        self.assertTrue((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertTrue((repo / '.factory/setup-complete.json').exists())
 
     def test_explicit_remote_login_uses_the_role_credentials_then_checks_connection(self):
         # Arrange
@@ -147,7 +149,7 @@ class ProfileTests(InitFixture):
                          ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
         self.assertEqual(calls[1]['args'][:2], ['call', 'get_project'])
         self.assertTrue(any(e['args'][:2] == ['tools', 'list'] for e in calls))
-        self.assertTrue(all(e['config_home'] == str(repo / '.factory/agents/foreman/cli-config')
+        self.assertTrue(all(e['config_home'] == str(repo / '.factory/cli-config')
                             for e in calls))
 
     def test_cli_login_failure_is_incomplete_and_never_changes_personal_defaults(self):
@@ -165,8 +167,9 @@ class ProfileTests(InitFixture):
         self.assertEqual(calls[0]['args'],
                          ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
         self.assertEqual(calls[0]['config_home'],
-                         str(repo / '.factory/agents/foreman/cli-config'))
+                         str(repo / '.factory/cli-config'))
         self.assertNotIn('Forgetful: connected', result.stdout)
+        self.assertIn('init --finalize', result.stderr)
 
     def test_role_extensions_are_installed_offline_and_preserved_on_rerun(self):
         # Arrange
@@ -177,17 +180,18 @@ class ProfileTests(InitFixture):
         # Assert
         self.assertEqual(first.returncode, 0, first.stderr)
         profile = repo / '.factory/agents/foreman'
-        settings = json.loads((profile / 'resources.json').read_text())
-        self.assertIn('resources/agentshell/extensions/agentshell.ts', settings['extensions'])
-        self.assertIn('resources/hide-tools/index.ts', settings['extensions'])
+        document = json.loads((profile / 'agent.json').read_text())
+        settings = document['agent']['resources']
+        self.assertIn('../../resources/agentshell/extensions/agentshell.ts', settings['extensions'])
+        self.assertIn('../../resources/hide-tools/index.ts', settings['extensions'])
         self.assertFalse(any('forgetful-extension' in item for item in settings['extensions']))
-        extension = profile / 'resources/hide-tools/index.ts'
+        extension = repo / '.factory/resources/hide-tools/index.ts'
         self.assertIn('hide-tools', extension.read_text())
-        self.assertTrue((profile / 'resources/agentshell/python/.venv/bin/python').exists())
+        self.assertTrue((repo / '.factory/resources/agentshell/python/.venv/bin/python').exists())
         # Arrange
         extension.write_text('// my edited extension')
         # Act
-        retry = self.run_cli(repo)
+        retry = self.run_cli(repo, '--finalize')
         # Assert
         self.assertNotEqual(retry.returncode, 0)
         self.assertIn('reconcile', retry.stderr)
@@ -206,7 +210,7 @@ class ProfileTests(InitFixture):
                              'cli-config/forgetful/.env', 'sessions/session.jsonl')])
         # Assert
         self.assertEqual(len(ignored.splitlines()), 5)
-        self.assertTrue((repo / '.factory/agents/foreman/resources.json').exists())
+        self.assertTrue((repo / '.factory/agents/foreman/agent.json').exists())
 
     def test_missing_executable_declined_or_unresolved_never_claims_complete(self):
         # Arrange
@@ -232,9 +236,11 @@ class ProfileTests(InitFixture):
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         profile = repo / '.factory/agents/foreman'
-        settings = json.loads((profile / 'resources.json').read_text())
+        document = json.loads((profile / 'agent.json').read_text())
+        settings = document['agent']['resources']
         self.assertEqual(settings['extensions'], [
-            'resources/agentshell/extensions/agentshell.ts', 'resources/hide-tools/index.ts'])
+            '../../resources/agentshell/extensions/agentshell.ts',
+            '../../resources/hide-tools/index.ts'])
         self.assertFalse((profile / 'resources/factory-status.ts').exists())
         self.assertTrue((profile / 'skills/foreman/SKILL.md').is_file())
 
@@ -250,7 +256,7 @@ class ProfileTests(InitFixture):
         original = b'old edited MCP content'
         mcp.write_bytes(original)
         # Act
-        result = self.run_cli(repo)
+        result = self.run_cli(repo, '--finalize')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(events(self.log)[-1]['database'],
@@ -260,13 +266,12 @@ class ProfileTests(InitFixture):
     def test_custom_gitignore_keeps_edits_and_still_excludes_credentials(self):
         # Arrange
         repo = self.repo()
+        ignore = repo / '.factory/.gitignore'
+        ignore.parent.mkdir()
+        ignore.write_text('# My custom exclusion\n/custom-cache/\n')
+        # Act: the first setup adds necessary exclusions while preserving the user's policy.
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'local')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        ignore = repo / '.factory/.gitignore'
-        ignore.write_text('# My custom exclusion\n/custom-cache/\n')
-        # Act
-        result = self.run_cli(repo)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('/custom-cache/', ignore.read_text())
@@ -400,7 +405,7 @@ class ProfileTests(InitFixture):
         # Assert
         self.assertEqual(result.returncode, 130, result.stderr)
         self.assertIn('incomplete', result.stderr)
-        self.assertIn('rerun init', result.stderr)
+        self.assertIn('init --finalize', result.stderr)
         self.assertNotIn('Forgetful: connected', result.stdout)
         self.assertTrue((repo / '.factory/factory.toml').exists())
         with self.assertRaises(ProcessLookupError):
@@ -486,7 +491,7 @@ class ProfileTests(InitFixture):
         self.assertEqual(calls[0]['args'][0], 'sync')
         for flag in ('--locked', '--no-build', '--no-dev', '--no-python-downloads', '--no-config'):
             self.assertIn(flag, calls[0]['args'])
-        runtime = repo / '.factory/agents/foreman/resources/agentshell/python/.venv'
+        runtime = repo / '.factory/resources/agentshell/python/.venv'
         self.assertTrue((runtime / 'pyvenv.cfg').exists())
 
     def test_legacy_config_without_forgetful_is_rejected_before_any_external_effects(self):
@@ -500,7 +505,7 @@ class ProfileTests(InitFixture):
         self.state.write_text('{}')
         self.log.unlink()
         # Act
-        result = self.run_cli(repo)
+        result = self.run_cli(repo, '--finalize')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('migration is not supported', result.stderr)

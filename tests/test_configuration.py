@@ -6,8 +6,8 @@ from forgetful_factory.configuration import load_configuration
 from forgetful_factory.domain.models import FactoryError
 
 VALID = '''watcher_label = ["factory"]
-foreman_agent_model = "provider/model"
-foreman_agent_effort = "high"
+foreman_agent_file = "agents/foreman/agent.json"
+execution_enabled = false
 [[repository]]
 local_dir = "/existing/repo"
 remote = "git@github.com:team/app.git"
@@ -17,6 +17,44 @@ source = "team/app"
 
 
 class ConfigurationTests(unittest.TestCase):
+    def test_factory_settings_reference_one_foreman_definition(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            factory = workspace / '.factory'
+            factory.mkdir()
+            (factory / 'factory.toml').write_text('''watcher_label = ["factory"]
+foreman_agent_file = "agents/foreman/agent.json"
+[[repository]]
+local_dir = "/existing/repo"
+remote = "git@github.com:team/app.git"
+provider = "github"
+source = "team/app"
+''')
+            # Act
+            loaded = load_configuration(workspace)
+            # Assert
+            self.assertEqual(loaded.foreman_agent_file,
+                             str(factory / 'agents/foreman/agent.json'))
+            self.assertEqual(loaded.watcher_label, ('factory',))
+            self.assertEqual(loaded.repository[0].work_source.reference, 'team/app')
+
+    def test_duplicate_agent_choices_are_rejected_without_rewriting(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            path = workspace / '.factory/factory.toml'
+            path.parent.mkdir()
+            for field in ('foreman_agent_model', 'feature_owner_agent_model',
+                          'implementation_agent_harness', 'review_agent_effort'):
+                with self.subTest(field=field):
+                    contents = f'{field} = "old-setting"\n' + VALID
+                    path.write_text(contents)
+                    # Act / Assert
+                    with self.assertRaisesRegex(FactoryError, 'agent.json'):
+                        load_configuration(workspace)
+                    self.assertEqual(path.read_text(), contents)
+
     def test_loader_reads_repeated_repository_tables_in_order(self):
         # Arrange
         contents = VALID + '''
@@ -45,9 +83,8 @@ source = "team/web"
         # Arrange
         cases = [
             ('watcher_label = ["factory"]', r'watcher_label = ["bad\u0000label"]'),
-            ('foreman_agent_model = "provider/model"',
-             r'foreman_agent_model = "provider/\u0000model"'),
-            ('foreman_agent_effort = "high"', r'foreman_agent_effort = "high\u0000"'),
+            ('foreman_agent_file = "agents/foreman/agent.json"',
+             r'foreman_agent_file = "agents/\u0000foreman/agent.json"'),
             ('local_dir = "/existing/repo"', r'local_dir = "/existing/\u0000repo"'),
             ('remote = "git@github.com:team/app.git"',
              r'remote = "git@github.com:team/\u0000app.git"'),
@@ -71,10 +108,12 @@ source = "team/web"
             ('watcher_label = ["factory"]', 'watcher_label = "factory"'),
             ('watcher_label = ["factory"]', 'watcher_label = []'),
             ('watcher_label = ["factory"]', 'watcher_label = [false]'),
-            ('foreman_agent_model = "provider/model"', 'foreman_agent_model = 2'),
-            ('foreman_agent_effort = "high"', 'foreman_agent_effort = ["high"]'),
-            ('foreman_agent_effort = "high"', 'foreman_agent_effort = "  "'),
-            ('foreman_agent_effort = "high"', ''),
+            ('foreman_agent_file = "agents/foreman/agent.json"', 'foreman_agent_file = 2'),
+            ('foreman_agent_file = "agents/foreman/agent.json"', 'foreman_agent_file = "  "'),
+            ('foreman_agent_file = "agents/foreman/agent.json"', ''),
+            ('execution_enabled = false', 'execution_enabled = [false]'),
+            ('execution_enabled = false', 'execution_enabled = "false"'),
+            ('execution_enabled = false', 'execution_enabled = 1'),
             ('local_dir = "/existing/repo"', 'local_dir = 3'),
             ('remote = "git@github.com:team/app.git"', 'remote = true'),
             ('provider = "github"', 'provider = ""'),

@@ -36,44 +36,45 @@ class SetupCompletionTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
         self.assert_watch_stopped(repo, 'incomplete')
 
-    def test_connection_drift_blocks_watch_until_successful_recheck(self):
+    def test_connection_edit_preserves_initial_completion_without_implicit_recheck(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         path = repo / '.factory/factory.toml'
-        original = path.read_text()
-        # Act / Assert: each connection field contributes to completion evidence.
-        for old, new in [('forgetful.db', 'other.db'),
-                         ('executable = "forgetful"', 'executable = "other-forgetful"'),
-                         ('instance = "local"',
-                          'instance = "server"\n'
-                          'server = "https://memory.example/custom-endpoint"')]:
-            with self.subTest(change=new):
-                changed = original.replace(old, new)
-                if old == 'instance = "local"':
-                    changed = '\n'.join(line for line in changed.splitlines()
-                                        if not line.startswith('database = ')) + '\n'
-                path.write_text(changed)
-                self.assert_watch_stopped(repo, 'incomplete or changed')
+        path.write_text(path.read_text().replace('forgetful.db', 'other.db'))
+        saved = path.read_bytes()
+        receipt = repo / '.factory/setup-complete.json'
+        before = receipt.read_bytes()
+        self.log.unlink()
+        self.state.write_text('{}')
+        # Act
+        repeated = self.run_cli(repo)
+        # Assert
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertEqual(path.read_bytes(), saved)
+        self.assertEqual(receipt.read_bytes(), before)
+        self.assertEqual(events(self.log), [])
+        self.assertEqual(json.loads(self.state.read_text()), {})
 
-    def test_failed_reinitialization_invalidates_previous_completion(self):
+    def test_repeated_init_does_not_query_unavailable_backend_or_clear_completion(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        role = repo / '.factory/agents/foreman'
-        self.assertTrue((role / 'model-selection.json').is_file())
+        receipt = repo / '.factory/setup-complete.json'
+        original = receipt.read_bytes()
         self.env['PROFILE_FAIL'] = 'forgetful'
+        self.log.unlink()
         # Act
         result = self.run_cli(repo)
         # Assert
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse((role / 'model-selection.json').exists())
-        self.assert_watch_stopped(repo, 'incomplete')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(receipt.read_bytes(), original)
+        self.assertEqual(events(self.log), [])
 
     def test_failed_automatic_server_check_has_no_completion_receipt(self):
         for failure in ('login', 'permission', 'external_ref'):
@@ -95,7 +96,7 @@ class SetupCompletionTests(InitFixture):
                 self.assertEqual(calls[0]['args'][server_index + 1],
                                  'https://memory.example/custom-endpoint')
                 self.assertTrue((repo / '.factory/factory.toml').exists())
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
                 self.assert_watch_stopped(repo, 'incomplete')
 
     def test_interrupted_automatic_server_check_preserves_config_and_blocks_watch(self):
@@ -111,39 +112,30 @@ class SetupCompletionTests(InitFixture):
         self.assertEqual(result.returncode, 130, result.stderr)
         self.assertIn('interrupted', result.stderr)
         self.assertTrue((repo / '.factory/factory.toml').exists())
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
         call = events(self.log)[-1]
         self.assertEqual(call['args'][:2], ['call', 'get_project'])
         with self.assertRaises(ProcessLookupError):
             os.kill(call['pid'], 0)
         self.assert_watch_stopped(repo, 'incomplete')
 
-    def test_successful_rerun_replaces_generated_receipt_without_touching_linked_snapshot(self):
-        # Arrange
+    def test_finalization_atomically_replaces_receipt_without_changing_linked_snapshot(self):
+        # Arrange: an incomplete first setup has an old linked completion record.
         repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        self.env['PROFILE_FAIL'] = 'forgetful'
+        failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertNotEqual(failed.returncode, 0)
+        del self.env['PROFILE_FAIL']
+        receipt = repo / '.factory/setup-complete.json'
         previous = self.workspace / 'previous-receipt.json'
-        previous.hardlink_to(receipt)
-        original = previous.read_bytes()
-        config = repo / '.factory/factory.toml'
-        config.write_text(config.read_text().replace('foreman_agent_model = "provider/model"',
-                                                 'foreman_agent_model = "provider/next"'))
-        self.env['PROFILE_MODELS'] = (
-            'provider  model  context  max-out  thinking  images\n'
-            'provider  next  128000  8192  yes  yes\n'
-            'provider  model  128000  8192  yes  yes')
-        # An external check can leave an older generated receipt. Completion replaces it.
-        command = self.bin / 'forgetful'
-        command.write_text(command.read_text() + '\nfrom pathlib import Path\n'
-                           + f'Path({str(receipt)!r}).write_text("{{}}")\n')
+        previous.write_text('{}')
+        receipt.hardlink_to(previous)
         # Act
-        result = self.run_cli(repo)
+        result = self.run_cli(repo, '--finalize')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(json.loads(receipt.read_text())['model'], 'provider/next')
-        self.assertEqual(previous.read_bytes(), original)
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
+        self.assertEqual(previous.read_text(), '{}')
         self.assertEqual(receipt.stat().st_mode & 0o777, 0o600)
 
     def test_symlinked_receipt_is_refused_without_following_or_replacing_it(self):
@@ -151,14 +143,14 @@ class SetupCompletionTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         target = self.workspace / 'keep-receipt.json'
         receipt.rename(target)
         original = target.read_bytes()
         receipt.symlink_to(target)
         # Act / Assert
         self.assert_watch_stopped(repo, 'symlink')
-        retry = self.run_cli(repo)
+        retry = self.run_cli(repo, '--finalize')
         self.assertNotEqual(retry.returncode, 0)
         self.assertIn('symlink', retry.stderr)
         self.assertTrue(receipt.is_symlink())
@@ -176,11 +168,10 @@ class SetupCompletionTests(InitFixture):
         # Act / Assert
         self.assert_watch_stopped(repo, 'manual reconciliation')
         retry = self.run_cli(repo)
-        self.assertNotEqual(retry.returncode, 0)
-        self.assertIn('manual reconciliation', retry.stderr)
-        self.assertIn('skills/foreman/SKILL.md', retry.stderr)
+        self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertEqual(path.read_bytes(), old)
-        self.assertFalse((role / 'model-selection.json').exists())
+        self.assertEqual(json.loads((repo / '.factory/setup-complete.json').read_text()),
+                         {'complete': True})
         self.assertEqual(events(self.log), [])
         self.assert_watch_stopped(repo, 'manual reconciliation')
 
@@ -200,8 +191,7 @@ class SetupCompletionTests(InitFixture):
                 # Act / Assert
                 self.assert_watch_stopped(repo, 'manual reconciliation')
                 retry = self.run_cli(repo)
-                self.assertNotEqual(retry.returncode, 0)
-                self.assertIn('APPEND_SYSTEM.md', retry.stderr)
+                self.assertEqual(retry.returncode, 0, retry.stderr)
                 self.assertEqual(path.read_text(), command)
                 self.assertEqual(events(self.log), [])
                 path.write_text(original)
@@ -273,7 +263,7 @@ class SetupCompletionTests(InitFixture):
         self.assertTrue(any(e['name'] == 'npm' for e in events(install_log)))
         self.assertFalse(any(e['name'] == 'pi' for e in events(self.log)))
         self.assertFalse((Path(self.env['HOME']) / '.pi/agent').exists())
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
     def test_mistyped_environment_home_explains_how_to_reset_saved_consent(self):
         # Arrange
@@ -287,7 +277,7 @@ class SetupCompletionTests(InitFixture):
         self.assertIn('PI_CODING_AGENT_DIR', result.stderr)
         self.assertIn('saved consent', result.stderr)
         self.assertFalse(any(e['name'] == 'pi' for e in events(self.log)))
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
     def test_non_utf8_role_guidance_is_cleanly_rejected_and_preserved(self):
         # Arrange
@@ -299,9 +289,7 @@ class SetupCompletionTests(InitFixture):
         # Act / Assert
         self.assert_watch_stopped(repo, 'valid UTF-8')
         retry = self.run_cli(repo)
-        self.assertNotEqual(retry.returncode, 0)
-        self.assertIn('valid UTF-8', retry.stderr)
-        self.assertIn('APPEND_SYSTEM.md', retry.stderr)
+        self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertNotIn('Traceback', retry.stderr)
         self.assertEqual(path.read_bytes(), b'Instructions\xff')
         self.assertEqual(events(self.log), [])
@@ -313,9 +301,9 @@ class SetupCompletionTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        for name in ('pi-profile.json', 'model-selection.json'):
+        for name in ('pi-profile.json', 'setup-complete.json'):
             with self.subTest(name=name):
-                path = '.factory/agents/foreman/' + name
+                path = '.factory/' + name
                 ignored = subprocess.run(['git', '-C', str(repo), 'check-ignore', path],
                                          text=True, capture_output=True)
                 self.assertEqual(ignored.returncode, 0, ignored.stderr)
@@ -326,64 +314,50 @@ class SetupCompletionTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        role = repo / '.factory/agents/foreman'
         for name, message in (('pi-profile.json', 'consent'),
-                              ('model-selection.json', 'incomplete'),
-                              ('resources.json', 'resources.json')):
-            path = role / name
+                              ('setup-complete.json', 'incomplete'),
+                              ('agents/foreman/agent.json', 'agent definition')):
+            path = repo / '.factory' / name
             original = path.read_bytes()
             for malformed in (b'{broken', b'null', b'[]', b'{"agent_directory": []}', b'\xff'):
                 with self.subTest(name=name, malformed=malformed):
                     path.write_bytes(malformed)
                     # Act / Assert
                     self.assert_watch_stopped(repo, message)
+                    retry = self.run_cli(repo)
+                    self.assertEqual(retry.returncode, 0, retry.stderr)
                     self.assertEqual(path.read_bytes(), malformed)
-                    if name != 'model-selection.json':
-                        retry = self.run_cli(repo)
-                        self.assertNotEqual(retry.returncode, 0)
-                        self.assertNotIn('Traceback', retry.stderr)
-                        self.assertEqual(path.read_bytes(), malformed)
-                        path.write_bytes(original)
-                        setup = self.run_cli(repo)
-                        self.assertEqual(setup.returncode, 0, setup.stderr)
+                    self.assertEqual(events(self.log), [])
             path.write_bytes(original)
 
-    def test_conflicting_arguments_preserve_completion_but_preflight_failure_invalidates_it(self):
+    def test_repeated_init_ignores_initial_choices_and_preserves_completion(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         original = receipt.read_bytes()
         for args in (('--foreman-model', 'provider/other'),
                      ('--forgetful-database', str(self.workspace / 'other.db')),
                      ('--pi-agent-dir', str(self.workspace / 'other home'))):
             with self.subTest(args=args):
                 self.log.unlink(missing_ok=True)
-                self.state.write_text('{}')
+                state = {'denied': 'team/app'}
+                self.state.write_text(json.dumps(state))
                 # Act
                 result = self.run_cli(repo, *args)
                 # Assert
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('conflict', result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(receipt.read_bytes(), original)
                 self.assertEqual(events(self.log), [])
-                self.assertEqual(json.loads(self.state.read_text()), {})
-        # Arrange: a genuine re-init must invalidate completion even before external checks finish.
-        self.state.write_text(json.dumps({'denied': 'team/app'}))
-        # Act
-        result = self.run_cli(repo)
-        # Assert
-        self.assertNotEqual(result.returncode, 0)
-        self.assertFalse(receipt.exists())
-        self.assert_watch_stopped(repo, 'incomplete')
+                self.assertEqual(json.loads(self.state.read_text()), state)
 
     def test_completion_refuses_symlink_created_during_external_check(self):
         # Arrange
         repo = self.repo()
         target = self.workspace / 'untouched.json'
         target.write_text('Keep this file')
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         command = self.bin / 'forgetful'
         command.write_text(command.read_text() + '\nfrom pathlib import Path\n'
                            + f'if not Path({str(receipt)!r}).is_symlink():\n'
@@ -397,31 +371,30 @@ class SetupCompletionTests(InitFixture):
         self.assertTrue(receipt.is_symlink())
         self.assert_watch_stopped(repo, 'symlink')
 
-    def test_changed_server_requires_successful_automatic_recheck_on_every_init(self):
-        # Arrange
+    def test_first_setup_finalization_checks_edited_server_without_permanent_fingerprint(self):
+        # Arrange: first setup failed its access check and remains incomplete.
         repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
-                             '--forgetful-instance', 'server', '--forgetful-server',
-                             'https://memory.example/custom-endpoint', '--check-connection')
-        self.assertEqual(setup.returncode, 0, setup.stderr)
+        self.env['PROFILE_FAIL'] = 'forgetful'
+        failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
+                              '--forgetful-instance', 'server', '--forgetful-server',
+                              'https://memory.example/custom-endpoint')
+        self.assertNotEqual(failed.returncode, 0)
         config = repo / '.factory/factory.toml'
         config.write_text(config.read_text().replace('memory.example', 'other.example'))
-        # Act / Assert
-        self.assert_watch_stopped(repo, 'incomplete or changed')
-        checked = self.run_cli(repo, connection_defaults=False)
-        self.assertEqual(checked.returncode, 0, checked.stderr)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
-        self.assertEqual(json.loads(receipt.read_text())['forgetful']['server'],
-                         'https://other.example/custom-endpoint')
+        saved = config.read_bytes()
+        receipt = repo / '.factory/setup-complete.json'
+        self.assertFalse(receipt.exists())
+        # Act: ordinary init does not silently finalize; explicit finalize checks edited settings.
+        repeated = self.run_cli(repo, connection_defaults=False)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertFalse(receipt.exists())
+        del self.env['PROFILE_FAIL']
         self.log.unlink()
-        retry = self.run_cli(repo, connection_defaults=False)
-        self.assertEqual(retry.returncode, 0, retry.stderr)
+        checked = self.run_cli(repo, '--finalize', connection_defaults=False)
+        # Assert
+        self.assertEqual(checked.returncode, 0, checked.stderr)
         calls = [e for e in events(self.log) if e['name'] == 'forgetful']
         self.assertEqual(calls[0]['args'][:2], ['call', 'get_project'])
-        self.assertTrue(receipt.exists())
-        self.env['PROFILE_FAIL'] = 'forgetful'
-        failed = self.run_cli(repo, connection_defaults=False)
-        self.assertNotEqual(failed.returncode, 0)
-        self.assertIn('Forgetful planning check failed', failed.stderr)
-        self.assertFalse(receipt.exists())
-        self.assert_watch_stopped(repo, 'incomplete')
+        self.assertIn('https://other.example/custom-endpoint', calls[0]['args'])
+        self.assertEqual(config.read_bytes(), saved)
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})

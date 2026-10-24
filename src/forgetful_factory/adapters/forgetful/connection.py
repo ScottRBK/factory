@@ -11,7 +11,7 @@ from forgetful_factory.domain.models import FactoryError
 
 def role_environment(workspace: Path, connection: ForgetfulConnection,
                      pi_home: str | None = None) -> dict[str, str]:
-    role = workspace / '.factory/agents/foreman'
+    role = workspace / '.factory'
     env = dict(os.environ, FACTORY_ROLE_DIR=str(role),
                FACTORY_FORGETFUL_DIR=str(role),
                FACTORY_FORGETFUL_CONFIG_DIR=str(role / 'cli-config'),
@@ -52,7 +52,7 @@ def _catalog_tools(catalog: object) -> dict:
 class AgentForgetfulConnection:
     def __init__(self, workspace: Path):
         self.workspace = workspace
-        self.role = workspace / '.factory/agents/foreman'
+        self.role = workspace / '.factory'
 
     def login(self, connection: ForgetfulConnection) -> None:
         if connection.instance != 'server':
@@ -76,8 +76,13 @@ class AgentForgetfulConnection:
             if not isinstance(data, dict) or 'error' in data:
                 raise ValueError('Unavailable')
         except (ValueError, TypeError, KeyError) as error:
-            raise FactoryError('Forgetful check failed; required access was not verified. '
-                               'Inspect the role in Pi/CLI and rerun init.') from error
+            raise FactoryError('Forgetful reply was invalid; the operation may have completed. '
+                               'Inspect and reconcile backend state in Pi/CLI before any retry; '
+                               'do not replay uncertain writes. After reconciliation, use '
+                               'init --finalize for incomplete saved setup, or restart watch or '
+                               'foreman for completed setup. If no configuration was saved, '
+                               'retry first init only after reconciliation. '
+                               'External diagnostics withheld.') from error
         return data
 
     def call(self, connection: ForgetfulConnection, tool: str, **arguments) -> dict:
@@ -135,4 +140,6 @@ class AgentForgetfulConnection:
             raise FactoryError('Forgetful planning check failed: select an accessible project '
                                'under the current native login with plan/task permissions. '
                                'The selected backend must support external_ref (0.5.5+); '
-                               'enable PLANNING_ENABLED on the server; rerun init.') from error
+                               'enable PLANNING_ENABLED on the server. After correction restart '
+                               'foreman/watch, or use init --finalize for incomplete saved setup.'
+                               ) from error

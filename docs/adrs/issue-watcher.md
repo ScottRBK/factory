@@ -1,6 +1,10 @@
-# Issue polling and an owned Pi session
+# Issue polling and Foreman connection
 
-Status: Slice 2 lifecycle retained; Slice 4 adds planning, issue revisions and restart recovery.
+Status: owned-Pi watching and managed watcher controls remain. Current Factory source reads
+[normalized agent definitions](agent-definitions.md) through audited extension 1.5.0. Native SDK
+probes and both full Python suites pass without inference. Runtime repair policy and final checks
+remain open. Slice 4 planning/recovery and earlier lifecycle evidence remain historical; see
+[current release limits](../../README.md#current-source-and-release-boundary).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 2](../plans/slice-2.md).
 
@@ -9,19 +13,26 @@ Back to [architecture](../architecture.md). Scope and evidence: [slice 2](../pla
 Deliver matching GitHub issues to one Pi conversation without building a messaging framework.
 AgentShell owns terminal operations; the factory owns the watcher lifecycle.
 
-Poll configured GitHub work sources for issues matching the watched labels, then
-forward notifications to one newly launched Pi session through AgentShell's tmux runner, using the
-configured Foreman model and effort. Reuse that session; do not silently replace or duplicate it.
-Keep polling behind `WorkTrackingService` and terminal delivery behind an application port.
-The application coordinates polling; GitHub and AgentShell adapters perform external operations.
-All terminal interaction goes through AgentShell, not factory-owned tmux calls. The host still
-requires tmux at runtime. Existing-session delivery is not integrated in Factory. AgentShell 0.5.0
-now supplies `attach_interactive()` and `TmuxTarget`; [#25][attachment-issue] remains open.
-A Pi session ID still reopens a conversation in a new process; it is not a terminal target.
-The [main plan](../plan.md) proposes attachment integration with separate borrowed-session cleanup.
-Attachment cannot change an existing process's resources or provide Pi session events; closing the
-borrowed connection leaves its process running. The current watcher still owns every Pi it launches.
-No custom notification queue. Validate idle and busy delivery; submission is not execution.
+Poll configured GitHub work sources for matching issues and notify one Foreman through AgentShell.
+Plain `watch` launches and owns a fresh Pi using the selected root `agent.json`. A persistent owner,
+started by assisted first init or standalone `foreman`, retains Foreman independently and manages
+a watcher that borrows its delivery channel. `foreman --attach` enters that existing terminal.
+Neither standalone Foreman command starts a watcher. Reuse that
+session; never silently replace or duplicate it. Keep polling behind `WorkTrackingService` and
+terminal delivery behind an application port. GitHub and AgentShell adapters perform external I/O.
+
+All notification delivery goes through AgentShell, not Factory-owned tmux input commands. Native
+tmux client attach/switch only navigates the user's UI. The persistent owner's public captured
+target, startup event and process wait identify its terminal and liveness. A Pi session ID alone is
+not a running-terminal reference. AgentShell's guarded delivery still compares terminal identity; an
+additional bounded identity probe detects a replaced pane even while idle. A live-pinned,
+revalidated process handle observes original pane-worker exit even when tmux queries fail. Failed
+queries alone preserve uncertain ownership; they do not authorize closing a still-running Pi.
+
+This existing-Foreman integration connects to the persistent owner's held session, not directly to
+an arbitrary pane. AgentShell 0.5.0 already supplies `attach_interactive()` and `TmuxTarget`
+for that later expansion; [#25][attachment-issue] remains open. Connecting a watcher does not change
+running resources or prove receipt. No custom notification queue is introduced.
 
 Watch first checks native Forgetful project/planning access. Browser sign-in or refresh may occur
 for an attended watcher. The startup prompt then selects existing open matches or new matches only.
@@ -37,15 +48,25 @@ matches form a baseline. Retry failed GitHub reads on the next poll; stop on unr
 or terminal failures. No work is deleted on failure. Notifications carry body/revision and saved
 plan/task/worktree IDs as escaped external data; agents must reread current issue/comments.
 
-The watcher owns the new Pi process and closes it when it stops; there is no detached operation.
-A workspace lease prevents concurrent init/watch commands. The CLI acquires it before configuration
-reads, readiness checks or setup mutations, and holds it until cleanup completes. The filesystem
+Plain watch owns the new Pi process and closes it when stopped. For a persistent Foreman, `watch
+--start` with `--existing` or `--new-only` asks its owner to start a watcher child; status/stop act
+on that owner's actual process handle. Stopping the child leaves Foreman alive. Foreman exit or
+owner loss stops delivery without replacement. Existing untrusted or missing ownership evidence
+never authorizes a replacement or replay. Uncertain delivery blocks a new managed start; initial
+finalization cannot clear it. A pending send can finish, but a transport failure has no later
+acknowledgement; inspect the possible submission, then deliberately exit Foreman and relaunch before
+watching again.
+
+A workspace lease prevents concurrent setup mutation and watcher execution. The CLI acquires it
+before configuration reads, readiness checks or setup mutations and holds it through cleanup.
+Owner status, watcher stop and terminal entry do not take that lease. The filesystem
 adapter uses POSIX `flock` with no-follow directory opens: it locks the existing workspace, plus
 `.factory` when present to remain compatible with older watchers. Fresh init need not create
-`.factory` to acquire the lock. No PID or lock files are written. Different workspaces are not
-globally coordinated. The application receives an already-guarded invocation and the CLI's
-startup-choice callback. Rejected commands do not invalidate setup receipts, ask unused questions
-or print commands for nonexistent targets.
+`.factory` to acquire the lock. The workspace lease writes no PID or lock files. The persistent
+owner's private runtime directory has a separate lifetime lock and control metadata; saved PIDs
+never authorize process signals. Different workspaces are not globally coordinated. The application
+receives an already-guarded invocation and the CLI's startup-choice callback. Rejected commands do
+not invalidate setup receipts, ask unused questions or print commands for nonexistent targets.
 If cleanup fails, inspect the printed session before retrying; the watcher never replaces it.
 
 See the [slice 2 plan](../plans/slice-2.md) for tests, SonarQube analysis, and Opus review.
@@ -72,10 +93,17 @@ also supports the optional interpreter override without mixing Python environmen
 It is an adapter detail, not a domain service or a general messaging framework.
 
 The controller uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
-start event before submitting text, and calls `session.terminal.send_text(..., submit=True)`.
-Startup and submission waits are bounded. Native trust prompts remain enabled; the user may need
-to attach to the displayed session and answer them. Closing the controller closes its owned session.
-The factory does not interpret terminal screenshots or infer that a submitted issue was completed.
+start event before submitting text, and calls `session.terminal.send_text(..., submit=True)`. For a
+persistent Foreman, `ForemanOwner` retains that controller independently of init's terminal and
+stdin lifetime. A bounded handover separates startup cancellation from later init exit. The managed
+watcher uses `BorrowedForemanTerminal` over an inherited private socket pair; close cannot close
+Foreman. Owner/control state remains under `.factory/runtime/foreman`. The root's canonical
+`agent.json` is selected directly; no generated runtime roster is published during finalization.
+Shared consent and the simple completion receipt live directly under `.factory`, separate from agent
+names. See the [onboarding ADR](agent-onboarding.md). Startup and submission waits are bounded.
+Native trust prompts remain enabled; the user may need to attach to the displayed session and answer
+them. Closing the controller closes its owned session. The factory does not interpret terminal
+screenshots or infer that a submitted issue was completed.
 
 ```text
 src/forgetful_factory/
@@ -90,7 +118,10 @@ src/forgetful_factory/
     ├── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
     ├── github/work_tracking.py      # Paginated issue reads and label matching
     └── agentshell/
-        ├── terminal.py              # Controller process and acknowledgements
+        ├── terminal.py              # Watcher-owned controller and acknowledgements
+        ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
+        ├── owner.py                 # Persistent Foreman and watcher child lifetime
+        ├── owner_client.py          # Local lifecycle commands and user terminal entry
         └── controller.py            # AgentShell-owned interactive session
 ```
 
@@ -99,6 +130,12 @@ matches, case-insensitively; `*` includes unlabelled issues. Pull requests are e
 local copies of a work source are polled once. Notifications use a fixed prose prefix and
 JSON-escaped fields so issue titles cannot become terminal control sequences or slash commands.
 
+Root model, effort, cwd and resources come from the selected JSON at launch. Omitted root cwd
+inherits the CLI process cwd; starter coordinator definitions explicitly use `"."`. The extension's
+roster selector does not change the running root's own settings. Root changes require restart;
+child settings and actual parent membership require reload of affected snapshots. Changed canonical
+child selections fail selected-session resume. Init is not a refresh operation.
+
 ## Consequences and validation
 
 Submission acknowledgement means text reached the terminal, not that the agent executed it or
@@ -106,16 +143,21 @@ completed the issue. Session failure stops the watcher rather than silently repl
 Submitted revisions are not durable. Restart replays unfinished plans from Forgetful; it does not
 claim exactly-once notification delivery or restore the previous agent process.
 
-The [slice 2 plan](../plans/slice-2.md) records public-boundary tests, packaged-command checks,
-real idle/busy Pi delivery, SonarQube, and independent review. It also records deferred event-log
-growth and large-repository polling concerns. Routine tests substitute external commands and make
-no live service or model calls. The
-[current validation record](../plans/slices-4-5.md) separates those tests from native local
-Forgetful and no-inference Pi checks.
+The [slice 2 plan](../plans/slice-2.md) records public-boundary tests, packaged-command checks, real
+idle/busy Pi delivery, SonarQube, and independent review. It also records deferred event-log growth
+and large-repository polling concerns. Routine tests substitute external commands and make no live
+service or model calls. The [earlier Slice 4/5 validation record](../plans/slices-4-5.md) separates
+those tests from native local Forgetful and no-inference Pi checks.
 
 [attachment-issue]: https://github.com/ScottRBK/agent-shell/issues/25
 
-Upstream availability was rechecked against the [0.5.0 release][attachment-release] and installed
-public API during Slice 3 close-out; no Factory attachment or live borrowed-Pi test ran.
+The earlier onboarding availability check used the [0.5.0 release][attachment-release] and installed
+public API. The [onboarding record](../plans/agent-onboarding.md) distinguishes isolated lifecycle
+and reload tests from unperformed live autonomous-agent trials.
 
 [attachment-release]: https://github.com/ScottRBK/agent-shell/releases/tag/v0.5.0
+
+Native cancellation remains limited by [agent-shell#28][cancellation]. There is no workaround here;
+uncertain cancellation or exit cannot authorize replacement or replay.
+
+[cancellation]: https://github.com/ScottRBK/agent-shell/issues/28

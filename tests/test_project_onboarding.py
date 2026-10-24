@@ -46,8 +46,8 @@ class ProjectOnboardingTests(InitFixture):
                                  'description': 'Factory plans and knowledge for new-factory.',
                                  'project_type': 'development'}])
         self.assertEqual(len(self.creates()), 1)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
-        self.assertEqual(json.loads(receipt.read_text())['forgetful']['project_id'], 31)
+        receipt = repo / '.factory/setup-complete.json'
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
 
     def test_failed_create_is_not_retried_and_lists_committed_project_on_rerun(self):
         for failure in ('denied', 'lost'):
@@ -67,7 +67,7 @@ class ProjectOnboardingTests(InitFixture):
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertEqual(len(self.creates()), 1)
                 self.assertFalse((repo / '.factory/factory.toml').exists())
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
                 self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
                 self.env.pop('PROFILE_CREATE_FAILURE')
                 if failure == 'lost':
@@ -94,7 +94,7 @@ class ProjectOnboardingTests(InitFixture):
         self.assertEqual(len(self.creates()), 1)
         self.assertEqual(len(json.loads(self.projects.read_text())), 1)
         self.assertFalse((repo / '.factory/factory.toml').exists())
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
         self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
         # Act: rerun init and choose the committed project.
         self.env.pop('PROFILE_CREATE_FAILURE')
@@ -121,7 +121,7 @@ class ProjectOnboardingTests(InitFixture):
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertEqual(len(self.creates()), 1)
                 self.assertFalse((repo / '.factory/factory.toml').exists())
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
     def test_existing_projects_offer_creation_and_allow_a_custom_name(self):
         # Arrange
@@ -168,7 +168,7 @@ class ProjectOnboardingTests(InitFixture):
                 self.assertEqual(self.creates(), [])
                 self.assertEqual(json.loads(self.projects.read_text()), [])
                 self.assertFalse((repo / '.factory/factory.toml').exists())
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
                 self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
 
     def test_invalid_choice_or_skip_is_rejected_without_creating(self):

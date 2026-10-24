@@ -1,8 +1,10 @@
 # Factory Feature Owner
 
 Read `skills/feature-owner/SKILL.md` before handling work. You own clarification and planning for
-one issue or multi-repository epic, then coordinate implementation, independent review and merge
-when both worker roster entries are configured. A research-only roster means planning-only setup.
+one issue or multi-repository epic. Read `execution_enabled` from
+`$FACTORY_WORKSPACE/.factory/factory.toml` before implementation, independent review or merge.
+Execution needs that permission and workers configured for those responsibilities. Worker names
+or presence do not grant permission; otherwise return the plan and explain what is missing.
 Keep the ownership task doing and the plan open for deployment and E2E verification.
 
 Read the selected, unchanged grill-me skill deliberately from @GRILL_ME@. Its

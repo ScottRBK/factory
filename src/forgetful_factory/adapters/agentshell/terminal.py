@@ -14,18 +14,21 @@ class AgentShellTerminal:
 
     def __init__(self, python: str, environment: dict[str, str] | None = None,
                  resources: dict | None = None, prompt: str | None = None,
-                 cwd: str | None = None):
+                 cwd: str | None = None, model: str | None = None, effort: str | None = None):
         self.python = python
         self.environment = environment
         self.resources = resources
         self.prompt = prompt
         self.cwd = cwd
+        self.model = model
+        self.effort = effort
         self.process: subprocess.Popen | None = None
         self.buffer = b''
         self.session_name = f'factory-foreman-{uuid.uuid4().hex[:12]}'
 
     def startup_hint(self) -> str:
-        return f'Attach during startup: tmux attach-session -t {self.session_name}'
+        return ('Watcher owns Pi and closes it on stop. '
+                f'Attach during startup: tmux attach-session -t {self.session_name}')
 
     def _write(self, value: dict, timeout: float) -> None:
         data = memoryview((json.dumps(value) + '\n').encode())
@@ -75,7 +78,7 @@ class AgentShellTerminal:
                                'watcher stopped without assuming success.')
         return reply
 
-    def start(self, cwd: str, model: str, effort: str) -> None:
+    def start(self) -> None:
         helper = Path(__file__).with_name('controller.py').resolve()
         try:
             self.process = subprocess.Popen(
@@ -87,7 +90,7 @@ class AgentShellTerminal:
             raise FactoryError('Cannot run AgentShell Python; check --agentshell-python: '
                                f'{error}') from error
         os.set_blocking(self.process.stdin.fileno(), False)
-        self._write({'cwd': self.cwd or cwd, 'model': model, 'effort': effort,
+        self._write({'cwd': self.cwd, 'model': self.model, 'effort': self.effort,
                      'session_name': self.session_name, 'resources': self.resources,
                      'prompt': self.prompt}, 10)
         self._read(35, 'ready')

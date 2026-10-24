@@ -160,7 +160,7 @@ if (args == ['--version'] or args[:2] == ['python', 'find']):
                 'virtual_env': 'VIRTUAL_ENV' in os.environ or 'CONDA_PREFIX' in os.environ,
                 'node_options': 'NODE_OPTIONS' in os.environ}) + '\\n')
 if args == ['--version']:
-    print(os.environ.get('PROFILE_UV_VERSION', 'uv 0.13.1'))
+    print(os.environ.get('PROFILE_UV_VERSION', 'uv 0.13.5'))
     if os.environ.get('PROFILE_UV_VERSION_FAIL'):
         sys.exit('TOP_SECRET uv failure')
     sys.exit(0)

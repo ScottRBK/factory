@@ -37,7 +37,7 @@ class InstallerOnboardingTests(InitFixture):
         # Act: refusal would hide the prerequisite error if the prompt came first.
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='n\n')
         # Assert
-        self.assert_preflight_stopped(repo, result, 'uv >=0.13.1')
+        self.assert_preflight_stopped(repo, result, 'uv >=0.13.5')
         self.assertIn('PATH', result.stderr)
 
     def test_malformed_discovery_output_stops_before_install_consent(self):
@@ -114,8 +114,8 @@ class InstallerOnboardingTests(InitFixture):
     def test_unsupported_or_failed_uv_stops_before_install_consent(self):
         settings = ({'PROFILE_UV_VERSION': 'uv 0.8.0'},
                     {'PROFILE_UV_VERSION': 'unexpected output'},
-                    {'PROFILE_UV_VERSION': 'uv 0.13.1rc1'},
-                    {'PROFILE_UV_VERSION': 'uv 0.13.1\nextra output'},
+                    {'PROFILE_UV_VERSION': 'uv 0.13.5rc1'},
+                    {'PROFILE_UV_VERSION': 'uv 0.13.5\nextra output'},
                     {'PROFILE_UV_VERSION_FAIL': '1'})
         for index, setting in enumerate(settings):
             with self.subTest(setting=setting):
@@ -125,9 +125,30 @@ class InstallerOnboardingTests(InitFixture):
                 # Act
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='n\n')
                 # Assert
-                self.assert_preflight_stopped(repo, result, 'uv >=0.13.1')
+                self.assert_preflight_stopped(repo, result, 'uv >=0.13.5')
                 for key in setting:
                     del self.env[key]
+
+    def test_uv_below_security_baseline_stops_before_any_install(self):
+        for index, version in enumerate(('0.13.1', '0.13.3', '0.13.4')):
+            with self.subTest(version=version):
+                # Arrange: even an affirmative input must not bypass the audited uv minimum.
+                repo = self.repo('security-version-' + str(index))
+                self.log.unlink(missing_ok=True)
+                self.preflight_log.unlink(missing_ok=True)
+                self.env['PROFILE_UV_VERSION'] = 'uv ' + version
+                # Act
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
+                # Assert: no installer execution or consent prompt, not just different wording.
+                self.assertEqual(events(self.log), [])
+                self.assertNotIn('[y/N]', result.stdout)
+                self.assert_preflight_stopped(repo, result, 'uv >=0.13.5')
+                self.assertEqual([event['args'] for event in events(self.preflight_log)],
+                                 [['--version']])
+                self.assertFalse((repo / '.factory/factory.toml').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
+                self.preflight_log.unlink()
+                del self.env['PROFILE_UV_VERSION']
 
     def test_no_python312_stops_before_install_consent(self):
         # Arrange
@@ -155,10 +176,10 @@ class InstallerOnboardingTests(InitFixture):
             [sys.executable, '-m', 'forgetful_factory', 'watch', '--workspace', str(repo),
              '--new-only'], cwd=repo, env=self.env, capture_output=True, text=True, timeout=5)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('incomplete', result.stderr)
+        self.assertRegex(result.stderr, 'incomplete|run init first')
         self.assertEqual(json.loads(self.state.read_text()), {})
 
-    def test_preflight_failure_preserves_existing_runtime_and_blocks_watch(self):
+    def test_repeated_init_preserves_damaged_runtime_without_preflight_and_watch_still_blocks(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
@@ -171,8 +192,7 @@ class InstallerOnboardingTests(InitFixture):
         # Act
         result = self.run_cli(repo, input='y\n')
         # Assert
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('Python 3.12', result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn('[y/N]', result.stdout)
         self.assertEqual(events(self.log), [])
         self.assertEqual({p: p.read_bytes() for p in runtime.rglob('*') if p.is_file()}, original)
@@ -183,13 +203,10 @@ class InstallerOnboardingTests(InitFixture):
             with self.subTest(stage=stage):
                 # Arrange
                 repo = self.repo(stage)
-                setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
-                self.assertEqual(setup.returncode, 0, setup.stderr)
                 runtime = repo / '.factory/runtime/forgetful'
-                (runtime / 'bin/.fixture-package').unlink()
                 self.env['PROFILE_INSTALL_FAIL'] = stage
                 # Act
-                failed = self.run_cli(repo, input='y\n')
+                failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
                 # Assert
                 self.assertNotEqual(failed.returncode, 0)
                 self.assertIn('setup is incomplete', failed.stderr)
@@ -198,8 +215,8 @@ class InstallerOnboardingTests(InitFixture):
                 # Arrange
                 del self.env['PROFILE_INSTALL_FAIL']
                 # Act
-                refused = self.run_cli(repo, input='n\n')
-                retry = self.run_cli(repo, input='y\n')
+                refused = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='n\n')
+                retry = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
                 calls = events(self.log)
                 unchanged = self.run_cli(repo)
                 # Assert

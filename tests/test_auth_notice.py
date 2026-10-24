@@ -100,7 +100,7 @@ class AuthNoticeTests(InitFixture):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertNotIn('If your browser opens', result.stdout)
                 self.assertEqual([path for path, _ in self.requests], ['/api/v1/auth/info'])
-                self.assertTrue((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertTrue((repo / '.factory/setup-complete.json').exists())
 
     def test_policy_timeout_does_not_skip_the_real_access_check(self):
         # Arrange
@@ -114,7 +114,7 @@ class AuthNoticeTests(InitFixture):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Forgetful planning check failed', result.stderr)
         self.assertNotIn('If your browser opens', result.stdout)
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
     def test_local_setup_does_not_request_server_policy(self):
         # Arrange

@@ -23,19 +23,19 @@ class PlanningSetupTests(InitFixture):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Select Forgetful project ID or c to create:', result.stdout)
         self.assertEqual(load_configuration(repo).forgetful.project_id, 12)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
-        self.assertEqual(json.loads(receipt.read_text())['forgetful']['project_id'], 12)
+        receipt = repo / '.factory/setup-complete.json'
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
 
-    def test_existing_config_requires_project_edit_before_interactive_or_explicit_init(self):
+    def test_first_finalization_requires_explicit_project_edit_and_preserves_notes(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         config_path = repo / '.factory/factory.toml'
         edited = config_path.read_text().replace('project_id = 12\n', '')
-        edited += '\n# Preserve these user notes.\n[custom]\nsetting = "keep"\n'
+        edited += '\n# Preserve these user notes.\n'
         config_path.write_text(edited)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         previous = receipt.read_bytes()
         gh_state = self.state.read_bytes()
         log = self.workspace / 'project-selection.jsonl'
@@ -47,14 +47,14 @@ class PlanningSetupTests(InitFixture):
                 result = subprocess.run(
                     [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
                      '--share-pi-profile',
-                     '--install-role-runtime', *arguments], cwd=repo, env=self.env,
+                     '--install-role-runtime', '--finalize', *arguments], cwd=repo, env=self.env,
                     input='12\n', capture_output=True, text=True, timeout=10)
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('.factory/factory.toml', result.stderr)
                 self.assertIn('[forgetful]', result.stderr)
                 self.assertIn('project_id', result.stderr)
-                self.assertIn('rerun init', result.stderr)
+                self.assertIn('project', result.stderr)
                 self.assertEqual(result.stdout, '', 'Reject before prompting or reporting success')
                 self.assertEqual(events(log), [], 'Reject before external setup calls')
                 self.assertEqual(config_path.read_text(), edited)
@@ -69,9 +69,9 @@ class PlanningSetupTests(InitFixture):
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertEqual(config_path.read_text(), corrected)
         self.assertEqual(load_configuration(repo).forgetful.project_id, 12)
-        self.assertEqual(json.loads(receipt.read_text())['forgetful']['project_id'], 12)
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
 
-    def test_init_rejects_missing_foreman_selections_and_preserves_edits(self):
+    def test_runtime_rejects_missing_foreman_selections_and_preserves_edits(self):
         for missing in ('both', 'skill', 'agentshell'):
             with self.subTest(missing=missing):
                 # Arrange
@@ -79,32 +79,30 @@ class PlanningSetupTests(InitFixture):
                 setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
                 self.assertEqual(setup.returncode, 0, setup.stderr)
                 role = repo / '.factory/agents/foreman'
-                path = role / 'resources.json'
-                settings = json.loads(path.read_text())
+                path = role / 'agent.json'
+                document = json.loads(path.read_text())
+                settings = document['agent']['resources']
                 if missing in ('both', 'skill'):
                     settings['skills'] = []
                 if missing in ('both', 'agentshell'):
                     settings['extensions'] = []
-                edited = json.dumps(settings, indent=2) + '\n'
+                edited = json.dumps(document, indent=2) + '\n'
                 path.write_text(edited)
                 guidance = role / 'APPEND_SYSTEM.md'
                 guidance.write_text('Keep my additional guidance.\n')
                 # Act
                 result = self.run_cli(repo)
                 # Assert
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('resources.json', result.stderr)
-                self.assertIn('skills/foreman', result.stderr)
-                self.assertIn('resources/agentshell/extensions/agentshell.ts', result.stderr)
-                self.assertIn('rerun init', result.stderr)
+                self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual(path.read_text(), edited)
                 self.assertEqual(guidance.read_text(), 'Keep my additional guidance.\n')
-                self.assertFalse((role / 'model-selection.json').exists())
+                self.assertEqual(json.loads((repo / '.factory/setup-complete.json').read_text()),
+                                 {'complete': True})
                 watch = subprocess.run(
                     [sys.executable, '-m', 'forgetful_factory', 'watch', '--new-only'],
                     cwd=repo, env=self.env, capture_output=True, text=True, timeout=5)
                 self.assertNotEqual(watch.returncode, 0)
-                self.assertIn('resources.json', watch.stderr)
+                self.assertRegex(watch.stderr, 'Foreman guidance|audited AgentShell extension')
 
     def test_init_accepts_essential_foreman_resources_without_optional_hide_tools(self):
         # Arrange
@@ -112,17 +110,19 @@ class PlanningSetupTests(InitFixture):
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         role = repo / '.factory/agents/foreman'
-        path = role / 'resources.json'
-        edited = json.dumps({'skills': [str(role / 'skills/foreman/SKILL.md'),
+        path = role / 'agent.json'
+        document = json.loads(path.read_text())
+        document['agent']['resources'] = {'skills': [str(role / 'skills/foreman/SKILL.md'),
                                        str(role / 'skills/factory-maintenance/SKILL.md')],
-                             'extensions': ['resources/agentshell/extensions/agentshell.ts']})
+                             'extensions': ['../../resources/agentshell/extensions/agentshell.ts']}
+        edited = json.dumps(document)
         path.write_text(edited)
         # Act
-        result = self.run_cli(repo)
+        result = self.run_cli(repo, '--finalize')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(path.read_text(), edited)
-        self.assertTrue((role / 'model-selection.json').exists())
+        self.assertTrue((repo / '.factory/setup-complete.json').exists())
 
     def test_init_records_project_access_without_requesting_a_user_profile(self):
         # Arrange: the command double rejects user-profile requests.
@@ -132,8 +132,8 @@ class PlanningSetupTests(InitFixture):
                               '--forgetful-project', '12')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        receipt = json.loads((repo / '.factory/agents/foreman/model-selection.json').read_text())
-        self.assertEqual(receipt['forgetful']['project_id'], 12)
+        receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
+        self.assertEqual(receipt, {'complete': True})
         self.assertNotIn('principal', receipt)
 
     def test_old_backend_or_wrong_project_leaves_setup_incomplete(self):
@@ -149,7 +149,7 @@ class PlanningSetupTests(InitFixture):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('planning check failed', result.stderr)
                 self.assertNotIn('TOP_SECRET', result.stderr)
-                receipt = repo / '.factory/agents/foreman/model-selection.json'
+                receipt = repo / '.factory/setup-complete.json'
                 self.assertFalse(receipt.exists())
 
     def test_bulk_catalog_still_requires_every_planning_permission_and_both_reference_fields(self):
@@ -178,7 +178,7 @@ class PlanningSetupTests(InitFixture):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn('planning check failed', result.stderr)
                 self.assertNotIn('Traceback', result.stderr)
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
     def test_connection_preflight_only_checks_project_and_tool_catalog(self):
         # Arrange
@@ -204,8 +204,8 @@ class PlanningSetupTests(InitFixture):
         self.assertEqual(result.returncode, 0, result.stderr)
         config = load_configuration(repo)
         self.assertEqual(config.forgetful.project_id, 12)
-        receipt = json.loads((repo / '.factory/agents/foreman/model-selection.json').read_text())
-        self.assertEqual(receipt['forgetful']['project_id'], 12)
+        receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
+        self.assertEqual(receipt, {'complete': True})
         calls = [e['args'] for e in events(log) if e['name'] == 'forgetful']
         self.assertTrue(any(c[:2] == ['tools', 'list'] for c in calls))
         self.assertFalse(any(c[:2] == ['call', 'get_current_user'] for c in calls))

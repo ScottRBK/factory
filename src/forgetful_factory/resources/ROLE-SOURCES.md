@@ -1,13 +1,14 @@
 # Bundled role resources
 
-The adjacent archive contains source files, never an installer or built executable. Initialization
+The adjacent archive contains source files, never an installer or built executable. First setup
 verifies each file against `role-resources.json`, copies missing files, and preserves edited files.
-The manifest records full upstream commits and SHA-256 hashes. No moving URL runs at initialization.
+Ordinary repeated init preserves the existing setup without repair or synchronization. The manifest
+records full upstream commits and SHA-256 hashes. No moving URL runs at initialization.
 
 Reviewed sources:
 
-- ScottRBK/pi-agentshell-extension, commit `df2855129ed2dd9d5aadc27554719ceb62fd38e1`
-  (package 1.4.1). MIT license included. Imports Node built-ins and Pi-provided peer modules.
+- ScottRBK/pi-agentshell-extension, commit `5acb6aabfaae7c4d889600f6a5fffbb1c412dc6b`
+  (package 1.5.0). MIT license included. Imports Node built-ins and Pi-provided peer modules.
   Its Python worker has an independent agent-shell-py 0.5.0 lock. With explicit consent,
   setup runs upstream `uv sync` against the bundled lock, with source builds, dev dependencies,
   config discovery, and Python
@@ -17,6 +18,13 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
+
+The 1.5.0 published archive passed independent signature/provenance and source-byte verification.
+Its exact 11 runtime files were adopted after source and artifact review. All four hide-tools files
+and the SDK project/lock remain unchanged. Normalized definitions and Codex/Claude prompt skill
+references pass real Pi 1.4.0 SDK/fake-native probes without inference. These probes do not install
+the worker or establish model compliance. Audit evidence is under
+`/tmp/factory-normalized-approved-O7PbkX/extension/bundle-audit`.
 
 Review covered import/dependency manifests, process launch paths, upstream setup consent,
 configuration writes, worker protocol and tool rendering. AgentShell runs a fixed local Python
@@ -39,6 +47,8 @@ no APT index update. Other platforms and custom executable names require manual 
 
 The factory defaults Pi's fallback binary downloads and Forgetful model downloads to offline/cache
 mode. Local checks need an already provisioned model cache. Review and prepare models separately.
+## Historical audits
+
 The 2026-10-17 independent extension audit verified release 1.4.0 and worker 0.5.0.
 That upgrade changed seven agentshell archive members; hide-tools was unchanged.
 Evidence: `/tmp/astra-factory-1.4-audit/report.md` (local audit handoff).
@@ -49,7 +59,7 @@ configuration keys and their uses to snake_case. Dependency declarations, packag
 the Python worker/lock are unchanged. Each bundled member matches the immutable source commit
 and the manifest's SHA-256. Evidence: `/tmp/factory-extension-141/audit.json`.
 Registry DNS was unavailable, so published npm artifact integrity/provenance and fresh advisory
-checks were not repeated. This bundle uses the inspected Git source, not an unverified download.
+checks were not repeated. That 1.4.1 bundle used inspected Git source, not an unverified download.
 
 The narrow Forgetful 0.5.5 audit verified source commit
 `8964f8e626bc4945d2ca3cc2bd38a69ff44082e6` and 114 wheels for CPython 3.12,

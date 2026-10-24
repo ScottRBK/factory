@@ -12,42 +12,48 @@ class ProfileRecoveryTests(InitFixture):
         self.log = self.workspace / 'install.jsonl'
         self.env['PROFILE_INSTALL_LOG'] = str(self.log)
 
-    def test_partial_role_install_is_retried_and_deleted_package_is_repaired(self):
-        # Arrange: uv creates the environment but fails before installing its package.
+    def test_first_partial_role_install_retries_but_repeated_init_does_not_repair_runtime(self):
+        # Arrange: the fake package manager creates an environment then fails its first sync.
         repo = self.repo()
         self.env['PROFILE_INSTALL_FAIL'] = 'sync'
-        # Act
         failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertNotEqual(failed.returncode, 0)
         del self.env['PROFILE_INSTALL_FAIL']
         retry = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-        # Assert
-        self.assertNotEqual(failed.returncode, 0)
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertEqual(len(events(self.log)), 2)
-        # Arrange: installed package was subsequently removed.
-        package = repo / '.factory/agents/foreman/resources/agentshell/python/.venv/bin'
-        (package / '.fixture-package').unlink()
+        self.install_terminal_double()
+        package = repo / '.factory/resources/agentshell/python/.venv/bin/.fixture-package'
+        original = package.read_bytes()
+        package.unlink()
         # Act
-        repaired = self.run_cli(repo)
-        unchanged = self.run_cli(repo)
+        repeated = self.run_cli(repo)
+        stopped = self.watch(repo)
         # Assert
-        self.assertEqual(repaired.returncode, 0, repaired.stderr)
-        self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
-        self.assertEqual(len(events(self.log)), 3)
+        self.assertEqual(repeated.returncode, 0, repeated.stderr)
+        self.assertNotEqual(stopped.returncode, 0)
+        self.assertIn('runtime is incomplete', stopped.stderr)
+        self.assertEqual(events(self.terminal_log), [])
+        self.assertEqual(len(events(self.log)), 2)
+        self.assertFalse(package.exists())
+        # Act: explicitly restore the fixture's native package, then retry runtime startup.
+        package.write_bytes(original)
+        self.watch(repo)
+        self.assertTrue(any(e['kind'] == 'launch' for e in events(self.terminal_log)))
 
     def test_edited_role_lock_is_preserved_but_does_not_authorize_unreviewed_install(self):
         # Arrange
         repo = self.repo()
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(result.returncode, 0, result.stderr)
-        lock = repo / '.factory/agents/foreman/resources/agentshell/python/uv.lock'
+        lock = repo / '.factory/resources/agentshell/python/uv.lock'
         edited = lock.read_text() + '\n# User edit\n'
         lock.write_text(edited)
         # Act
-        retry = self.run_cli(repo)
+        retry = self.run_cli(repo, '--finalize')
         # Assert
         self.assertNotEqual(retry.returncode, 0)
-        self.assertIn('lock', retry.stderr.lower())
+        self.assertIn('runtime is incomplete', retry.stderr)
         self.assertEqual(lock.read_text(), edited)
         self.assertEqual(len(events(self.log)), 1)
 
@@ -64,7 +70,7 @@ class ProfileRecoveryTests(InitFixture):
         # Assert
         self.assertNotEqual(failed.returncode, 0)
         self.assertFalse((managed.parent.parent / '.factory-sync').exists())
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
         # Arrange
         del self.env['PROFILE_INSTALL_FAIL']
         # Act
@@ -114,9 +120,9 @@ class ProfileRecoveryTests(InitFixture):
         for path in old_files:
             path.parent.mkdir(exist_ok=True)
             path.write_bytes(b'User content\xff')
-        settings = role / 'resources.json'
+        settings = role / 'agent.json'
         custom = json.loads(settings.read_text())
-        custom['extensions'].append('resources/factory-status.ts')
+        custom['agent']['resources']['extensions'].append('resources/factory-status.ts')
         settings.write_text(json.dumps(custom))
         # Act
         retry = self.run_cli(repo)
@@ -127,7 +133,7 @@ class ProfileRecoveryTests(InitFixture):
             self.assertEqual(path.read_bytes(), b'User content\xff')
             path.unlink()
         # Act: old files are not factory launch prerequisites; the user refreshes Pi settings.
-        custom['extensions'].remove('resources/factory-status.ts')
+        custom['agent']['resources']['extensions'].remove('resources/factory-status.ts')
         settings.write_text(json.dumps(custom))
         self.assertEqual(self.run_cli(repo).returncode, 0)
         self.watch(repo)
@@ -181,9 +187,9 @@ class ProfileRecoveryTests(InitFixture):
                             ['--server', 'https://memory.example/custom-endpoint'])
                 self.assertEqual(call['args'], ['project', 'list', *expected, '--json'])
                 self.assertEqual(call['configured_executable'], str(executable))
-                self.assertEqual(call['cwd'], str(repo / '.factory/agents/foreman'))
+                self.assertEqual(call['cwd'], str(repo / '.factory'))
                 self.assertEqual(call['config_home'],
-                                 str(repo / '.factory/agents/foreman/cli-config'))
+                                 str(repo / '.factory/cli-config'))
                 self.assertFalse(call['has_token'])
                 self.assertEqual(call['server'], '' if instance == 'local'
                                  else 'https://memory.example/custom-endpoint')
@@ -224,9 +230,9 @@ class ProfileRecoveryTests(InitFixture):
         for call in calls:
             self.assertEqual(call['configured_executable'], 'forgetful')
             self.assertEqual(call['config_home'],
-                             str(repo / '.factory/agents/foreman/cli-config'))
+                             str(repo / '.factory/cli-config'))
             self.assertFalse(call['has_token'])
-            self.assertEqual(call['cwd'], str(repo / '.factory/agents/foreman'))
+            self.assertEqual(call['cwd'], str(repo / '.factory'))
             self.assertEqual(call['server'], 'https://memory.example/custom-endpoint')
         for command in (e for e in events(self.terminal_log) if e['kind'] == 'skill-command'):
             self.assertEqual(command['code'], 0)
@@ -239,8 +245,7 @@ class ProfileRecoveryTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--forgetful-method', 'cli')
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        role = repo / '.factory/agents/foreman'
-        saved = role / 'cli-config/forgetful/.env'
+        saved = repo / '.factory/cli-config/forgetful/.env'
         saved.parent.mkdir(parents=True, exist_ok=True)
         saved.write_text('FORGETFUL_SERVER=https://previous.example/mcp\n')
         log = self.workspace / 'native-local-auth.jsonl'
@@ -254,8 +259,8 @@ class ProfileRecoveryTests(InitFixture):
         self.assertEqual([call['args'] for call in calls], [['auth', 'status'], ['auth', 'logout']])
         for call in calls:
             self.assertEqual(call['server'], '')
-            self.assertEqual(call['cwd'], str(role))
-            self.assertEqual(call['config_home'], str(role / 'cli-config'))
+            self.assertEqual(call['cwd'], str(repo / '.factory'))
+            self.assertEqual(call['config_home'], str(repo / '.factory/cli-config'))
         self.assertEqual(saved.read_text(), 'FORGETFUL_SERVER=https://previous.example/mcp\n')
 
     def test_edited_relative_cli_path_resolves_before_init_check_and_skill_change_directory(self):
@@ -285,7 +290,7 @@ class ProfileRecoveryTests(InitFixture):
         for call in calls:
             self.assertEqual(call['name'], 'custom forgetful')
             self.assertEqual(call['configured_executable'], str(executable))
-            self.assertEqual(call['cwd'], str(repo / '.factory/agents/foreman'))
+            self.assertEqual(call['cwd'], str(repo / '.factory'))
             self.assertEqual(call['server'], '')
         self.assertEqual(config.read_text(), edited)
 
@@ -303,32 +308,31 @@ class ProfileRecoveryTests(InitFixture):
         npm.chmod(0o755)
         self.env['PATH'] = str(self.bin)
 
-    def test_partial_managed_pi_install_blocks_retry_and_watch_until_sync_succeeds(self):
-        # Arrange: a complete role must not hide a later partial managed Pi installation.
-        repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-        self.assertEqual(setup.returncode, 0, setup.stderr)
+    def test_partial_managed_pi_install_blocks_first_setup_until_consented_retry_succeeds(self):
+        # Arrange: a failed first installation must never be mistaken for native readiness.
         self.missing_pi()
+        repo = self.repo()
         self.env['PROFILE_INSTALL_FAIL'] = 'ci'
         # Act
-        failed = self.run_cli(repo, input='y\n')
-        retry = self.run_cli(repo, input='y\n')
+        failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
+        retry = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
         watch = self.watch(repo)
         # Assert
         self.assertNotEqual(failed.returncode, 0)
         self.assertNotEqual(retry.returncode, 0)
-        self.assertEqual([e['args'][0] for e in events(self.log)], ['sync', 'ci', 'ci'])
-        self.assertIn('rerun init', watch.stderr)
+        self.assertIn('run init first', watch.stderr)
         self.assertEqual(events(self.terminal_log), [])
+        self.assertFalse((repo / '.factory/factory.toml').exists())
+        self.assertEqual([e['args'][0] for e in events(self.log)], ['ci', 'ci'])
         # Act
         del self.env['PROFILE_INSTALL_FAIL']
-        repaired = self.run_cli(repo, input='y\n')
+        repaired = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
         unchanged = self.run_cli(repo)
         self.watch(repo)
         # Assert
         self.assertEqual(repaired.returncode, 0, repaired.stderr)
         self.assertEqual(unchanged.returncode, 0, unchanged.stderr)
-        self.assertEqual([e['args'][0] for e in events(self.log)], ['sync', 'ci', 'ci', 'ci'])
+        self.assertEqual([e['args'][0] for e in events(self.log)], ['ci', 'ci', 'ci', 'sync'])
         self.assertTrue(any(e['kind'] == 'launch' for e in events(self.terminal_log)))
 
     def test_managed_pi_rejects_changed_install_inputs_and_a_broken_executable(self):
@@ -348,7 +352,7 @@ class ProfileRecoveryTests(InitFixture):
                     # Act
                     watch = self.watch(repo)
                     # Assert
-                    self.assertIn('rerun init', watch.stderr)
+                    self.assertIn('incomplete', watch.stderr)
                     self.assertEqual(events(self.terminal_log), [])
                     self.assertEqual(path.read_bytes(), changed)
                 finally:
@@ -379,43 +383,44 @@ class ProfileRecoveryTests(InitFixture):
                 self.assertTrue(any(e['kind'] == 'launch' for e in events(self.terminal_log)))
                 self.terminal_log.unlink()
 
-    def test_watch_rejects_missing_resources_and_target_drift_without_changing_files(self):
+    def test_watch_rejects_missing_selected_resources_and_runtime_without_changing_files(self):
         # Arrange
         self.install_terminal_double()
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        role = repo / '.factory/agents/foreman'
-        for relative in ('resources.json', 'resources/hide-tools/index.ts',
-                         'skills/foreman/SKILL.md', 'skills/factory-maintenance/SKILL.md',
+        for relative in ('agents/foreman/agent.json', 'resources/hide-tools/index.ts',
+                         'agents/foreman/skills/foreman/SKILL.md',
+                         'agents/foreman/skills/factory-maintenance/SKILL.md',
                          'resources/agentshell/python/uv.lock',
                          'resources/agentshell/python/.venv/bin/.fixture-package',
                          'resources/agentshell/python/.venv/pyvenv.cfg',
-                         'resources/agentshell/python/.venv/.factory-sync', 'model-selection.json'):
+                         'resources/agentshell/python/.venv/.factory-sync', 'setup-complete.json'):
             with self.subTest(missing=relative):
-                path = role / relative
+                path = repo / '.factory' / relative
                 original = path.read_bytes()
                 path.unlink()
                 try:
                     # Act
                     watch = self.watch(repo)
                     # Assert
-                    self.assertIn('rerun init', watch.stderr)
+                    self.assertNotEqual(watch.returncode, 0)
+                    self.assertRegex(watch.stderr, 'incomplete|resource|guidance|agent definition')
+                    self.assertNotIn('Traceback', watch.stderr)
                     self.assertFalse(path.exists())
                     self.assertEqual(events(self.terminal_log), [])
                 finally:
                     path.write_bytes(original)
                     self.terminal_log.unlink(missing_ok=True)
-        # Arrange
-        config = repo / '.factory/factory.toml'
-        config.write_text(config.read_text().replace('provider/model', 'provider/other'))
-        original = (role / 'model-selection.json').read_bytes()
-        # Act
-        watch = self.watch(repo)
+        # Act: edited model selection is read directly on the next launch, without setup renewal.
+        definition = repo / '.factory/agents/foreman/agent.json'
+        document = json.loads(definition.read_text())
+        document['agent']['model'] = 'provider/other'
+        definition.write_text(json.dumps(document))
+        self.watch(repo)
         # Assert
-        self.assertIn('model setup', watch.stderr)
-        self.assertEqual(events(self.terminal_log), [])
-        self.assertEqual((role / 'model-selection.json').read_bytes(), original)
+        launch, = [e for e in events(self.terminal_log) if e['kind'] == 'launch']
+        self.assertEqual(launch['model'], 'provider/other')
 
     def test_remote_checked_setup_rechecks_planning_without_explicit_auth_login(self):
         # Arrange
@@ -453,7 +458,7 @@ class ProfileRecoveryTests(InitFixture):
         self.assertEqual(ignore.read_text(), custom)
         self.assertEqual(original.count('/runtime/'), 1)
         for relative in ('mcp.json', 'auth.json', 'mcp-auth.json',
-                         'resources/agentshell/python/.venv/.factory-sync'):
+                         'sessions/session.jsonl'):
             self.assertEqual(self.git(repo, 'check-ignore', '.factory/agents/foreman/' + relative),
                              '.factory/agents/foreman/' + relative)
 
@@ -482,7 +487,7 @@ class ProfileRecoveryTests(InitFixture):
         import tomllib
         repo = self.repo()
         parent = repo / 'pyproject.toml'
-        parent.write_text('[tool.uv.workspace]\nmembers = [".factory/agents/foreman/resources/'
+        parent.write_text('[tool.uv.workspace]\nmembers = [".factory/resources/'
                           'agentshell/python"]\n')
         original = parent.read_bytes()
         # Act
@@ -504,7 +509,7 @@ class ProfileRecoveryTests(InitFixture):
         # Act / Assert
         self.assertEqual(self.git(repo, 'check-ignore', role + 'models-store.json'),
                          role + 'models-store.json')
-        result = subprocess.run(['git', '-C', str(repo), 'check-ignore', role + 'resources.json'],
+        result = subprocess.run(['git', '-C', str(repo), 'check-ignore', role + 'agent.json'],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 1, result.stdout)
 

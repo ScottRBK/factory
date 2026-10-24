@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 args = sys.argv[1:]
 name = Path(sys.argv[0]).name
-sid = name + '-native-returned-id'
+sid = os.environ['NATIVE_REVIEW_ID' if name == 'claude' else 'NATIVE_IMPLEMENTATION_ID']
 with open(os.environ['NATIVE_LOG'], 'a') as stream:
     stream.write(json.dumps({'name': name, 'args': args, 'cwd': os.getcwd(),
         'roster': os.environ.get('PI_AGENTSHELL_ROSTER_FILE'),
@@ -47,10 +47,10 @@ const {DefaultResourceLoader, SettingsManager, SessionManager, createAgentSessio
 const cwd = process.env.PROBE_OWNER;
 const agentDir = process.env.PI_CODING_AGENT_DIR;
 const settingsManager = SettingsManager.inMemory({packages: []});
-const selected = JSON.parse(fs.readFileSync(path.join(cwd, 'resources.json'), 'utf8'));
+const selected = JSON.parse(fs.readFileSync(path.join(cwd, 'agent.json'), 'utf8')).agent.resources;
 const loader = new DefaultResourceLoader({cwd, agentDir, settingsManager,
-    additionalExtensionPaths: selected.extensions,
-    additionalSkillPaths: selected.skills,
+    additionalExtensionPaths: selected.extensions.map(p => path.resolve(cwd, p)),
+    additionalSkillPaths: selected.skills.map(p => path.resolve(cwd, p)),
     noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true,
     disabledBuiltinExtensions: ['mcp'], noContextFiles: false, systemPrompt: ''});
 await loader.reload();
@@ -66,11 +66,20 @@ const roles = JSON.parse((await session.extensionRunner.getToolDefinition('subag
     .execute('roster', {}, undefined, undefined, ctx)).content[0].text);
 const results = [];
 const prompts = {};
+function skillFiles(selected) {
+    if (fs.statSync(selected).isFile()) return [selected];
+    return fs.readdirSync(selected, {withFileTypes: true}).flatMap(entry => {
+        const file = path.join(selected, entry.name);
+        return entry.isDirectory() ? skillFiles(file) : entry.name === 'SKILL.md' ? [file] : [];
+    });
+}
 for (const role of ['implementation', 'review']) {
     const root = path.resolve(cwd, '..', role);
-    const resources = JSON.parse(fs.readFileSync(path.join(root, 'resources.json'), 'utf8'));
+    const resources = JSON.parse(
+        fs.readFileSync(path.join(root, 'agent.json'), 'utf8')).agent.resources;
+    const skills = resources.skills.flatMap(p => skillFiles(path.resolve(root, p)));
     prompts[role] = fs.readFileSync(path.join(root, `skills/${role}/SKILL.md`), 'utf8') +
-        '\nRead these selected skills before work: ' + resources.skills.join(', ') +
+        '\nRead these selected skills before work: ' + skills.join(', ') +
         '\nTask IDs: 31, 32. Implement or review invoice retry acceptance tests.';
     results.push(await tool.execute(role, {roster_entry: role, task_name: `Invoice ${role}`,
         cwd: process.env.PROBE_WORKTREE, prompt: prompts[role], interactive: false,
@@ -141,27 +150,31 @@ class NativeWorkerTests(InitFixture):
                     executable.chmod(0o755)
                 owner = repo / '.factory/agents/feature-owner'
                 log = self.workspace / f'{harness}-native.jsonl'
+                # Fresh native sessions need distinct IDs across both cases sharing SDK state.
+                implementation_id = f'{harness}-implementation-session'
+                review_id = f'{harness}-review-session'
                 env = {'PATH': str(self.bin) + os.pathsep + os.environ['PATH'],
                        'HOME': str(self.workspace), 'XDG_STATE_HOME': str(self.workspace / 'state'),
                        'PI_CODING_AGENT_DIR': self.env['PI_CODING_AGENT_DIR'], 'PI_OFFLINE': '1',
-                       'PI_AGENTSHELL_ROSTER_FILE': str(owner / 'roster.json'),
+                       'PI_AGENTSHELL_ROSTER_FILE': str(owner / 'agent.json'),
                        'PI_AGENT_SHELL_CHILD': '1', 'PI_AGENT_SHELL_DEPTH': '1',
                        'PI_AGENT_SHELL_MAX_DEPTH': '1',
                        'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
-                       'NATIVE_LOG': str(log), 'PROBE_OWNER': str(owner),
+                       'NATIVE_LOG': str(log), 'NATIVE_IMPLEMENTATION_ID': implementation_id,
+                       'NATIVE_REVIEW_ID': review_id, 'PROBE_OWNER': str(owner),
                        'PROBE_WORKTREE': str(worktree)}
                 # Act
-                result = subprocess.run(['node', '--input-type=module', '-e', PROBE], cwd=owner,
-                                        env=env, capture_output=True, text=True, timeout=30)
+                result = subprocess.run(
+                    [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', PROBE],
+                    cwd=owner, env=env, capture_output=True, text=True, timeout=30)
                 # Assert
                 self.assertEqual(result.returncode, 0, result.stderr)
                 observed = json.loads(result.stdout)
                 self.assertEqual([r['name'] for r in observed['roles']],
                                  ['research', 'implementation', 'review'])
-                self.assertEqual(observed['results'][0]['details']['sessionId'],
-                                 harness + '-native-returned-id')
-                self.assertEqual(observed['resumed']['details']['sessionId'],
-                                 'claude-native-returned-id')
+                self.assertEqual(observed['results'][0]['details']['sessionId'], implementation_id)
+                self.assertEqual(observed['results'][1]['details']['sessionId'], review_id)
+                self.assertEqual(observed['resumed']['details']['sessionId'], review_id)
                 self.assertIn('cwd', observed['rejected'])
                 self.assertIn('No recorded launch', observed['denied']['unknown'])
                 self.assertIn('conflicts', observed['denied']['model'])
@@ -181,6 +194,10 @@ class NativeWorkerTests(InitFixture):
                         self.assertNotIn('--dangerously-skip-permissions', args)
                         self.assertNotIn('--disallowed-tools', args)
                     self.assertNotIn('--dangerously-bypass-approvals-and-sandbox', args)
+                    if index == 2:
+                        self.assertEqual(args[args.index('--resume') + 1], review_id)
+                    else:
+                        self.assertNotIn('--resume', args)
                     expected_model = 'opus' if call['name'] == 'claude' else model
                     self.assertEqual(args[args.index('--model') + 1], expected_model)
                     if call['name'] == 'codex':
@@ -195,12 +212,17 @@ class NativeWorkerTests(InitFixture):
                         self.assertNotIn('--no-context-files', args)
                     else:
                         self.assertEqual(call['roster'],
-                                         str(repo / '.factory/agents/implementation/roster.json'))
+                                         str(repo / '.factory/agents/implementation/agent.json'))
                         self.assertIn('--skill', args)
                     prompt = args[args.index('-p') + 1] if call['name'] == 'claude' else args[-1]
                     self.assertIn('Do not use Forgetful', prompt)
                     self.assertIn('Task IDs: 31, 32', prompt)
                     self.assertIn(str(self.workspace / 'standards/SKILL.md'), prompt)
+                    expected_role = 'review' if call['name'] == 'claude' else 'implementation'
+                    self.assertIn(str(repo / '.factory/agents' / expected_role /
+                                      f'skills/{expected_role}/SKILL.md'), prompt)
+                    if expected_role == 'implementation':
+                        self.assertIn(str(self.workspace / 'tdd/SKILL.md'), prompt)
                 self.assertTrue(observed['history'])
                 # Restore controlled listing for the next iteration; no real Pi process is run.
                 from profile_support import COMMAND

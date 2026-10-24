@@ -7,8 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from forgetful_factory.application.configuration import (
-    RESEARCH_FIELDS,
-    WORKER_FIELDS,
     FactoryConfiguration,
     from_mapping,
 )
@@ -42,6 +40,8 @@ class TomlConfigurationStore:
                     raise FactoryError(f'Configuration must be a regular file: {self.path}')
                 data = tomllib.load(file)
             configuration = from_mapping(data)
+            configuration = replace(configuration, foreman_agent_file=os.path.abspath(
+                self.path.parent / configuration.foreman_agent_file))
             connection = configuration.forgetful
             if connection and ('/' in connection.executable
                                or connection.executable.startswith('~')):
@@ -57,21 +57,16 @@ class TomlConfigurationStore:
             os.close(directory)
 
     def save(self, configuration: FactoryConfiguration) -> None:
+        definition = Path(configuration.foreman_agent_file)
+        try:
+            definition = definition.relative_to(self.path.parent.absolute())
+        except ValueError:
+            pass
         lines = [
             'watcher_label = [' + ', '.join(map(quote, configuration.watcher_label)) + ']',
-            'foreman_agent_model = ' + quote(configuration.foreman_agent_model),
-            'foreman_agent_effort = ' + quote(configuration.foreman_agent_effort),
+            'foreman_agent_file = ' + quote(str(definition)),
+            'execution_enabled = ' + ('true' if configuration.execution_enabled else 'false'),
         ]
-        for field in ('feature_owner_agent_model', 'feature_owner_agent_effort',
-                      'feature_owner_agent_harness', 'grill_me_skill', *WORKER_FIELDS,
-                      *RESEARCH_FIELDS):
-            value = getattr(configuration, field)
-            if value is not None:
-                lines.append(f'{field} = {quote(value)}')
-        for field in ('implementation_skills', 'review_skills'):
-            values = getattr(configuration, field)
-            if values:
-                lines.append(f'{field} = [' + ', '.join(map(quote, values)) + ']')
         for repository in configuration.repository:
             lines.extend(['', '[[repository]]',
                           'local_dir = ' + quote(repository.local_dir),

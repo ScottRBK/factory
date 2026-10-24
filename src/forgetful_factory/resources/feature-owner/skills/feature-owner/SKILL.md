@@ -5,10 +5,13 @@ description: Own feature planning, implementation, independent review, merge and
 
 Use the supplied issue, plan ID, ownership task ID and repository/worktree mappings. Read your
 native role AGENTS.md and its explicit unchanged grill-me source. Keep the interview with you; use
-`subagent(roster_entry="research", task_name=..., prompt=..., interactive=false, stay_open=false)`
-for fact gathering. Researchers return context; you interpret it with the user. Inspect
-`subagent_roster` before execution. Both implementation and review entries must be present;
-otherwise this factory is planning-only: return the plan and explain that worker setup is required.
+`subagent_roster` to inspect configured names and descriptions. Select researchers and workers
+by their responsibilities; starter names are examples, not required names. Use the selected name
+as `roster_entry` for fact gathering. Researchers return context; you interpret it with the user.
+Read `execution_enabled` from `$FACTORY_WORKSPACE/.factory/factory.toml`. Execution requires that
+permission and configured workers for implementation and independent review. Otherwise return the
+plan and explain the missing permission or worker responsibility.
+Do not infer permission from names.
 You alone coordinate workers and update Forgetful on their behalf. Foreman alone dispatches owners.
 
 ## Shared Forgetful access
@@ -96,12 +99,16 @@ advertisement, verify the native loader accepted each selected skill. SKILL.md r
 metadata, including a description; a prompt file reference alone does not establish that a skill was
 loaded. Do not invent harness flags or escalate permissions to supply missing capabilities.
 
-Read the selected worker's `../implementation/skills/implementation/SKILL.md` or
-`../review/skills/review/SKILL.md` from your role directory, plus its `resources.json`. Resolve
-selected skill paths to absolute files. Include the full role briefing in the native task prompt,
-with absolute references to every selected skill and an explicit instruction to read them before
-work. This is required for non-Pi harnesses: do not pass Pi SessionResources or a child roster to
-Codex or Claude Code. Pi workers receive explicit skills and a disabled child roster natively.
+Read your own selected agent document at `$PI_AGENTSHELL_ROSTER_FILE`, then follow its `agent_file`
+references to the selected worker's `agent.json`. Its `agent.resources.skills` is authoritative.
+Resolve each path relative to that worker's agent.json, without substituting a fixed role directory.
+Expand directory selections to their readable SKILL.md files, including nested skill folders.
+Put explicit absolute SKILL.md
+paths in the native task prompt and tell the worker to read them before work. Include the full role
+briefing, TDD for implementation, additional skills and the worker's configured responsibilities.
+Never drop selected skills to make a native call pass. The extension carries selected skills into
+Codex/Claude prompts; those harnesses keep their native defaults. Pi and OpenCode support native
+selected skills. Do not pass Pi discovery flags, extensions or child rosters to Codex/Claude.
 Workers must read the assigned repository instructions; their cwd is the assigned worktree, never a
 role directory. Native instruction loading remains enabled. Resources are not a security sandbox.
 
@@ -115,10 +122,12 @@ worktrees. Reconcile cleanup and actual PR/task state first; do not recreate a h
 the configured native named entry:
 
 ```text
-subagent(roster_entry="implementation", task_name="Implement the assigned feature changes",
+subagent(roster_entry="<configured implementation worker name>",
+         task_name="Implement the assigned feature changes",
          cwd="<absolute assigned worktree>", prompt="<full briefing, skills and task context>",
          interactive=false, stay_open=false)
-subagent(roster_entry="review", task_name="Review the feature PR independently",
+subagent(roster_entry="<configured independent reviewer name>",
+         task_name="Review the feature PR independently",
          cwd="<absolute assigned worktree>", prompt="<full briefing, skills and PR context>",
          interactive=false, stay_open=false)
 ```

@@ -40,9 +40,18 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+The [normalized agent definitions](adrs/agent-definitions.md) now use audited extension 1.5.0.
+Full validation passes 373 tests on Python 3.12 and 3.13, with native SDK probes and no skips.
+Independent source review is accepted. The [uv upgrade](plans/uv-build-upgrade.md) passes package
+checks and independent review. Runtime repair policy remains open. See
+[current evidence](plans/agent-definitions.md). Init provisions the full selected team once.
+This supersedes earlier duplicate settings, skill synchronization and rerun-init guidance.
+
 Slices 4, 5 and 6 are implemented and locally validated; Slice 6 still needs a live delivery trial.
-Slices 7 and 8 remain planned work. [Slice 4/5 checks](plans/slices-4-5.md) and [Slice 6
-progress](plans/slice-6.md).
+Slice 7 remains planned. Slice 8's setup-owned Foreman connection is implemented, reviewed and
+locally validated; general terminal discovery remains planned. [Slice 4/5
+checks](plans/slices-4-5.md) and
+[Slice 6 progress](plans/slice-6.md).
 
 ### Slice 4: create a plan and working copy for each issue
 
@@ -80,7 +89,7 @@ Scott has added research agents to `FACTORY.md`. The feature-owner can delegate 
 using the unchanged grill-me skill. Research agents report back to the owner; implementation and
 PR review remain Slice 6 work.
 
-The audited AgentShell extension 1.4.1 supports the required child rosters and role resources.
+The audited AgentShell extension 1.5.0 supports normalized child references and role resources.
 Factory provisions and selects them. Native role `AGENTS.md` files provide the coordinators'
 instructions. Existing edited guidance is preserved or requires explicit reconciliation.
 Owner delegation needs Pi's root maximum depth to be at least 1; Factory must not silently change
@@ -118,10 +127,11 @@ repositories, it checks that the tests used the intended combination of deployed
 
 ### Slice 8: use a Foreman that is already running
 
-Let the user select an existing Foreman instead of always starting a new one.
-The next onboarding phase brings forward attachment to the setup Foreman launched by init.
-That Foreman should be able to start its watcher without leaving the conversation; general
-terminal discovery remains later work. See [the onboarding plan](plans/agent-onboarding.md).
+The first integration lets init launch a persistent setup Foreman, which can start, check and stop
+its watcher without leaving the conversation. It uses the owner's held AgentShell connection;
+independent lifecycle/reload validation and review are recorded in the
+[onboarding plan](plans/agent-onboarding.md). Selecting arbitrary running terminals remains
+later work.
 
 - Keep the option to start a new Foreman.
 - Confirm the selected terminal is the intended Foreman, is ready, and remains alive.
@@ -131,17 +141,26 @@ terminal discovery remains later work. See [the onboarding plan](plans/agent-onb
 - Test delivery while idle and busy. Report missing or stopped sessions without replacing them.
 
 AgentShell [0.5.0 already supports attachment][agentshell-release], although [issue #25][attach]
-is still open. Factory needs to connect this to its startup flow. Attachment cannot change an
-existing agent's settings or prove it read a message; see the [attachment docs][attach-contract].
+is still open. Factory's current setup-owner integration does not use arbitrary-pane attachment.
+Connection cannot change an agent's settings or prove receipt; see the
+[attachment docs][attach-contract].
 
 ## Other follow-ups
 
+- Normalized agent definitions: implemented and independently reviewed. Each agent owns one
+  `agent.json`; parent rosters reference it rather than duplicate model/resources. Factory retains
+  its settings and a Foreman pointer. Init provisions the team once; Foreman launch/attach is
+  separate. Native SDK checks pass. The uv upgrade and runtime repair decision are tracked in the
+  [work plan](plans/agent-definitions.md) and [decision](adrs/agent-definitions.md).
 - Agent onboarding: numbered choices, maintenance guidance, init/watch exclusion and separate Pi
-  research settings are implemented. Role-folder registration/recovery checks paths and selections;
-  YAML, metadata and skill-name validation are delegated to the native harness.
-  Manual or assisted setup, a dedicated setup Foreman and same-Foreman watcher attachment remain
-  unimplemented. Attachment needs identity/readiness/liveness, not live model/effort/resource
-  checks. Broader downstream apps and native skill delivery need separate upstream work. See the
+  research settings are implemented. Setup no longer asks for skill paths; it lists configured
+  agents' skill folders and offers Foreman's help. Selected-root readiness checks validate portable
+  required-guidance paths; YAML, metadata and skill loading remain native harness concerns.
+  Manual/assisted setup and a persistent setup Foreman with connected watcher are implemented.
+  Manual completion now offers terminal-only launch and copyable commands; assisted Foreman starts
+  its own watcher. Connection checks identity, readiness and liveness, not live agent settings.
+  Broader downstream apps remain separate. AgentShell already supports skills/plugins and effort;
+  narrower adapter/optional-roster-effort gaps need individual treatment. See the
   [work plan](plans/agent-onboarding.md) and [design boundaries](adrs/agent-onboarding.md).
 - Explain the remote Forgetful `/mcp` URL more clearly during setup.
 - Personal AGENTS/append instructions can still apply. Model listing during setup can also read

@@ -34,10 +34,12 @@ def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = 
         if isinstance(error, KeyboardInterrupt):
             raise
         raise FactoryError('Forgetful operation timed out; setup is incomplete. '
-                           'Check the role in Pi/CLI and rerun init.') from error
+                           'Check the role in Pi/CLI, then retry the failed command. '
+                           'Incomplete saved setup needs init --finalize.') from error
     if process.returncode:
         raise FactoryError('Forgetful sign-in/check failed or was cancelled; setup is incomplete. '
-                           'Inspect the role using Pi/CLI and rerun init. '
+                           'Inspect the role using Pi/CLI, then retry the failed command. '
+                           'Incomplete saved setup needs init --finalize. '
                            'External diagnostics withheld: they can contain credentials.')
     return stdout or ''
 

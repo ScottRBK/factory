@@ -73,10 +73,11 @@ and ownership description contain factory JSON fields; preserve those fields whi
 parent/native session references and repository-specific PR links.
 
 Read current issue and comments through native gh when needed, including direct user updates. When
-ownership has no competing live or uncertain assignment, use the native extension:
+ownership has no competing live or uncertain assignment, inspect `subagent_roster`. Choose the
+configured name and description responsible for feature ownership, then use the native extension:
 
 ```text
-subagent(roster_entry="feature-owner", task_name="Plan issue OWNER/REPO#NUMBER",
+subagent(roster_entry="<configured feature owner name>", task_name="Plan issue OWNER/REPO#NUMBER",
          prompt="Issue and revision; plan/task IDs; absolute repository/worktree mappings;
                  current clarification; owning parent Pi session and branch context.",
          interactive=false, stay_open=false)
@@ -126,9 +127,10 @@ deployment/E2E work. Cleanup metadata is per mapping; preserve other repositorie
 ## Completion boundary
 
 The owner creates a feature-specific plan and proceeds when requirements are clear, unless the
-repository requires plan approval. With both implementation/review roster entries configured, the
-owner alone coordinates workers, verifies exact-commit CI, arranges independent review, records
-ADRs, merges with expected-head protection and reports safe cleanup or retained worktrees.
+repository requires plan approval. With execution_enabled and workers for implementation and
+independent review configured, the owner alone coordinates workers, verifies exact-commit CI,
+arranges independent review, records ADRs, merges with expected-head protection and reports safe
+cleanup or retained worktrees.
 Implementation agents open or reuse PRs and own the CI correction loop; opening a PR does not mean
 implementation is complete or authorize worker approval/merge. Implementation/review workers never
 update Forgetful; the owner records their evidence and states. A research-only roster remains

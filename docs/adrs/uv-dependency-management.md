@@ -1,7 +1,8 @@
 # Project dependency management with uv
 
-Status: accepted and implemented; locally validated and verified by hosted push CI.
-Exact-commit evidence is recorded in the [quality-checks plan](../plans/quality-checks.md).
+Status: dependency management is implemented. Current tool versions and local upgrade evidence are
+in the [security-upgrade record](../plans/uv-build-upgrade.md). Earlier hosted migration evidence is
+in the [quality-checks plan](../plans/quality-checks.md); it does not validate this update.
 
 Back to [architecture](../architecture.md).
 
@@ -11,7 +12,7 @@ Declare runtime dependencies in `[project.dependencies]` and local development t
 `[dependency-groups].dev` in `pyproject.toml`. Commit uv's generated `uv.lock` for exact versions,
 artifact hashes for the runtime/dev graph, and platform-specific dependencies. Do not maintain
 a second constraints file. The lock does not cover the uv executable or the build backend;
-`uv_build==0.8.0` remains separately pinned in `[build-system]`. The original build, runtime,
+`uv_build==0.13.5` is separately pinned in `[build-system]`. The original build, runtime,
 and Actions checks remain available in the [historical audit][original-audit].
 
 Use `uv sync --locked` and `uv run --locked` locally and in CI. The lock must agree with the
@@ -21,10 +22,21 @@ or runtime dependencies. A normal wheel/uvx install must still install only runt
 Keep the existing Python 3.12/3.13 CI matrix and check commands. CI installs a pinned uv release
 using its existing Python setup, without adding another GitHub Action. Dependency updates still
 require review and a pre-install audit; a lockfile is not a security audit.
-`[tool.uv].required-version = ">=0.13.1"` rejects outdated uv before project operations.
-CI also runs `uv build`, since editable installation alone is not a wheel/sdist build check.
+`[tool.uv].required-version = ">=0.13.5"` rejects outdated uv before project operations; the
+consent-gated installer enforces that minimum. CI pins uv 0.13.5, builds wheel/sdist artifacts and
+checks wheel RECORD digests with `tests/check_package.py`. Editable installation or a successful
+build command alone does not establish correct artifact checksums.
 
-## Tool audit before use
+## Current tool audit
+
+The 0.13.5 upgrade addresses the upstream emSign certificate advisory and replaces the old backend's
+invalid wheel checksum encoding. Both official Linux wheels passed pre-install artifact review;
+the native backend and uv executable remain separate artifacts. The independent audit also records
+14 Rust dependency advisories and bounded reachability assessments, including retained HTTP/2
+client DoS and conditional TLS key-share risks. The candidate is not vulnerability-free.
+See the [upgrade record](../plans/uv-build-upgrade.md) for hashes, scope and validation.
+
+## Historical migration audit
 
 Checked 2026-10-14, using official PyPI release metadata for `uv==0.13.1` and the OSV API.
 The package identifies Astral's [uv repository](https://github.com/astral-sh/uv), is licensed
@@ -48,8 +60,8 @@ advisories for 0.13.1. This does not prove the native executable or upstream inf
 there was no full source-to-binary audit. uv accesses package indexes and installs/builds packages,
 so it runs with ordinary user/CI filesystem and network privileges.
 
-The installed uv 0.8.0 has known archive-extraction, entry-point, and RECORD-handling advisories.
-Use 0.13.1 for CI and isolated migration validation; do not modify the user's global installation.
+The then-installed uv 0.8.0 had archive-extraction, entry-point and RECORD-handling advisories.
+That migration used 0.13.1 in CI/isolated checks, leaving the global installation unchanged.
 The first lock contains exactly the existing ten runtime/checker packages plus the project;
 no platform-only packages or version upgrades were introduced. Audit any new packages introduced
 by future lock updates before installation.

@@ -1,6 +1,10 @@
 # Factory initialization and provider separation
 
-Status: accepted and implemented (slice 1).
+Status: provider separation remains implemented. Current initialization uses the
+[normalized agent definition contract](agent-definitions.md). Slice 1 evidence below is historical.
+Factory now bundles audited extension 1.5.0; both supported Python runs pass 373 tests, including
+native SDK probes without inference. Runtime repair policy and final checks remain open.
+See [release limits](../../README.md#current-source-and-release-boundary).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 1](../plans/slice-1.md).
 
@@ -20,15 +24,26 @@ initialization creates one factory managing the selected repositories. Slice 1 b
 locally only: use `uvx --from /absolute/path/to/the-built-wheel forgetful-factory init` until the
 package is published. PyPI publication and package-name availability are not part of this slice.
 
-Initialization configures repositories, watched labels, and the Foreman's model and effort. It
-checks GitHub access and creates missing configured labels without changing existing labels.
-Initialization stores Foreman settings; launching Pi belongs to the
-[watcher](issue-watcher.md). Initialization does not use Forgetful, create worktrees, or clone
-repositories.
+First initialization configures repositories, watched labels, native Forgetful access and the full
+configured starter team. Foreman, feature-owner and research are provisioned in manual, assisted
+and planning-only setup; implementation/review are added when execution is enabled. It checks
+GitHub access and creates missing labels without changing existing labels. Agent choices are saved
+once in each `agent.json`; TOML references the root through `foreman_agent_file`.
+
+Manual first setup can offer terminal launch after successful checks. Assisted first setup starts a
+persistent Foreman without a completion receipt or watcher; explicit finalization completes it.
+Standalone `foreman` starts after completed setup and `foreman --attach` enters the existing
+session, without starting watching. See [onboarding](agent-onboarding.md) for ownership and delivery
+limits. Init does not create issue worktrees or clone repositories.
+
+Slice 1 originally stored model/effort in TOML and performed only repository/label setup, with no
+Forgetful access or agent launch. That scope explains the original component diagram and validation
+record below. [Agent definitions](agent-definitions.md) supersede its configuration and rerun
+behavior.
 
 ## Package layout
 
-The following shows initialization components; watcher additions are in the
+The following shows the original repository/label components. Watcher additions are in the
 [watcher ADR](issue-watcher.md).
 
 ```text
@@ -97,11 +112,23 @@ limitation rather than pretending every provider has GitHub's behaviour.
 
 ## Initialization and failure behaviour
 
-1. Load existing configuration, or gather repositories, labels, Foreman model, and effort.
-2. Validate the complete configuration, workspace, and every local repository's current origin.
-3. Check access and read every label page for all work sources before creating any labels.
-4. Create missing configured labels; leave existing labels unchanged.
-5. Atomically save new configuration without overwriting an existing file, and report the result.
+1. If configuration is already saved, ordinary init returns without changing any bytes. It makes
+   no backend/catalog calls, asks no setup questions, performs no sync/reconciliation and consumes
+   no optional launch answer. This also applies to repeated `init --assisted`.
+2. First setup gathers repositories, labels, native Forgetful settings and the configured team.
+   Check consent, local prerequisites, native model catalogs and configuration before saving.
+3. Check every repository origin and work source, then access and all label pages before creating
+   any labels. Provision the configured starter agents and select or create the Forgetful project.
+4. Ensure missing labels and atomically save new configuration without overwriting an existing file.
+5. Manual setup checks Forgetful project/planning access and records completion. Assisted setup
+   retains its Foreman for review and explicit `init --finalize`, with watching blocked until then.
+
+`init --finalize` completes or revalidates first setup using saved choices, without repeating the
+agent questionnaire or model catalogs. It can request consent if the saved Pi-home consent is
+absent. It checks the selected root/runtime, repository/label setup and Forgetful
+access before recording completion. With a live or uncertain owner it requires
+`--delegated-work-stopped`; that acknowledgement does not prove exit. Finalization preserves the
+existing Foreman and never clears lost-send uncertainty. It is not a settings synchronization tool.
 
 The CLI separates argument parsing and new-configuration prompts from its error boundary.
 The application separates complete preflight checks and individual label handling from the
@@ -109,27 +136,27 @@ initialization workflow; that workflow retains ordered progress reporting and fa
 
 Interactive discovery checks only the workspace and its direct children for their own `.git` marker,
 including worktree files. The user selects repositories and confirms their displayed origins.
-Explicit `--repo` arguments provide that confirmation for automation. Model and effort are nonblank
-text settings, not validated against a live agent/model provider. Settings must be valid Unicode
-without NUL characters, which filesystem and subprocess APIs cannot accept.
+Explicit `--repo` arguments provide that confirmation for automation. First-time model choices use
+native catalogs; listing does not establish provider access or inference. Settings must be valid
+Unicode without NUL characters, which filesystem and subprocess APIs cannot accept.
 
-On a rerun, load and revalidate existing settings without prompting or rewriting their bytes.
-Conflicting arguments, changed origins, mismatched work sources, and unsupported tracking providers
-fail before GitHub calls.
-Configuration changes require explicit edits to the TOML file. Multiple local copies of one remote
-retain distinct configuration entries; label setup runs once per distinct work source.
+Ordinary repeated init only reads saved configuration and preserves files. Later changes require
+explicit TOML or agent-file edits, followed by reload/restart as appropriate. Finalization checks
+conflicting repository/label arguments, changed origins, mismatched sources and unsupported tracking
+providers before GitHub writes. Multiple local copies of one remote retain distinct entries;
+label setup runs once per distinct work source when first setup or finalization performs it.
 
-A configured `*` means watch all issues in the watcher, not create a label named `*`. If mixed
-with concrete label names, those concrete labels are still ensured. Label names match
-case-insensitively, and duplicate CLI names retain their first spelling. GitHub calls explicitly
-target `github.com`, regardless of `GH_HOST`. Missing labels use color `ededed` and description
-`Factory work`; existing spelling, color, and description remain untouched.
-Initialization is safe to repeat. If an operation fails after some labels were created, report
-partial progress; do not delete labels as an automatic rollback. A rerun reuses existing labels.
-Do not report success when required access, label setup, or configuration storage failed.
-A timeout, interruption, or malformed response can leave the last remote operation uncertain;
-report that uncertainty and advise checking GitHub and configuration before retrying. External
-commands time out after 30 seconds.
+A configured `*` means watch all issues in the watcher, not create a label named `*`. If mixed with
+concrete label names, those concrete labels are still ensured. Label names match case-insensitively,
+and duplicate CLI names retain their first spelling. GitHub calls explicitly target `github.com`,
+regardless of `GH_HOST`. Missing labels use color `ededed` and description `Factory work`; existing
+spelling, color, and description remain untouched. Initialization is safe to repeat. If an operation
+fails after some labels were created, report partial progress; do not delete labels as an automatic
+rollback. An initial retry before configuration is saved, or explicit finalization afterward, reuses
+existing labels. Do not report success when required access, label setup, or configuration storage
+failed. A timeout, interruption, or malformed response can leave the last remote operation
+uncertain; report that uncertainty and advise checking GitHub and configuration before retrying.
+External commands time out after 30 seconds.
 
 ## Configuration and platform scope
 
@@ -138,18 +165,26 @@ Each entry contains `local_dir`, `remote`, `provider`, and `source`. The public 
 exposes these records as an ordered tuple named `repository`, not a dictionary keyed by local paths.
 Duplicate `local_dir` values are rejected; different local copies of one remote remain supported.
 Old `[repositories."path"]` tables are rejected before GitHub calls, including mixed-format files.
-To convert an existing config, replace each old table header with `[[repository]]` and keep its
-fields. Initialization does not automatically rewrite or migrate existing files.
-Code location and work tracking are separate. Top-level settings retain the names in
-[FACTORY.md](../../FACTORY.md):
-`watcher_label`, `foreman_agent_model`, and `foreman_agent_effort`.
-`forgetful_factory.configuration.load_configuration` is the public validated loader.
-Use `forgetful-factory init --help` for CLI flags. Example saved configuration:
+For that table format alone, the manual change is `[[repository]]` with the same fields; it does not
+convert older agent settings to normalized JSON. Initialization never migrates existing files. Code
+location and work tracking remain separate. TOML stores Factory settings only: repositories,
+`watcher_label`, `[forgetful]`, `execution_enabled` and `foreman_agent_file`. The root path is
+relative to the TOML directory or absolute. Models, efforts, harnesses and skill lists belong in
+each agent's JSON. `forgetful_factory.configuration.load_configuration` is the public validated
+loader. Use `forgetful-factory init --help` for CLI flags. A saved configuration has this shape;
+replace paths and project ID with the intended local values:
 
 ```toml
 watcher_label = ["factory"]
-foreman_agent_model = "openai-codex/gpt-6.1-sol"
-foreman_agent_effort = "max"
+foreman_agent_file = "agents/foreman/agent.json"
+execution_enabled = false
+
+[forgetful]
+method = "cli"
+instance = "local"
+executable = "forgetful"
+database = "/home/scott/projects/.factory/data/forgetful.db"
+project_id = 12
 
 [[repository]]
 local_dir = "/home/scott/projects/api"
@@ -158,13 +193,25 @@ provider = "github"
 source = "team/api"
 ```
 
+Each agent owns its name, description, type, model, effort, optional cwd and resources. Parent
+rosters contain only child-file references; starter names are not a runtime enumeration. See the
+[definition contract](agent-definitions.md) for lexical paths, one-hop loading and resume checks.
+Factory loads root settings at launch; roster reload cannot change those running root settings.
+
+Shared `.factory/pi-profile.json` records Pi-home consent; `.factory/setup-complete.json` records
+only `{"complete": true}`. `.factory/resources` contains audited shared resources, and native
+Forgetful commands use `.factory/cli-config` with per-command scope. Owner/control files remain
+under `.factory/runtime/foreman`. No model/resource fingerprint, runtime roster copy or skill
+registration sidecar is generated. There is no automatic migration of existing/DinoLand factories.
+
 The first implementation targets POSIX hosts, including WSL, not native Windows. Storage uses
 no-follow file opens and directory file descriptors to reject symlinked `.factory` directories and
 configuration files. New configuration is written to a temporary file and exposed through an
 atomic, non-overwriting hard link. Explicit repository paths must not contain symlink components.
-Initialization installs no global configuration, credentials, runtime agent state, or services.
-Watching creates AgentShell-owned temporary runtime files and Pi's normal session state; it does
-not install a service or configure role-specific agent directories.
+Initialization preserves native credentials and settings. Consented provisioning can install local
+runtimes and shared resources; assisted init also creates owner/control state. It installs no
+service. Watching creates AgentShell-owned runtime files and native Pi session state. See
+[profiles](agent-profiles.md) for consent, installation, resource policy and access boundaries.
 
 ## Consequences and validation
 
@@ -172,6 +219,6 @@ GitHub labels and local configuration cannot form one atomic transaction. Comple
 non-overwriting storage, and explicit partial-progress reporting reduce that risk without claiming
 rollback. POSIX filesystem safety is an intentional platform constraint.
 
-Public CLI and configuration-loader tests cover setup, reruns, malformed settings, and failures.
-Local build and installed-command evidence, plus remaining live-label validation, are recorded in
-the [slice 1 plan](../plans/slice-1.md), not in the architecture overview.
+The original public CLI and loader checks covered Slice 1 setup, reruns, malformed settings and
+failures. Local build and installed-command evidence, plus remaining live-label validation, are
+recorded in the [slice 1 plan](../plans/slice-1.md), not in the architecture overview.

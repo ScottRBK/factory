@@ -7,7 +7,7 @@ from test_watch import WatchFixture
 
 class PlanningWatchFixture(WatchFixture):
     def planning_call(self, tool, **arguments):
-        role = self.workspace / '.factory/agents/foreman'
+        role = self.workspace / '.factory'
         result = subprocess.run(
             [str(self.bin / 'forgetful'), 'call', tool, '--args', json.dumps(arguments),
              '--json', '--server', 'https://memory.example/custom-endpoint'],
@@ -137,18 +137,23 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertIn('mapping', stderr)
         self.assertEqual(self._messages(), [])
 
-    def test_changed_owner_selector_requires_setup_before_launch(self):
+    def test_changed_child_selector_needs_no_factory_reconciliation_before_root_launch(self):
         # Arrange
-        path = self.workspace / '.factory/factory.toml'
-        path.write_text(path.read_text().replace('feature_owner_agent_effort = "high"',
-                                                 'feature_owner_agent_effort = "low"'))
+        child = self.workspace / '.factory/agents/feature-owner/agent.json'
+        document = json.loads(child.read_text())
+        document['agent']['effort'] = 'low'
+        child.write_text(json.dumps(document))
+        before = child.read_bytes()
         # Act
-        process = self.start('--existing')
-        _, stderr = process.communicate(timeout=5)
-        # Assert
-        self.assertNotEqual(process.returncode, 0)
-        self.assertIn('rerun init', stderr)
-        self.assertEqual(self.events(), [])
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
+        code, _, errors = self.stop(process)
+        # Assert: the extension owns reading child settings at future dispatch/reload.
+        self.assertEqual(code, 130, errors)
+        self.assertEqual(child.read_bytes(), before)
+        launch, = [e for e in self.events() if e['kind'] == 'launch']
+        self.assertEqual(launch['roster'],
+                         str(self.workspace / '.factory/agents/foreman/agent.json'))
 
     def test_foreman_launches_from_native_role_directory_with_selected_child_roster(self):
         # Arrange
@@ -161,11 +166,11 @@ class PlanningWatchTests(PlanningWatchFixture):
         # Assert
         launch = next(e for e in self.events() if e['kind'] == 'launch')
         self.assertEqual(launch['cwd'], str(role))
-        self.assertEqual(launch['roster'], str(role / 'roster.json'))
+        self.assertEqual(launch['roster'], str(role / 'agent.json'))
         self.assertIsNone(launch['prompt'])
         self.assertEqual(launch['project'], '12')
-        self.assertEqual(launch['forgetful_dir'], str(role))
-        self.assertEqual(launch['forgetful_config'], str(role / 'cli-config'))
+        self.assertEqual(launch['forgetful_dir'], str(self.workspace / '.factory'))
+        self.assertEqual(launch['forgetful_config'], str(self.workspace / '.factory/cli-config'))
         self.assertEqual((role / 'APPEND_SYSTEM.md').read_text(),
                          'Preserve my additional guidance.')
 

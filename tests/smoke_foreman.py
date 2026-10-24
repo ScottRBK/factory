@@ -1,10 +1,10 @@
 """Opt-in public init/watch smoke with installed Pi 1.3 and AgentShell 0.5; no inference.
 
-Requires existing Pi, tmux, Forgetful, uv 0.13.1, uv dependencies and FastEmbed model cache:
+Requires existing Pi, tmux, Forgetful, uv 0.13.5, uv dependencies and FastEmbed model cache:
   PYTHONPATH=src .venv/bin/python tests/smoke_foreman.py --uv /path/to/audited/uv
     --forgetful /path/to/forgetful --model-cache /path/to/existing/fastembed/cache
 The reviewed bundled 0.5 worker lock is installed offline into a disposable role venv.
-Only the temporary resources.json selects the TEST-ONLY input interceptor. Normal launch
+Only the temporary agent.json selects the TEST-ONLY input interceptor. Normal launch
 instructions load from the native role cwd. Synthetic model credentials target a loopback recorder;
 every input is handled before inference and the recorder must receive ZERO requests.
 Evidence and all settings stay under /tmp. An isolated tmux socket avoids existing user sessions.
@@ -33,8 +33,8 @@ from test_watch import GH as WATCH_GH
 from forgetful_factory.configuration import load_configuration
 
 MODEL = 'factory-smoke/no-inference'
-ROLE_EXTENSIONS = ['resources/agentshell/extensions/agentshell.ts',
-                   'resources/hide-tools/index.ts']
+ROLE_EXTENSIONS = ['../../resources/agentshell/extensions/agentshell.ts',
+                   '../../resources/hide-tools/index.ts']
 # Test instrumentation only: never copied into production resources or selected automatically.
 PROBE = r'''import fs from "node:fs";
 export default function(pi) {
@@ -179,7 +179,7 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
     role.mkdir(parents=True)
     database = repo / '.factory/data/forgetful.db'
     database.parent.mkdir()
-    native_env = dict(env, XDG_CONFIG_HOME=str(role / 'cli-config'), DATABASE='SQLite',
+    native_env = dict(env, XDG_CONFIG_HOME=str(repo / '.factory/cli-config'), DATABASE='SQLite',
                       SQLITE_PATH=str(database), SQLITE_MEMORY='false', PLANNING_ENABLED='true')
     project_command = [executable, 'call', 'create_project', '--args', json.dumps({
         'name': 'Disposable Factory smoke', 'description': 'Offline public init/watch validation',
@@ -197,9 +197,9 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
         versions[name] = subprocess.check_output(args, env=env, cwd=repo, text=True).strip()
     write_json(evidence / 'versions.json', versions)
     if (versions['agentshell'] != '0.5.0' or versions['pi'] != '1.3.0'
-            or not versions['uv'].startswith('uv 0.13.1 ')
+            or not versions['uv'].startswith('uv 0.13.5 ')
             or not re.search(r'\b0\.5\.5\b', versions['forgetful'])):
-        raise AssertionError('Expected Pi 1.3.0, AgentShell 0.5.0, Forgetful 0.5.5 and uv 0.13.1')
+        raise AssertionError('Expected Pi 1.3.0, AgentShell 0.5.0, Forgetful 0.5.5 and uv 0.13.5')
     init_command = [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
          '--workspace', str(repo),
          '--repo', str(repo), '--label', 'factory', '--foreman-model', MODEL,
@@ -216,17 +216,19 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
     if 'Forgetful: connected' not in result.stdout or MODEL not in result.stdout:
         raise AssertionError('Native model listing or local CLI initialization check failed')
     config = load_configuration(repo)
-    if config.forgetful.method != 'cli' or config.foreman_agent_model != MODEL:
+    definition = Path(config.foreman_agent_file)
+    document = json.loads(definition.read_text())
+    if config.forgetful.method != 'cli' or document['agent']['model'] != MODEL:
         raise AssertionError('Public configuration did not retain CLI/model selection')
     role = repo / '.factory/agents/foreman'
-    resources = json.loads((role / 'resources.json').read_text())
-    if resources != {'extensions': ROLE_EXTENSIONS,
-                     'skills': ['skills/foreman', 'skills/factory-maintenance']}:
+    resources = document['agent']['resources']
+    if (resources['extensions'] != ROLE_EXTENSIONS
+            or resources['skills'] != ['./skills']):
         raise AssertionError('Unexpected generated role resources')
     if (role / 'resources/factory-status.ts').exists():
         raise AssertionError('A production Factory status extension was generated')
     # Check installed runtime and unmodified reviewed inputs, without inventing setup receipts.
-    worker = role / 'resources/agentshell/python'
+    worker = repo / '.factory/resources/agentshell/python'
     versions['worker_agentshell'] = subprocess.check_output(
         [str(worker / '.venv/bin/python'), '-I', '-B', '-c',
          'import importlib.metadata; print(importlib.metadata.version("agent-shell-py"))'],
@@ -258,7 +260,7 @@ def prepare(evidence: Path, executable: str, model_cache: Path, uv: str,
 
 
 def add_test_resources(evidence: Path, repo: Path, resources: dict) -> None:
-    """Select test instrumentation before honest public re-init binds the receipt."""
+    """Select test instrumentation directly in the root definition; init does not reconcile it."""
     (repo / 'AGENTS.md').write_text('REPOSITORY_INSTRUCTION_SENTINEL\n')
     selected = repo / '.pi/skills/selected-probe'
     skill(selected, 'selected-probe', 'EXPLICIT_REPOSITORY_SKILL_SENTINEL')
@@ -267,7 +269,10 @@ def add_test_resources(evidence: Path, repo: Path, resources: dict) -> None:
     probe.write_text(PROBE)
     resources['skills'].append(str(selected))
     resources['extensions'].append(str(probe))
-    write_json(role / 'resources.json', resources)
+    definition = role / 'agent.json'
+    document = json.loads(definition.read_text())
+    document['agent']['resources'] = resources
+    write_json(definition, document)
 
 
 def add_excluded_resources(evidence: Path, repo: Path, pi_home: Path) -> None:
@@ -307,7 +312,7 @@ def check_scaffold(evidence: Path, repo: Path, env: dict, message: dict) -> None
     """Observe durable records through the real public CLI after native input interception."""
     config = load_configuration(repo)
     role = repo / '.factory/agents/foreman'
-    native_env = dict(env, XDG_CONFIG_HOME=str(role / 'cli-config'), DATABASE='SQLite',
+    native_env = dict(env, XDG_CONFIG_HOME=str(repo / '.factory/cli-config'), DATABASE='SQLite',
                       SQLITE_PATH=config.forgetful.database, SQLITE_MEMORY='false',
                       PLANNING_ENABLED='true')
     records = {}
@@ -375,8 +380,8 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
         raise AssertionError('Excluded automatic skill/extension/MCP loaded')
     role = repo / '.factory/agents/foreman'
     command_paths = {entry['name']: entry['sourceInfo']['path'] for entry in data['commands']}
-    expected = {'agentshell-jobs': role / ROLE_EXTENSIONS[0],
-                'hide-tools': role / ROLE_EXTENSIONS[1],
+    expected = {'agentshell-jobs': (role / ROLE_EXTENSIONS[0]).resolve(),
+                'hide-tools': (role / ROLE_EXTENSIONS[1]).resolve(),
                 'skill:foreman': role / 'skills/foreman/SKILL.md',
                 'skill:factory-maintenance': role / 'skills/factory-maintenance/SKILL.md',
                 'skill:selected-probe': repo / '.pi/skills/selected-probe/SKILL.md'}
@@ -386,7 +391,7 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
         raise AssertionError('Public watcher launch did not apply native resource exclusions')
     if data['argv'][data['argv'].index('--system-prompt') + 1] != '':
         raise AssertionError('Personal SYSTEM.md discovery was not disabled')
-    if (data['role'] != str(role) or data['home'] != env['PI_CODING_AGENT_DIR']
+    if (data['role'] != str(repo / '.factory') or data['home'] != env['PI_CODING_AGENT_DIR']
             or data['role'] == data['home'] or data['cwd'] != str(role) or data['xdg'] is not None):
         raise AssertionError('Role cwd/XDG configuration was conflated with the shared Pi home')
     if data['model'] != {'provider': 'factory-smoke', 'id': 'no-inference'}:
@@ -400,10 +405,15 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
         raise AssertionError('Native role CLI did not share the provisioned project')
     if '# Factory Foreman' not in data['prompt']:
         raise AssertionError('Native Foreman AGENTS.md was not loaded')
-    if data['rosterFile'] != str(role / 'roster.json'):
+    if data['rosterFile'] != str(role / 'agent.json'):
         raise AssertionError('Native child roster selector was not forwarded')
-    owner, = data['roster']['roster']['roles']
-    if owner['name'] != 'feature-owner' or owner['cwd'] != str(role.parent / 'feature-owner'):
+    reference, = data['roster']['roster']['roles']
+    if reference != {'agent_file': '../feature-owner/agent.json'}:
+        raise AssertionError('Unexpected normalized owner reference')
+    owner_file = role / reference['agent_file']
+    owner_document = json.loads(owner_file.read_text())
+    owner = owner_document['agent']
+    if owner['name'] != 'feature-owner' or owner['cwd'] != '.':
         raise AssertionError('Foreman did not select the owner role directory')
     resources = owner['resources']
     for flag in ('inherit_personal_resources', 'inherit_project_resources',
@@ -413,10 +423,14 @@ def check_probe(data: dict, evidence: Path, repo: Path, env: dict) -> None:
     if (not resources['include_instruction_files']
             or any(resources[key] for key in ('packages', 'plugins', 'mcp_servers'))):
         raise AssertionError('Owner selected unexpected resources')
-    child, = json.loads(Path(owner['roster_file']).read_text())['roster']['roles']
+    reference, = owner_document['roster']['roles']
+    if reference != {'agent_file': '../research/agent.json'}:
+        raise AssertionError('Unexpected normalized research reference')
+    child_document = json.loads((owner_file.parent / reference['agent_file']).read_text())
+    child = child_document['agent']
     if child['name'] != 'research' or child['resources']['extensions']:
         raise AssertionError('Owner did not select a research-only leaf')
-    if json.loads(Path(child['roster_file']).read_text()) != {'roster': {'enabled': False}}:
+    if child_document['roster'] != {'enabled': False, 'roles': []}:
         raise AssertionError('Research leaf roster permits delegation')
 
 
@@ -509,7 +523,7 @@ def main() -> None:
     parser.add_argument('--forgetful', required=True, help='Existing real Forgetful executable')
     parser.add_argument('--model-cache', required=True, type=Path,
                         help='Existing FastEmbed cache; downloads are disabled')
-    parser.add_argument('--uv', required=True, help='Existing audited uv 0.13.1 executable')
+    parser.add_argument('--uv', required=True, help='Existing audited uv 0.13.5 executable')
     parser.add_argument('--uv-cache', type=Path,
                         help='Existing dependency cache (default: uv cache)')
     parser.add_argument('--method', choices=('cli',), default='cli',

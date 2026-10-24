@@ -22,7 +22,7 @@ globalThis.fetch = async () => { throw new Error("Network forbidden in resource 
 const {DefaultResourceLoader, SettingsManager} = await import(
     pathToFileURL(process.env.NATIVE_PI_SDK).href);
 const cwd = process.env.PROBE_ROLE;
-const selection = JSON.parse(fs.readFileSync(path.join(cwd, "resources.json"), "utf8"));
+const selection = JSON.parse(fs.readFileSync(path.join(cwd, "agent.json"), "utf8")).agent.resources;
 const resolve = p => path.resolve(cwd, p);
 const loader = new DefaultResourceLoader({
     cwd, agentDir: process.env.PI_CODING_AGENT_DIR,
@@ -50,7 +50,7 @@ console.log(JSON.stringify({
 
 @unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native loading')
 class NativeRoleTests(InitFixture):
-    def test_native_pi_loads_registered_local_skill_without_inference(self):
+    def test_native_pi_discovers_added_local_skill_without_init_or_inference(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
@@ -60,16 +60,15 @@ class NativeRoleTests(InitFixture):
         skill.parent.mkdir()
         skill.write_text('---\nname: team-context\ndescription: >-\n'
                          '  Gather our team context.\n---\nPreserve this guidance.\n')
-        refreshed = self.run_cli(repo)
-        self.assertEqual(refreshed.returncode, 0, refreshed.stderr)
         env = {'PATH': os.environ['PATH'], 'HOME': str(self.workspace), 'PI_OFFLINE': '1',
                'PI_CODING_AGENT_DIR': str(self.workspace / 'native pi'),
-               'PROBE_ROLE': str(role), 'PI_AGENTSHELL_ROSTER_FILE': str(role / 'roster.json'),
+               'PROBE_ROLE': str(role), 'PI_AGENTSHELL_ROSTER_FILE': str(role / 'agent.json'),
                'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve())}
 
         # Act
-        result = subprocess.run(['node', '--input-type=module', '-e', PROBE], cwd=role,
-                                env=env, capture_output=True, text=True, timeout=30, check=True)
+        result = subprocess.run(
+            [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', PROBE],
+            cwd=role, env=env, capture_output=True, text=True, timeout=30, check=True)
 
         # Assert
         skills = json.loads(result.stdout)['skills']
@@ -97,12 +96,12 @@ class NativeRoleTests(InitFixture):
                 # It does not claim to exercise or bypass native child ancestry enforcement.
                 env = {'PATH': os.environ['PATH'], 'HOME': str(self.workspace), 'PI_OFFLINE': '1',
                        'PI_CODING_AGENT_DIR': str(home), 'PROBE_ROLE': str(directory),
-                       'PI_AGENTSHELL_ROSTER_FILE': str(directory / 'roster.json'),
+                       'PI_AGENTSHELL_ROSTER_FILE': str(directory / 'agent.json'),
                        'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve())}
                 # Act
-                result = subprocess.run(['node', '--input-type=module', '-e', PROBE],
-                                        cwd=directory, env=env, capture_output=True, text=True,
-                                        timeout=30, check=True)
+                result = subprocess.run(
+                    [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', PROBE],
+                    cwd=directory, env=env, capture_output=True, text=True, timeout=30, check=True)
                 observation = json.loads(result.stdout)
                 # Assert
                 self.assertIn(str(directory / 'AGENTS.md'), observation['agents'])
@@ -128,7 +127,7 @@ class NativeRoleTests(InitFixture):
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        worker = repo / '.factory/agents/foreman/resources/agentshell/python/worker.py'
+        worker = repo / '.factory/resources/agentshell/python/worker.py'
         # Act
         result = subprocess.run([sys.executable, '-I', str(worker)],
                                 input='{"operation":"list_agent_types"}\n',

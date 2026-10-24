@@ -23,7 +23,7 @@ class WatchFactory:
                'needed. Browser OAuth may open; Ctrl-C cancels and preserves saved work.')
         self.scaffold.check()
         existing = choose_existing()
-        report(f'Watcher owns Pi and closes it on stop. {self.terminal.startup_hint()}')
+        report(self.terminal.startup_hint())
         self._watch(config, workspace, interval, existing, report, report_error)
 
     def _watch(self, config: FactoryConfiguration, workspace: Path, interval: float,
@@ -36,10 +36,9 @@ class WatchFactory:
         seen: dict[str, str] = {}
         baselined: set[WorkSource] = set()
         try:
-            self.terminal.start(str(workspace), config.foreman_agent_model,
-                                config.foreman_agent_effort)
+            self.terminal.start()
             report('Foreman session ready; model access unverified. '
-                   'Native role instructions loaded from the launch directory. '
+                   'Resource loading unverified. '
                    'Forgetful planning access checked; submission is not agent receipt.')
             self._notify_issues(tuple(self.scaffold.unfinished()), seen, report, recovered=True)
             while True:

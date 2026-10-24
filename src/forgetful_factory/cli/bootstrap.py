@@ -1,3 +1,5 @@
+import shlex
+import sys
 from pathlib import Path
 
 from forgetful_factory.adapters.agentshell.terminal import AgentShellTerminal
@@ -21,7 +23,8 @@ def build_initialiser(workspace: Path) -> InitialiseFactory:
                              GitRepositories(), github, ForemanProfile(workspace))
 
 
-def build_watcher(python: str, config: FactoryConfiguration, workspace: Path) -> WatchFactory:
+def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
+                  terminal=None) -> WatchFactory:
     github = GitHubWorkTracking()
     for repository in config.repository:
         source = repository.work_source
@@ -37,16 +40,23 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path) ->
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; run init in a fresh factory. '
                            'Migration of old testing factories is not supported.')
-    profile = ForemanProfile(workspace)
-    profile.validate_guidance()
-    profile.launch_resources()
-    profile.validate_completion(config)
-    profile.validate_setup(config.forgetful)
-    environment = role_environment(workspace, config.forgetful, profile.pi_home())
-    environment['PI_AGENTSHELL_ROSTER_FILE'] = str(profile.directory / 'roster.json')
-    return WatchFactory(github, AgentShellTerminal(python, environment, profile.launch_resources(),
-                                                  cwd=str(profile.directory)),
+    profile, environment, launch = prepare_foreman_launch(config, workspace)
+    return WatchFactory(github, terminal or AgentShellTerminal(python, environment, **launch),
                         ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,
                             execution_enabled=config.execution_enabled),
                                       GitWorktrees(), workspace, config))
+
+
+def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True):
+    profile = ForemanProfile(workspace)
+    if config.forgetful is None:
+        raise FactoryError('Shared Forgetful settings are missing; complete first setup.')
+    if complete:
+        profile.validate_completion(config)
+    launch = profile.selected_launch(config)
+    environment = role_environment(workspace, config.forgetful, profile.pi_home())
+    environment['FACTORY_COMMAND'] = shlex.join([sys.executable, '-m', 'forgetful_factory'])
+    environment['FACTORY_WORKSPACE'] = str(workspace)
+    environment['PI_AGENTSHELL_ROSTER_FILE'] = config.foreman_agent_file
+    return profile, environment, launch

@@ -147,8 +147,9 @@ class InitTests(InitFixture):
         self.assertEqual(result.returncode, 0, result.stderr)
         config = load_configuration(repo)
         self.assertEqual(config.watcher_label, ('factory',))
-        self.assertEqual(config.foreman_agent_model, 'provider/model')
-        self.assertEqual(config.foreman_agent_effort, 'high')
+        agent = json.loads(Path(config.foreman_agent_file).read_text())['agent']
+        self.assertEqual(agent['model'], 'provider/model')
+        self.assertEqual(agent['effort'], 'high')
         saved = tomllib.loads((repo / '.factory' / 'factory.toml').read_text())
         self.assertEqual(saved['repository'], [{
             'local_dir': str(repo), 'remote': 'git@github.com:team/app.git',
@@ -274,7 +275,7 @@ foreman_agent_effort = "high"
         self.assertEqual(load_configuration(repo).watcher_label, ('*', 'factory'))
         self.assertIn('Wildcard', result.stdout)
 
-    def test_repeat_loads_existing_bytes_and_conflicting_flags_fail_before_github(self):
+    def test_repeat_preserves_existing_bytes_and_ignores_new_choices_without_github(self):
         # Arrange
         repo = self.repo()
         initial = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
@@ -288,7 +289,7 @@ foreman_agent_effort = "high"
         self.assertEqual(repeated.returncode, 0, repeated.stderr)
         self.assertEqual(config_path.read_bytes(), original)
         self.assertEqual(json.loads(self.state.read_text())['created'], [['team/app', 'factory']])
-        self.assertIn('Reused', repeated.stdout)
+        self.assertIn('already initialized', repeated.stdout)
         for flags in (('--label', 'other'), ('--foreman-model', 'other/model'),
                       ('--foreman-effort', 'max'), ('--repo', str(self.workspace))):
             with self.subTest(flags=flags):
@@ -297,12 +298,12 @@ foreman_agent_effort = "high"
                 # Act
                 conflict = self.run_cli(repo, *flags)
                 # Assert
-                self.assertNotEqual(conflict.returncode, 0)
-                self.assertIn('edit', conflict.stderr.lower())
+                self.assertEqual(conflict.returncode, 0, conflict.stderr)
+                self.assertIn('Edit', conflict.stdout)
                 self.assertEqual(self.state.read_bytes(), before)
                 self.assertEqual(config_path.read_bytes(), original)
 
-    def test_existing_config_revalidates_current_origins_and_invalid_settings(self):
+    def test_finalize_validates_origins_and_invalid_settings_without_rewriting(self):
         # Arrange
         repo = self.repo()
         initial = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
@@ -330,7 +331,7 @@ foreman_agent_effort = "high"
                 self.git(repo, 'remote', 'set-url', 'origin', remote)
                 before = self.state.read_bytes()
                 # Act
-                result = self.run_cli(repo)
+                result = self.run_cli(repo, '--finalize')
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
@@ -467,7 +468,7 @@ foreman_agent_effort = "high"
             with self.subTest(kind=kind):
                 repo = self.repo(kind)
                 path = repo / '.factory' / 'factory.toml'
-                contents = VALID.replace('provider/model', 'other/model')
+                contents = VALID.replace('agents/foreman/agent.json', 'another/root.json')
                 contents = contents.replace('/existing/repo', str(repo))
                 state = ({'concurrent_config': {'path': str(path), 'content': contents}}
                          if kind == 'config' else
@@ -482,9 +483,10 @@ foreman_agent_effort = "high"
                 self.assertIn('Saving', result.stderr)
                 if kind == 'config':
                     self.assertEqual(path.read_text(), contents)
-                    self.assertEqual(load_configuration(repo).foreman_agent_model, 'other/model')
+                    self.assertEqual(load_configuration(repo).foreman_agent_file,
+                                     str(repo / '.factory/another/root.json'))
                     self.assertEqual(list(path.parent.glob('.factory-*.tmp')), [])
-                    self.assertFalse((path.parent / 'agents/foreman/model-selection.json').exists())
+                    self.assertFalse((path.parent / 'setup-complete.json').exists())
                 else:
                     self.assertEqual(list(outside.iterdir()), [])
 
@@ -521,9 +523,10 @@ foreman_agent_effort = "high"
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         config = load_configuration(workspace)
-        self.assertEqual(config.foreman_agent_model, model)
+        agent = json.loads(Path(config.foreman_agent_file).read_text())['agent']
+        self.assertEqual(agent['model'], model)
         self.assertEqual(config.watcher_label, (label,))
-        self.assertEqual(config.foreman_agent_effort, 'xhigh')
+        self.assertEqual(agent['effort'], 'xhigh')
         self.assertEqual(next(iter(config.repository)).local_dir, str(repo))
         self.assertFalse((repo / '.factory').exists())
 

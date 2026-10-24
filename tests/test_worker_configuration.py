@@ -8,37 +8,25 @@ from forgetful_factory.domain.models import FactoryError
 
 
 class WorkerConfigurationTests(InitFixture):
-    def test_explicit_worker_configuration_roundtrips_without_changing_legacy_mode(self):
-        # Arrange: an existing planning-only factory can be edited explicitly.
+    def agent(self, repo, role):
+        return json.loads((repo / f'.factory/agents/{role}/agent.json').read_text())['agent']
+
+    def test_worker_settings_belong_only_to_selected_definitions(self):
+        # Arrange / Act
+        from worker_support import worker_settings
         repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        path = repo / '.factory/factory.toml'
-        original = path.read_text()
-        tdd = self.workspace / 'tdd.md'
-        tdd.write_text('Use sequential red-green-refactor.\n')
-        fields = {
-            'implementation_agent_model': 'gpt-5.4',
-            'implementation_agent_harness': 'codex',
-            'implementation_agent_effort': 'xhigh',
-            'review_agent_model': 'opus',
-            'review_agent_harness': 'claude_code',
-            'review_agent_effort': 'high',
-            'tdd_skill': str(tdd),
-            'implementation_skills': [str(self.grill_skill)],
-            'review_skills': [],
-        }
-        # Act
-        legacy = load_configuration(repo)
-        path.write_text(''.join(f'{k} = {json.dumps(v)}\n' for k, v in fields.items()) + original)
-        configured = load_configuration(repo)
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
         # Assert
-        self.assertIsNone(legacy.implementation_agent_model)
-        for key, value in fields.items():
-            self.assertEqual(getattr(configured, key), tuple(value) if isinstance(value, list)
-                             else value)
-        self.assertEqual(path.read_text().split('watcher_label')[1],
-                         original.split('watcher_label')[1])
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        config = load_configuration(repo)
+        self.assertEqual(set(vars(config)), {'watcher_label', 'foreman_agent_file', 'repository',
+                                            'forgetful', 'execution_enabled'})
+        implementation = self.agent(repo, 'implementation')
+        self.assertEqual(implementation['model'], 'gpt-5.4')
+        self.assertEqual(implementation['agent_type'], 'codex')
+        self.assertEqual(implementation['effort'], 'xhigh')
+        self.assertIn(str(self.workspace / 'tdd/SKILL.md'),
+                      implementation['resources']['skills'])
 
     def test_partial_or_malformed_worker_settings_fail_in_public_loader(self):
         # Arrange
@@ -48,16 +36,18 @@ class WorkerConfigurationTests(InitFixture):
         path = repo / '.factory/factory.toml'
         original = path.read_text()
         for fields in ('implementation_agent_model = "gpt-5.4"\n',
+                       'tdd_skill = "/existing/skill.md"\n',
+                       'tdd_skill = ""\n',
                        'review_skills = ["/existing/skill.md"]\n',
                        'implementation_skills = "not-a-list"\n',
                        'review_skills = 7\n'):
             with self.subTest(fields=fields):
                 path.write_text(fields + original)
                 # Act / Assert
-                with self.assertRaisesRegex(FactoryError, 'worker|skills'):
+                with self.assertRaisesRegex(FactoryError, 'Unknown Factory settings'):
                     load_configuration(repo)
 
-    def test_init_saves_explicit_workers_and_existing_config_rejects_conflicting_flags(self):
+    def test_init_saves_explicit_workers_and_repeated_init_preserves_them(self):
         # Arrange
         repo = self.repo()
         tdd = self.workspace / 'tdd.md'
@@ -72,20 +62,46 @@ class WorkerConfigurationTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = load_configuration(repo)
-        self.assertEqual(config.implementation_agent_harness, 'codex')
-        self.assertEqual(config.review_agent_model, 'opus')
-        self.assertEqual(config.tdd_skill, str(tdd))
-        self.assertEqual(config.implementation_skills, (str(self.grill_skill),))
+
+        self.assertEqual(self.agent(repo, 'implementation')['agent_type'], 'codex')
+        self.assertEqual(self.agent(repo, 'review')['model'], 'opus')
+        self.assertIn(str(tdd), self.agent(repo, 'implementation')['resources']['skills'])
+        self.assertIn(str(self.grill_skill),
+                      self.agent(repo, 'implementation')['resources']['skills'])
         path = repo / '.factory/factory.toml'
         before = path.read_bytes()
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         completion = receipt.read_bytes()
         conflict = self.run_cli(repo, '--review-model', 'sonnet')
-        self.assertNotEqual(conflict.returncode, 0)
-        self.assertIn('conflict', conflict.stderr)
+        self.assertEqual(conflict.returncode, 0, conflict.stderr)
         self.assertEqual(path.read_bytes(), before)
         self.assertEqual(receipt.read_bytes(), completion)
+
+    def test_worker_flags_need_no_skills_but_explicit_tdd_values_are_still_validated(self):
+        # Arrange: only the six worker app/model/effort flags are supplied.
+        from worker_support import worker_settings
+        repo = self.repo()
+        settings = worker_settings(self)[:12]
+        # Act
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
+        # Assert
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        config = load_configuration(repo)
+        self.assertTrue(config.execution_enabled)
+        self.assertEqual(self.agent(repo, 'implementation')['resources']['skills'], ['./skills'])
+        path = repo / '.factory/factory.toml'
+        original = path.read_text()
+        for value in ('', ' ', 42, False, [], '\x00'):
+            with self.subTest(value=value):
+                path.write_text(f'tdd_skill = {json.dumps(value)}\n' + original)
+                with self.assertRaisesRegex(FactoryError, 'Unknown Factory settings|Invalid TOML'):
+                    load_configuration(repo)
+        path.write_text(original)
+        # Act / Assert: re-init preserves an already valid worker setup with no custom skills.
+        before = path.read_bytes()
+        retry = self.run_cli(repo, worker_defaults=False)
+        self.assertEqual(retry.returncode, 0, retry.stderr)
+        self.assertEqual(path.read_bytes(), before)
 
     def test_new_onboarding_requires_a_worker_choice_without_silent_defaults(self):
         # Arrange
@@ -94,14 +110,20 @@ class WorkerConfigurationTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False)
         # Assert
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('worker', result.stdout.lower())
+        self.assertIn('How would you like to set up your factory?', result.stdout)
+        self.assertIn('Select 1 or 2:', result.stdout)
         self.assertIn('--planning-only', result.stderr)
         self.assertFalse((repo / '.factory/factory.toml').exists())
         # Act: choose planning only explicitly.
         selected = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
-                                input='p\n', worker_defaults=False)
+                                '--planning-only', worker_defaults=False)
         self.assertEqual(selected.returncode, 0, selected.stderr)
         self.assertFalse(load_configuration(repo).execution_enabled)
+        for role in ('foreman', 'feature-owner', 'research'):
+            self.assertIn(str(repo / '.factory/agents' / role / 'skills'), selected.stdout)
+        for role in ('implementation', 'review'):
+            self.assertNotIn(str(repo / '.factory/agents' / role / 'skills'), selected.stdout)
+        self.assertIn('Agent settings live in agent.json', selected.stdout)
 
     def test_harness_model_and_effort_validation_rejects_invalid_native_choices(self):
         # Arrange
@@ -138,9 +160,9 @@ class WorkerConfigurationTests(InitFixture):
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
                 # Assert
                 self.assertEqual(result.returncode, 0, result.stderr)
-                config = load_configuration(repo)
-                self.assertEqual(config.implementation_agent_effort, effort)
-                self.assertEqual(config.review_agent_effort, 'max')
+
+                self.assertEqual(self.agent(repo, 'implementation')['effort'], effort)
+                self.assertEqual(self.agent(repo, 'review')['effort'], 'max')
                 self.assertIn('model-specific effort support', result.stdout)
                 self.assertIn('does not verify model access', result.stdout)
 
@@ -149,21 +171,19 @@ class WorkerConfigurationTests(InitFixture):
         from worker_support import worker_settings
         repo = self.repo()
         worker_settings(self)
-        answers = ('w\n2\n1\n6\n3\n1\n3\n'
-                   + str(self.workspace / 'tdd/SKILL.md') + '\n'
-                   + str(self.workspace / 'standards/SKILL.md') + '\n\n')
+        answers = '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
-        config = load_configuration(repo)
-        self.assertEqual(config.implementation_agent_harness, 'codex')
-        self.assertEqual(config.review_agent_harness, 'claude_code')
-        self.assertEqual(config.implementation_agent_model, 'gpt-5.4')
-        self.assertEqual(config.review_agent_model, 'opus')
-        self.assertEqual(config.implementation_agent_effort, 'xhigh')
-        self.assertEqual(config.review_agent_effort, 'high')
+
+        self.assertEqual(self.agent(repo, 'implementation')['agent_type'], 'codex')
+        self.assertEqual(self.agent(repo, 'review')['agent_type'], 'claude_code')
+        self.assertEqual(self.agent(repo, 'implementation')['model'], 'gpt-5.4')
+        self.assertEqual(self.agent(repo, 'review')['model'], 'opus')
+        self.assertEqual(self.agent(repo, 'implementation')['effort'], 'xhigh')
+        self.assertEqual(self.agent(repo, 'review')['effort'], 'high')
         self.assertIn('Implementation app choices:\n  1. pi\n  2. codex\n  3. claude_code',
                       result.stdout)
         self.assertIn('Select Implementation app number:', result.stdout)
@@ -181,19 +201,20 @@ class WorkerConfigurationTests(InitFixture):
         self.assertIn('Review effort choices:\n  1. low\n  2. medium\n  3. high\n'
                       '  4. xhigh\n  5. max', result.stdout)
         self.assertIn('Select Review effort number:', result.stdout)
-        self.assertEqual(config.review_skills, ())
+        self.assertEqual(self.agent(repo, 'review')['resources']['skills'], ['./skills'])
 
     def test_invalid_worker_numbers_stop_before_config_or_label_changes(self):
         # Arrange: exact former text answers now require their displayed menu number.
         from worker_support import worker_settings
         worker_settings(self)
         prompts = (
-            ('Implementation app', 'w\n', '4', 'codex'),
-            ('Implementation model', 'w\n2\n', '2', 'gpt-5.4'),
-            ('Implementation effort', 'w\n2\n1\n', '10', 'xhigh'),
-            ('Review app', 'w\n2\n1\n6\n', '4', 'claude_code'),
-            ('Review model', 'w\n2\n1\n6\n3\n', '2', 'opus'),
-            ('Review effort', 'w\n2\n1\n6\n3\n1\n', '6', 'high'),
+            ('Setup', '', '3', 'Manual'),
+            ('Implementation app', '1\n1\n5\n1\n5\n', '4', 'codex'),
+            ('Implementation model', '1\n1\n5\n1\n5\n2\n', '2', 'gpt-5.4'),
+            ('Implementation effort', '1\n1\n5\n1\n5\n2\n1\n', '10', 'xhigh'),
+            ('Review app', '1\n1\n5\n1\n5\n2\n1\n6\n', '4', 'claude_code'),
+            ('Review model', '1\n1\n5\n1\n5\n2\n1\n6\n3\n', '2', 'opus'),
+            ('Review effort', '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n', '6', 'high'),
         )
         for prompt_index, (label, prefix, upper, old_name) in enumerate(prompts):
             for answer_index, answer in enumerate(('', 'not-a-number', '0', '-1', upper, old_name)):
@@ -209,7 +230,7 @@ class WorkerConfigurationTests(InitFixture):
                     self.assertIn('select a number from 1 to', result.stderr)
                     self.assertNotIn('Traceback', result.stderr)
                     self.assertFalse((repo / '.factory/factory.toml').exists())
-                    receipt = repo / '.factory/agents/foreman/model-selection.json'
+                    receipt = repo / '.factory/setup-complete.json'
                     self.assertFalse(receipt.exists())
                     self.assertEqual(json.loads(self.state.read_text()), {})
 
@@ -222,8 +243,7 @@ class WorkerConfigurationTests(InitFixture):
             'provider  model  context  max-out  thinking  images\n'
             'z-provider  special/model  128000  8192  yes  yes\n'
             'provider  model  128000  8192  yes  yes')
-        answers = ('w\n1\n2\n1\n1\n1\n7\n'
-                   + str(self.workspace / 'tdd/SKILL.md') + '\n\n\n')
+        answers = '1\n1\n5\n1\n5\n1\n2\n1\n1\n1\n7\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
@@ -233,13 +253,13 @@ class WorkerConfigurationTests(InitFixture):
                       '  2. z-provider/special/model', result.stdout)
         self.assertIn('Implementation effort choices:\n  1. off\n  2. minimal\n  3. low\n'
                       '  4. medium\n  5. high\n  6. xhigh\n  7. max', result.stdout)
-        config = load_configuration(repo)
-        self.assertEqual(config.implementation_agent_harness, 'pi')
-        self.assertEqual(config.review_agent_harness, 'pi')
-        self.assertEqual(config.implementation_agent_model, 'z-provider/special/model')
-        self.assertEqual(config.review_agent_model, 'provider/model')
-        self.assertEqual(config.implementation_agent_effort, 'off')
-        self.assertEqual(config.review_agent_effort, 'max')
+
+        self.assertEqual(self.agent(repo, 'implementation')['agent_type'], 'pi')
+        self.assertEqual(self.agent(repo, 'review')['agent_type'], 'pi')
+        self.assertEqual(self.agent(repo, 'implementation')['model'], 'z-provider/special/model')
+        self.assertEqual(self.agent(repo, 'review')['model'], 'provider/model')
+        self.assertEqual(self.agent(repo, 'implementation')['effort'], 'off')
+        self.assertEqual(self.agent(repo, 'review')['effort'], 'max')
 
     def test_interactive_catalog_is_advertised_and_reused_for_each_actual_repository(self):
         # Arrange: catalogs differ in order and in choices available to only one repository.
@@ -260,8 +280,7 @@ class WorkerConfigurationTests(InitFixture):
             '    stream.write(json.dumps({"harness": "codex", "cwd": os.getcwd()}) + "\\n")\n'
             'print(json.dumps({"models": [{"slug": value, "visibility": "list"}\n'
             '                             for value in catalogs[os.getcwd()]]}))\n')
-        answers = ('w\n2\n2\n6\n2\n1\n3\n'
-                   + str(self.workspace / 'tdd/SKILL.md') + '\n\n\n')
+        answers = '1\n1\n5\n1\n5\n2\n2\n6\n2\n1\n3\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', '--repo', str(other), *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
@@ -277,9 +296,9 @@ class WorkerConfigurationTests(InitFixture):
                       '  2. z/special/model', output)
         self.assertNotIn('only-first-repo', output)
         self.assertNotIn('only-other-repo', output)
-        config = load_configuration(repo)
-        self.assertEqual(config.implementation_agent_model, 'z/special/model')
-        self.assertEqual(config.review_agent_model, 'catalog-choice')
+
+        self.assertEqual(self.agent(repo, 'implementation')['model'], 'z/special/model')
+        self.assertEqual(self.agent(repo, 'review')['model'], 'catalog-choice')
         self.assertEqual([json.loads(line) for line in log.read_text().splitlines()],
                          [{'harness': 'codex', 'cwd': str(repo)},
                           {'harness': 'codex', 'cwd': str(other)}])
@@ -296,22 +315,45 @@ class WorkerConfigurationTests(InitFixture):
                 else:
                     self.env.pop('WORKER_CATALOG_FAIL', None)
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
-                                      worker_defaults=False, input='w\n2\nnot-listed\n')
+                                      worker_defaults=False, input='1\n1\n5\n1\n5\n2\nnot-listed\n')
                 self.assertNotEqual(result.returncode, 0)
                 expected = 'catalog' if case != 'invalid' else 'model: select a number'
                 self.assertIn(expected, result.stderr)
                 self.assertNotIn('TOP_SECRET', result.stderr)
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertFalse((repo / '.factory/factory.toml').exists())
-                self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
-    def test_blank_interactive_tdd_path_is_rejected_without_resolving_to_repository(self):
+    def test_worker_setup_finishes_without_skill_questions_and_shows_each_role_folder(self):
+        # Arrange: model catalogs exist, but no user skill files have been supplied.
         from worker_support import worker_settings
         repo = self.repo()
         worker_settings(self)
+        (self.workspace / 'tdd/SKILL.md').unlink()
+        (self.workspace / 'standards/SKILL.md').unlink()
+        # Act: the last answer selects review effort; setup must not read further input.
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False,
-                              input='w\n2\n1\n6\n3\n1\n3\n\n')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('TDD skill file cannot be blank', result.stderr)
-        self.assertNotIn('Local implementation architecture', result.stdout)
-        self.assertFalse((repo / '.factory/agents/implementation/resources.json').exists())
+                              input='1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n')
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        config = load_configuration(repo)
+        self.assertTrue(config.execution_enabled)
+        self.assertEqual(self.agent(repo, 'implementation')['resources']['skills'], ['./skills'])
+        self.assertEqual(self.agent(repo, 'implementation')['resources']['skills'], ['./skills'])
+        self.assertEqual(self.agent(repo, 'review')['resources']['skills'], ['./skills'])
+        self.assertNotIn('Local TDD skill file:', result.stdout)
+        self.assertNotIn('architecture/standards skill (', result.stdout)
+        self.assertNotIn('tdd_skill', (repo / '.factory/factory.toml').read_text())
+        agents = repo / '.factory/agents'
+        for role in ('foreman', 'feature-owner', 'research', 'implementation', 'review'):
+            with self.subTest(role=role):
+                folder = agents / role / 'skills'
+                self.assertTrue(folder.is_dir())
+                self.assertIn(str(folder), result.stdout)
+        for role in ('implementation', 'review'):
+            selected = self.agent(repo, role)['resources']['skills']
+            self.assertEqual(selected, ['./skills'])
+        self.assertIn('<skill-name>/SKILL.md', result.stdout)
+        self.assertIn('Agent settings live in agent.json', result.stdout)
+        self.assertIn('reload or restart affected agents', result.stdout)
+        self.assertTrue((repo / '.factory/setup-complete.json').is_file())

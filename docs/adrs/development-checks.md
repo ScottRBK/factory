@@ -46,7 +46,8 @@ against later weakening of the configuration, rather than mocking an import-anal
 
 CI installs through `uv sync --locked` and runs Ruff, the real-source architecture check,
 and the full unittest suite through `uv run --locked` on Python 3.12/3.13. CI also runs
-`uv build` to validate wheel/sdist packaging rather than relying on editable installation.
+`uv build` followed by `uv run --locked python tests/check_package.py dist/*.whl` to verify
+wheel RECORD membership, sizes and standard Base64 digests, instead of relying on editable installs.
 Local commands are in the README. Validation and hosted-CI status are tracked in the
 [quality-checks plan](../plans/quality-checks.md).
 
@@ -63,6 +64,8 @@ Use TDD at the public boundaries approved by Scott:
 - **Watcher CLI:** temporary configuration and controlled external commands, using real Git for
   worktree safety. Cover plan/task creation, uncertain outcomes, revisions, restart, notification,
   cleanup and exclusive workspace ownership. Run the real AgentShell lifecycle with Pi/tmux doubles.
+- **Package artifacts:** build the real wheel/sdist and inspect their public contents. The wheel
+  checksum gate catches invalid RECORD encoding without importing or installing package code.
 - **Native integration:** opt-in isolated Pi SDK/lifecycle and local Forgetful checks. Use temporary
   HOME/config/database paths and no-inference probes. No real login or provider requests. These
   validate native wiring and contracts, not an autonomous agent's planning quality.

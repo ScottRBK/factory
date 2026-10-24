@@ -49,8 +49,8 @@ class InitialiseFactory:
             self.profile.login(config.forgetful)
         return self.profile.check(config.forgetful, execution_enabled=config.execution_enabled)
 
-    def load_existing(self, paths: list[Path] | None, labels: list[str] | None,
-                      model: str | None, effort: str | None) -> FactoryConfiguration | None:
+    def load_existing(self, paths: list[Path] | None,
+                      labels: list[str] | None) -> FactoryConfiguration | None:
         config = self.storage.load()
         if config is None:
             return None
@@ -59,8 +59,6 @@ class InitialiseFactory:
             {repository.local_dir for repository in config.repository},
             labels is not None and {label.casefold() for label in unique_labels(labels)} !=
             {label.casefold() for label in config.watcher_label},
-            model is not None and model != config.foreman_agent_model,
-            effort is not None and effort != config.foreman_agent_effort,
         )
         if config.forgetful is None:
             raise FactoryError('Existing testing factory lacks shared Forgetful settings. '
@@ -68,12 +66,16 @@ class InitialiseFactory:
         if config.forgetful.project_id is None:
             raise FactoryError('Existing .factory/factory.toml lacks forgetful.project_id. '
                                'Edit its [forgetful] section to add project_id = <existing '
-                               'numeric project ID>, then rerun init. Init does not migrate '
+                               'numeric project ID>. Use init --finalize for incomplete saved '
+                               'setup, or restart watch or foreman for completed setup. '
+                               'Init does not migrate '
                                'existing config or save project choices over it; edits are '
                                'preserved.')
         if any(conflicts):
-            raise FactoryError('Arguments conflict with existing config; edit '
-                               '.factory/factory.toml explicitly, then rerun init.')
+            raise FactoryError('Arguments conflict with existing config; correct the arguments '
+                               'or edit .factory/factory.toml explicitly. Use init --finalize '
+                               'for incomplete saved setup, or restart watch or foreman '
+                               'for completed setup.')
         return config
 
     def discover(self, workspace: Path) -> list[Path]:
@@ -90,11 +92,10 @@ class InitialiseFactory:
             references[str(path)] = RepositoryReference(str(path), remote, source)
         return references
 
-    def configure(self, paths: list[Path], labels: list[str], model: str,
-                  effort: str) -> FactoryConfiguration:
+    def configure(self, paths: list[Path], labels: list[str],
+                  agent_file: str) -> FactoryConfiguration:
         references = self.inspect(paths)
-        return FactoryConfiguration(unique_labels(labels), model, effort,
-                                    tuple(references.values()))
+        return FactoryConfiguration(unique_labels(labels), agent_file, tuple(references.values()))
 
     def _preflight(self, config: FactoryConfiguration) -> dict[WorkSource, tuple[Label, ...]]:
         validate(config)
@@ -105,11 +106,15 @@ class InitialiseFactory:
                 raise FactoryError(
                     f'Unsupported work-tracking provider {repository.work_source.provider!r}; '
                     f'this integration supports {source.provider!r}. '
-                    'Edit .factory/factory.toml and rerun init.'
+                    'Correct .factory/factory.toml, then use init --finalize for incomplete '
+                    'saved setup, or restart watch or foreman for completed setup.'
                 )
             if remote != repository.remote or source != repository.work_source:
                 raise FactoryError(f'Origin/source changed for {repository.local_dir}; '
-                                   'edit .factory/factory.toml and rerun init.')
+                                   'review the origin and correct .factory/factory.toml if saved. '
+                                   'Use init --finalize for incomplete saved setup, or restart '
+                                   'watch or foreman for completed setup. If no configuration '
+                                   'was saved, retry first init with the corrected repository.')
         sources = dict.fromkeys(
             repository.work_source for repository in config.repository
         )

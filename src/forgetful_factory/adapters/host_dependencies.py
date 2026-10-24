@@ -83,7 +83,7 @@ class HostDependencies:
     def description(self, command: str) -> str | None:
         if command == 'agentshell-runtime':
             return ('Install the AgentShell extension runtime from its reviewed upstream uv lock? '
-                    'Uses existing Python and uv >=0.13.1 in the role directory. [y/N]: ')
+                    'Uses existing Python and uv >=0.13.5 in the role directory. [y/N]: ')
         if command == 'pi':
             return ('Install Pi 1.2.0 in .factory/runtime/pi with the reviewed npm lock? '
                     'Uses existing Node/npm; npm scripts are disabled. [y/N]: ')
@@ -118,7 +118,7 @@ class HostDependencies:
                                'Diagnostics withheld to protect registry credentials.') from error
 
     def _check_uv(self) -> None:
-        message = ('Installation requires an existing audited uv >=0.13.1. '
+        message = ('Installation requires an existing audited uv >=0.13.5. '
                    'Select a working uv on PATH and rerun init; setup is incomplete. '
                    'No upgrade was performed.')
         try:
@@ -126,7 +126,7 @@ class HostDependencies:
         except FactoryError as error:
             raise FactoryError(message) from error
         version = re.fullmatch(r'uv (\d+)\.(\d+)\.(\d+)(?: \([^\r\n]+\))?', output.strip())
-        if version is None or tuple(map(int, version.groups())) < (0, 13, 1):
+        if version is None or tuple(map(int, version.groups())) < (0, 13, 5):
             raise FactoryError(message)
 
     def _forgetful_python(self) -> str:
@@ -167,7 +167,7 @@ class HostDependencies:
 
     def _install_role_runtime(self) -> None:
         self._check_uv()
-        project = self.workspace / '.factory/agents/foreman/resources/agentshell/python'
+        project = self.workspace / '.factory/resources/agentshell/python'
         inputs = (project / 'pyproject.toml', project / 'uv.lock')
         manifest = json.loads((LOCKS.parent / 'role-resources.json').read_text())
         for path in inputs:

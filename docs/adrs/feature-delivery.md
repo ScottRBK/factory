@@ -1,7 +1,10 @@
 # Implementation, review and merge
 
-Status: Slice 6 implemented and locally validated; live delivery remains unverified.
-Back to [architecture](../architecture.md). [Progress and checks](../plans/slice-6.md).
+Status: Slice 6's delivery responsibilities remain; its earlier validation predates normalized
+agent definitions. Factory now uses [child-owned agent files](agent-definitions.md) and audited
+extension 1.5.0. Native SDK/fake-worker checks pass; live delivery is still unverified. Runtime
+repair policy and final checks remain open. Back to [architecture](../architecture.md).
+[Progress and checks](../plans/slice-6.md).
 
 ## Responsibilities
 
@@ -19,9 +22,27 @@ user. This does not grant permission to bypass native tool approvals or reposito
 
 ## Role configuration
 
-Use the existing AgentShell extension and named roster entries, not a Factory-owned launcher or
-workflow engine. Implementation and review entries select their harness, model and effort. Their
-worktree comes from the owner's task-specific call, not a fixed roster cwd.
+The Foreman dispatches owners; each owner launches workers through the AgentShell extension. There
+is no Python worker controller. Each worker's `agent.json` owns its name, harness (`agent_type`),
+model, effort and resource selections. The owner's roster contains only child file references.
+Starter names are templates; later names are arbitrary. Worker definitions omit cwd so the owner's
+call supplies the assigned worktree. Every non-Pi child has a disabled, empty roster.
+
+Init provisions the configured starter team once. Its worker menu offers Pi, Codex and Claude Code;
+that menu does not define the full set of native app capabilities. The wizard does not ask for skill
+paths. Optional initial skill flags are saved in the worker's `agent.resources.skills`, not TOML.
+Add files beneath a selected directory or edit that selection directly. Reload affected parent
+snapshots before new launches; do not rerun init to register skills. Bundled guidance still requires
+TDD. A root Foreman launch-setting change requires restart.
+
+The owner reads the selected worker definition and supplies the full role, task, worktree and review
+briefing, including absolute selected skill references and instructions to read them before work.
+Normalized extension 1.5 source also supplies deterministic references for Codex/Claude children.
+It strips only outbound native `skills`, retaining the complete canonical saved selection and all
+other resource options. Unsupported other options still fail through native checks. This is prompt
+skill delivery, not native skill registration or proof of model compliance. Pi and OpenCode retain
+native selected-skill support. Factory now bundles the audited published runtime; see
+[validation limits](../../README.md#current-source-and-release-boundary).
 
 Worker instructions and selected local skills must reach the native harness without replacing
 repository instructions. Pi-specific resource options cannot be passed to a harness that does not
@@ -36,8 +57,10 @@ permissions may block its tools. Setup checks do not establish these permissions
 blocked work instead of silently switching approval or sandbox policy.
 
 Older factories must not silently gain execution authority. Preserve existing configuration and
-edited guidance. Enabling workers requires explicit setup and reconciliation of incompatible
-role files, followed by a new successful completion receipt.
+edited guidance. Enabling workers requires an explicit `execution_enabled` change in TOML,
+suitable child definitions/references, and reconciliation of incompatible guidance. Stop delegated
+work and reload affected parents before new launches. Ordinary init does not activate workers or
+renew a fingerprint. Existing/DinoLand factories have no automatic migration.
 
 ## From implementation to merge
 
@@ -71,7 +94,7 @@ Independent agent review does not establish a second GitHub identity. If both ag
 account, findings can be posted as comments; they do not satisfy a required external approval.
 Native approval restrictions and branch protections must be respected.
 
-Scott's updated `FACTORY.md` assigns PR creation to implementation. The worker opens the PR before
+The delivery contract assigns PR creation to implementation. The worker opens the PR before
 waiting for PR-triggered CI; it need not wait for checks that cannot start without a PR. Required
 checks still must pass before implementation is complete. Draft status follows repository rules
 and owner guidance, with no factory-wide draft-only requirement. Opening a PR grants no approval
@@ -95,7 +118,10 @@ native ID returns, it can transition through `waiting`, claim with that ID and t
 then verify evidence and criteria before marking it done. Each transition still requires eligible
 state and satisfied dependencies. Interrupted transitions are reconciled from the current task.
 
-Selected-session resume depends on the owning parent history and unchanged settings. AgentShell
+Selected-session resume depends on the owning parent history and unchanged canonical child
+selections. Full child definitions and parent membership are snapshots; reload adopts edits for
+new launches, while changed selections fail resumes of older selected sessions. Skill contents
+and directory membership are resolved again, not frozen by a settings fingerprint. AgentShell
 0.5.0's Codex resume command does not forward its per-call approval/sandbox option. If the effective
 native policy cannot be established as suitable, report that limit and use a fresh worker only
 after confirming the previous one stopped. Do not silently enable bypass permissions.
@@ -134,3 +160,8 @@ Forgetful cannot automatically complete the plan at merge.
 Python validates setup and resource selection; agent guidance describes delivery and recovery.
 Automated wiring tests cannot establish that a model follows the whole workflow. The agreed live
 trial will use a disposable GitHub repository selected with Scott after automated checks pass.
+
+Native cancellation remains limited by [agent-shell#28][cancellation]. No workaround is provided;
+confirm process exit before resuming or replacing a worker.
+
+[cancellation]: https://github.com/ScottRBK/agent-shell/issues/28

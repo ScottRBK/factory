@@ -22,8 +22,10 @@ class ForgetfulConnection:
             raise FactoryError('forgetful.project_id must be a positive numeric project ID.')
         if self.method == 'mcp':
             raise FactoryError('Forgetful MCP configuration is unsupported in this slice. '
-                               'Explicitly set method = "cli" in .factory/factory.toml and '
-                               'rerun init; existing role files are preserved.')
+                               'For new setup select --forgetful-method cli. For saved setup, '
+                               'explicitly set method = "cli" in .factory/factory.toml, then use '
+                               'init --finalize if incomplete, or restart watch or foreman '
+                               'if completed. Existing role files are preserved.')
         if self.method != 'cli' or self.instance not in ('local', 'server'):
             raise FactoryError('Forgetful requires method cli and instance local/server.')
         if sys.platform != 'linux':
@@ -79,88 +81,10 @@ def connection_from_mapping(data: object) -> ForgetfulConnection | None:
 @dataclass(frozen=True)
 class FactoryConfiguration:
     watcher_label: tuple[str, ...]
-    foreman_agent_model: str
-    foreman_agent_effort: str
+    foreman_agent_file: str
     repository: tuple[RepositoryReference, ...]
     forgetful: ForgetfulConnection | None = None
-    feature_owner_agent_model: str | None = None
-    feature_owner_agent_effort: str | None = None
-    feature_owner_agent_harness: str = 'pi'
-    grill_me_skill: str | None = None
-    implementation_agent_model: str | None = None
-    implementation_agent_harness: str | None = None
-    implementation_agent_effort: str | None = None
-    review_agent_model: str | None = None
-    review_agent_harness: str | None = None
-    review_agent_effort: str | None = None
-    tdd_skill: str | None = None
-    implementation_skills: tuple[str, ...] = ()
-    review_skills: tuple[str, ...] = ()
-    research_agent_model: str | None = None
-    research_agent_harness: str | None = None
-    research_agent_effort: str | None = None
-
-    @property
-    def execution_enabled(self) -> bool:
-        return self.implementation_agent_model is not None
-
-
-WORKER_FIELDS = ('implementation_agent_model', 'implementation_agent_harness',
-                 'implementation_agent_effort', 'review_agent_model', 'review_agent_harness',
-                 'review_agent_effort', 'tdd_skill')
-RESEARCH_FIELDS = ('research_agent_model', 'research_agent_harness', 'research_agent_effort')
-WORKER_EFFORTS = {
-    'pi': ('off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'),
-    'codex': ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra', 'persistent'),
-    'claude_code': ('low', 'medium', 'high', 'xhigh', 'max'),
-}
-# AgentShell 0.5 AgentType values. Launch support alone does not imply skill support.
-DOWNSTREAM_APPS = (*WORKER_EFFORTS, 'opencode', 'copilot_cli', 'cursor', 'grok')
-
-
-def validate_role_app(harness: str, role: str) -> None:
-    if harness not in DOWNSTREAM_APPS:
-        raise FactoryError(f'{role} harness must be one of: ' + ', '.join(DOWNSTREAM_APPS))
-    if harness in ('opencode', 'cursor'):
-        raise FactoryError(f'{role}: AgentShell supports {harness}, but the bundled roster '
-                           'requires effort and this app needs optional effort. Upstream roster '
-                           'support is required; Factory will not invent an effort value. '
-                           'Native selected skills also require validation before use.')
-    if harness in ('copilot_cli', 'grok') or (
-            role == 'research' and harness in ('codex', 'claude_code')):
-        raise FactoryError(f'{role}: AgentShell 0.5 supports {harness} launches but not native '
-                           'selected skills for this role. Upstream adapter support is required. '
-                           'Existing Codex/Claude worker prompt compatibility is unchanged.')
-
-
-def validate_workers(configuration: FactoryConfiguration) -> None:
-    values = [getattr(configuration, field) for field in WORKER_FIELDS]
-    if not any(value is not None for value in values) and not (
-            configuration.implementation_skills or configuration.review_skills):
-        return
-    if any(value is None for value in values):
-        raise FactoryError('Incomplete worker setup: configure both workers model/harness/effort '
-                           'and tdd_skill, or omit all worker settings for planning only.')
-    for field in WORKER_FIELDS:
-        nonblank(getattr(configuration, field), field)
-    for role in ('implementation', 'review'):
-        harness = getattr(configuration, f'{role}_agent_harness')
-        validate_role_app(harness, role)
-        effort = getattr(configuration, f'{role}_agent_effort')
-        if effort not in WORKER_EFFORTS[harness]:
-            raise FactoryError(f'{role} effort for {harness} must be one of: '
-                               + ', '.join(WORKER_EFFORTS[harness]))
-        model = getattr(configuration, f'{role}_agent_model')
-        if model.startswith('-') or any(ord(c) < 32 or ord(c) == 127 for c in model):
-            raise FactoryError(f'{role} model must be a native selector '
-                               'without control characters.')
-
-
-def skill_paths(data: dict, field: str) -> tuple[str, ...]:
-    paths = data.get(field, [])
-    if not isinstance(paths, list):
-        raise FactoryError(f'{field} must be a list of local skill paths.')
-    return tuple(nonblank(path, field) for path in paths)
+    execution_enabled: bool = False
 
 
 def nonblank(value: object, field: str) -> str:
@@ -176,27 +100,11 @@ def nonblank(value: object, field: str) -> str:
 
 
 def validate(configuration: FactoryConfiguration) -> None:
-    validate_workers(configuration)
-    research = [getattr(configuration, field) for field in RESEARCH_FIELDS]
-    if any(value is not None for value in research):
-        for field in RESEARCH_FIELDS:
-            nonblank(getattr(configuration, field), field)
-        validate_role_app(configuration.research_agent_harness, 'research')
-        if configuration.research_agent_effort not in WORKER_EFFORTS['pi']:
-            raise FactoryError('Research effort for pi must be one of: '
-                               + ', '.join(WORKER_EFFORTS['pi']))
+    nonblank(configuration.foreman_agent_file, 'foreman_agent_file')
+    if type(configuration.execution_enabled) is not bool:
+        raise FactoryError('execution_enabled must be a boolean.')
     if configuration.forgetful is not None:
         configuration.forgetful.validate()
-    nonblank(configuration.foreman_agent_model, 'foreman_agent_model')
-    nonblank(configuration.foreman_agent_effort, 'foreman_agent_effort')
-    efforts = ('off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')
-    for effort in (configuration.foreman_agent_effort, configuration.feature_owner_agent_effort):
-        if effort is not None and effort not in efforts:
-            raise FactoryError('Pi effort must be one of: ' + ', '.join(efforts))
-    if configuration.feature_owner_agent_harness != 'pi':
-        raise FactoryError('The feature-owner harness must be pi for native session tracking.')
-    if configuration.feature_owner_agent_model is not None:
-        nonblank(configuration.feature_owner_agent_model, 'feature_owner_agent_model')
     if not configuration.watcher_label:
         raise FactoryError('watcher_label must contain at least one nonblank string.')
     for label in configuration.watcher_label:
@@ -221,6 +129,11 @@ def from_mapping(data: dict) -> FactoryConfiguration:
         raise FactoryError('Old repositories format is no longer supported. '
                            'Replace each [repositories."path"] header with [[repository]] '
                            'in .factory/factory.toml, keeping its fields, then rerun init.')
+    allowed = {'watcher_label', 'foreman_agent_file', 'execution_enabled',
+               'repository', 'forgetful'}
+    if set(data) - allowed:
+        raise FactoryError('Unknown Factory settings. Agent choices belong in agent.json, '
+                           'not factory.toml; existing files were preserved.')
     labels = data.get('watcher_label')
     repositories = data.get('repository')
     if not isinstance(labels, list):
@@ -236,15 +149,8 @@ def from_mapping(data: dict) -> FactoryConfiguration:
             WorkSource(item.get('provider'), item.get('source')),
         ))
     configuration = FactoryConfiguration(
-        tuple(labels), data.get('foreman_agent_model'), data.get('foreman_agent_effort'),
-        tuple(references), connection_from_mapping(data.get('forgetful')),
-        data.get('feature_owner_agent_model'), data.get('feature_owner_agent_effort'),
-        data.get('feature_owner_agent_harness', 'pi'), data.get('grill_me_skill'),
-        data.get('implementation_agent_model'), data.get('implementation_agent_harness'),
-        data.get('implementation_agent_effort'), data.get('review_agent_model'),
-        data.get('review_agent_harness'), data.get('review_agent_effort'), data.get('tdd_skill'),
-        skill_paths(data, 'implementation_skills'), skill_paths(data, 'review_skills'),
-        *(data.get(field) for field in RESEARCH_FIELDS),
+        tuple(labels), data.get('foreman_agent_file'), tuple(references),
+        connection_from_mapping(data.get('forgetful')), data.get('execution_enabled', False),
     )
     validate(configuration)
     return configuration

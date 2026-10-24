@@ -1,21 +1,40 @@
 # Forgetful Factory
 
 A software factory for one repository or a group of repositories, coordinating work tracking,
-Forgetful planning, and Pi agents. See [FACTORY.md](FACTORY.md) for the intended behaviour.
+Forgetful planning, and Pi agents. [FACTORY.md](FACTORY.md) is Scott's intent document; its older
+agent configuration fields have not been updated. Current source uses the
+[normalized agent definition contract](docs/adrs/agent-definitions.md).
 
 `init` configures the factory and creates missing GitHub labels. `watch` reads matching issues
 and saves a Forgetful plan, ownership task and ordinary-issue worktree before notifying the Foreman.
 The Foreman launches a feature-owner for clarification, research and task planning. With execution
-workers configured, the owner also coordinates implementation, independent PR review and merge.
+enabled through `execution_enabled`, the owner also coordinates implementation, independent PR
+review and merge.
 Deployment and end-to-end verification remain a later slice; live delivery validation is pending.
+
+## Current source and release boundary
+
+Factory source uses one `agent.json` per agent. The full suite passes 373 tests on each of
+Python 3.12.3 and 3.13.5, with no skips. This includes five real Pi SDK probes using isolated homes
+and fake child agents, without inference. Core fixes and the final small delta passed independent
+review. Audited uv/build-backend 0.13.5 fixes the checksum defect; package checks and independent
+upgrade review pass. Explicit runtime repair still awaits Scott's decision.
+
+Extension 1.5.0 is published from `5acb6aabfaae7c4d889600f6a5fffbb1c412dc6b`, with exact-commit
+hosted CI passing. Factory now includes its independently audited published runtime. Archive
+signatures, provenance and source bytes were verified; hide-tools and the SDK lock are unchanged.
+The commands below describe the implemented CLI; they do not establish installation readiness.
+There is no automatic migration for existing factories, including DinoLand.
 
 ## Run locally
 
-Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL.
-Foreman setup also needs Pi and tmux. Forgetful access uses its native CLI only.
-`uvx` installs the AgentShell dependency automatically.
+Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL. Foreman setup also
+needs Pi and tmux. Forgetful access uses its native CLI only. Persistent Foreman sessions need Linux
+5.3+ process handles (`pidfd`); Python builds without `os.pidfd_open` also need glibc 2.36+. `uvx`
+installs the AgentShell dependency automatically.
 
-The package is not published yet. Build it from this checkout:
+The package is not published yet. After the release gates above are complete, the local build and
+invocation pattern is:
 
 ```bash
 uv build
@@ -27,17 +46,39 @@ uvx --refresh --from "$wheel" forgetful-factory init
 uvx --refresh --from "$wheel" forgetful-factory watch
 ```
 
-Follow the prompts. Settings are saved in `.factory/factory.toml`; edit it to change them.
-The watcher prints how to view Pi. **Stopping the watcher closes its Pi session.** Only one
-watcher may run per workspace. Init and watch also exclude each other before reading or changing
-setup, so init cannot invalidate a running watcher's readiness. Use `watch --help` through the same
-`uvx` command for options, including `--existing`, `--new-only`, and `--interval` (30 seconds).
-See [architecture](docs/architecture.md) for implemented behaviour and [plan](docs/plan.md)
-for progress. Foreman profile details and connection choices are below.
+First init provisions the full configured starter team once: Foreman, feature-owner and research,
+plus implementation and review when execution is selected. This applies to manual and assisted
+setup; `--planning-only` omits the workers. Starter names are templates, not required runtime names.
+Factory settings live in `.factory/factory.toml`; each agent owns its choices in `agent.json`.
+
+After configuration is saved, ordinary repeated init preserves all file bytes. It makes no backend
+or model-catalog calls, asks no setup questions, performs no synchronization or reconciliation,
+and does not consume an optional launch answer. `init --assisted` does not reopen saved setup.
+Use explicit `init --finalize` to complete or revalidate incomplete first setup.
+
+Assisted setup opens a dedicated Foreman that stays alive after init exits; its watcher starts
+separately. Stopping that watcher leaves Foreman open. Plain `watch` starts and owns a fresh Foreman
+and closes it when stopped; it refuses to duplicate an existing or uncertain owner.
+
+After successful first manual setup, init prints the start command and asks `Launch factory now?
+[y/N]:` when run in a terminal. Enter means No. Yes starts ordinary watch, which asks whether to
+include existing issues before launching Foreman. Piped input never triggers this launch offer.
+Assisted setup and finalization have no extra CLI launch prompt: Foreman starts its watcher from the
+same conversation after validation, explicit `/reload` and confirmation of which issues to include.
+
+Printed commands use the current Factory interpreter and an explicit workspace, with paths quoted
+for copying. The start command also retains a chosen AgentShell interpreter. Under uvx, that Python
+can live in uv's cache; if the cache is removed, use your original wheel/package invocation again.
+
+Only one watcher may run per workspace. Init and watch also exclude each other before reading or
+changing setup, so init cannot invalidate a running watcher's readiness. Use `watch --help` through
+the same `uvx` command for options, including `--existing`, `--new-only`, and `--interval` (30
+seconds). See [architecture](docs/architecture.md) for implemented behaviour and
+[plan](docs/plan.md) for progress. Agent definition details and connection choices are below.
 
 ## Development
 
-Use uv 0.13.1 or newer. It creates `.venv` and installs the locked runtime and dev dependencies:
+Use uv 0.13.5 or newer. It creates `.venv` and installs the locked runtime and dev dependencies:
 
 ```bash
 uv sync --locked
@@ -48,8 +89,9 @@ uv run --locked python -m unittest discover -s tests -v
 
 Dependencies live in `pyproject.toml`; commit `uv.lock` after reviewed dependency changes.
 Dev tools are not installed with the published package. CI runs all three checks on Python 3.12
-and 3.13. Tests use external-command fixtures, including the real AgentShell lifecycle with
-Pi and tmux doubles; they make no live service or model calls.
+and 3.13. Tests use external-command fixtures. Lifecycle tests also need installed tmux: they run
+real AgentShell in a private tmux server with fake Pi, isolated homes and no service or model calls.
+Optional SDK checks load Pi without inference.
 
 ## Foreman and Forgetful setup
 
@@ -59,28 +101,31 @@ and research roles. Select an existing Forgetful project or create one during se
 needs planning enabled and the `external_ref` capability supplied by Forgetful 0.5.5. A new CLI
 installation does not upgrade an existing server.
 
-Owner model/effort defaults to the Foreman's choices. Override with `--feature-owner-model` and
-`--feature-owner-effort`. Both coordinators use Pi. Research defaults to the owner's model/effort;
-for a fresh factory, supply `--research-harness pi`, `--research-model` and `--research-effort`
-together to choose independently. Existing configurations keep their defaults unless explicitly
-edited. Other research apps currently report upstream skill/effort limitations rather than launch.
+Manual setup offers numbered owner and research model/effort choices; both currently use Pi.
+Command-line setup defaults owner model/effort to Foreman's choices unless overridden with
+`--feature-owner-model` and `--feature-owner-effort`. Research defaults to the owner; for a fresh
+factory, supply `--research-harness pi`, `--research-model` and `--research-effort` to choose
+independently. Existing configuration changes require explicit edits. Broader research apps remain
+separate Factory integration work; AgentShell's capabilities are wider than this current menu.
 `--grill-me-skill /absolute/path/SKILL.md` selects your existing, unchanged grill-me skill;
 the default is `~/.agents/skills/grill-me/SKILL.md`. Factory does not download that skill.
 
 ### Implementation and review workers
 
-New setup offers worker configuration or planning only. Existing factories without worker settings
-remain planning-only; updating the Factory package does not silently enable implementation.
-Use `--planning-only` for noninteractive planning-only setup. Interactive setup uses numbered
-choices for Foreman model/effort and worker app/model/effort, then asks for local skills.
-Enter the displayed number, not a provider/model name. Command-line options still take exact native
-values. Models must be listed in every configured repository; matching catalogs are reused during
-that init rather than repeatedly launched.
+Manual setup configures the implementation and independent review agents after owner and research.
+Alternatively choose Foreman-assisted setup and discuss those choices in its terminal. Saved
+factories without workers remain planning-only; updating Factory does not enable implementation. Use
+`--planning-only` for explicit first-time planning-only setup. Interactive choices are numbered for
+Foreman, owner and research model/effort, and worker app/model/effort. There are no skill-path
+prompts. Enter the displayed number, not a provider/model name. Command-line options still take
+exact native values. Models must be listed in every configured repository; matching catalogs are
+reused during that init rather than repeatedly launched.
 
 Execution requires a harness, exact native model selector and effort for both implementation and
-review, plus an existing local TDD skill. Supported worker harnesses are `pi`, `codex` and
-`claude_code`. They use their normal native accounts and permissions; a Pi login does not sign you
-into Codex or Claude. Listing models does not verify inference or a model's supported effort.
+review. The starter worker menu offers `pi`, `codex` and `claude_code`. They use their normal native
+accounts and permissions; a Pi login does not sign you into Codex or Claude. Listing models does not
+verify inference or a model's supported effort. Bundled implementation guidance still requires TDD;
+you do not need to supply another skill file to complete setup.
 
 **Check native permissions before using workers.** They need access to the assigned worktree and
 its Git metadata, plus network/tool permission for push, CI and GitHub review. A linked worktree's
@@ -90,29 +135,30 @@ Claude's noninteractive tool permissions can also block edits, shell commands or
 Factory does not widen those permissions or enable bypass mode. The owner must report blocked work.
 Browser/computer-use tools are not installed by Factory; only available native tools can be used.
 
-For example, add these options to a fresh `init`, replacing the model and skill placeholders:
+For example, add these options to a fresh `init`, replacing the model placeholders:
 
 ```bash
 --implementation-harness codex --implementation-model NATIVE_CODEX_MODEL \
 --implementation-effort high \
---review-harness claude_code --review-model NATIVE_CLAUDE_MODEL --review-effort high \
---tdd-skill /absolute/path/to/tdd/SKILL.md \
---implementation-skill /absolute/path/to/architecture/SKILL.md \
---review-skill /absolute/path/to/coding-standards/SKILL.md
+--review-harness claude_code --review-model NATIVE_CLAUDE_MODEL --review-effort high
 ```
 
-The architecture and review skill options are optional and repeatable. Factory reads local files;
-it does not download skills or overwrite repository instructions. Settings are saved in
-`implementation_agent_*`, `review_agent_*`, `tdd_skill`, `implementation_skills` and `review_skills`
-in `factory.toml`. Partial worker configuration is an error. Existing configurations require
-explicit edits and reconciliation of their preserved role files, followed by `init`.
+At the end, init lists the starter agents' skill folders. Add files as `<skill-name>/SKILL.md`
+inside a directory already selected by `agent.resources.skills`, or edit that list to select an
+external file or directory. Stop delegated work before reloading affected parent rosters. Restart
+Foreman when changing its own launch settings. Init does not register or synchronize skills.
+Native harnesses validate skill contents; selecting a path does not prove a model read it.
 
-When changing an existing factory, the error names any conflicting roster or resource file.
-Back up custom edits before reconciling it. For an uncustomized generated roster, remove only that
-file and rerun init to regenerate it from configuration; do not delete the role directory or login
-state. For example, enabling workers changes `.factory/agents/feature-owner/roster.json`.
-Preserved role instructions also need manual reconciliation with the current templates, including
-older planning-only guidance and instructions that still assign PR creation to the feature-owner.
+Explicit `--tdd-skill`, `--implementation-skill` and `--review-skill` options remain available for
+first setup; none is required. Implementation/review options are repeatable. Their selections go
+into the worker's `agent.json`, not TOML. Factory does not download skills or overwrite repository
+instructions. Partial first-time worker app/model/effort choices are an error.
+
+For a later execution change, edit `execution_enabled` in TOML and the relevant agent definitions
+and child references. Reconcile preserved guidance that still prohibits implementation or assigns
+PR creation to the owner. Stop delegated work, then reload affected parent rosters or restart as
+needed. Repeated init does not activate workers, regenerate files or renew a completion fingerprint.
+Older formats require explicit reconciliation; there is no automatic migration.
 
 The owner makes a feature-specific plan with actual changes, acceptance criteria and tests. Once
 requirements are clear it can proceed; only repository-required approvals or unresolved decisions
@@ -131,37 +177,106 @@ Deployment/E2E tasks and the plan stay open. The [delivery ADR](docs/adrs/featur
 
 ### Factory setup and maintenance help
 
-The Foreman has a selected `factory-maintenance` skill for configuration, local skills and setup
-failures. Ask it for help or use `/skill:factory-maintenance`. It preserves plans, worktrees, native
-accounts and user edits; it does not bypass setup validation or widen native permissions.
+The starter Foreman has a selected `factory-maintenance` skill for configuration, local skills and
+setup failures. Ask it for help or use `/skill:factory-maintenance`. It preserves plans, worktrees,
+native accounts and user edits; it does not bypass setup validation or widen native permissions.
 
-For an existing factory, init preserves `resources.json`. If it reports a missing maintenance skill,
-retain existing selections and add `skills/factory-maintenance` under the Foreman's `skills` list,
-then rerun init. The new skill file is provisioned without replacing custom instructions.
-New factories reference it in AGENTS.md; existing AGENTS.md files are preserved.
-Pi can discover its selected description without that pointer. Factory checks selected paths;
-Pi or the chosen harness validates YAML, skill metadata and duplicate names. Successful init does
-not prove the harness accepts a skill's contents or advertises it to the model.
+The root definition must select Foreman's dispatch and maintenance skills and the audited
+AgentShell entrypoint under `.factory/resources`. Preserve those selections when editing JSON.
+Existing skill contents and `AGENTS.md` files stay editable. Pi or the selected native harness owns
+YAML, metadata and duplicate-name validation; successful setup does not prove model advertisement.
 
-Stop the watcher and confirm child agents stopped before changing launch settings. Since the
-watcher owns the Foreman session, that Foreman can prepare the changes with you; apply and validate
-those changes from a separate session before restarting.
+Stop the watcher and confirm child agents stopped before changing selections. Add local skills
+under a selected directory, or edit `agent.resources.skills` in that agent's definition. Child
+settings and parent membership are snapshots: reload every affected parent before new launches.
+Changed canonical child selections cannot be used to resume an older selected session. Resource
+file contents and directory membership are not frozen by a model/resource fingerprint.
 
-Add local skills under `.factory/agents/<role>/skills/<name>/SKILL.md`, then rerun init with
-watching and delegated work stopped. Init adds those files to resource selections and parent
-rosters, preserving file contents, required guidance and TOML comments. Conflicting selections,
-unreadable or non-file paths and symlinks stop setup. External worker skill paths still use the
-configuration arrays. Factory tracks its automatic additions so deleting or renaming one and
-rerunning init updates the corresponding selections. Interrupted changes can be retried; conflicting
-manual edits are preserved for reconciliation. Older untracked/manual selections remain manual.
-Registration affects future launches: restart for changed selections/settings; Pi `/reload` can
-refresh edits to already-selected skill files.
+Factory reads the root Foreman's own settings at launch. A change to its model, effort, cwd,
+resource selections or launch environment requires a deliberate restart. The extension's roster
+selector only selects children; `/reload` does not apply new root launch settings. Init is not a
+settings refresh. A plain watcher owns its Foreman; perform restart work from another session.
+A persistent Foreman can stop its managed watcher and help edit definitions in the same
+conversation.
 
-Foreman-first onboarding and same-Foreman watcher attachment are not implemented. Attachment will
-check terminal identity, readiness and liveness; it does not need live model/effort/resource checks.
-Broader apps need optional roster effort and native skill-delivery work upstream. The worker menu
-still offers Pi, Codex and Claude Code.
-See [agent onboarding](docs/adrs/agent-onboarding.md) for the implemented subset and remaining work.
+### Foreman-assisted setup and watcher control
+
+Choose Foreman-assisted in the wizard, or add `--assisted` to first init. It provisions the full
+configured starter team and launches Foreman without recording completion or starting issue
+processing. Factory sends no opening prompt; ask Foreman to review the team and finish setup.
+It selects the canonical root `agent.json`; there is no empty generated runtime roster. Setup
+instructions prohibit delivery while incomplete, and Python blocks watching. These instructions
+and roster selections are not a security sandbox.
+
+Standalone Foreman commands use the same ownership protections and do not start a watcher:
+
+```bash
+forgetful-factory foreman --workspace /absolute/path/to/workspace
+forgetful-factory foreman --attach --workspace /absolute/path/to/workspace
+```
+
+The first command starts Foreman after completed setup; `--attach` enters its existing terminal.
+An existing or uncertain owner blocks a duplicate. Missing or untrusted evidence about an existing
+owner never authorizes replacement or replay.
+
+Init enters the new tmux session when possible; otherwise it prints the attach command. Closing
+init's original terminal after handover does not close Foreman. Return later with:
+
+```bash
+forgetful-factory foreman --attach --workspace /absolute/path/to/workspace
+```
+
+`init --attach` remains a compatibility route. With watching and delegated work stopped, complete
+or revalidate first setup explicitly:
+
+```bash
+forgetful-factory init --finalize --delegated-work-stopped --workspace /absolute/path/to/workspace
+```
+
+Foreman uses the exact Factory invocation passed in `FACTORY_COMMAND` and the workspace in
+`FACTORY_WORKSPACE`, rather than an unrelated installed version or its role folder as the workspace.
+Finalization preserves configuration comments, edited role files and the existing Foreman. Failed
+first-setup checks leave watching blocked. It never clears lost-send or ownership uncertainty. Older
+testing instructions may need reconciliation; no automatic migration or
+instruction overwrite is provided.
+
+After successful finalization, use Pi **`/reload` while idle** in the same Foreman. This loads the
+current child definitions and parent membership without replacing the conversation. Reload also
+stops extension jobs, so confirm all delegated runs have stopped first. Additional top-level Foreman
+resource paths or environment changes still require a deliberate restart; `/reload` does not adopt
+new launch arguments.
+
+Then you or Foreman can control its watcher:
+
+```bash
+forgetful-factory watch --start --new-only --workspace /absolute/path/to/workspace
+forgetful-factory watch --status --workspace /absolute/path/to/workspace
+forgetful-factory watch --stop --workspace /absolute/path/to/workspace
+```
+
+Use `--existing` instead of `--new-only` to forward existing matches. Status/stop do not need the
+watcher's exclusive lease. A duplicate start is refused. Foreman exit stops its watcher; uncertain
+owner or terminal state does not start a replacement. A forced watcher stop reports delivery or
+external-work uncertainty. It never uses a saved PID to kill an unrelated process.
+
+If terminal submission fails, Foreman stays open but the message may already have arrived. Inspect
+its pane, then deliberately exit Foreman and relaunch before starting another watcher. Rerunning
+finalization does not clear a failed delivery; Factory does not automatically resend it.
+
+Closing the original pane ends its owner, but without Pi's exit result the saved state remains
+`unknown`. `watch --status` explains recovery: independently confirm the original Foreman and owner
+have exited before archiving only `owner.json` and `control.sock` in `.factory/runtime/foreman`.
+A normal Pi exit allows relaunch without that reconciliation. Failed process-handle capture instead
+preserves Foreman and blocks watching; fix the reported host/capture problem before retrying. A
+transient terminal-check failure also blocks watching until a deliberate exit and relaunch.
+Factory does not infer exit from a failed tmux query or signal PIDs read from saved state.
+
+The managed watcher connects to the persistent owner's existing AgentShell delivery channel. It
+checks saved setup, readiness and liveness, not live model/effort/resources. General attachment to
+arbitrary running terminals is deferred. The worker menu remains Pi, Codex and Claude Code;
+AgentShell already supports wider skill/plugin and effort mechanisms, but broader Factory app
+integration is separate. See [agent onboarding](docs/adrs/agent-onboarding.md) for contracts and
+validation limits.
 
 ### Shared Pi profile
 
@@ -173,31 +288,33 @@ inside a Pi subagent.
 Factory uses your **normal native Pi home**, defaulting to `PI_CODING_AGENT_DIR` or `~/.pi/agent`.
 `--pi-agent-dir /absolute/path` chooses another normal home. Init explains and requests consent
 before invoking Pi there. `--share-pi-profile` supplies that consent for noninteractive setup.
-Declining stops setup. The chosen directory and consent are saved in the role's `pi-profile.json`;
+Declining stops setup. The chosen directory and consent are saved in `.factory/pi-profile.json`;
 watch uses that saved choice even if the environment later changes.
 
-This shares the **whole Pi profile**, including native login, settings, trust and session state.
-The Foreman excludes your personal `SYSTEM.md`. `AGENTS.md`, `APPEND_SYSTEM.md`, and other native
-instructions may still load. This is not full instruction isolation.
-AgentShell extension configuration and the hide-tools preference also use that shared home;
-native user toggles can change shared preferences. Nothing copies or links credentials. Model
-listing follows native Pi resource behavior: it can still read personal `SYSTEM.md` and execute
-resources from that profile or repository. The exclusion applies to Foreman launch, not model
-listing during setup; this is not auth-only isolation.
+This shares the **whole Pi profile**, including native login, settings, trust and session state. The
+starter Foreman definition excludes your personal `SYSTEM.md`. `AGENTS.md`, `APPEND_SYSTEM.md`, and
+other native instructions may still load. This is not full instruction isolation. AgentShell
+extension configuration and the hide-tools preference also use that shared home; native user toggles
+can change shared preferences. Nothing copies or links credentials. Model listing follows native Pi
+resource behavior: it can still read personal `SYSTEM.md` and execute resources from that profile or
+repository. The exclusion applies to Foreman launch, not model listing during setup; this is not
+auth-only isolation.
 
 An explicitly chosen home must already exist. Factory does not create a missing Pi home. If your
 default home is absent, consented executable installation can finish, but setup stays incomplete:
-initialize your normal native Pi home and `/login` in another terminal, then rerun init. Correct
-mistyped paths before proceeding. If consent was saved for the wrong path, review or remove only
-`.factory/agents/foreman/pi-profile.json`, then rerun init to approve the corrected home.
+initialize your normal native Pi home and `/login` in another terminal. Before configuration is
+saved, retry the original init arguments. After it is saved, use explicit `init --finalize`.
+Correct mistyped paths before proceeding. If consent names the wrong home, review only
+`.factory/pi-profile.json` and explicitly approve the corrected home through that setup path;
+never delete native login state.
 
-Init uses AgentShell's public model list and shows numbered choices grouped by provider. Supply
-`--foreman-model` with an exact listed `provider/model` string to select noninteractively. Listing
-only establishes that a model is selectable; access remains unverified and no model request is
-made. A supplied model is validated before labels or factory configuration are written. If setup
-stops before configuration is saved, repeat your original init arguments when retrying.
-If there are no models, open Pi in the displayed home in another terminal, use `/login`, then
-choose recheck or rerun init. Factory does not perform model login or refresh credentials itself.
+First init uses AgentShell's public model list and shows numbered choices grouped by provider.
+Supply `--foreman-model` with an exact listed `provider/model` string to select noninteractively.
+Listing only establishes that a model is selectable; access remains unverified and no model request
+is made. A supplied model is validated before labels or factory configuration are written. If setup
+stops before configuration is saved, repeat your original init arguments when retrying. If there are
+no models, open Pi in the displayed home in another terminal, use `/login`, then choose recheck or
+rerun init. Factory does not perform model login or refresh credentials itself.
 
 ```bash
 forgetful-factory init --repo /path/to/repo --label factory \
@@ -233,57 +350,76 @@ by Factory; a remote server must enable it independently. Remote servers require
 loopback/localhost. URLs with credentials, query strings, or fragments are rejected.
 `--forgetful-executable` accepts an existing native executable, including paths with spaces.
 
-Editable roles live under `.factory/agents/foreman`, `feature-owner` and `research`. Each Pi
-starts in its role directory and loads native `AGENTS.md`. Its selected skill describes the
-workflow.
-Foreman's instructions also ask it to read the preserved `APPEND_SYSTEM.md`; that file is not a
-native system-prompt append file. Watch supplies no opening model prompt. The first notification
-or user input can start a chargeable turn; setup does not make a model request.
+### Agent files and shared state
 
-The Pi coordinators' `resources.json` files select local skills/extensions. Foreman's `roster.json`
-selects feature-owner; the owner's selects research and, when configured, implementation and review.
-Research and Pi workers have disabled child rosters and no AgentShell extension selected. Worker
-entries omit a fixed cwd so the owner can supply the assigned worktree. Model and effort remain
-bound to the named entry. Review resources and rosters when changing selections; init rejects
-conflicts and preserves edits.
+`factory.toml` contains repository, watcher and Forgetful settings, `execution_enabled`, and
+`foreman_agent_file`. It contains no duplicate agent models, efforts, harnesses or skill lists.
+The Foreman path is relative to the TOML directory or absolute. A starter reference is:
 
-Implementation/review role skills live under `.factory/agents/implementation` and `review`.
-The owner includes their briefing and selected skill references in task prompts. Codex and Claude
-cannot accept Pi skill/resource switches through the pinned AgentShell API, so they read those
-files as task instructions instead. Their native settings, tools and instructions still apply;
-this is not resource isolation. Repository instruction files are not rewritten.
+```toml
+foreman_agent_file = "agents/foreman/agent.json"
+execution_enabled = false
+```
 
-For the selected Pi roles, automatic personal/project resource discovery and native MCP are
-disabled. Ordinary instructions
-and built-in tools remain available. Personal `SYSTEM.md` is excluded at launch; Pi keeps its own
-built-in prompt. AgentShell 0.5 rejects the interactive combination if the Foreman launch directory
-has `.pi/SYSTEM.md`. Init/watch preserve that file and ask for reconciliation. No remote package
-auto-install, Factory-owned extension, or custom launcher is used.
+Each agent file has exactly two sections. `agent` requires `name`, `description`, `agent_type`,
+`model` and `effort`; `cwd` and `resources` are optional. `roster` contains `enabled` and a `roles`
+list of references. For example, a parent can select an owner with:
 
-Re-running init preserves edited role files, including old `settings.json`, `mcp.json`, status
-extensions, and wrappers. Those old settings are not used as the role's resource selection. Review
-and refresh an old testing profile manually; no migration or hidden cleanup is performed. Known
-obsolete commands in the Foreman skill or role prompt, such as using the Pi home for Forgetful CLI
-state or requesting MCP sign-in, stop init and watch with manual reconciliation instructions.
-Harmless edits remain supported. Old discussion-only guidance and stale/edited installed upstream
-extension code are refused. Reconcile them against the current bundled templates without discarding
-custom instructions or credentials. An old extension 1.3/worker 0.4 installation is not ready for
-child rosters; there is no automatic migration or silent runtime upgrade. If an older config lacks
-`forgetful.project_id`, add the existing numeric project ID under `[forgetful]` in `factory.toml`,
-then rerun init. Init will not overwrite that existing file to save a prompted choice.
+```json
+"roster": {
+  "enabled": true,
+  "roles": [{"agent_file": "../feature-owner/agent.json"}]
+}
+```
 
-Changing the saved Pi home requires explicitly reviewing `pi-profile.json`; change the model or
-Forgetful target in `factory.toml`, then rerun init. `model-selection.json` is generated completion
-evidence, not an editable role resource. Init invalidates it before setup work and atomically
-regenerates it only after all required checks succeed. It binds both models/efforts, Pi home,
-Forgetful project/target, role selectors/rosters and the grill-me source hash. Execution setup also
-binds worker settings and selected skill sources; changed selections require rechecking setup.
-Failed or skipped
-checks cannot reuse an older receipt. Both local metadata files
-are git-ignored; no credential values are recorded.
+This is a section of an agent document, not a complete file. Each child owns its name and settings;
+parents supply no aliases or overrides. Paths resolve lexically from the containing agent file,
+using relative or absolute local paths. Loading follows one hop at a time. The root must select Pi.
+Pi children use their own file as their child-roster source; non-Pi leaves require a disabled, empty
+roster.
+
+Starter coordinator definitions set `cwd` to `"."`, so native `AGENTS.md` loads from their agent
+folders. An omitted root cwd inherits the Factory CLI process cwd, not the agent file's directory
+or `--workspace`. Worker definitions omit cwd to preserve the owner's assigned worktree. Resource
+paths are relative to their agent file even when cwd differs. A definition can move independently
+of its resources and working directory if its references remain correct.
+
+The starter Foreman selects feature-owner; owner selects research and any configured workers.
+Names may be changed or added later. Dispatch still follows Foreman -> owner -> worker, with full
+role, task, worktree and review context. There is no Python worker controller. The owner reads the
+selected worker definition and supplies absolute selected skill references with read-before-work
+instructions. For normalized Codex/Claude children, extension 1.5 source also supplies deterministic
+skill references and strips only outbound native `skills`; the saved canonical selection remains
+complete. This is prompt guidance, not native skill registration or proof of model compliance.
+Pi and OpenCode retain native selected-skill support; other resource options retain native checks.
+This extension behavior remains subject to the release gates above.
+
+Foreman's instructions ask it to read its preserved `APPEND_SYSTEM.md`; it is not sent as an opening
+prompt. Watch sends no opening model prompt. The first notification or user input can incur usage.
+
+The root JSON owns resource policy. Starter Pi definitions disable automatic personal/project
+resources, native MCP and home `SYSTEM.md`, while keeping native instructions enabled. Omitted
+flags use native defaults. Personal append/context files and native settings can still apply.
+AgentShell 0.5 rejects interactive launch with home-system exclusion when cwd contains
+`.pi/SYSTEM.md`; Factory preserves it and reports the conflict. No remote package auto-install or
+custom Factory launcher is used.
+
+Shared state is separate from agent names: `.factory/pi-profile.json` records consent and the Pi
+home; `.factory/setup-complete.json` records only `{"complete": true}`; `.factory/resources/` holds
+audited shared resources. The receipt is not a model/resource fingerprint. There is no generated
+runtime roster copy or skill-registration sidecar. Owner/control state remains under
+`.factory/runtime/foreman`. Native credentials and settings are preserved.
+
+Existing edited instructions, old profile files and credentials are not deleted or migrated.
+Known obsolete guidance and altered audited runtime bytes need explicit reconciliation. Old
+`resources.json`, `roster.json` and `model-selection.json` belong to the superseded design; do not
+regenerate them or treat them as current settings. Existing/DinoLand factories are not automatically
+converted. Changing a completed factory's definitions does not require init. If first setup was
+saved but incomplete, use `init --finalize` after correcting it; if configuration was never saved,
+retry the original init arguments.
 
 Watcher, Foreman and owner share native Forgetful CLI state under
-`.factory/agents/foreman/cli-config`. Their commands use `FACTORY_FORGETFUL_DIR` as cwd and
+`.factory/cli-config`. `FACTORY_FORGETFUL_DIR` selects `.factory` as command cwd, with
 `XDG_CONFIG_HOME="$FACTORY_FORGETFUL_CONFIG_DIR"` for that command only. The inherited
 `FACTORY_ROLE_DIR` compatibility variable does not identify a child role.
 `PI_CODING_AGENT_DIR` always identifies the shared Pi home; it is never the Forgetful auth path.
@@ -292,21 +428,21 @@ empty `FORGETFUL_SERVER`; remote mode supplies the chosen URL. `FORGETFUL_TOKEN`
 the launch environment. There is no wrapper, alias, custom tool, or command forwarding layer.
 Arbitrary agent commands must follow the skill to retain these configuration boundaries.
 
-Every `init` checks Forgetful connectivity, project access and planning support before marking
-setup complete, for both local databases and servers. Server checks reuse native saved credentials
-and may open browser sign-in if needed. Failed or cancelled checks leave setup incomplete and keep
-saved work for retry. The old `--check-connection` flag is accepted but no longer needed.
+First setup and explicit `init --finalize` check Forgetful connectivity, project access and planning
+support before recording completion, for both local databases and servers. Ordinary repeated init
+makes no backend calls. Server checks reuse native saved credentials and may open browser sign-in.
+Failed or cancelled first-setup checks keep saved work, with watching blocked until finalization.
+The old `--check-connection` flag is accepted but no longer needed.
 The check uses two CLI calls: selected project and the permitted tool catalog.
 Project access also verifies the connection and native login; preflight needs no user-profile
-request.
-Agents may still request user context separately.
-It does not start a new CLI process for each planning tool.
+request or separate process per planning tool. Agents may request user context separately.
 
 The browser notice appears only when the server's public `/api/v1/auth/info` reports OAuth.
 Other modes or unavailable metadata do not show it. Metadata only controls this notice; the native
 CLI still owns authentication and the access check always runs.
 
-`init --login` explicitly runs native `forgetful auth login --server` before the final access check.
+`--login` during first init or `init --finalize` explicitly runs native
+`forgetful auth login --server` before the final access check.
 It signs in to Forgetful, not Pi, and saves login state in the Factory's CLI scope above. It is
 optional; normal setup already checks access. Native `auth status` and `auth logout` keep their
 own syntax, without a target flag. Restart the Foreman after changing connection settings.
@@ -333,9 +469,10 @@ AgentShell also writes a resource-selection digest under `$XDG_STATE_HOME/agent-
 session ends; it records a digest rather than resource contents or credential values.
 
 Init provisions pinned AgentShell and hide-tools extensions; `/hide-tools` changes terminal display.
-The audited AgentShell extension is 1.4.1; its independent worker uses AgentShell 0.5.0. Its real
+The current bundle contains audited AgentShell extension 1.5.0; its independent worker uses
+AgentShell 0.5.0. Normalized native loading is tested without inference. Its real
 Python environment requires installation consent (`--install-role-runtime`), using
-existing uv >=0.13.1 and Python. No background-memory or custom Factory Pi extension is installed.
+existing uv >=0.13.5 and Python. No background-memory or custom Factory Pi extension is installed.
 Generated ignore rules protect runtime and credential paths without weakening existing exclusions.
 
 Missing executables require consent. Pi 1.2.0 can be installed into `.factory/runtime/pi` using
@@ -362,7 +499,8 @@ with Pi's `update --models` command and `PI_OFFLINE` unset, or configure the sha
 `models.json`. Setting `PI_OFFLINE=0` is not a reliable opt-out in Pi 1.2.0.
 
 Most tests use controlled external commands and temporary Git repositories. Optional native tests
-load the installed Pi SDK and bundled extension without inference:
+can load an isolated Pi SDK without inference. Normalized loading still needs the audited released
+bundle and successful native checks; the earlier checks do not establish that result:
 
 ```bash
 NATIVE_PI_SDK=/absolute/pi-coding-agent/dist/index.js \
@@ -374,3 +512,8 @@ Forgetful checks, and isolated Pi loading/lifecycle checks. These do not prove a
 planning, live OAuth refresh or model-provider access. The earlier
 [CLI onboarding record](docs/plans/cli-onboarding.md) retains the Slice 3 smoke evidence.
 Never point test probes at a personal Pi profile.
+
+Native cancellation remains limited by [agent-shell#28][native-cancellation]. This change adds no
+workaround and does not turn cancellation into proof that delegated work stopped.
+
+[native-cancellation]: https://github.com/ScottRBK/agent-shell/issues/28

@@ -43,6 +43,20 @@ def write_json(path: Path, value: dict) -> None:
     write_new(path, json.dumps(value, indent=2) + '\n')
 
 
+def write_definition(path: Path, value: dict) -> None:
+    """A first-setup retry may reuse an equal definition, never silently keep other choices."""
+    write_json(path, value)
+    try:
+        saved = read_generated_json(path)
+        if json.dumps(saved, sort_keys=True) == json.dumps(value, sort_keys=True):
+            return
+    except (OSError, ValueError, UnicodeError):
+        pass
+    raise FactoryError(f'Existing agent definition differs or is invalid: {path}. '
+                       'The file is preserved. Review it and retry first setup with matching '
+                       'choices, or explicitly move the conflicting file aside.')
+
+
 @contextmanager
 def _generated_parent(path: Path):
     """Pin each directory without following symlinks during receipt operations (Linux/WSL)."""

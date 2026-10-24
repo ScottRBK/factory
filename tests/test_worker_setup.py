@@ -23,35 +23,34 @@ class WorkerSetupTests(InitFixture):
         self.assertEqual(events(log), [])
         return result
 
-    def test_worker_sources_selections_and_executables_are_checked_before_watch(self):
-        # Arrange
+    def test_root_watch_does_not_recursively_preflight_workers_or_native_worker_accounts(self):
+        # Arrange: child loading and native startup checks belong to the extension.
+        from test_profile_recovery import ProfileRecoveryTests
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
         self.assertEqual(setup.returncode, 0, setup.stderr)
+        ProfileRecoveryTests.install_terminal_double(self)
         agents = repo / '.factory/agents'
-        paths = [self.workspace / 'tdd/SKILL.md', self.workspace / 'standards/SKILL.md',
-                 agents / 'implementation/skills/implementation/SKILL.md',
-                 agents / 'review/resources.json', self.bin / 'codex', self.bin / 'claude']
-        for path in paths:
-            original = path.read_bytes()
-            mode = path.stat().st_mode
-            with self.subTest(path=path):
-                path.unlink()
-                # Act / Assert
-                result = self.watch(repo)
-                self.assertRegex(result.stderr, 'worker|skill|incomplete')
-                path.write_bytes(original)
-                path.chmod(mode)
-        for path in paths[:3]:
-            original = path.read_bytes()
-            with self.subTest(edited=path):
-                path.write_bytes(original + b'\nChanged selection content\n')
-                # Act / Assert
-                result = self.watch(repo)
-                self.assertIn('changed', result.stderr)
-                path.write_bytes(original)
+        for path in (self.workspace / 'tdd/SKILL.md', self.workspace / 'standards/SKILL.md',
+                     agents / 'implementation/skills/implementation/SKILL.md',
+                     self.bin / 'codex', self.bin / 'claude'):
+            path.unlink()
+        definition = agents / 'review/agent.json'
+        definition.write_text('{unfinished child edit')
+        root = agents / 'foreman/agent.json'
+        before = root.read_bytes()
+        # Act
+        result = subprocess.run([sys.executable, '-m', 'forgetful_factory', 'watch',
+                                 '--workspace', str(repo), '--new-only'], cwd=repo, env=self.env,
+                                capture_output=True, text=True, timeout=5)
+        # Assert: this proves root startup only, not native child/model compliance.
+        self.assertNotIn('Traceback', result.stderr)
+        launch, = [e for e in events(self.terminal_log) if e['kind'] == 'launch']
+        self.assertEqual(launch['roster'], str(root))
+        self.assertEqual(root.read_bytes(), before)
+        self.assertEqual(definition.read_text(), '{unfinished child edit')
 
-    def test_rerun_preserves_edited_worker_files_and_binds_selected_sources(self):
+    def test_rerun_preserves_edited_worker_files_without_content_fingerprints(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
@@ -64,73 +63,51 @@ class WorkerSetupTests(InitFixture):
         # Assert
         self.assertEqual(retry.returncode, 0, retry.stderr)
         self.assertEqual(path.read_text(), content)
-        receipt = json.loads((repo / '.factory/agents/foreman/model-selection.json').read_text())
-        self.assertIn('workers', receipt['profiles'])
+        receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
+        self.assertEqual(receipt, {'complete': True})
 
-    def test_stale_planning_guidance_blocks_execution_and_is_preserved_on_reinit(self):
-        # Arrange
-        repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        agents = repo / '.factory/agents'
+    def test_stale_planning_guidance_blocks_first_execution_setup_without_overwriting_edits(self):
         stale = {
             'feature-owner/skills/feature-owner/SKILL.md':
-                'This slice stops at a reviewable plan. '
-                'Do not run implementation or review agents.',
-            'feature-owner/AGENTS.md':
-                'Implementation, review execution, commits, pushes, PRs '
-                'and merges belong to Slice 6 '
-                'and are not\navailable in this slice.',
+                'This slice stops at a reviewable plan. Do not run implementation agents.',
+            'feature-owner/AGENTS.md': 'Implementation agents are not available in this slice.',
             'foreman/skills/foreman/SKILL.md':
-                'Implementation/review execution, commits, PR creation '
-                'and merges remain for Slice 6.',
-            'foreman/APPEND_SYSTEM.md': 'Implementation and review\nexecution remain for Slice 6.',
+                'Implementation/review execution, commits, PR creation remain for Slice 6.',
+            'foreman/APPEND_SYSTEM.md': 'Implementation and review execution remain for Slice 6.',
         }
-        for relative, obsolete in stale.items():
-            path = agents / relative
-            original = path.read_text()
+        for index, (relative, obsolete) in enumerate(stale.items()):
             with self.subTest(relative=relative):
+                # Arrange: an incomplete first setup with preexisting user instructions.
+                repo = self.repo(str(index))
+                path = repo / '.factory/agents' / relative
+                path.parent.mkdir(parents=True)
                 path.write_text(obsolete + '\nPreserve this team edit.\n')
                 before = path.read_bytes()
-                # Act / Assert
-                result = self.watch(repo)
+                # Act
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
+                # Assert
+                self.assertNotEqual(result.returncode, 0)
                 self.assertIn('reconciliation', result.stderr)
-                retry = self.run_cli(repo, worker_defaults=False)
-                self.assertNotEqual(retry.returncode, 0)
-                self.assertIn('reconciliation', retry.stderr)
                 self.assertEqual(path.read_bytes(), before)
-                self.assertFalse((agents / 'foreman/model-selection.json').exists())
-                path.write_text(original)
-                restored = self.run_cli(repo, worker_defaults=False)
-                self.assertEqual(restored.returncode, 0, restored.stderr)
+                self.assertFalse((repo / '.factory/factory.toml').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
 
-    def test_enabling_workers_never_rewrites_the_existing_planning_roster(self):
+    def test_repeated_init_cannot_enable_workers_or_rewrite_planning_definitions(self):
         # Arrange
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        path = repo / '.factory/factory.toml'
-        old_config = path.read_text()
-        roster = repo / '.factory/agents/feature-owner/roster.json'
-        original_roster = roster.read_bytes()
-        worker_settings(self)
-        additions = {
-            'implementation_agent_model': 'gpt-5.4', 'implementation_agent_harness': 'codex',
-            'implementation_agent_effort': 'xhigh', 'review_agent_model': 'opus',
-            'review_agent_harness': 'claude_code', 'review_agent_effort': 'high',
-            'tdd_skill': str(self.workspace / 'tdd/SKILL.md'),
-        }
-        path.write_text(''.join(f'{key} = {json.dumps(value)}\n'
-                                for key, value in additions.items()) + old_config)
-        before = path.read_bytes()
+        config = repo / '.factory/factory.toml'
+        owner = repo / '.factory/agents/feature-owner/agent.json'
+        before = config.read_bytes(), owner.read_bytes()
         # Act
-        result = self.run_cli(repo, worker_defaults=False)
+        result = self.run_cli(repo, *worker_settings(self), worker_defaults=False)
         # Assert
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('reconcile', result.stderr)
-        self.assertEqual(path.read_bytes(), before)
-        self.assertEqual(roster.read_bytes(), original_roster)
-        self.assertFalse((repo / '.factory/agents/foreman/model-selection.json').exists())
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((config.read_bytes(), owner.read_bytes()), before)
+        self.assertEqual(json.loads(owner.read_text())['roster']['roles'],
+                         [{'agent_file': '../research/agent.json'}])
+        self.assertFalse((repo / '.factory/agents/implementation').exists())
 
     def test_existing_planning_only_role_edits_survive_without_enabling_workers(self):
         # Arrange
@@ -151,8 +128,8 @@ class WorkerSetupTests(InitFixture):
         self.assertEqual(config.read_bytes(), before)
         self.assertEqual(path.read_text(), old_guidance)
         self.assertFalse((agents / 'implementation').exists())
-        receipt = json.loads((agents / 'foreman/model-selection.json').read_text())
-        self.assertNotIn('workers', receipt['profiles'])
+        receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
+        self.assertEqual(receipt, {'complete': True})
 
     def test_execution_requires_verification_permission_at_init_and_watch(self):
         repo = self.repo()
@@ -163,12 +140,12 @@ class WorkerSetupTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('planning check failed', result.stderr)
-        receipt = repo / '.factory/agents/foreman/model-selection.json'
+        receipt = repo / '.factory/setup-complete.json'
         self.assertFalse(receipt.exists())
         calls = [e['args'][:2] for e in events(log) if e['name'] == 'forgetful']
         self.assertEqual(calls, [['call', 'get_project'], ['tools', 'list']])
         del self.env['PROFILE_PLANNING_FAILURE']
-        setup = self.run_cli(repo, worker_defaults=False)
+        setup = self.run_cli(repo, '--finalize', worker_defaults=False)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         self.env['PROFILE_PLANNING_FAILURE'] = 'verification'
         log.unlink()
@@ -189,17 +166,22 @@ class WorkerSetupTests(InitFixture):
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_worker_metadata_symlink_is_rejected_before_reading_its_target(self):
+    def test_first_setup_refuses_to_write_through_worker_definition_symlink(self):
+        # Arrange
         repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        selection = repo / '.factory/agents/implementation/resources.json'
-        selection.unlink()
-        selection.symlink_to(self.workspace, target_is_directory=True)
-        result = self.watch(repo)
+        selection = repo / '.factory/agents/implementation/agent.json'
+        selection.parent.mkdir(parents=True)
+        target = self.workspace / 'preserve.json'
+        target.write_text('Keep target bytes')
+        selection.symlink_to(target)
+        # Act
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
+        # Assert
+        self.assertNotEqual(result.returncode, 0)
         self.assertIn('symlink', result.stderr)
         self.assertTrue(selection.is_symlink())
-        self.assertEqual(selection.readlink(), self.workspace)
+        self.assertEqual(target.read_text(), 'Keep target bytes')
+        self.assertFalse((repo / '.factory/factory.toml').exists())
 
     def test_invalid_external_skills_create_no_worker_metadata_and_corrected_init_succeeds(self):
         settings = worker_settings(self)
@@ -214,48 +196,42 @@ class WorkerSetupTests(InitFixture):
                 result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *invalid)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('Traceback', result.stderr)
-                for role in ('implementation', 'review'):
-                    self.assertFalse((repo / f'.factory/agents/{role}/resources.json').exists())
+                self.assertFalse((repo / '.factory/factory.toml').exists())
+                self.assertFalse((repo / '.factory/agents/feature-owner/agent.json').exists())
                 corrected = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
                 self.assertEqual(corrected.returncode, 0, corrected.stderr)
 
-    def test_relative_saved_skill_is_rejected_before_new_metadata_and_config_is_preserved(self):
+    def test_relative_worker_skill_edit_is_preserved_without_reconciliation(self):
+        # Arrange
         repo = self.repo()
-        settings = worker_settings(self)
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
         self.assertEqual(setup.returncode, 0, setup.stderr)
+        definition = repo / '.factory/agents/implementation/agent.json'
+        document = json.loads(definition.read_text())
+        document['agent']['resources']['skills'] = ['./skills']
+        definition.write_text(json.dumps(document))
+        before = definition.read_bytes()
         config = repo / '.factory/factory.toml'
-        edited = config.read_text().replace(str(self.workspace / 'tdd/SKILL.md'), 'tdd/SKILL.md')
-        config.write_text(edited)
-        resource = repo / '.factory/agents/implementation/resources.json'
-        resource.unlink()
+        saved = config.read_bytes()
+        # Act
         result = self.run_cli(repo, worker_defaults=False)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('absolute readable regular file', result.stderr)
-        self.assertFalse(resource.exists())
-        self.assertEqual(config.read_text(), edited)
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(definition.read_bytes(), before)
+        self.assertEqual(config.read_bytes(), saved)
 
-    def test_conflicting_preserved_owner_selection_names_the_file_without_disclosing_contents(self):
-        settings = worker_settings(self)
-        for kind in ('roster', 'resources'):
-            with self.subTest(kind=kind):
-                repo = self.repo(kind)
-                setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
-                self.assertEqual(setup.returncode, 0, setup.stderr)
-                config = repo / '.factory/factory.toml'
-                path = repo / f'.factory/agents/feature-owner/{kind}.json'
-                if kind == 'roster':
-                    config.write_text(config.read_text().replace(
-                        'review_agent_effort = "high"', 'review_agent_effort = "low"'))
-                else:
-                    path.write_text('TOP_SECRET invalid JSON; keep these edits')
-                saved_config, saved_selection = config.read_bytes(), path.read_bytes()
-                result = self.run_cli(repo, worker_defaults=False)
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn(str(path), result.stderr)
-                self.assertIn('reconcile', result.stderr)
-                self.assertIn('Back up', result.stderr)
-                self.assertNotIn('TOP_SECRET', result.stderr)
-                self.assertNotIn('Traceback', result.stderr)
-                self.assertEqual(config.read_bytes(), saved_config)
-                self.assertEqual(path.read_bytes(), saved_selection)
+    def test_repeated_init_preserves_partial_owner_edits_without_disclosing_contents(self):
+        # Arrange
+        repo = self.repo()
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        path = repo / '.factory/agents/feature-owner/agent.json'
+        path.write_text('TOP_SECRET invalid JSON; keep these edits')
+        config = repo / '.factory/factory.toml'
+        saved = path.read_bytes(), config.read_bytes()
+        # Act
+        result = self.run_cli(repo, worker_defaults=False)
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn('TOP_SECRET', result.stdout + result.stderr)
+        self.assertEqual((path.read_bytes(), config.read_bytes()), saved)

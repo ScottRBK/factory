@@ -7,9 +7,9 @@ import shlex
 import shutil
 import sys
 import zipfile
-from dataclasses import asdict
 from pathlib import Path
 
+from forgetful_factory.adapters.filesystem.agent_definitions import foreman_launch
 from forgetful_factory.adapters.filesystem.coordinator_profiles import CoordinatorProfiles
 from forgetful_factory.adapters.filesystem.resource_files import (
     check_real_path,
@@ -19,7 +19,7 @@ from forgetful_factory.adapters.filesystem.resource_files import (
     write_json,
     write_new,
 )
-from forgetful_factory.adapters.filesystem.skill_registration import SkillRegistration
+from forgetful_factory.adapters.filesystem.selected_skills import selected_skill_files
 from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
 from forgetful_factory.adapters.forgetful.connection import (
     AgentForgetfulConnection,
@@ -41,7 +41,7 @@ FOREMAN_SKILL_PATH = 'skills/foreman/SKILL.md'
 MAINTENANCE_SKILL_PATH = 'skills/factory-maintenance/SKILL.md'
 ROLE_GUIDANCE_FILE = 'APPEND_SYSTEM.md'
 PI_PROFILE_FILE = 'pi-profile.json'
-MODEL_SELECTION_FILE = 'model-selection.json'
+COMPLETION_FILE = 'setup-complete.json'
 ROLE_RESOURCES_FILE = 'role-resources.json'
 
 
@@ -49,9 +49,22 @@ class ForemanProfile:
     def __init__(self, workspace: Path):
         self.workspace = workspace
         self.directory = workspace / '.factory/agents/foreman'
-        self.resources_path = self.directory / 'resources.json'
+        self.foreman_skill = self.directory / FOREMAN_SKILL_PATH
+        self.bundle_directory = workspace / '.factory/resources'
         self._pi_choice: dict | None = None
         self._model_catalogs: dict[tuple[str, Path], list[str]] = {}
+
+    def prepare_setup_guidance(self) -> None:
+        template = (RESOURCES / 'AGENTS.md').read_text()
+        path = self.directory / 'AGENTS.md'
+        write_new(path, template)
+        # The first paragraph is the current setup contract; other guidance stays editable.
+        setup_guidance = template.split('\n\n')[1]
+        if setup_guidance not in path.read_text():
+            raise FactoryError(f'Stale testing guidance: {path} lacks current setup guidance. '
+                               'Reconcile its setup paragraph with the installed Foreman '
+                               'AGENTS.md before assisted launch. Custom instructions and '
+                               'existing files were preserved; no Foreman was launched.')
 
     def missing_executables(self, connection: ForgetfulConnection) -> list[str]:
         required = ['pi', 'tmux']
@@ -72,38 +85,34 @@ class ForemanProfile:
                 and not runtime_ready(managed, (managed / 'forgetful-requirements.txt',),
                                       FORGETFUL_PROBE)):
             missing.append('forgetful')
-        project = self.directory / 'resources/agentshell/python'
+        project = self.bundle_directory / 'agentshell/python'
         if not runtime_ready(project / '.venv', (project / 'pyproject.toml', project / 'uv.lock'),
                              ROLE_PROBE):
             missing.append('agentshell-runtime')
         return missing
 
-    def validate_setup(self, connection: ForgetfulConnection) -> None:
+    def validate_setup(self, connection: ForgetfulConnection, *,
+                       include_home_system_prompt: bool = False) -> None:
         """Read-only preflight. Connection/authentication readiness belongs to Pi/CLI."""
-        self.validate_guidance()
+        self.validate_guidance(include_home_system_prompt=include_home_system_prompt)
         self.require_pi_home(self.pi_home())
-        manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
-        required = ['resources.json', ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH,
-                    MAINTENANCE_SKILL_PATH]
-        required.extend(f'resources/{name}/{relative}'
-                        for name, source in manifest.items() for relative in source['files'])
-        if (any(not (self.directory / name).is_file() for name in required)
-                or self.missing_executables(connection)):
-            raise FactoryError('Foreman profile/runtime is incomplete; rerun init before watch.')
+        if self.missing_executables(connection):
+            raise FactoryError('Foreman profile/runtime is incomplete; complete first setup.')
         CoordinatorProfiles(self.workspace).validate_depth(self.pi_home())
         self.validate_bundled_resources()
-        self.launch_resources()
 
     def validate_bundled_resources(self) -> None:
         manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
         for name, source in manifest.items():
             for relative, digest in source['files'].items():
-                path = self.directory / 'resources' / name / relative
+                path = self.bundle_directory / name / relative
+                check_real_path(path)
                 if (path.is_symlink() or not path.is_file() or
                         hashlib.sha256(path.read_bytes()).hexdigest() != digest):
                     raise FactoryError(f'Stale or edited role resource: {path}; explicitly '
-                                       'reconcile it with the audited bundle and rerun init. '
-                                       'Existing files are preserved.')
+                                       'reconcile it with the audited bundle before a restart '
+                                       'with foreman/watch, or init --finalize for incomplete '
+                                       'first setup. Existing files are preserved.')
 
     def installation(self, command: str) -> str | None:
         return HostDependencies(self.workspace).description(command)
@@ -121,7 +130,7 @@ class ForemanProfile:
                     if hashlib.sha256(data).hexdigest() != digest:
                         raise FactoryError('Bundled role resource checksum failed; '
                                            'reinstall factory.')
-                    path = self.directory / 'resources' / member
+                    path = self.bundle_directory / member
                     if path.exists() and (path.is_symlink() or
                             hashlib.sha256(path.read_bytes()).hexdigest() != digest):
                         raise FactoryError(f'Stale or edited role resource: {path}. Explicitly '
@@ -154,10 +163,10 @@ class ForemanProfile:
                  '/agents/*/trust.json\n/agents/*/crashes.json\n/agents/*/tmp/\n'
                  '/agents/*/tools/\n/agents/*/npm/\n/agents/*/git/\n'
                  '/agents/*/sessions/\n'
-                 '/agents/*/pi-profile.json\n/agents/*/model-selection.json\n'
-                 '/agents/*/.model-selection.json.*.tmp\n'
+                 '/pi-profile.json\n/setup-complete.json\n/cli-config/\n'
+                 '/.setup-complete.json.*.tmp\n'
                  '/agents/*/cli-config/\n/agents/*/bin/\n/agents/*/cache/\n'
-                 '/agents/*/mcp-cache/\n/agents/*/resources/**/.venv/\n')
+                 '/agents/*/mcp-cache/\n/resources/**/.venv/\n')
         write_new(path, block)
         if block not in path.read_text():
             with path.open('a', encoding='utf-8') as stream:
@@ -165,48 +174,38 @@ class ForemanProfile:
 
     def prepare(self, connection: ForgetfulConnection) -> None:
         self.validate_guidance()
-        if self._pi_choice is not None:
-            write_json(self.directory / PI_PROFILE_FILE, self._pi_choice)
+        self.save_pi_choice()
         self._protect_runtime()
-        write_json(self.resources_path, {
-            'skills': ['skills/foreman', 'skills/factory-maintenance'],
-            'extensions': ['resources/agentshell/extensions/agentshell.ts',
-                           'resources/hide-tools/index.ts'],
-        })
         self._install_resources()
         for relative in (ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH, MAINTENANCE_SKILL_PATH):
             write_new(self.directory / relative, (RESOURCES / relative).read_text())
-        self.launch_resources()
         if connection.instance == 'local':
             Path(connection.database).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    def prepare_roles(self, config) -> None:
+    def save_pi_choice(self) -> None:
+        if self._pi_choice is not None:
+            write_json(self.workspace / '.factory' / PI_PROFILE_FILE, self._pi_choice)
+
+    def prepare_roles(self, config, choices) -> None:
         profiles = CoordinatorProfiles(self.workspace)
         profiles.validate_depth(self.pi_home())
         if config.execution_enabled:
-            self.validate_worker_models(config)
-        try:
-            if config.research_agent_model is not None:
-                directory = self.workspace / '.factory/agents/research'
-                check_real_path(directory)
-                directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-                models = self.list_models(config.forgetful, harness=config.research_agent_harness,
-                                          cwd=directory)
-                if config.research_agent_model not in models:
-                    raise FactoryError('Research model is not selectable in the native catalog; '
-                                       'choose an exact selector and rerun init.')
-            profiles.prepare(config)
-            profiles.selection(config)
-            profiles.register_local_skills(config)
-            profiles.selection(config)
-        except (ValueError, TypeError, KeyError) as error:
-            raise FactoryError('Invalid owner resources/roster; explicitly reconcile the '
-                               'preserved files and rerun init.') from error
+            self.validate_worker_models(config, choices)
+        if choices.research_agent_model is not None:
+            directory = self.workspace / '.factory/agents/research'
+            check_real_path(directory)
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            models = self.list_models(config.forgetful, harness=choices.research_agent_harness,
+                                      cwd=directory)
+            if choices.research_agent_model not in models:
+                raise FactoryError('Research model is not selectable in the native catalog; '
+                                   'choose an exact selector and rerun init.')
+        profiles.prepare(config, choices)
 
-    def validate_worker_models(self, config: FactoryConfiguration) -> None:
+    def validate_worker_models(self, config: FactoryConfiguration, choices) -> None:
         for role in ('implementation', 'review'):
-            harness = getattr(config, f'{role}_agent_harness')
-            model = getattr(config, f'{role}_agent_model')
+            harness = getattr(choices, f'{role}_agent_harness')
+            model = getattr(choices, f'{role}_agent_model')
             for repository in config.repository:
                 try:
                     models = self.list_models(config.forgetful, harness=harness,
@@ -221,12 +220,12 @@ class ForemanProfile:
                                        ) from error
 
     def choose_pi_home(self, requested: str | None, confirm) -> str:
-        path = self.directory / PI_PROFILE_FILE
+        path = self.workspace / '.factory' / PI_PROFILE_FILE
         if path.exists():
             directory = self.pi_home()
             if requested is not None and str(Path(requested).expanduser().absolute()) != directory:
                 raise FactoryError('Pi directory conflicts with saved consent. Explicitly review '
-                                   'pi-profile.json and model-selection.json before rerunning init.'
+                                   'the factory pi-profile.json before using init --finalize.'
                                    )
             if requested is not None:
                 self.require_pi_home(directory)
@@ -250,15 +249,17 @@ class ForemanProfile:
                                'Setup is incomplete. Initialize your normal native Pi home '
                                f'in another terminal with PI_CODING_AGENT_DIR='
                                f'{shlex.quote(directory)} {shlex.quote(executable)}, '
-                               'then /login, and rerun init. '
+                               'then /login. Retry first init if no configuration exists; '
+                               'otherwise use init --finalize for incomplete setup, or restart '
+                               'foreman/watch for completed setup. '
                                'If the path is a typo, correct --pi-agent-dir or '
                                'PI_CODING_AGENT_DIR. If saved consent already exists, review or '
-                               'remove .factory/agents/foreman/pi-profile.json before rerunning '
-                               'init to approve the corrected home.')
+                               'remove .factory/pi-profile.json before using '
+                               'init --finalize to approve the corrected home.')
 
     def pi_home(self) -> str:
         try:
-            data = json.loads((self.directory / PI_PROFILE_FILE).read_text())
+            data = read_generated_json(self.workspace / '.factory' / PI_PROFILE_FILE)
             directory = data['agent_directory']
             if (data['shared_profile_consent'] is not True or not isinstance(directory, str)
                     or not Path(directory).is_absolute() or '\x00' in directory
@@ -266,8 +267,9 @@ class ForemanProfile:
                 raise ValueError('Invalid consent')
             return directory
         except (OSError, ValueError, TypeError, KeyError) as error:
-            raise FactoryError('Shared Pi profile consent is missing or invalid; rerun init. '
-                               'Review .factory/agents/foreman/pi-profile.json if it exists.'
+            raise FactoryError('Shared Pi profile consent is missing or invalid. '
+                               'Review .factory/pi-profile.json if it exists; '
+                               'use init --finalize to approve missing consent for saved setup.'
                                ) from error
 
     def list_models(self, connection: ForgetfulConnection, *, harness: str = 'pi',
@@ -295,83 +297,57 @@ class ForemanProfile:
             self._model_catalogs[key] = models
         return models.copy()
 
-    def _selection(self, config: FactoryConfiguration) -> dict:
-        return {'agent_directory': self.pi_home(), 'model': config.foreman_agent_model,
-                'foreman_effort': config.foreman_agent_effort,
-                'owner_model': config.feature_owner_agent_model,
-                'owner_effort': config.feature_owner_agent_effort,
-                'owner_harness': config.feature_owner_agent_harness,
-                'forgetful': asdict(config.forgetful),
-                'profiles': CoordinatorProfiles(self.workspace).selection(config)}
+    def selected_launch(self, config: FactoryConfiguration) -> dict:
+        launch = foreman_launch(Path(config.foreman_agent_file))
+        self.directory = Path(launch['cwd'])
+        skills = selected_skill_files(launch['resources']['skills'])
+        required = {}
+        for name in ('foreman', 'factory-maintenance'):
+            candidates = [skill for skill in skills
+                          if skill.name == 'SKILL.md' and skill.parent.name == name]
+            if len(candidates) > 1:
+                raise FactoryError(f'Ambiguous required Foreman guidance: {name}. '
+                                   'Select one workflow skill; agent files were preserved.')
+            required[name] = next(iter(candidates), None)
+        if not all(required.values()):
+            raise FactoryError('Required Foreman guidance must be selected: skills/foreman and '
+                               'skills/factory-maintenance. Agent files were preserved.')
+        self.foreman_skill = required['foreman']
+        extension = self.bundle_directory / 'agentshell/extensions/agentshell.ts'
+        if str(extension) not in launch['resources']['extensions']:
+            raise FactoryError('Foreman must select the audited AgentShell extension. '
+                               'Agent files were preserved.')
+        self.validate_setup(config.forgetful, include_home_system_prompt=
+                            launch['resources'].get('include_home_system_prompt', True))
+        return launch
 
     def record_completion(self, config: FactoryConfiguration) -> None:
-        expected = self._selection(config)
-        replace_generated_json(self.directory / MODEL_SELECTION_FILE, expected)
-        self.validate_completion(config)
+        self.selected_launch(config)
+        replace_generated_json(self.workspace / '.factory' / COMPLETION_FILE, {'complete': True})
 
     def begin_setup(self) -> None:
-        remove_generated(self.directory / MODEL_SELECTION_FILE)
-        SkillRegistration(self.directory.parent).recover()
+        remove_generated(self.workspace / '.factory' / COMPLETION_FILE)
 
     def validate_completion(self, config: FactoryConfiguration) -> None:
         try:
-            data = read_generated_json(self.directory / MODEL_SELECTION_FILE)
-            if data != self._selection(config):
-                raise ValueError('Selection changed')
+            data = read_generated_json(self.workspace / '.factory' / COMPLETION_FILE)
+            if data != {'complete': True}:
+                raise ValueError('Incomplete initial setup')
         except (OSError, ValueError) as error:
-            raise FactoryError('Pi model setup is incomplete or changed; rerun init. '
-                               'model-selection.json binds models/efforts, role selections, '
-                               'grill-me source, Pi home and Forgetful target.') from error
+            raise FactoryError('Initial factory setup is incomplete; use init --finalize '
+                               'to validate the first setup.') from error
 
-    def launch_resources(self) -> dict:
+    def _read_guidance(self, path: Path) -> str:
         try:
-            settings = json.loads(self.resources_path.read_text())
-            if not isinstance(settings, dict) or settings.keys() - {'skills', 'extensions'}:
-                raise ValueError('Unsupported selection')
-            resources = {}
-            for key in ('skills', 'extensions'):
-                values = settings.get(key, [])
-                if not isinstance(values, list):
-                    raise ValueError('Invalid paths')
-                resources[key] = [self._local_resource_path(value) for value in values]
-            skills = {Path(path).resolve() for path in resources['skills']}
-            required = [(self.directory / relative).resolve()
-                        for relative in (FOREMAN_SKILL_PATH, MAINTENANCE_SKILL_PATH)]
-            extension = (self.directory / 'resources/agentshell/extensions/agentshell.ts').resolve()
-            if (any(not {skill, skill.parent}.intersection(skills) for skill in required)
-                    or extension not in {Path(p).resolve() for p in resources['extensions']}):
-                raise FactoryError('Incomplete Foreman resources.json: select skills/foreman '
-                                   'and skills/factory-maintenance (each folder or its SKILL.md) '
-                                   'under skills and resources/agentshell/extensions/agentshell.ts '
-                                   'under extensions. Edits are preserved; reconcile the '
-                                   'selections and rerun init.')
-            return resources
-        except (OSError, ValueError, TypeError) as error:
-            raise FactoryError('Invalid Foreman resources.json: select only existing local '
-                               'skills/extensions paths, relative to the role or absolute. '
-                               'No packages, URLs or inheritance overrides are supported; '
-                               'Edits are preserved. Correct the file and rerun init.') from error
-
-    def _local_resource_path(self, value: object) -> str:
-        if (not isinstance(value, str) or not value or '\x00' in value
-                or value.startswith(('!', 'npm:', 'git:', 'http:', 'https:', 'github:'))):
-            raise ValueError('Expected a provisioned local path')
-        path = Path(value).expanduser()
-        if not path.is_absolute():
-            path = self.directory / path
-        if not path.is_file() and not path.is_dir():
-            raise ValueError('Missing resource')
-        return str(path.absolute())
-
-    def _read_guidance(self, relative: str) -> str:
-        try:
-            return (self.directory / relative).read_text(encoding='utf-8')
+            return path.read_text(encoding='utf-8')
         except (OSError, UnicodeError) as error:
-            raise FactoryError(f'Foreman {relative} must be readable valid UTF-8. '
-                               'The file is preserved; correct it and rerun init.') from error
+            raise FactoryError(f'Foreman {path} must be readable valid UTF-8. '
+                               'The file is preserved; correct it before restarting foreman/watch '
+                               'or validating incomplete first setup with init --finalize.'
+                               ) from error
 
-    def validate_guidance(self) -> None:
-        if (self.directory / '.pi/SYSTEM.md').exists():
+    def validate_guidance(self, *, include_home_system_prompt: bool = False) -> None:
+        if not include_home_system_prompt and (self.directory / '.pi/SYSTEM.md').exists():
             raise FactoryError('The Foreman launch directory has .pi/SYSTEM.md. '
                                'AgentShell cannot keep that '
                                'file while excluding your personal SYSTEM.md in interactive Pi. '
@@ -383,19 +359,20 @@ class ForemanProfile:
             r'''\bcd\s+(?:--\s+)?["']?''' + pi_variable + r'''["']?(?:\s|$)''',
             r'(?:/mcp|\bpi\s+mcp)\s+login\s+forgetful\b',
         )
-        for relative in (FOREMAN_SKILL_PATH, ROLE_GUIDANCE_FILE):
-            path = self.directory / relative
+        for path in (self.foreman_skill, self.directory / ROLE_GUIDANCE_FILE):
             if not path.exists():
                 continue
-            content = self._read_guidance(relative)
+            content = self._read_guidance(path)
             if ('Do not start implementation or dispatch feature owners.' in content
                     or 'Do not dispatch agents, create plans or tasks,' in content):
-                raise FactoryError(f'Foreman {relative} is from the discussion-only slice; '
+                raise FactoryError(f'Foreman {path} is from the discussion-only slice; '
                                    'manual reconciliation with current instructions is needed. '
-                                   'Your guidance is preserved; rerun init after review.')
+                                   'Your guidance is preserved; after review restart foreman/watch '
+                                   'or validate incomplete first setup with init --finalize.')
             if any(re.search(pattern, content) for pattern in obsolete):
-                raise FactoryError(f'Foreman {relative} needs manual reconciliation: obsolete '
+                raise FactoryError(f'Foreman {path} needs manual reconciliation: obsolete '
                                    'Pi-home Forgetful commands or MCP sign-in instructions. '
                                    'Use FACTORY_ROLE_DIR for native Forgetful CLI cwd and '
                                    'cli-config; MCP is unsupported. Files are preserved; edit '
-                                   'the instructions explicitly and rerun init.')
+                                   'the instructions explicitly before restarting foreman/watch '
+                                   'or validating incomplete first setup with init --finalize.')

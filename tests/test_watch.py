@@ -102,6 +102,7 @@ class AgentShell:
         print('library stdout banner', flush=True)
         os.write(1, b'native library stdout banner\\n')
         record('launch', cwd=cwd, model=model, effort=effort, agent_type=self.agent_type,
+               resources=resources.__dict__,
                roster=os.environ.get('PI_AGENTSHELL_ROSTER_FILE'), prompt=prompt,
                forgetful_dir=os.environ.get('FACTORY_FORGETFUL_DIR'),
                forgetful_config=os.environ.get('FACTORY_FORGETFUL_CONFIG_DIR'),
@@ -202,12 +203,8 @@ class WatchFixture(unittest.TestCase):
         directory = self.workspace / '.factory'
         directory.mkdir(exist_ok=True)
         contents = (f'watcher_label = {json.dumps(labels)}\n'
-                    'foreman_agent_model = "provider/model"\n'
-                    'foreman_agent_effort = "high"\n'
-                    'feature_owner_agent_model = "provider/model"\n'
-                    'feature_owner_agent_effort = "high"\n'
-                    'feature_owner_agent_harness = "pi"\n'
-                    f'grill_me_skill = {json.dumps(str(self.grill_skill))}\n')
+                    'foreman_agent_file = "agents/foreman/agent.json"\n'
+                    'execution_enabled = false\n')
         for index, source in enumerate(sources):
             local = self.workspace if index == 0 else self.workspace / f'repository-{index}'
             if not local.exists():
@@ -238,11 +235,11 @@ class WatchFixture(unittest.TestCase):
             return []
         return [json.loads(line) for line in self.terminal_log.read_text().splitlines()]
 
-    def start(self, *arguments, input='', stdout=subprocess.PIPE):
+    def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None):
         process = subprocess.Popen(
             [sys.executable, '-m', 'forgetful_factory', 'watch', '--workspace',
              str(self.workspace), '--interval', '0.05',
-             *arguments], cwd=self.workspace, env=self.env, stdin=subprocess.PIPE,
+             *arguments], cwd=cwd or self.workspace, env=self.env, stdin=subprocess.PIPE,
             stdout=stdout, stderr=subprocess.PIPE, text=True,
         )
         self.addCleanup(self.cleanup_process, process)
@@ -413,7 +410,7 @@ class WatchCliTests(WatchFixture):
             with self.subTest(arguments=arguments, answer=answer):
                 # Arrange
                 self.terminal_log.unlink(missing_ok=True)
-                (self.workspace / '.factory/agents/foreman/fixture-plans.json').unlink(
+                (self.workspace / '.factory/fixture-plans.json').unlink(
                     missing_ok=True)
                 self.script({'team/app': [[[self.issue(1)]],
                                          [[self.issue(1, title='Edited'), self.issue(2)]]]})
@@ -458,7 +455,7 @@ class WatchCliTests(WatchFixture):
             with self.subTest(malformed=malformed):
                 # Arrange
                 self.terminal_log.unlink(missing_ok=True)
-                (self.workspace / '.factory/agents/foreman/fixture-plans.json').unlink(
+                (self.workspace / '.factory/fixture-plans.json').unlink(
                     missing_ok=True)
                 self.script({'team/app': [malformed, [[self.issue(10)]]]})
                 # Act
