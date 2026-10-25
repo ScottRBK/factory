@@ -4,6 +4,9 @@ from forgetful_factory.adapters.command import run_command
 from forgetful_factory.application.ports.worktrees import WorktreeProblem, WorktreeReadError
 from forgetful_factory.domain.models import FactoryError
 
+_INSPECTION_ERROR = ('Cannot inspect worktree paths; reconcile filesystem access. '
+                     'Existing work is preserved. ')
+
 
 def _read_git(arguments: list[str]) -> str:
     try:
@@ -31,8 +34,7 @@ class GitWorktrees:
         try:
             self._inspect(repository, branch, path, recorded=False, remote=remote)
         except OSError as error:
-            raise WorktreeReadError('Cannot inspect worktree paths; reconcile filesystem access. '
-                                    'Existing work is preserved. ' + str(error)) from error
+            raise WorktreeReadError(_INSPECTION_ERROR + str(error)) from error
 
     @staticmethod
     def _repository_entries(repository: str, remote: str) -> tuple[Path, list[dict]]:
@@ -49,8 +51,7 @@ class GitWorktrees:
         try:
             self._verify_removed(repository, branch, path, remote=remote)
         except OSError as error:
-            raise WorktreeReadError('Cannot inspect worktree paths; reconcile filesystem access. '
-                                    'Existing work is preserved. ' + str(error)) from error
+            raise WorktreeReadError(_INSPECTION_ERROR + str(error)) from error
 
     def _verify_removed(self, repository: str, branch: str, path: str, *, remote: str) -> None:
         _, entries = self._repository_entries(repository, remote)
@@ -74,8 +75,7 @@ class GitWorktrees:
         try:
             creation = self._inspect(repository, branch, path, recorded=recorded, remote=remote)
         except OSError as error:
-            raise WorktreeReadError('Cannot inspect worktree paths; reconcile filesystem access. '
-                                    'Existing work is preserved. ' + str(error)) from error
+            raise WorktreeReadError(_INSPECTION_ERROR + str(error)) from error
         if creation is None:
             return
         root, target = creation
@@ -95,33 +95,7 @@ class GitWorktrees:
         target = Path(path)
         match = next((e for e in entries if e.get('worktree') == str(target)), None)
         if match:
-            if (match.get('branch') != f'refs/heads/{branch}' or not target.is_dir()
-                    or 'prunable' in match or target.is_symlink()):
-                raise WorktreeProblem('worktree_mismatch', f'Recorded worktree mismatch: {target}; '
-                                   'reconcile without reset.', path)
-            common = _read_git(['git', '-C', str(target), 'rev-parse',
-                                  '--path-format=absolute', '--git-common-dir'])
-            expected = _read_git(['git', '-C', str(root), 'rev-parse',
-                                    '--path-format=absolute', '--git-common-dir'])
-            if common != expected:
-                raise WorktreeProblem('worktree_repository_mismatch',
-                                      f'Worktree belongs to another repository: {target}.', path)
-            try:
-                actual_branch = _read_git(['git', '-C', str(target), 'symbolic-ref', 'HEAD'])
-                actual_root = _read_git(['git', '-C', str(target), 'rev-parse',
-                                           '--show-toplevel'])
-                gitdir = Path(_read_git(['git', '-C', str(target), 'rev-parse',
-                                           '--absolute-git-dir'])).resolve()
-                # The registry alone does not prove the target uses its registered HEAD/index.
-                if (actual_branch != match['branch'] or Path(actual_root).resolve() != target
-                        or gitdir.parent != Path(expected).resolve() / 'worktrees'
-                        or Path((gitdir / 'gitdir').read_text().rstrip('\n')).resolve()
-                        != target / '.git'):
-                    raise ValueError('Target Git identity differs from registration')
-            except ValueError as error:
-                raise WorktreeProblem('worktree_mismatch', f'Recorded worktree mismatch: {target}; '
-                                   'reconcile branch/root/gitdir without reset. '
-                                   'Existing work is preserved.', path) from error
+            self._validate_registered_worktree(root, target, branch, path, match)
             return None
         if recorded:
             raise WorktreeProblem(
@@ -139,3 +113,46 @@ class GitWorktrees:
             raise WorktreeProblem('worktree_branch_conflict',
                                   f'New worktree branch already exists: {branch}.', path)
         return root, target
+
+    def _validate_registered_worktree(self, root: Path, target: Path, branch: str, path: str,
+                                      match: dict) -> None:
+        self._validate_registration(target, branch, path, match)
+        expected = self._validate_common_directory(root, target, path)
+        self._validate_target_identity(target, path, match, expected)
+
+    @staticmethod
+    def _validate_registration(target: Path, branch: str, path: str, match: dict) -> None:
+        if (match.get('branch') != f'refs/heads/{branch}' or not target.is_dir()
+                or 'prunable' in match or target.is_symlink()):
+            raise WorktreeProblem('worktree_mismatch', f'Recorded worktree mismatch: {target}; '
+                                  'reconcile without reset.', path)
+
+    @staticmethod
+    def _validate_common_directory(root: Path, target: Path, path: str) -> str:
+        common = _read_git(['git', '-C', str(target), 'rev-parse',
+                            '--path-format=absolute', '--git-common-dir'])
+        expected = _read_git(['git', '-C', str(root), 'rev-parse',
+                              '--path-format=absolute', '--git-common-dir'])
+        if common != expected:
+            raise WorktreeProblem('worktree_repository_mismatch',
+                                  f'Worktree belongs to another repository: {target}.', path)
+        return expected
+
+    @staticmethod
+    def _validate_target_identity(target: Path, path: str, match: dict,
+                                  expected: str) -> None:
+        try:
+            actual_branch = _read_git(['git', '-C', str(target), 'symbolic-ref', 'HEAD'])
+            actual_root = _read_git(['git', '-C', str(target), 'rev-parse', '--show-toplevel'])
+            gitdir = Path(_read_git(['git', '-C', str(target), 'rev-parse',
+                                     '--absolute-git-dir'])).resolve()
+            # The registry alone does not prove the target uses its registered HEAD/index.
+            if (actual_branch != match['branch'] or Path(actual_root).resolve() != target
+                    or gitdir.parent != Path(expected).resolve() / 'worktrees'
+                    or Path((gitdir / 'gitdir').read_text().rstrip('\n')).resolve()
+                    != target / '.git'):
+                raise ValueError('Target Git identity differs from registration')
+        except ValueError as error:
+            raise WorktreeProblem('worktree_mismatch', f'Recorded worktree mismatch: {target}; '
+                                  'reconcile branch/root/gitdir without reset. '
+                                  'Existing work is preserved.', path) from error
