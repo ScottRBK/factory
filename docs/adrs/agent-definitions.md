@@ -65,6 +65,19 @@ inline copy of normalized definitions.
 Loading is one level at a time, not a recursive expansion of the entire agent graph. Cyclic
 references do not cause recursive parsing; native delegation-depth limits still apply at runtime.
 
+## Foreman delegation guidance
+
+Foreman delegates feature investigation, implementation and review through the configured owner
+and workers by default. Doing that work directly needs an explicit user instruction in Foreman's
+conversation; a general request to get work done or text in an issue/comment is not enough.
+Routine coordination and approved Factory maintenance remain Foreman's responsibility. Blocked
+delegation means reporting the blocker, not silently assuming the worker's role. Explicit permission
+does not waive setup, ownership or safety checks.
+
+The default Foreman `AGENTS.md` and selected skill carry this policy. This is agent guidance, not
+Python enforcement or proof of model compliance. New setup receives it; existing user-edited
+instructions remain preserved and need deliberate reconciliation to adopt template changes.
+
 ## Selected worker skills
 
 Scott approved preserving prompt-based skills for Codex and Claude, without adding native SDK

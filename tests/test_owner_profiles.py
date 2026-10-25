@@ -4,6 +4,33 @@ from test_init import INIT_SETTINGS, InitFixture
 
 
 class OwnerProfileTests(InitFixture):
+    def test_foreman_delegates_unless_user_explicitly_requests_direct_work(self):
+        # Arrange: provision a new factory through the public CLI, without inference.
+        repo = self.repo()
+
+        # Act
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+
+        # Assert: both entry guidance and the selected skill carry the delegation policy.
+        self.assertEqual(result.returncode, 0, result.stderr)
+        role = repo / '.factory/agents/foreman'
+        for relative in ('AGENTS.md', 'skills/foreman/SKILL.md'):
+            with self.subTest(guidance=relative):
+                guidance = ' '.join((role / relative).read_text().split())
+                for required in (
+                    'Delegate feature work by default.',
+                    'Only do that work yourself when the user explicitly asks you '
+                    'in this conversation to do it directly.',
+                    'A request to get work done is not permission to do it yourself.',
+                    'Route feature investigation, implementation and review through '
+                    'the configured feature-owner and its workers.',
+                    'Routine status checks, coordination, user communication and '
+                    'approved Factory maintenance remain your responsibility.',
+                    'If delegation is blocked, report the blocker instead of taking over.',
+                    'User permission does not bypass setup, ownership or safety checks.',
+                ):
+                    self.assertIn(required, guidance)
+
     def test_lowercase_depth_setting_provisions_150_without_changing_preferences(self):
         # Arrange: the shared profile uses the supported lowercase depth key.
         repo = self.repo()

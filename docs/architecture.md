@@ -210,8 +210,11 @@ import or call graph.
   selector does not configure the running parent's model/resources; Factory launches the actual
   root settings. The worker independently pins AgentShell 0.5. Native `max_sub_agent_depth` must be
   at least 1 for owner delegation; Factory never changes that shared preference.
-- Foreman alone dispatches owners. Skills describe versioned ownership claims, grill-me,
-  clarification, task planning and safe continuation. Native job status/history has recovery limits;
+- Foreman alone dispatches owners. Its guidance defaults to delegating feature work; direct work
+  requires an explicit user instruction in its conversation. Routine coordination and approved
+  maintenance remain its responsibility. Blocked delegation cannot authorize taking over or ignoring
+  safety checks. Skills describe versioned ownership claims, grill-me, clarification, task planning
+  and safe continuation. Native job status/history has recovery limits;
   unknown liveness stops replacement. These agent actions are instructed behavior, not Python
   enforcement. Execution-enabled setup adds implementation/review starter definitions. Those
   workers start in an assigned worktree; prompts retain the full role/task/review briefing and
@@ -327,10 +330,10 @@ Paths below are relative to `src/forgetful_factory/`:
 ## Using the detailed map
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
-it in full by default. Mycelium 0.4.5 exported the combined SQ-refactor source with full member
-detail; recognized tests were excluded using `--test-path tests`. Its 72 boxes include module
-containers. Test filtering removed 3,470 calls and 52 type relationships; signatures remain in
-full detail.
+it in full by default. Mycelium 0.4.5 refreshed the source map after the Foreman delegation-guidance
+regression, with full member detail; recognized tests were excluded using `--test-path tests`.
+Its 72 boxes include module containers. Test filtering removed 3,472 calls and 52 type
+relationships; signatures remain in full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.

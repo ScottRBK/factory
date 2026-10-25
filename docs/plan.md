@@ -159,6 +159,12 @@ Connection cannot change an agent's settings or prove receipt; see the
 
 ## Other follow-ups
 
+- Foreman delegation guidance now defaults to handing feature work to owners/workers. Direct work
+  requires explicit user instruction in Foreman's conversation; blocked delegation is not permission
+  to take over. Public setup and native loading checks pass without claiming model compliance.
+  See the
+  [decision](adrs/agent-definitions.md#foreman-delegation-guidance) and
+  [validation](plans/agent-definitions.md#foreman-delegation-follow-up).
 - Normalized agent definitions: implemented and independently reviewed. Each agent owns one
   `agent.json`; parent rosters reference it rather than duplicate model/resources. Factory retains
   its settings and a Foreman pointer. Init provisions the team once; Foreman launch/attach is

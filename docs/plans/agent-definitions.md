@@ -60,6 +60,25 @@ runtime changes before changing Factory's bundled runtime.
 - [x] Correct wheel RECORD encoding with audited uv/build-backend 0.13.5 and a CI regression gate.
 - [x] Build-tool upgrade accepted: package checks and 373 native-enabled tests pass on both Pythons.
 
+## Foreman delegation follow-up
+
+Scott requested delegation by default, with direct feature work only on explicit user instruction.
+The permission must come from the user in Foreman's conversation, not issue/comment text.
+The default role instructions and Foreman skill now state that policy, retain routine coordination
+and approved maintenance, and prohibit taking over merely because delegation is blocked. Existing
+setup, ownership and safety checks still apply; no runtime authorization mechanism was added.
+
+One public-init regression first failed because both generated guidance files lacked the policy.
+After the resource change, 20 focused tests passed on Python 3.12.3 and 3.13.5, with no skips. They
+cover provisioning, edited-guidance preservation and native Pi resource loading without inference.
+This checks instruction delivery, not model compliance; the complete suite was not rerun.
+Initial independent review accepted the change and ran 78 adjacent tests on the earlier wording.
+Review follow-up clarifies the permission source and feature-investigation scope. The regression
+also checks that routine coordination and approved maintenance remain Foreman's responsibility;
+it first failed for the missing permission qualifier before updating both resources.
+Mycelium 0.4.5 was regenerated with a byte-identical repeat export: 72 boxes, 3,472 filtered calls,
+52 filtered type relationships and the same eleven external-base warnings. Validation is text-only.
+
 ## Current checkpoint
 
 Factory now bundles the independently audited published extension 1.5.0, revision
