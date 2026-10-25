@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 import signal
@@ -15,19 +16,24 @@ from test_init import INIT_SETTINGS
 ROOT = Path(__file__).resolve().parents[1]
 
 GH = '''#!/usr/bin/env python3
+import fcntl
 import json
 import os
 from pathlib import Path
 import sys
 
 path = Path(os.environ['WATCH_GH_STATE'])
+lock = path.with_suffix('.lock').open('a')
+fcntl.flock(lock, fcntl.LOCK_EX)
 state = json.loads(path.read_text())
 args = sys.argv[1:]
 source = '/'.join(args[1].split('/')[1:3])
 count = state.setdefault('counts', {}).get(source, 0)
 state['counts'][source] = count + 1
 state.setdefault('calls', []).append(args)
-path.write_text(json.dumps(state))
+replacement = path.with_suffix('.next')
+replacement.write_text(json.dumps(state))
+replacement.replace(path)
 steps = state['sources'][source]
 result = steps[min(count, len(steps) - 1)]
 if isinstance(result, str):
@@ -228,12 +234,20 @@ class WatchFixture(unittest.TestCase):
                 'state': 'open', 'body': 'Issue requirements', **extra}
 
     def script(self, sources):
-        self.state_path.write_text(json.dumps({'sources': sources}))
+        with self.state_path.with_suffix('.lock').open('a') as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            replacement = self.state_path.with_suffix('.next')
+            replacement.write_text(json.dumps({'sources': sources}))
+            replacement.replace(self.state_path)
 
     def events(self):
         if not self.terminal_log.exists():
             return []
         return [json.loads(line) for line in self.terminal_log.read_text().splitlines()]
+
+    def issue_events(self):
+        return [e for e in self.events() if e['kind'] == 'send'
+                and e['text'].startswith('Factory issue notification.')]
 
     def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None):
         process = subprocess.Popen(
@@ -437,13 +451,13 @@ class WatchCliTests(WatchFixture):
                      'team/healthy': [[[]], [[self.issue(3)]], [[self.issue(3)]]]})
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: sum(e['kind'] == 'send' for e in self.events()) >= 2)
+        self.wait_until(process, lambda: len(self.issue_events()) == 2)
         code, _, stderr = self.stop(process)
         # Assert
         self.assertEqual(code, 130, stderr)
         self.assertIn('HTTP 503', stderr)
         self.assertIn('retry', stderr.lower())
-        sent = [e['text'] for e in self.events() if e['kind'] == 'send']
+        sent = [e['text'] for e in self.issue_events()]
         self.assertEqual(len(sent), 2)
         self.assertIn('github:team/healthy#3', sent[0])
         self.assertIn('github:team/app#2', sent[1])
@@ -460,13 +474,14 @@ class WatchCliTests(WatchFixture):
                 self.script({'team/app': [malformed, [[self.issue(10)]]]})
                 # Act
                 process = self.start('--existing')
-                self.wait_until(process, lambda: any(e['kind'] == 'send' for e in self.events()))
+                self.wait_until(process, lambda: len(self.issue_events()) == 1)
                 code, _, stderr = self.stop(process)
                 # Assert
                 self.assertEqual(code, 130, stderr)
                 self.assertIn('malformed', stderr.lower())
                 self.assertNotIn('Traceback', stderr)
-                self.assertEqual(sum(e['kind'] == 'send' for e in self.events()), 1)
+                self.assertEqual(len(self.issue_events()), 1)
+                self.assertEqual(sum(e['kind'] == 'send' for e in self.events()), 2)
 
     def test_invalid_watch_options_and_providers_fail_before_pi_or_github(self):
         for arguments, provider, expected in (
@@ -529,9 +544,11 @@ class WatchCliTests(WatchFixture):
     def test_pi_exit_during_poll_is_not_misreported_as_cleanup_failure(self):
         # Arrange
         gh = self.bin / 'gh'
-        gh.write_text(gh.read_text().replace(
-            'path.write_text(json.dumps(state))',
-            'path.write_text(json.dumps(state))\nimport time; time.sleep(3)'))
+        script = gh.read_text()
+        self.assertEqual(script.count('replacement.replace(path)'), 1)
+        gh.write_text(script.replace(
+            'replacement.replace(path)',
+            'replacement.replace(path)\nimport time; time.sleep(3)'))
         self.env['WATCH_EXIT_DELAY'] = '0.15'
         # Act
         process = self.start('--existing')
@@ -547,9 +564,11 @@ class WatchCliTests(WatchFixture):
     def test_pi_exit_between_poll_and_send_preserves_the_actual_exit_reason(self):
         # Arrange
         gh = self.bin / 'gh'
-        gh.write_text(gh.read_text().replace(
-            'path.write_text(json.dumps(state))',
-            'path.write_text(json.dumps(state))\n'
+        script = gh.read_text()
+        self.assertEqual(script.count('replacement.replace(path)'), 1)
+        gh.write_text(script.replace(
+            'replacement.replace(path)',
+            'replacement.replace(path)\n'
             'if count == 1:\n    import time; time.sleep(1)'))
         self.env['WATCH_EXIT_DELAY'] = '0.4'
         self.script({'team/app': [[[]], [[self.issue()]]]})
@@ -672,11 +691,11 @@ class WatchCliTests(WatchFixture):
         self.script({'team/app': ['HTTP 503 \x1b[31m untrusted', [[self.issue(title=title)]]]})
         # Act
         process = self.start('--existing')
-        self.wait_until(process, lambda: any(e['kind'] == 'send' for e in self.events()))
+        self.wait_until(process, lambda: len(self.issue_events()) == 1)
         code, stdout, stderr = self.stop(process)
         # Assert
         self.assertEqual(code, 130, stderr)
-        sent = next(e['text'] for e in self.events() if e['kind'] == 'send')
+        sent = self.issue_events()[0]['text']
         self.assertTrue(sent.startswith('Factory issue notification.'))
         self.assertIn('External issue data', sent)
         self.assertNotIn('\n', sent)

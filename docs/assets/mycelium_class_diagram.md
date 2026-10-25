@@ -6,7 +6,7 @@ Members and connections within each view are uncapped.
 Parallel arrows are summarized.
 Cross-diagram relationships are retained in the complete relationship list.
 
-Included: 56 boxes. Calls without in-scope endpoints: 0.
+Included: 68 boxes. Calls without in-scope endpoints: 0.
 
 ## Test filtering
 
@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 1843. Type relationships removed: 42.
+Calls removed by test filtering: 3407. Type relationships removed: 52.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -30,29 +30,36 @@ Calls removed by test filtering: 1843. Type relationships removed: 42.
 - `tests/test_cleanup_recovery.py`: 14 source occurrences (test-path).
 - `tests/test_configuration.py`: 14 source occurrences (test-path).
 - `tests/test_factory_maintenance.py`: 8 source occurrences (test-path).
+- `tests/test_foreman_setup_repair.py`: 31 source occurrences (test-path).
 - `tests/test_init.py`: 43 source occurrences (test-path).
 - `tests/test_init_launch.py`: 13 source occurrences (test-path).
 - `tests/test_installer_onboarding.py`: 20 source occurrences (test-path).
 - `tests/test_local_skills.py`: 21 source occurrences (test-path).
+- `tests/test_managed_watcher_alerts.py`: 10 source occurrences (test-path).
 - `tests/test_native_assisted_reload.py`: 2 source occurrences (test-path).
 - `tests/test_native_roles.py`: 4 source occurrences (test-path).
 - `tests/test_native_workers.py`: 2 source occurrences (test-path).
 - `tests/test_normalized_lifecycle.py`: 8 source occurrences (test-path).
 - `tests/test_owner_profiles.py`: 10 source occurrences (test-path).
 - `tests/test_planning_setup.py`: 13 source occurrences (test-path).
-- `tests/test_planning_watch.py`: 27 source occurrences (test-path).
+- `tests/test_planning_watch.py`: 29 source occurrences (test-path).
 - `tests/test_profile_recovery.py`: 32 source occurrences (test-path).
 - `tests/test_profiles.py`: 34 source occurrences (test-path).
 - `tests/test_project_onboarding.py`: 17 source occurrences (test-path).
 - `tests/test_research_configuration.py`: 8 source occurrences (test-path).
-- `tests/test_review_regressions.py`: 54 source occurrences (test-path).
+- `tests/test_review_regressions.py`: 56 source occurrences (test-path).
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 23 source occurrences (test-path).
-- `tests/test_watch.py`: 51 source occurrences (test-path).
+- `tests/test_watch.py`: 52 source occurrences (test-path).
 - `tests/test_watch_lock.py`: 6 source occurrences (test-path).
+- `tests/test_watcher_alerts.py`: 62 source occurrences (test-path).
+- `tests/test_watcher_cancellation.py`: 5 source occurrences (test-path).
+- `tests/test_watcher_followup.py`: 35 source occurrences (test-path).
+- `tests/test_watcher_guidance.py`: 4 source occurrences (test-path).
 - `tests/test_worker_configuration.py`: 18 source occurrences (test-path).
 - `tests/test_worker_profiles.py`: 8 source occurrences (test-path).
 - `tests/test_worker_setup.py`: 15 source occurrences (test-path).
+- `tests/test_worker_watch_permissions.py`: 6 source occurrences (test-path).
 - `tests/worker_support.py`: 2 source occurrences (test-path).
 
 ## Diagram 1
@@ -225,17 +232,25 @@ classDiagram
         +origin(path: Path) str
         +discover(workspace: Path) list[Path]
     }
-    class c0014["GitWorktrees"] {
+    class c0014["src/forgetful_factory/adapters/filesystem/git_repositories.py"] {
+        <<module>>
+        -_resolve_repository(path: Path) Path
+    }
+    class c0015["GitWorktrees"] {
         <<class>>
+        +inspect(repository: str, branch: str, path: str, remote: str) None
         -_repository_entries(repository: str, remote: str) Type7
         +verify_removed(repository: str, branch: str, path: str, remote: str) None
+        -_verify_removed(repository: str, branch: str, path: str, remote: str) None
         +ensure(repository: str, branch: str, path: str, recorded: bool, remote: str) None
+        -_inspect(repository: str, branch: str, path: str, recorded: bool, remote: str) Type8
     }
-    class c0015["src/forgetful_factory/adapters/filesystem/git_worktrees.py"] {
+    class c0016["src/forgetful_factory/adapters/filesystem/git_worktrees.py"] {
         <<module>>
+        -_read_git(arguments: list[str]) str
         -_worktree_entries(output: str) list[dict]
     }
-    class c0016["src/forgetful_factory/adapters/filesystem/resource_files.py"] {
+    class c0017["src/forgetful_factory/adapters/filesystem/resource_files.py"] {
         <<module>>
         +check_real_path(path: Path) None
         +check_skill_file(path: Path) None
@@ -247,22 +262,22 @@ classDiagram
         +replace_generated_json(path: Path, value: dict) None
         +read_generated_json(path: Path) dict
     }
-    class c0017["src/forgetful_factory/adapters/filesystem/selected_skills.py"] {
+    class c0018["src/forgetful_factory/adapters/filesystem/selected_skills.py"] {
         <<module>>
         +selected_skill_files(values: list[str]) list[Path]
     }
-    class c0018["TomlConfigurationStore"] {
+    class c0019["TomlConfigurationStore"] {
         <<class>>
         -__init__(workspace: Path) unknown
         +path: unknown
-        +load() Type8
+        +load() Type9
         +save(configuration: FactoryConfiguration) None
     }
-    class c0019["src/forgetful_factory/adapters/filesystem/toml_configuration.py"] {
+    class c0020["src/forgetful_factory/adapters/filesystem/toml_configuration.py"] {
         <<module>>
         +quote(value: str) str
     }
-    class c0020["WorkspaceWatchLease"] {
+    class c0021["WorkspaceWatchLease"] {
         <<class>>
         -__init__(workspace: Path) unknown
         +workspace: unknown
@@ -270,35 +285,35 @@ classDiagram
         +hold() Iterator[None]
         -_hold_directory(directory: Path) Iterator[None]
     }
-    class c0021["WorkerProfiles"] {
+    class c0022["WorkerProfiles"] {
         <<class>>
         -__init__(workspace: Path) unknown
         +directory: unknown
         +prepare(choices: InitialAgentChoices) None
     }
-    class c0022["src/forgetful_factory/adapters/forgetful/authentication.py"] {
+    class c0023["src/forgetful_factory/adapters/forgetful/authentication.py"] {
         <<module>>
         +uses_browser_login(connection: ForgetfulConnection) bool
     }
-    class c0023["AgentForgetfulConnection"] {
+    class c0024["AgentForgetfulConnection"] {
         <<class>>
         -__init__(workspace: Path) unknown
         +workspace: unknown
         +role: unknown
         +login(connection: ForgetfulConnection) None
-        -_environment(connection: ForgetfulConnection) Type9
+        -_environment(connection: ForgetfulConnection) Type10
         +command(connection: ForgetfulConnection, arguments: list[str]) dict
         +call(connection: ForgetfulConnection, tool: str, arguments: unknown) dict
         +projects(connection: ForgetfulConnection) list[dict]
         +create_project(connection: ForgetfulConnection, name: str) int
         +check(connection: ForgetfulConnection, execution_enabled: bool) None
     }
-    class c0024["src/forgetful_factory/adapters/forgetful/connection.py"] {
+    class c0025["src/forgetful_factory/adapters/forgetful/connection.py"] {
         <<module>>
         +role_environment(Signature4)
         -_catalog_tools(catalog: object) dict
     }
-    class c0025["ForgetfulPlanning"] {
+    class c0026["ForgetfulPlanning"] {
         <<class>>
         -__init__(Signature5)
         +cli: unknown
@@ -306,26 +321,32 @@ classDiagram
         +execution_enabled: unknown
         +check() None
         -_call(tool: str, fields: unknown) dict
+        -_read(tool: str, fields: unknown) dict
         +plans(external_ref: Type3) list[dict]
         -_rows(result: dict, key: str) list[dict]
         +get_plan(plan_id: int) dict
         +create_plan(fields: unknown) dict
         +update_plan(plan_id: int, fields: unknown) dict
         +tasks(plan_id: int) list[dict]
+        -_task(task_id: int, plan_id: int) dict
         +create_task(fields: unknown) dict
         +update_task(task_id: int, fields: unknown) dict
     }
-    class c0026["GitHubWorkTracking"] {
+    class c0027["src/forgetful_factory/adapters/forgetful/planning.py"] {
+        <<module>>
+        -_positive_id(value: object) bool
+    }
+    class c0028["GitHubWorkTracking"] {
         <<class>>
         +source_from_remote(remote: str) WorkSource
         -_api(source: WorkSource, suffix: str, #42;arguments: str) object
         +check_access(source: WorkSource) None
-        +list_labels(source: WorkSource) Type10
+        +list_labels(source: WorkSource) Type11
         +create_label(source: WorkSource, label: Label) None
-        +list_issues(source: WorkSource, labels: Type12) Type11
+        +list_issues(source: WorkSource, labels: Type13) Type12
         -_validate_issue(source: WorkSource, item: dict) None
     }
-    class c0027["HostDependencies"] {
+    class c0029["HostDependencies"] {
         <<class>>
         -__init__(workspace: Path) unknown
         +workspace: unknown
@@ -333,7 +354,7 @@ classDiagram
         +pi_ready(pi_home: str) bool
         -_ubuntu_tmux() bool
         +description(command: str) Type3
-        -_environment(extra: Type2) Type9
+        -_environment(extra: Type2) Type10
         -_run(args: list[str], cwd: Path, interactive: bool, extra_env: Type2) str
         -_check_uv() None
         -_forgetful_python() str
@@ -341,45 +362,45 @@ classDiagram
         -_install_role_runtime() None
         +install(command: str) None
     }
-    class c0028["src/forgetful_factory/adapters/host_dependencies.py"] {
+    class c0030["src/forgetful_factory/adapters/host_dependencies.py"] {
         <<module>>
         +executable_path(workspace: Path) str
-        +sync_fingerprint(inputs: Type13) str
-        +runtime_ready(runtime: Path, inputs: Type13, probe: str) bool
+        +sync_fingerprint(inputs: Type14) str
+        +runtime_ready(runtime: Path, inputs: Type14, probe: str) bool
     }
-    class c0029["src/forgetful_factory/adapters/sensitive_command.py"] {
+    class c0031["src/forgetful_factory/adapters/sensitive_command.py"] {
         <<module>>
-        +run_owned(args: list[str], cwd: Path, env: Type9, login: bool, timeout: Type14) str
+        +run_owned(args: list[str], cwd: Path, env: Type10, login: bool, timeout: Type15) str
     }
-    class c0030["FactoryConfiguration"] {
+    class c0032["FactoryConfiguration"] {
         <<class>>
-        +watcher_label: Type12
+        +watcher_label: Type13
         +foreman_agent_file: str
-        +repository: Type15
-        +forgetful: Type16
+        +repository: Type16
+        +forgetful: Type17
         +execution_enabled: bool
     }
-    class c0031["ForgetfulConnection"] {
+    class c0033["ForgetfulConnection"] {
         <<class>>
         +method: str
         +instance: str
         +executable: str
         +database: Type3
         +server: Type3
-        +project_id: Type17
+        +project_id: Type18
         +validate() None
         -_validate_server() None
     }
-    class c0032["src/forgetful_factory/application/configuration.py"] {
+    class c0034["src/forgetful_factory/application/configuration.py"] {
         <<module>>
         +loopback_host(host: str) bool
-        +connection_from_mapping(data: object) Type16
+        +connection_from_mapping(data: object) Type17
         +nonblank(value: object, field: str) str
         +validate(configuration: FactoryConfiguration) None
         +from_mapping(data: dict) FactoryConfiguration
-        +unique_labels(labels: list[str]) Type12
+        +unique_labels(labels: list[str]) Type13
     }
-    class c0033["InitialAgentChoices"] {
+    class c0035["InitialAgentChoices"] {
         <<class>>
         +foreman_agent_model: str
         +foreman_agent_effort: str
@@ -394,21 +415,21 @@ classDiagram
         +review_agent_harness: Type3
         +review_agent_effort: Type3
         +tdd_skill: Type3
-        +implementation_skills: Type12
-        +review_skills: Type12
+        +implementation_skills: Type13
+        +review_skills: Type13
         +research_agent_model: Type3
         +research_agent_harness: Type3
         +research_agent_effort: Type3
         +execution_enabled: bool
     }
-    class c0034["src/forgetful_factory/application/initial_agent_choices.py"] {
+    class c0036["src/forgetful_factory/application/initial_agent_choices.py"] {
         <<module>>
         +validate_role_app(harness: str, role: str) None
         +validate_workers(configuration: InitialAgentChoices) None
-        +skill_paths(data: dict, field: str) Type12
+        +skill_paths(data: dict, field: str) Type13
         +validate_initial_agents(configuration: InitialAgentChoices) None
     }
-    class c0035["InitialiseFactory"] {
+    class c0037["InitialiseFactory"] {
         <<class>>
         -__init__(Signature6)
         +tracking: unknown
@@ -416,22 +437,22 @@ classDiagram
         +repositories: unknown
         +sources: unknown
         +profile: unknown
-        +prepare_foreman(connection: ForgetfulConnection, install: Type18, confirm: Type19) None
+        +prepare_foreman(connection: ForgetfulConnection, install: Type19, confirm: Type20) None
         +check_foreman(config: FactoryConfiguration, login: bool) str
-        +load_existing(paths: Type20, labels: Type21) Type8
+        +load_existing(paths: Type21, labels: Type22) Type9
         +discover(workspace: Path) list[Path]
-        +inspect(paths: list[Path]) Type22
+        +inspect(paths: list[Path]) Type23
         +configure(paths: list[Path], labels: list[str], agent_file: str) FactoryConfiguration
-        -_preflight(config: FactoryConfiguration) Type23
+        -_preflight(config: FactoryConfiguration) Type24
         -_ensure_label(source: WorkSource, name: str, existing: set[str]) str
-        +initialise(config: FactoryConfiguration, before_writes: Type24, save: bool) list[str]
+        +initialise(config: FactoryConfiguration, before_writes: Type25, save: bool) list[str]
     }
-    class c0036["ConfigurationStore"] {
+    class c0038["ConfigurationStore"] {
         <<class>>
-        +load() Type8
+        +load() Type9
         +save(configuration: FactoryConfiguration) None
     }
-    class c0037["ForemanProfile"] {
+    class c0039["ForemanProfile"] {
         <<class>>
         +prepare_roles(config: FactoryConfiguration, choices: InitialAgentChoices) None
         +selected_launch(config: FactoryConfiguration) dict
@@ -450,7 +471,7 @@ classDiagram
         +record_completion(config: FactoryConfiguration) None
         +begin_setup() None
     }
-    class c0038["ForemanTerminal"] {
+    class c0040["ForemanTerminal"] {
         <<class>>
         +startup_hint() str
         +start() None
@@ -458,12 +479,12 @@ classDiagram
         +wait(interval: float) None
         +close() None
     }
-    class c0039["LocalRepositories"] {
+    class c0041["LocalRepositories"] {
         <<class>>
         +origin(path: Path) str
         +discover(workspace: Path) list[Path]
     }
-    class c0040["Planning"] {
+    class c0042["Planning"] {
         <<class>>
         +check() None
         +plans(external_ref: Type3) list[dict]
@@ -474,41 +495,76 @@ classDiagram
         +create_task(fields: unknown) dict
         +update_task(task_id: int, fields: unknown) dict
     }
-    class c0041["WatchLease"] {
+    class c0043["PlanningReadError"] {
+        <<class>>
+    }
+    class c0044["WatchLease"] {
         <<class>>
         +hold() AbstractContextManager[None]
     }
-    class c0042["WorkSourceResolver"] {
+    class c0045["WorkSourceResolver"] {
         <<class>>
         +source_from_remote(remote: str) WorkSource
     }
-    class c0043["Worktrees"] {
+    class c0046["WorktreeProblem"] {
         <<class>>
+        -__init__(code: str, diagnostic: str, path: Type3) unknown
+        +code: unknown
+        +paths: unknown
+    }
+    class c0047["WorktreeReadError"] {
+        <<class>>
+    }
+    class c0048["Worktrees"] {
+        <<class>>
+        +inspect(repository: str, branch: str, path: str, remote: str) None
         +ensure(repository: str, branch: str, path: str, recorded: bool, remote: str) None
         +verify_removed(repository: str, branch: str, path: str, remote: str) None
     }
-    class c0044["ScaffoldIssue"] {
+    class c0049["ScaffoldIssue"] {
         <<class>>
         -__init__(Signature7)
         +planning: unknown
         +worktrees: unknown
         +workspace: unknown
         +config: unknown
+        +repositories: unknown
+        +sources: unknown
         +check() None
-        +prepare(issue: Issue) dict
-        -_issue_plan(issue: Issue) dict
-        +unfinished() list[Issue]
+        +check_repository(repository: RepositoryReference) None
+        -_check_source(repository: RepositoryReference) None
+        +prepare(issue: Issue) Type1
+        -_repository(source: WorkSource) RepositoryReference
+        -_initial_mappings(issue: Issue) list[dict]
+        +preflight(issue: Issue) None
+        -_prepare_plan(issue: Issue, plan: dict) Type1
+        +lookup(issue: Issue) Type18
+        -_create_plan(issue: Issue) dict
+        +unfinished() list[dict]
+        +recover(plan_id: int, external_ref: str, issue: Type27, task_ids: Type28) Type26
+        -_snapshot(context: dict, external_ref: str) Issue
         -_is_unfinished_factory_plan(summary: dict, sources: set[str]) bool
+        -_active(plan: dict) bool
         -_context(plan: dict) dict
         -_ownership(plan_id: int, external_ref: str) list[dict]
         -_ensure_worktrees(mappings: list[dict], recorded: bool) None
         -_ensure_mapping(repository: unknown, mapping: dict, recorded: bool) None
     }
-    class c0045["src/forgetful_factory/application/scaffold_issue.py"] {
+    class c0050["src/forgetful_factory/application/scaffold_issue.py"] {
         <<module>>
         -_cleanup_state(mapping: dict) Type3
     }
-    class c0046["WatchFactory"] {
+    class c0051["BlockedWork"] {
+        <<class>>
+        +reference: str
+        +plan_id: Type18
+        +issue: Type27
+        +task_ids: Type28
+        +recovered: bool
+        +setup_paths: Type13
+        +setup_cause: Type3
+    }
+    class c0052["WatchFactory"] {
         <<class>>
         -__init__(Signature8)
         +tracking: unknown
@@ -516,26 +572,62 @@ classDiagram
         +scaffold: unknown
         +run(Signature9)
         -_watch(Signature10)
-        -_notify_issues(issues: Type11, seen: Type9, report: Type26, recovered: bool) None
-        -_read_issues(source: WorkSource, labels: Type12, report_error: Type26) Type27
+        -_alert_plan(alerts: WatcherAlerts, work: BlockedWork, error: ScaffoldProblem) None
+        -_submit(Signature11)
+        -_read_issues(source: WorkSource, labels: Type13, alerts: WatcherAlerts) Type31
     }
-    class c0047["src/forgetful_factory/cli/bootstrap.py"] {
+    class c0053["IntakeProblem"] {
+        <<class>>
+    }
+    class c0054["RepositoryProblem"] {
+        <<class>>
+    }
+    class c0055["ScaffoldProblem"] {
+        <<class>>
+        -__init__(Signature12)
+        +code: unknown
+        +plan_id: unknown
+        +plan_ids: unknown
+        +task_ids: unknown
+        +candidate_task_ids: unknown
+        +paths: unknown
+        +cause: unknown
+    }
+    class c0056["ScaffoldReadProblem"] {
+        <<class>>
+    }
+    class c0057["UncertainScaffold"] {
+        <<class>>
+    }
+    class c0058["WatcherAlerts"] {
+        <<class>>
+        -__init__(terminal: unknown, report_error: unknown) unknown
+        +terminal: unknown
+        +report_error: unknown
+        +sent: Type10
+        +last_diagnostic: Type10
+        +clear(subject: str) None
+        +send(Signature13)
+        +last_diagnostic#91;subject#93;: unknown
+        +sent#91;subject#93;: unknown
+    }
+    class c0059["src/forgetful_factory/cli/bootstrap.py"] {
         <<module>>
         +build_initialiser(workspace: Path) InitialiseFactory
-        +build_watcher(Signature11)
-        +prepare_foreman_launch(Signature12)
+        +build_watcher(Signature14)
+        +prepare_foreman_launch(Signature15)
     }
-    class c0048["src/forgetful_factory/cli/main.py"] {
+    class c0060["src/forgetful_factory/cli/main.py"] {
         <<module>>
         +select_repositories(application: InitialiseFactory, workspace: Path) list[Path]
         -_parse_arguments() argparse.Namespace
-        -_configure_new_factory(Signature13)
-        -_check_existing_connection(Signature14)
-        -_connection(Signature15)
-        -_prepare_foreman(Signature16)
+        -_configure_new_factory(Signature16)
+        -_check_existing_connection(Signature17)
+        -_connection(Signature18)
+        -_prepare_foreman(Signature19)
         -_print_models(models: list[str]) None
-        -_select_numbered(label: str, choices: Type29, show_choices: bool, prompt: Type3) str
-        -_select_model(Signature17)
+        -_select_numbered(label: str, choices: Type33, show_choices: bool, prompt: Type3) str
+        -_select_model(Signature20)
         -_confirm_pi_home(home: str, args: argparse.Namespace) bool
         -_install_missing(commands: list[str]) None
         -_safe_diagnostic(message: str) str
@@ -544,28 +636,28 @@ classDiagram
         -_foreman(args: argparse.Namespace, workspace: Path) int
         -_watch_locked(args: argparse.Namespace, workspace: Path) int
         -_listed_project_id(answer: str, projects: list[dict]) int
-        -_select_project(Signature18)
-        -_owner_choices(Signature19)
+        -_select_project(Signature21)
+        -_owner_choices(Signature22)
         -_worker_arguments(args: argparse.Namespace) dict
         -_research_choices(args: unknown, config: unknown) unknown
         -_prompt_worker(role: str, discover_models: unknown) dict
         -_prompt_workers(discover_models: unknown) dict
-        -_worker_choices(Signature20)
-        -_complete_setup(Signature21)
+        -_worker_choices(Signature23)
+        -_complete_setup(Signature24)
         -_initialise(args: argparse.Namespace, workspace: Path) int
         -_offer_factory_launch(args: argparse.Namespace, workspace: Path) int
-        -_initialise_locked(args: argparse.Namespace, workspace: Path) Type30
-        -_launch_setup_foreman(Signature22)
+        -_initialise_locked(args: argparse.Namespace, workspace: Path) Type34
+        -_launch_setup_foreman(Signature25)
         +main() int
     }
-    class c0049["src/forgetful_factory/configuration.py"] {
+    class c0061["src/forgetful_factory/configuration.py"] {
         <<module>>
-        +load_configuration(workspace: Type31) FactoryConfiguration
+        +load_configuration(workspace: Type35) FactoryConfiguration
     }
-    class c0050["FactoryError"] {
+    class c0062["FactoryError"] {
         <<class>>
     }
-    class c0051["Issue"] {
+    class c0063["Issue"] {
         <<class>>
         +source: WorkSource
         +number: int
@@ -576,234 +668,269 @@ classDiagram
         +epic: bool
         +id: str
     }
-    class c0052["Label"] {
+    class c0064["Label"] {
         <<class>>
         +name: str
     }
-    class c0053["RepositoryReference"] {
+    class c0065["RepositoryReference"] {
         <<class>>
         +local_dir: str
         +remote: str
         +work_source: WorkSource
     }
-    class c0054["WorkSource"] {
+    class c0066["WorkSource"] {
         <<class>>
         +provider: str
         +reference: str
     }
-    class c0055["WorkTrackingService"] {
+    class c0067["WorkTrackingService"] {
         <<class>>
         +check_access(source: WorkSource) None
-        +list_labels(source: WorkSource) Type10
+        +list_labels(source: WorkSource) Type11
         +create_label(source: WorkSource, label: Label) None
-        +list_issues(source: WorkSource, labels: Type12) Type11
+        +list_issues(source: WorkSource, labels: Type13) Type12
     }
     c0000 ..> c0000 : 2 relationships (see list)
     c0000 ..> c0006 : close() calls close()
-    c0000 ..> c0050 : 2 relationships (see list)
+    c0000 ..> c0062 : 2 relationships (see list)
     c0001 ..> c0000 : 6 relationships (see list)
     c0001 ..> c0001 : 9 relationships (see list)
-    c0001 ..> c0025 : 3 relationships (see list)
+    c0001 ..> c0026 : 3 relationships (see list)
     c0002 ..> c0011 : main() calls list_models()
     c0003 ..> c0000 : 6 relationships (see list)
     c0003 ..> c0003 : 10 relationships (see list)
     c0003 ..> c0005 : run() calls read_state()
     c0003 ..> c0012 : __init__() calls runtime_directory()
-    c0003 ..> c0016 : save() calls replace_generated_json()
-    c0003 ..> c0019 : 2 relationships (see list)
-    c0003 ..> c0025 : 2 relationships (see list)
-    c0003 ..> c0050 : 6 relationships (see list)
+    c0003 ..> c0017 : save() calls replace_generated_json()
+    c0003 ..> c0020 : 2 relationships (see list)
+    c0003 ..> c0026 : 2 relationships (see list)
+    c0003 ..> c0062 : 6 relationships (see list)
     c0004 ..> c0003 : 2 relationships (see list)
-    c0004 ..> c0025 : main() calls create_task()
+    c0004 ..> c0026 : main() calls create_task()
     c0005 ..> c0000 : 2 relationships (see list)
     c0005 ..> c0003 : 2 relationships (see list)
     c0005 ..> c0005 : 3 relationships (see list)
     c0005 ..> c0012 : 3 relationships (see list)
-    c0005 ..> c0016 : read_state() calls read_generated_json()
-    c0005 ..> c0019 : request() calls quote()
-    c0005 ..> c0050 : 5 relationships (see list)
+    c0005 ..> c0017 : read_state() calls read_generated_json()
+    c0005 ..> c0020 : request() calls quote()
+    c0005 ..> c0062 : 5 relationships (see list)
     c0006 ..> c0000 : close() calls close()
     c0006 ..> c0006 : 5 relationships (see list)
-    c0006 ..> c0050 : 4 relationships (see list)
+    c0006 ..> c0062 : 4 relationships (see list)
     c0007 ..> c0003 : run_command() calls run()
-    c0007 ..> c0050 : run_command() constructs FactoryError
+    c0007 ..> c0062 : run_command() constructs FactoryError
     c0008 ..> c0008 : 3 relationships (see list)
-    c0008 ..> c0032 : 3 relationships (see list)
-    c0008 ..> c0050 : 2 relationships (see list)
+    c0008 ..> c0034 : 3 relationships (see list)
+    c0008 ..> c0062 : 2 relationships (see list)
     c0009 ..> c0009 : 2 relationships (see list)
     c0009 ..> c0010 : prepare() calls selected_resources()
     c0009 ..> c0011 : prepare() calls prepare()
-    c0009 ..> c0016 : 3 relationships (see list)
-    c0009 ..> c0021 : __init__() constructs WorkerProfiles
-    c0009 ..> c0030 : 2 relationships (see list)
-    c0009 ..> c0050 : 3 relationships (see list)
+    c0009 ..> c0017 : 3 relationships (see list)
+    c0009 ..> c0022 : __init__() constructs WorkerProfiles
+    c0009 ..> c0032 : 2 relationships (see list)
+    c0009 ..> c0062 : 3 relationships (see list)
     c0011 ..> c0008 : selected_launch() calls foreman_launch()
     c0011 ..> c0009 : 4 relationships (see list)
     c0011 ..> c0011 : 22 relationships (see list)
-    c0011 ..> c0016 : 11 relationships (see list)
-    c0011 ..> c0017 : selected_launch() calls selected_skill_files()
-    c0011 ..> c0019 : require_pi_home() calls quote()
-    c0011 ..> c0022 : uses_browser_login() calls uses_browser_login()
-    c0011 ..> c0023 : 8 relationships (see list)
-    c0011 ..> c0024 : list_models() calls role_environment()
-    c0011 ..> c0027 : 6 relationships (see list)
-    c0011 ..> c0028 : 3 relationships (see list)
-    c0011 ..> c0029 : list_models() calls run_owned()
-    c0011 ..> c0030 : 4 relationships (see list)
-    c0011 ..> c0031 : 9 relationships (see list)
-    c0011 ..> c0050 : 14 relationships (see list)
-    c0012 ..> c0016 : runtime_directory() calls check_real_path()
-    c0012 ..> c0050 : runtime_directory() constructs FactoryError
+    c0011 ..> c0017 : 11 relationships (see list)
+    c0011 ..> c0018 : selected_launch() calls selected_skill_files()
+    c0011 ..> c0020 : require_pi_home() calls quote()
+    c0011 ..> c0023 : uses_browser_login() calls uses_browser_login()
+    c0011 ..> c0024 : 8 relationships (see list)
+    c0011 ..> c0025 : list_models() calls role_environment()
+    c0011 ..> c0029 : 6 relationships (see list)
+    c0011 ..> c0030 : 3 relationships (see list)
+    c0011 ..> c0031 : list_models() calls run_owned()
+    c0011 ..> c0032 : 4 relationships (see list)
+    c0011 ..> c0033 : 9 relationships (see list)
+    c0011 ..> c0062 : 14 relationships (see list)
+    c0012 ..> c0017 : runtime_directory() calls check_real_path()
+    c0012 ..> c0062 : runtime_directory() constructs FactoryError
     c0013 ..> c0007 : origin() calls run_command()
-    c0013 ..> c0050 : origin() constructs FactoryError
-    c0014 ..> c0007 : 2 relationships (see list)
-    c0014 ..> c0014 : 2 relationships (see list)
-    c0014 ..> c0015 : _repository_entries() calls _worktree_entries()
-    c0014 ..> c0050 : 3 relationships (see list)
-    c0016 ..> c0000 : _generated_parent() calls close()
-    c0016 ..> c0016 : 9 relationships (see list)
-    c0016 ..> c0018 : read_generated_json() calls load()
-    c0016 ..> c0050 : 6 relationships (see list)
-    c0017 ..> c0050 : selected_skill_files() constructs FactoryError
-    c0018 ..> c0000 : 2 relationships (see list)
-    c0018 ..> c0019 : save() calls quote()
-    c0018 ..> c0030 : 2 relationships (see list)
-    c0018 ..> c0032 : load() calls from_mapping()
-    c0018 ..> c0036 : load() calls load()
-    c0018 ..> c0050 : 2 relationships (see list)
-    c0020 ..> c0000 : _hold_directory() calls close()
-    c0020 ..> c0020 : hold() calls _hold_directory()
-    c0020 ..> c0050 : _hold_directory() constructs FactoryError
-    c0021 ..> c0016 : 3 relationships (see list)
-    c0021 ..> c0033 : type in prepare
-    c0022 ..> c0005 : uses_browser_login() calls request()
-    c0022 ..> c0031 : type in uses_browser_login
-    c0023 ..> c0023 : 7 relationships (see list)
-    c0023 ..> c0024 : 2 relationships (see list)
-    c0023 ..> c0029 : 2 relationships (see list)
-    c0023 ..> c0031 : 7 relationships (see list)
-    c0023 ..> c0050 : 5 relationships (see list)
-    c0024 ..> c0028 : role_environment() calls executable_path()
-    c0024 ..> c0031 : type in role_environment
-    c0025 ..> c0011 : check() calls check()
-    c0025 ..> c0023 : 2 relationships (see list)
-    c0025 ..> c0025 : 9 relationships (see list)
-    c0025 ..> c0031 : type in __init__
-    c0025 ..> c0050 : _rows() constructs FactoryError
-    c0026 ..> c0007 : _api() calls run_command()
-    c0026 ..> c0026 : 5 relationships (see list)
-    c0026 ..> c0050 : 7 relationships (see list)
-    c0026 ..> c0051 : 2 relationships (see list)
-    c0026 ..> c0052 : 3 relationships (see list)
-    c0026 ..> c0054 : 8 relationships (see list)
-    c0027 ..> c0016 : install() calls write_new()
-    c0027 ..> c0027 : 15 relationships (see list)
-    c0027 ..> c0028 : 3 relationships (see list)
-    c0027 ..> c0029 : 4 relationships (see list)
-    c0027 ..> c0050 : 6 relationships (see list)
-    c0028 ..> c0028 : runtime_ready() calls sync_fingerprint()
-    c0028 ..> c0029 : runtime_ready() calls run_owned()
-    c0029 ..> c0050 : run_owned() constructs FactoryError
-    c0030 --> c0031 : field forgetful
-    c0030 --> c0053 : field repository
-    c0031 ..> c0032 : 2 relationships (see list)
-    c0031 ..> c0050 : _validate_server() constructs FactoryError
-    c0032 ..> c0030 : 3 relationships (see list)
-    c0032 ..> c0031 : 3 relationships (see list)
-    c0032 ..> c0032 : 5 relationships (see list)
-    c0032 ..> c0050 : 4 relationships (see list)
-    c0032 ..> c0053 : from_mapping() constructs RepositoryReference
-    c0032 ..> c0054 : from_mapping() constructs WorkSource
+    c0013 ..> c0014 : origin() calls _resolve_repository()
+    c0013 ..> c0062 : origin() constructs FactoryError
+    c0014 ..> c0062 : _resolve_repository() constructs FactoryError
+    c0015 ..> c0007 : ensure() calls run_command()
+    c0015 ..> c0015 : 5 relationships (see list)
+    c0015 ..> c0016 : 3 relationships (see list)
+    c0015 ..> c0046 : 3 relationships (see list)
+    c0015 ..> c0047 : 3 relationships (see list)
+    c0015 ..> c0062 : ensure() constructs FactoryError
+    c0016 ..> c0007 : _read_git() calls run_command()
+    c0016 ..> c0047 : _read_git() constructs WorktreeReadError
+    c0017 ..> c0000 : _generated_parent() calls close()
+    c0017 ..> c0017 : 9 relationships (see list)
+    c0017 ..> c0019 : read_generated_json() calls load()
+    c0017 ..> c0062 : 6 relationships (see list)
+    c0018 ..> c0062 : selected_skill_files() constructs FactoryError
+    c0019 ..> c0000 : 2 relationships (see list)
+    c0019 ..> c0020 : save() calls quote()
+    c0019 ..> c0032 : 2 relationships (see list)
+    c0019 ..> c0034 : load() calls from_mapping()
+    c0019 ..> c0038 : load() calls load()
+    c0019 ..> c0062 : 2 relationships (see list)
+    c0021 ..> c0000 : _hold_directory() calls close()
+    c0021 ..> c0021 : hold() calls _hold_directory()
+    c0021 ..> c0062 : _hold_directory() constructs FactoryError
+    c0022 ..> c0017 : 3 relationships (see list)
+    c0022 ..> c0035 : type in prepare
+    c0023 ..> c0005 : uses_browser_login() calls request()
+    c0023 ..> c0033 : type in uses_browser_login
+    c0024 ..> c0024 : 7 relationships (see list)
+    c0024 ..> c0025 : 2 relationships (see list)
+    c0024 ..> c0031 : 2 relationships (see list)
+    c0024 ..> c0033 : 7 relationships (see list)
+    c0024 ..> c0062 : 5 relationships (see list)
+    c0025 ..> c0030 : role_environment() calls executable_path()
+    c0025 ..> c0033 : type in role_environment
+    c0026 ..> c0011 : check() calls check()
+    c0026 ..> c0024 : 2 relationships (see list)
+    c0026 ..> c0026 : 12 relationships (see list)
+    c0026 ..> c0027 : 3 relationships (see list)
+    c0026 ..> c0033 : type in __init__
+    c0026 ..> c0043 : 4 relationships (see list)
+    c0028 ..> c0007 : _api() calls run_command()
+    c0028 ..> c0028 : 5 relationships (see list)
+    c0028 ..> c0062 : 7 relationships (see list)
+    c0028 ..> c0063 : 2 relationships (see list)
+    c0028 ..> c0064 : 3 relationships (see list)
+    c0028 ..> c0066 : 8 relationships (see list)
+    c0029 ..> c0017 : install() calls write_new()
+    c0029 ..> c0029 : 15 relationships (see list)
+    c0029 ..> c0030 : 3 relationships (see list)
+    c0029 ..> c0031 : 4 relationships (see list)
+    c0029 ..> c0062 : 6 relationships (see list)
+    c0030 ..> c0030 : runtime_ready() calls sync_fingerprint()
+    c0030 ..> c0031 : runtime_ready() calls run_owned()
+    c0031 ..> c0000 : 2 relationships (see list)
+    c0031 ..> c0062 : run_owned() constructs FactoryError
+    c0032 --> c0033 : field forgetful
+    c0032 --> c0065 : field repository
+    c0033 ..> c0034 : 2 relationships (see list)
+    c0033 ..> c0062 : _validate_server() constructs FactoryError
     c0034 ..> c0032 : 3 relationships (see list)
-    c0034 ..> c0033 : 2 relationships (see list)
-    c0034 ..> c0034 : 3 relationships (see list)
-    c0034 ..> c0050 : 4 relationships (see list)
-    c0035 ..> c0003 : initialise() calls save()
-    c0035 ..> c0009 : prepare_foreman() calls prepare()
-    c0035 ..> c0011 : 5 relationships (see list)
-    c0035 ..> c0013 : 3 relationships (see list)
-    c0035 ..> c0018 : load_existing() calls load()
-    c0035 ..> c0026 : 5 relationships (see list)
-    c0035 ..> c0030 : 6 relationships (see list)
-    c0035 ..> c0031 : 2 relationships (see list)
-    c0035 ..> c0032 : 2 relationships (see list)
-    c0035 ..> c0035 : 3 relationships (see list)
-    c0035 ..> c0036 : type in __init__
-    c0035 ..> c0037 : type in __init__
-    c0035 ..> c0039 : type in __init__
-    c0035 ..> c0042 : type in __init__
-    c0035 ..> c0050 : 5 relationships (see list)
-    c0035 ..> c0052 : 2 relationships (see list)
-    c0035 ..> c0053 : 2 relationships (see list)
-    c0035 ..> c0054 : 2 relationships (see list)
-    c0035 ..> c0055 : type in __init__
-    c0036 ..> c0030 : 2 relationships (see list)
-    c0037 ..> c0030 : 3 relationships (see list)
-    c0037 ..> c0031 : 8 relationships (see list)
-    c0037 ..> c0033 : type in prepare_roles
-    c0042 ..> c0054 : type in source_from_remote
-    c0044 ..> c0011 : check() calls check()
-    c0044 ..> c0014 : 2 relationships (see list)
-    c0044 ..> c0025 : 8 relationships (see list)
-    c0044 ..> c0030 : type in __init__
-    c0044 ..> c0040 : type in __init__
-    c0044 ..> c0043 : type in __init__
-    c0044 ..> c0044 : 7 relationships (see list)
-    c0044 ..> c0045 : _ensure_mapping() calls _cleanup_state()
-    c0044 ..> c0050 : 7 relationships (see list)
-    c0044 ..> c0051 : 4 relationships (see list)
-    c0044 ..> c0054 : unfinished() constructs WorkSource
-    c0045 ..> c0050 : _cleanup_state() constructs FactoryError
-    c0046 ..> c0000 : 5 relationships (see list)
-    c0046 ..> c0009 : _notify_issues() calls prepare()
-    c0046 ..> c0011 : run() calls check()
-    c0046 ..> c0026 : _read_issues() calls list_issues()
-    c0046 ..> c0030 : 2 relationships (see list)
-    c0046 ..> c0038 : type in __init__
-    c0046 ..> c0044 : 2 relationships (see list)
-    c0046 ..> c0046 : 3 relationships (see list)
-    c0046 ..> c0051 : 2 relationships (see list)
-    c0046 ..> c0054 : 2 relationships (see list)
-    c0046 ..> c0055 : type in __init__
-    c0047 ..> c0006 : build_watcher() constructs AgentShellTerminal
-    c0047 ..> c0011 : 5 relationships (see list)
-    c0047 ..> c0013 : build_initialiser() constructs GitRepositories
-    c0047 ..> c0014 : build_watcher() constructs GitWorktrees
-    c0047 ..> c0018 : build_initialiser() constructs TomlConfigurationStore
-    c0047 ..> c0024 : prepare_foreman_launch() calls role_environment()
-    c0047 ..> c0025 : build_watcher() constructs ForgetfulPlanning
-    c0047 ..> c0026 : 3 relationships (see list)
-    c0047 ..> c0030 : 2 relationships (see list)
-    c0047 ..> c0035 : 2 relationships (see list)
-    c0047 ..> c0044 : build_watcher() constructs ScaffoldIssue
-    c0047 ..> c0046 : 2 relationships (see list)
-    c0047 ..> c0047 : build_watcher() calls prepare_foreman_launch()
-    c0047 ..> c0050 : 2 relationships (see list)
-    c0048 ..> c0000 : _watch_locked() constructs BorrowedForemanTerminal
-    c0048 ..> c0003 : _watch_locked() calls run()
-    c0048 ..> c0005 : 12 relationships (see list)
-    c0048 ..> c0011 : 12 relationships (see list)
-    c0048 ..> c0013 : select_repositories() calls discover()
-    c0048 ..> c0018 : _initialise_locked() calls load()
-    c0048 ..> c0019 : 6 relationships (see list)
-    c0048 ..> c0020 : 6 relationships (see list)
-    c0048 ..> c0030 : 2 relationships (see list)
-    c0048 ..> c0031 : 6 relationships (see list)
-    c0048 ..> c0033 : 4 relationships (see list)
-    c0048 ..> c0034 : _initialise_locked() calls validate_initial_agents()
-    c0048 ..> c0035 : 11 relationships (see list)
-    c0048 ..> c0047 : 4 relationships (see list)
-    c0048 ..> c0048 : 34 relationships (see list)
-    c0048 ..> c0049 : 3 relationships (see list)
-    c0048 ..> c0050 : 17 relationships (see list)
-    c0049 ..> c0018 : 2 relationships (see list)
-    c0049 ..> c0030 : type in load_configuration
-    c0049 ..> c0050 : load_configuration() constructs FactoryError
-    c0051 --> c0054 : field source
-    c0053 --> c0054 : field work_source
-    c0055 ..> c0051 : type in list_issues
-    c0055 ..> c0052 : 2 relationships (see list)
-    c0055 ..> c0054 : 4 relationships (see list)
+    c0034 ..> c0033 : 3 relationships (see list)
+    c0034 ..> c0034 : 5 relationships (see list)
+    c0034 ..> c0062 : 4 relationships (see list)
+    c0034 ..> c0065 : from_mapping() constructs RepositoryReference
+    c0034 ..> c0066 : from_mapping() constructs WorkSource
+    c0036 ..> c0034 : 3 relationships (see list)
+    c0036 ..> c0035 : 2 relationships (see list)
+    c0036 ..> c0036 : 3 relationships (see list)
+    c0036 ..> c0062 : 4 relationships (see list)
+    c0037 ..> c0003 : initialise() calls save()
+    c0037 ..> c0009 : prepare_foreman() calls prepare()
+    c0037 ..> c0011 : 5 relationships (see list)
+    c0037 ..> c0013 : 3 relationships (see list)
+    c0037 ..> c0019 : load_existing() calls load()
+    c0037 ..> c0028 : 5 relationships (see list)
+    c0037 ..> c0032 : 6 relationships (see list)
+    c0037 ..> c0033 : 2 relationships (see list)
+    c0037 ..> c0034 : 2 relationships (see list)
+    c0037 ..> c0037 : 3 relationships (see list)
+    c0037 ..> c0038 : type in __init__
+    c0037 ..> c0039 : type in __init__
+    c0037 ..> c0041 : type in __init__
+    c0037 ..> c0045 : type in __init__
+    c0037 ..> c0062 : 5 relationships (see list)
+    c0037 ..> c0064 : 2 relationships (see list)
+    c0037 ..> c0065 : 2 relationships (see list)
+    c0037 ..> c0066 : 2 relationships (see list)
+    c0037 ..> c0067 : type in __init__
+    c0038 ..> c0032 : 2 relationships (see list)
+    c0039 ..> c0032 : 3 relationships (see list)
+    c0039 ..> c0033 : 8 relationships (see list)
+    c0039 ..> c0035 : type in prepare_roles
+    c0043 --|> c0062 : inherits
+    c0045 ..> c0066 : type in source_from_remote
+    c0046 ..> c0000 : __init__() calls __init__()
+    c0046 --|> c0062 : inherits
+    c0047 --|> c0062 : inherits
+    c0049 ..> c0011 : check() calls check()
+    c0049 ..> c0013 : check_repository() calls origin()
+    c0049 ..> c0015 : 3 relationships (see list)
+    c0049 ..> c0026 : 10 relationships (see list)
+    c0049 ..> c0028 : _check_source() calls source_from_remote()
+    c0049 ..> c0032 : type in __init__
+    c0049 ..> c0041 : type in __init__
+    c0049 ..> c0042 : type in __init__
+    c0049 ..> c0045 : type in __init__
+    c0049 ..> c0048 : type in __init__
+    c0049 ..> c0049 : 25 relationships (see list)
+    c0049 ..> c0050 : _ensure_mapping() calls _cleanup_state()
+    c0049 ..> c0053 : preflight() constructs IntakeProblem
+    c0049 ..> c0054 : 2 relationships (see list)
+    c0049 ..> c0055 : 10 relationships (see list)
+    c0049 ..> c0056 : 5 relationships (see list)
+    c0049 ..> c0057 : 4 relationships (see list)
+    c0049 ..> c0062 : _is_unfinished_factory_plan() constructs FactoryError
+    c0049 ..> c0063 : 9 relationships (see list)
+    c0049 ..> c0065 : 3 relationships (see list)
+    c0049 ..> c0066 : 3 relationships (see list)
+    c0050 ..> c0055 : _cleanup_state() constructs ScaffoldProblem
+    c0051 --> c0063 : field issue
+    c0052 ..> c0000 : 8 relationships (see list)
+    c0052 ..> c0009 : _watch() calls prepare()
+    c0052 ..> c0011 : _watch() calls check()
+    c0052 ..> c0028 : _read_issues() calls list_issues()
+    c0052 ..> c0032 : 2 relationships (see list)
+    c0052 ..> c0040 : type in __init__
+    c0052 ..> c0049 : 5 relationships (see list)
+    c0052 ..> c0051 : 2 relationships (see list)
+    c0052 ..> c0052 : 4 relationships (see list)
+    c0052 ..> c0055 : 2 relationships (see list)
+    c0052 ..> c0058 : 5 relationships (see list)
+    c0052 ..> c0062 : _read_issues() constructs FactoryError
+    c0052 ..> c0063 : 2 relationships (see list)
+    c0052 ..> c0066 : 2 relationships (see list)
+    c0052 ..> c0067 : type in __init__
+    c0053 --|> c0055 : inherits
+    c0054 --|> c0055 : inherits
+    c0055 --|> c0062 : inherits
+    c0056 --|> c0055 : inherits
+    c0057 --|> c0055 : inherits
+    c0058 ..> c0000 : 2 relationships (see list)
+    c0058 ..> c0062 : type in send
+    c0059 ..> c0006 : build_watcher() constructs AgentShellTerminal
+    c0059 ..> c0011 : 5 relationships (see list)
+    c0059 ..> c0013 : 2 relationships (see list)
+    c0059 ..> c0015 : build_watcher() constructs GitWorktrees
+    c0059 ..> c0019 : build_initialiser() constructs TomlConfigurationStore
+    c0059 ..> c0025 : prepare_foreman_launch() calls role_environment()
+    c0059 ..> c0026 : build_watcher() constructs ForgetfulPlanning
+    c0059 ..> c0028 : 3 relationships (see list)
+    c0059 ..> c0032 : 2 relationships (see list)
+    c0059 ..> c0037 : 2 relationships (see list)
+    c0059 ..> c0049 : build_watcher() constructs ScaffoldIssue
+    c0059 ..> c0052 : 2 relationships (see list)
+    c0059 ..> c0059 : build_watcher() calls prepare_foreman_launch()
+    c0059 ..> c0062 : 2 relationships (see list)
+    c0060 ..> c0000 : _watch_locked() constructs BorrowedForemanTerminal
+    c0060 ..> c0003 : _watch_locked() calls run()
+    c0060 ..> c0005 : 12 relationships (see list)
+    c0060 ..> c0011 : 12 relationships (see list)
+    c0060 ..> c0013 : select_repositories() calls discover()
+    c0060 ..> c0015 : _configure_new_factory() calls inspect()
+    c0060 ..> c0019 : _initialise_locked() calls load()
+    c0060 ..> c0020 : 6 relationships (see list)
+    c0060 ..> c0021 : 6 relationships (see list)
+    c0060 ..> c0032 : 2 relationships (see list)
+    c0060 ..> c0033 : 6 relationships (see list)
+    c0060 ..> c0035 : 4 relationships (see list)
+    c0060 ..> c0036 : _initialise_locked() calls validate_initial_agents()
+    c0060 ..> c0037 : 10 relationships (see list)
+    c0060 ..> c0059 : 4 relationships (see list)
+    c0060 ..> c0060 : 34 relationships (see list)
+    c0060 ..> c0061 : 3 relationships (see list)
+    c0060 ..> c0062 : 17 relationships (see list)
+    c0061 ..> c0019 : 2 relationships (see list)
+    c0061 ..> c0032 : type in load_configuration
+    c0061 ..> c0062 : load_configuration() constructs FactoryError
+    c0063 --> c0066 : field source
+    c0065 --> c0066 : field work_source
+    c0067 ..> c0063 : type in list_issues
+    c0067 ..> c0064 : 2 relationships (see list)
+    c0067 ..> c0066 : 4 relationships (see list)
 ```
 
 ## Source index
@@ -830,69 +957,83 @@ classDiagram
 - c0011: `ForemanProfile` — `src/forgetful_factory/adapters/filesystem/foreman_profile.py`:48
 - c0012: `src/forgetful_factory/adapters/filesystem/foreman_runtime.py` —
   `src/forgetful_factory/adapters/filesystem/foreman_runtime.py`:1
-- c0013: `GitRepositories` — `src/forgetful_factory/adapters/filesystem/git_repositories.py`:7
-- c0014: `GitWorktrees` — `src/forgetful_factory/adapters/filesystem/git_worktrees.py`:21
-- c0015: `src/forgetful_factory/adapters/filesystem/git_worktrees.py` —
+- c0013: `GitRepositories` — `src/forgetful_factory/adapters/filesystem/git_repositories.py`:15
+- c0014: `src/forgetful_factory/adapters/filesystem/git_repositories.py` —
+  `src/forgetful_factory/adapters/filesystem/git_repositories.py`:1
+- c0015: `GitWorktrees` — `src/forgetful_factory/adapters/filesystem/git_worktrees.py`:29
+- c0016: `src/forgetful_factory/adapters/filesystem/git_worktrees.py` —
   `src/forgetful_factory/adapters/filesystem/git_worktrees.py`:1
-- c0016: `src/forgetful_factory/adapters/filesystem/resource_files.py` —
+- c0017: `src/forgetful_factory/adapters/filesystem/resource_files.py` —
   `src/forgetful_factory/adapters/filesystem/resource_files.py`:1
-- c0017: `src/forgetful_factory/adapters/filesystem/selected_skills.py` —
+- c0018: `src/forgetful_factory/adapters/filesystem/selected_skills.py` —
   `src/forgetful_factory/adapters/filesystem/selected_skills.py`:1
-- c0018: `TomlConfigurationStore` —
+- c0019: `TomlConfigurationStore` —
   `src/forgetful_factory/adapters/filesystem/toml_configuration.py`:20
-- c0019: `src/forgetful_factory/adapters/filesystem/toml_configuration.py` —
+- c0020: `src/forgetful_factory/adapters/filesystem/toml_configuration.py` —
   `src/forgetful_factory/adapters/filesystem/toml_configuration.py`:1
-- c0020: `WorkspaceWatchLease` — `src/forgetful_factory/adapters/filesystem/watch_lease.py`:10
-- c0021: `WorkerProfiles` — `src/forgetful_factory/adapters/filesystem/worker_profiles.py`:15
-- c0022: `src/forgetful_factory/adapters/forgetful/authentication.py` —
+- c0021: `WorkspaceWatchLease` — `src/forgetful_factory/adapters/filesystem/watch_lease.py`:10
+- c0022: `WorkerProfiles` — `src/forgetful_factory/adapters/filesystem/worker_profiles.py`:15
+- c0023: `src/forgetful_factory/adapters/forgetful/authentication.py` —
   `src/forgetful_factory/adapters/forgetful/authentication.py`:1
-- c0023: `AgentForgetfulConnection` — `src/forgetful_factory/adapters/forgetful/connection.py`:52
-- c0024: `src/forgetful_factory/adapters/forgetful/connection.py` —
+- c0024: `AgentForgetfulConnection` — `src/forgetful_factory/adapters/forgetful/connection.py`:52
+- c0025: `src/forgetful_factory/adapters/forgetful/connection.py` —
   `src/forgetful_factory/adapters/forgetful/connection.py`:1
-- c0025: `ForgetfulPlanning` — `src/forgetful_factory/adapters/forgetful/planning.py`:8
-- c0026: `GitHubWorkTracking` — `src/forgetful_factory/adapters/github/work_tracking.py`:8
-- c0027: `HostDependencies` — `src/forgetful_factory/adapters/host_dependencies.py`:52
-- c0028: `src/forgetful_factory/adapters/host_dependencies.py` —
+- c0026: `ForgetfulPlanning` — `src/forgetful_factory/adapters/forgetful/planning.py`:13
+- c0027: `src/forgetful_factory/adapters/forgetful/planning.py` —
+  `src/forgetful_factory/adapters/forgetful/planning.py`:1
+- c0028: `GitHubWorkTracking` — `src/forgetful_factory/adapters/github/work_tracking.py`:8
+- c0029: `HostDependencies` — `src/forgetful_factory/adapters/host_dependencies.py`:52
+- c0030: `src/forgetful_factory/adapters/host_dependencies.py` —
   `src/forgetful_factory/adapters/host_dependencies.py`:1
-- c0029: `src/forgetful_factory/adapters/sensitive_command.py` —
+- c0031: `src/forgetful_factory/adapters/sensitive_command.py` —
   `src/forgetful_factory/adapters/sensitive_command.py`:1
-- c0030: `FactoryConfiguration` — `src/forgetful_factory/application/configuration.py`:82
-- c0031: `ForgetfulConnection` — `src/forgetful_factory/application/configuration.py`:11
-- c0032: `src/forgetful_factory/application/configuration.py` —
+- c0032: `FactoryConfiguration` — `src/forgetful_factory/application/configuration.py`:82
+- c0033: `ForgetfulConnection` — `src/forgetful_factory/application/configuration.py`:11
+- c0034: `src/forgetful_factory/application/configuration.py` —
   `src/forgetful_factory/application/configuration.py`:1
-- c0033: `InitialAgentChoices` — `src/forgetful_factory/application/initial_agent_choices.py`:9
-- c0034: `src/forgetful_factory/application/initial_agent_choices.py` —
+- c0035: `InitialAgentChoices` — `src/forgetful_factory/application/initial_agent_choices.py`:9
+- c0036: `src/forgetful_factory/application/initial_agent_choices.py` —
   `src/forgetful_factory/application/initial_agent_choices.py`:1
-- c0035: `InitialiseFactory` — `src/forgetful_factory/application/initialise_factory.py`:18
-- c0036: `ConfigurationStore` — `src/forgetful_factory/application/ports/configuration_store.py`:6
-- c0037: `ForemanProfile` — `src/forgetful_factory/application/ports/foreman_profile.py`:8
-- c0038: `ForemanTerminal` — `src/forgetful_factory/application/ports/foreman_terminal.py`:4
-- c0039: `LocalRepositories` — `src/forgetful_factory/application/ports/local_repositories.py`:5
-- c0040: `Planning` — `src/forgetful_factory/application/ports/planning.py`:4
-- c0041: `WatchLease` — `src/forgetful_factory/application/ports/watch_lease.py`:5
-- c0042: `WorkSourceResolver` — `src/forgetful_factory/application/ports/work_source_resolver.py`:6
-- c0043: `Worktrees` — `src/forgetful_factory/application/ports/worktrees.py`:4
-- c0044: `ScaffoldIssue` — `src/forgetful_factory/application/scaffold_issue.py`:31
-- c0045: `src/forgetful_factory/application/scaffold_issue.py` —
+- c0037: `InitialiseFactory` — `src/forgetful_factory/application/initialise_factory.py`:18
+- c0038: `ConfigurationStore` — `src/forgetful_factory/application/ports/configuration_store.py`:6
+- c0039: `ForemanProfile` — `src/forgetful_factory/application/ports/foreman_profile.py`:8
+- c0040: `ForemanTerminal` — `src/forgetful_factory/application/ports/foreman_terminal.py`:4
+- c0041: `LocalRepositories` — `src/forgetful_factory/application/ports/local_repositories.py`:5
+- c0042: `Planning` — `src/forgetful_factory/application/ports/planning.py`:10
+- c0043: `PlanningReadError` — `src/forgetful_factory/application/ports/planning.py`:6
+- c0044: `WatchLease` — `src/forgetful_factory/application/ports/watch_lease.py`:5
+- c0045: `WorkSourceResolver` — `src/forgetful_factory/application/ports/work_source_resolver.py`:6
+- c0046: `WorktreeProblem` — `src/forgetful_factory/application/ports/worktrees.py`:10
+- c0047: `WorktreeReadError` — `src/forgetful_factory/application/ports/worktrees.py`:6
+- c0048: `Worktrees` — `src/forgetful_factory/application/ports/worktrees.py`:19
+- c0049: `ScaffoldIssue` — `src/forgetful_factory/application/scaffold_issue.py`:47
+- c0050: `src/forgetful_factory/application/scaffold_issue.py` —
   `src/forgetful_factory/application/scaffold_issue.py`:1
-- c0046: `WatchFactory` — `src/forgetful_factory/application/watch_factory.py`:12
-- c0047: `src/forgetful_factory/cli/bootstrap.py` — `src/forgetful_factory/cli/bootstrap.py`:1
-- c0048: `src/forgetful_factory/cli/main.py` — `src/forgetful_factory/cli/main.py`:1
-- c0049: `src/forgetful_factory/configuration.py` — `src/forgetful_factory/configuration.py`:1
-- c0050: `FactoryError` — `src/forgetful_factory/domain/models.py`:4
-- c0051: `Issue` — `src/forgetful_factory/domain/models.py`:27
-- c0052: `Label` — `src/forgetful_factory/domain/models.py`:22
-- c0053: `RepositoryReference` — `src/forgetful_factory/domain/models.py`:15
-- c0054: `WorkSource` — `src/forgetful_factory/domain/models.py`:9
-- c0055: `WorkTrackingService` — `src/forgetful_factory/domain/services/work_tracking.py`:6
+- c0051: `BlockedWork` — `src/forgetful_factory/application/watch_factory.py`:22
+- c0052: `WatchFactory` — `src/forgetful_factory/application/watch_factory.py`:32
+- c0053: `IntakeProblem` — `src/forgetful_factory/application/watcher_problems.py`:104
+- c0054: `RepositoryProblem` — `src/forgetful_factory/application/watcher_problems.py`:100
+- c0055: `ScaffoldProblem` — `src/forgetful_factory/application/watcher_problems.py`:80
+- c0056: `ScaffoldReadProblem` — `src/forgetful_factory/application/watcher_problems.py`:96
+- c0057: `UncertainScaffold` — `src/forgetful_factory/application/watcher_problems.py`:108
+- c0058: `WatcherAlerts` — `src/forgetful_factory/application/watcher_problems.py`:112
+- c0059: `src/forgetful_factory/cli/bootstrap.py` — `src/forgetful_factory/cli/bootstrap.py`:1
+- c0060: `src/forgetful_factory/cli/main.py` — `src/forgetful_factory/cli/main.py`:1
+- c0061: `src/forgetful_factory/configuration.py` — `src/forgetful_factory/configuration.py`:1
+- c0062: `FactoryError` — `src/forgetful_factory/domain/models.py`:4
+- c0063: `Issue` — `src/forgetful_factory/domain/models.py`:27
+- c0064: `Label` — `src/forgetful_factory/domain/models.py`:22
+- c0065: `RepositoryReference` — `src/forgetful_factory/domain/models.py`:15
+- c0066: `WorkSource` — `src/forgetful_factory/domain/models.py`:9
+- c0067: `WorkTrackingService` — `src/forgetful_factory/domain/services/work_tracking.py`:6
 
 ## Relationships
 
 - c0000 ..> c0000: `send() calls _request()`
 - c0000 ..> c0000: `start() calls _request()`
 - c0000 ..> c0006: `close() calls close()`
-- c0000 ..> c0050: `_request() constructs FactoryError`
-- c0000 ..> c0050: `wait() constructs FactoryError`
+- c0000 ..> c0062: `_request() constructs FactoryError`
+- c0000 ..> c0062: `wait() constructs FactoryError`
 - c0001 ..> c0000: `control() calls close()`
 - c0001 ..> c0000: `control() calls wait()`
 - c0001 ..> c0000: `pin_worker() calls close()`
@@ -908,9 +1049,9 @@ classDiagram
 - c0001 ..> c0001: `serve() calls retain_identity()`
 - c0001 ..> c0001: `serve() calls runtime()`
 - c0001 ..> c0001: `serve() calls worker_exited()`
-- c0001 ..> c0025: `control() calls create_task()`
-- c0001 ..> c0025: `main() calls create_task()`
-- c0001 ..> c0025: `serve() calls create_task()`
+- c0001 ..> c0026: `control() calls create_task()`
+- c0001 ..> c0026: `main() calls create_task()`
+- c0001 ..> c0026: `serve() calls create_task()`
 - c0002 ..> c0011: `main() calls list_models()`
 - c0003 ..> c0000: `control() calls close()`
 - c0003 ..> c0000: `reap_watcher() calls wait()`
@@ -930,20 +1071,20 @@ classDiagram
 - c0003 ..> c0003: `start_watcher() calls stop_watcher()`
 - c0003 ..> c0005: `run() calls read_state()`
 - c0003 ..> c0012: `__init__() calls runtime_directory()`
-- c0003 ..> c0016: `save() calls replace_generated_json()`
-- c0003 ..> c0019: `observe() calls quote()`
-- c0003 ..> c0019: `run() calls quote()`
-- c0003 ..> c0025: `run() calls create_task()`
-- c0003 ..> c0025: `start_watcher() calls create_task()`
-- c0003 ..> c0050: `control() constructs FactoryError`
-- c0003 ..> c0050: `observe() constructs FactoryError`
-- c0003 ..> c0050: `reap_watcher() constructs FactoryError`
-- c0003 ..> c0050: `relay() constructs FactoryError`
-- c0003 ..> c0050: `run() constructs FactoryError`
-- c0003 ..> c0050: `start_watcher() constructs FactoryError`
+- c0003 ..> c0017: `save() calls replace_generated_json()`
+- c0003 ..> c0020: `observe() calls quote()`
+- c0003 ..> c0020: `run() calls quote()`
+- c0003 ..> c0026: `run() calls create_task()`
+- c0003 ..> c0026: `start_watcher() calls create_task()`
+- c0003 ..> c0062: `control() constructs FactoryError`
+- c0003 ..> c0062: `observe() constructs FactoryError`
+- c0003 ..> c0062: `reap_watcher() constructs FactoryError`
+- c0003 ..> c0062: `relay() constructs FactoryError`
+- c0003 ..> c0062: `run() constructs FactoryError`
+- c0003 ..> c0062: `start_watcher() constructs FactoryError`
 - c0004 ..> c0003: `main() calls run()`
 - c0004 ..> c0003: `main() constructs ForemanOwner`
-- c0004 ..> c0025: `main() calls create_task()`
+- c0004 ..> c0026: `main() calls create_task()`
 - c0005 ..> c0000: `start_owner() calls close()`
 - c0005 ..> c0000: `start_owner() calls wait()`
 - c0005 ..> c0003: `enter_terminal() calls run()`
@@ -954,46 +1095,46 @@ classDiagram
 - c0005 ..> c0012: `read_state() calls runtime_directory()`
 - c0005 ..> c0012: `request() calls runtime_directory()`
 - c0005 ..> c0012: `start_owner() calls runtime_directory()`
-- c0005 ..> c0016: `read_state() calls read_generated_json()`
-- c0005 ..> c0019: `request() calls quote()`
-- c0005 ..> c0050: `_reply() constructs FactoryError`
-- c0005 ..> c0050: `enter_terminal() constructs FactoryError`
-- c0005 ..> c0050: `read_state() constructs FactoryError`
-- c0005 ..> c0050: `request() constructs FactoryError`
-- c0005 ..> c0050: `start_owner() constructs FactoryError`
+- c0005 ..> c0017: `read_state() calls read_generated_json()`
+- c0005 ..> c0020: `request() calls quote()`
+- c0005 ..> c0062: `_reply() constructs FactoryError`
+- c0005 ..> c0062: `enter_terminal() constructs FactoryError`
+- c0005 ..> c0062: `read_state() constructs FactoryError`
+- c0005 ..> c0062: `request() constructs FactoryError`
+- c0005 ..> c0062: `start_owner() constructs FactoryError`
 - c0006 ..> c0000: `close() calls close()`
 - c0006 ..> c0006: `send() calls _read()`
 - c0006 ..> c0006: `send() calls _write()`
 - c0006 ..> c0006: `start() calls _read()`
 - c0006 ..> c0006: `start() calls _write()`
 - c0006 ..> c0006: `wait() calls _read()`
-- c0006 ..> c0050: `_read() constructs FactoryError`
-- c0006 ..> c0050: `_write() constructs FactoryError`
-- c0006 ..> c0050: `close() constructs FactoryError`
-- c0006 ..> c0050: `start() constructs FactoryError`
+- c0006 ..> c0062: `_read() constructs FactoryError`
+- c0006 ..> c0062: `_write() constructs FactoryError`
+- c0006 ..> c0062: `close() constructs FactoryError`
+- c0006 ..> c0062: `start() constructs FactoryError`
 - c0007 ..> c0003: `run_command() calls run()`
-- c0007 ..> c0050: `run_command() constructs FactoryError`
+- c0007 ..> c0062: `run_command() constructs FactoryError`
 - c0008 ..> c0008: `foreman_launch() calls read_definition()`
 - c0008 ..> c0008: `foreman_launch() calls relative_path()`
 - c0008 ..> c0008: `read_definition() calls relative_path()`
-- c0008 ..> c0032: `foreman_launch() calls nonblank()`
-- c0008 ..> c0032: `read_definition() calls nonblank()`
-- c0008 ..> c0032: `relative_path() calls nonblank()`
-- c0008 ..> c0050: `foreman_launch() constructs FactoryError`
-- c0008 ..> c0050: `read_definition() constructs FactoryError`
+- c0008 ..> c0034: `foreman_launch() calls nonblank()`
+- c0008 ..> c0034: `read_definition() calls nonblank()`
+- c0008 ..> c0034: `relative_path() calls nonblank()`
+- c0008 ..> c0062: `foreman_launch() constructs FactoryError`
+- c0008 ..> c0062: `read_definition() constructs FactoryError`
 - c0009 ..> c0009: `prepare() calls _write_agent()`
 - c0009 ..> c0009: `prepare() calls validate_guidance()`
 - c0009 ..> c0010: `prepare() calls selected_resources()`
 - c0009 ..> c0011: `prepare() calls prepare()`
-- c0009 ..> c0016: `_write_agent() calls write_definition()`
-- c0009 ..> c0016: `prepare() calls check_skill_file()`
-- c0009 ..> c0016: `prepare() calls write_new()`
-- c0009 ..> c0021: `__init__() constructs WorkerProfiles`
-- c0009 ..> c0030: `type in prepare`
-- c0009 ..> c0030: `type in validate_guidance`
-- c0009 ..> c0050: `prepare() constructs FactoryError`
-- c0009 ..> c0050: `validate_depth() constructs FactoryError`
-- c0009 ..> c0050: `validate_guidance() constructs FactoryError`
+- c0009 ..> c0017: `_write_agent() calls write_definition()`
+- c0009 ..> c0017: `prepare() calls check_skill_file()`
+- c0009 ..> c0017: `prepare() calls write_new()`
+- c0009 ..> c0022: `__init__() constructs WorkerProfiles`
+- c0009 ..> c0032: `type in prepare`
+- c0009 ..> c0032: `type in validate_guidance`
+- c0009 ..> c0062: `prepare() constructs FactoryError`
+- c0009 ..> c0062: `validate_depth() constructs FactoryError`
+- c0009 ..> c0062: `validate_guidance() constructs FactoryError`
 - c0011 ..> c0008: `selected_launch() calls foreman_launch()`
 - c0011 ..> c0009: `prepare_roles() calls validate_depth()`
 - c0011 ..> c0009: `prepare_roles() constructs CoordinatorProfiles`
@@ -1021,520 +1162,625 @@ classDiagram
 - c0011 ..> c0011: `validate_setup() calls validate_bundled_resources()`
 - c0011 ..> c0011: `validate_setup() calls validate_guidance()`
 - c0011 ..> c0011: `validate_worker_models() calls list_models()`
-- c0011 ..> c0016: `_install_resources() calls write_new()`
-- c0011 ..> c0016: `_protect_runtime() calls write_new()`
-- c0011 ..> c0016: `begin_setup() calls remove_generated()`
-- c0011 ..> c0016: `pi_home() calls read_generated_json()`
-- c0011 ..> c0016: `prepare() calls write_new()`
-- c0011 ..> c0016: `prepare_roles() calls check_real_path()`
-- c0011 ..> c0016: `prepare_setup_guidance() calls write_new()`
-- c0011 ..> c0016: `record_completion() calls replace_generated_json()`
-- c0011 ..> c0016: `save_pi_choice() calls write_json()`
-- c0011 ..> c0016: `validate_bundled_resources() calls check_real_path()`
-- c0011 ..> c0016: `validate_completion() calls read_generated_json()`
-- c0011 ..> c0017: `selected_launch() calls selected_skill_files()`
-- c0011 ..> c0019: `require_pi_home() calls quote()`
-- c0011 ..> c0022: `uses_browser_login() calls uses_browser_login()`
-- c0011 ..> c0023: `check() calls check()`
-- c0011 ..> c0023: `check() constructs AgentForgetfulConnection`
-- c0011 ..> c0023: `create_project() calls create_project()`
-- c0011 ..> c0023: `create_project() constructs AgentForgetfulConnection`
-- c0011 ..> c0023: `login() calls login()`
-- c0011 ..> c0023: `login() constructs AgentForgetfulConnection`
-- c0011 ..> c0023: `projects() calls projects()`
-- c0011 ..> c0023: `projects() constructs AgentForgetfulConnection`
-- c0011 ..> c0024: `list_models() calls role_environment()`
-- c0011 ..> c0027: `install() calls install()`
-- c0011 ..> c0027: `install() constructs HostDependencies`
-- c0011 ..> c0027: `installation() calls description()`
-- c0011 ..> c0027: `installation() constructs HostDependencies`
-- c0011 ..> c0027: `missing_executables() calls pi_ready()`
-- c0011 ..> c0027: `missing_executables() constructs HostDependencies`
-- c0011 ..> c0028: `missing_executables() calls executable_path()`
-- c0011 ..> c0028: `missing_executables() calls runtime_ready()`
-- c0011 ..> c0028: `require_pi_home() calls executable_path()`
-- c0011 ..> c0029: `list_models() calls run_owned()`
-- c0011 ..> c0030: `type in record_completion`
-- c0011 ..> c0030: `type in selected_launch`
-- c0011 ..> c0030: `type in validate_completion`
-- c0011 ..> c0030: `type in validate_worker_models`
-- c0011 ..> c0031: `type in check`
-- c0011 ..> c0031: `type in create_project`
-- c0011 ..> c0031: `type in list_models`
-- c0011 ..> c0031: `type in login`
-- c0011 ..> c0031: `type in missing_executables`
-- c0011 ..> c0031: `type in prepare`
-- c0011 ..> c0031: `type in projects`
-- c0011 ..> c0031: `type in uses_browser_login`
-- c0011 ..> c0031: `type in validate_setup`
-- c0011 ..> c0050: `_install_resources() constructs FactoryError`
-- c0011 ..> c0050: `_read_guidance() constructs FactoryError`
-- c0011 ..> c0050: `choose_pi_home() constructs FactoryError`
-- c0011 ..> c0050: `list_models() constructs FactoryError`
-- c0011 ..> c0050: `pi_home() constructs FactoryError`
-- c0011 ..> c0050: `prepare_roles() constructs FactoryError`
-- c0011 ..> c0050: `prepare_setup_guidance() constructs FactoryError`
-- c0011 ..> c0050: `require_pi_home() constructs FactoryError`
-- c0011 ..> c0050: `selected_launch() constructs FactoryError`
-- c0011 ..> c0050: `validate_bundled_resources() constructs FactoryError`
-- c0011 ..> c0050: `validate_completion() constructs FactoryError`
-- c0011 ..> c0050: `validate_guidance() constructs FactoryError`
-- c0011 ..> c0050: `validate_setup() constructs FactoryError`
-- c0011 ..> c0050: `validate_worker_models() constructs FactoryError`
-- c0012 ..> c0016: `runtime_directory() calls check_real_path()`
-- c0012 ..> c0050: `runtime_directory() constructs FactoryError`
+- c0011 ..> c0017: `_install_resources() calls write_new()`
+- c0011 ..> c0017: `_protect_runtime() calls write_new()`
+- c0011 ..> c0017: `begin_setup() calls remove_generated()`
+- c0011 ..> c0017: `pi_home() calls read_generated_json()`
+- c0011 ..> c0017: `prepare() calls write_new()`
+- c0011 ..> c0017: `prepare_roles() calls check_real_path()`
+- c0011 ..> c0017: `prepare_setup_guidance() calls write_new()`
+- c0011 ..> c0017: `record_completion() calls replace_generated_json()`
+- c0011 ..> c0017: `save_pi_choice() calls write_json()`
+- c0011 ..> c0017: `validate_bundled_resources() calls check_real_path()`
+- c0011 ..> c0017: `validate_completion() calls read_generated_json()`
+- c0011 ..> c0018: `selected_launch() calls selected_skill_files()`
+- c0011 ..> c0020: `require_pi_home() calls quote()`
+- c0011 ..> c0023: `uses_browser_login() calls uses_browser_login()`
+- c0011 ..> c0024: `check() calls check()`
+- c0011 ..> c0024: `check() constructs AgentForgetfulConnection`
+- c0011 ..> c0024: `create_project() calls create_project()`
+- c0011 ..> c0024: `create_project() constructs AgentForgetfulConnection`
+- c0011 ..> c0024: `login() calls login()`
+- c0011 ..> c0024: `login() constructs AgentForgetfulConnection`
+- c0011 ..> c0024: `projects() calls projects()`
+- c0011 ..> c0024: `projects() constructs AgentForgetfulConnection`
+- c0011 ..> c0025: `list_models() calls role_environment()`
+- c0011 ..> c0029: `install() calls install()`
+- c0011 ..> c0029: `install() constructs HostDependencies`
+- c0011 ..> c0029: `installation() calls description()`
+- c0011 ..> c0029: `installation() constructs HostDependencies`
+- c0011 ..> c0029: `missing_executables() calls pi_ready()`
+- c0011 ..> c0029: `missing_executables() constructs HostDependencies`
+- c0011 ..> c0030: `missing_executables() calls executable_path()`
+- c0011 ..> c0030: `missing_executables() calls runtime_ready()`
+- c0011 ..> c0030: `require_pi_home() calls executable_path()`
+- c0011 ..> c0031: `list_models() calls run_owned()`
+- c0011 ..> c0032: `type in record_completion`
+- c0011 ..> c0032: `type in selected_launch`
+- c0011 ..> c0032: `type in validate_completion`
+- c0011 ..> c0032: `type in validate_worker_models`
+- c0011 ..> c0033: `type in check`
+- c0011 ..> c0033: `type in create_project`
+- c0011 ..> c0033: `type in list_models`
+- c0011 ..> c0033: `type in login`
+- c0011 ..> c0033: `type in missing_executables`
+- c0011 ..> c0033: `type in prepare`
+- c0011 ..> c0033: `type in projects`
+- c0011 ..> c0033: `type in uses_browser_login`
+- c0011 ..> c0033: `type in validate_setup`
+- c0011 ..> c0062: `_install_resources() constructs FactoryError`
+- c0011 ..> c0062: `_read_guidance() constructs FactoryError`
+- c0011 ..> c0062: `choose_pi_home() constructs FactoryError`
+- c0011 ..> c0062: `list_models() constructs FactoryError`
+- c0011 ..> c0062: `pi_home() constructs FactoryError`
+- c0011 ..> c0062: `prepare_roles() constructs FactoryError`
+- c0011 ..> c0062: `prepare_setup_guidance() constructs FactoryError`
+- c0011 ..> c0062: `require_pi_home() constructs FactoryError`
+- c0011 ..> c0062: `selected_launch() constructs FactoryError`
+- c0011 ..> c0062: `validate_bundled_resources() constructs FactoryError`
+- c0011 ..> c0062: `validate_completion() constructs FactoryError`
+- c0011 ..> c0062: `validate_guidance() constructs FactoryError`
+- c0011 ..> c0062: `validate_setup() constructs FactoryError`
+- c0011 ..> c0062: `validate_worker_models() constructs FactoryError`
+- c0012 ..> c0017: `runtime_directory() calls check_real_path()`
+- c0012 ..> c0062: `runtime_directory() constructs FactoryError`
 - c0013 ..> c0007: `origin() calls run_command()`
-- c0013 ..> c0050: `origin() constructs FactoryError`
-- c0014 ..> c0007: `_repository_entries() calls run_command()`
-- c0014 ..> c0007: `ensure() calls run_command()`
-- c0014 ..> c0014: `ensure() calls _repository_entries()`
-- c0014 ..> c0014: `verify_removed() calls _repository_entries()`
-- c0014 ..> c0015: `_repository_entries() calls _worktree_entries()`
-- c0014 ..> c0050: `_repository_entries() constructs FactoryError`
-- c0014 ..> c0050: `ensure() constructs FactoryError`
-- c0014 ..> c0050: `verify_removed() constructs FactoryError`
-- c0016 ..> c0000: `_generated_parent() calls close()`
-- c0016 ..> c0016: `_generated_parent() calls check_real_path()`
-- c0016 ..> c0016: `check_skill_file() calls check_real_path()`
-- c0016 ..> c0016: `read_generated_json() calls _generated_parent()`
-- c0016 ..> c0016: `remove_generated() calls _generated_parent()`
-- c0016 ..> c0016: `replace_generated_json() calls _generated_parent()`
-- c0016 ..> c0016: `write_definition() calls read_generated_json()`
-- c0016 ..> c0016: `write_definition() calls write_json()`
-- c0016 ..> c0016: `write_json() calls write_new()`
-- c0016 ..> c0016: `write_new() calls check_real_path()`
-- c0016 ..> c0018: `read_generated_json() calls load()`
-- c0016 ..> c0050: `_generated_parent() constructs FactoryError`
-- c0016 ..> c0050: `check_real_path() constructs FactoryError`
-- c0016 ..> c0050: `check_skill_file() constructs FactoryError`
-- c0016 ..> c0050: `read_generated_json() constructs FactoryError`
-- c0016 ..> c0050: `write_definition() constructs FactoryError`
-- c0016 ..> c0050: `write_new() constructs FactoryError`
-- c0017 ..> c0050: `selected_skill_files() constructs FactoryError`
-- c0018 ..> c0000: `load() calls close()`
-- c0018 ..> c0000: `save() calls close()`
-- c0018 ..> c0019: `save() calls quote()`
-- c0018 ..> c0030: `type in load`
-- c0018 ..> c0030: `type in save`
-- c0018 ..> c0032: `load() calls from_mapping()`
-- c0018 ..> c0036: `load() calls load()`
-- c0018 ..> c0050: `load() constructs FactoryError`
-- c0018 ..> c0050: `save() constructs FactoryError`
-- c0020 ..> c0000: `_hold_directory() calls close()`
-- c0020 ..> c0020: `hold() calls _hold_directory()`
-- c0020 ..> c0050: `_hold_directory() constructs FactoryError`
-- c0021 ..> c0016: `prepare() calls check_skill_file()`
-- c0021 ..> c0016: `prepare() calls write_definition()`
-- c0021 ..> c0016: `prepare() calls write_new()`
-- c0021 ..> c0033: `type in prepare`
-- c0022 ..> c0005: `uses_browser_login() calls request()`
-- c0022 ..> c0031: `type in uses_browser_login`
-- c0023 ..> c0023: `call() calls command()`
-- c0023 ..> c0023: `check() calls call()`
-- c0023 ..> c0023: `check() calls command()`
-- c0023 ..> c0023: `command() calls _environment()`
-- c0023 ..> c0023: `create_project() calls call()`
-- c0023 ..> c0023: `login() calls _environment()`
-- c0023 ..> c0023: `projects() calls command()`
-- c0023 ..> c0024: `_environment() calls role_environment()`
-- c0023 ..> c0024: `check() calls _catalog_tools()`
-- c0023 ..> c0029: `command() calls run_owned()`
-- c0023 ..> c0029: `login() calls run_owned()`
-- c0023 ..> c0031: `type in _environment`
-- c0023 ..> c0031: `type in call`
-- c0023 ..> c0031: `type in check`
-- c0023 ..> c0031: `type in command`
-- c0023 ..> c0031: `type in create_project`
-- c0023 ..> c0031: `type in login`
-- c0023 ..> c0031: `type in projects`
-- c0023 ..> c0050: `check() constructs FactoryError`
-- c0023 ..> c0050: `command() constructs FactoryError`
-- c0023 ..> c0050: `create_project() constructs FactoryError`
-- c0023 ..> c0050: `login() constructs FactoryError`
-- c0023 ..> c0050: `projects() constructs FactoryError`
-- c0024 ..> c0028: `role_environment() calls executable_path()`
-- c0024 ..> c0031: `type in role_environment`
-- c0025 ..> c0011: `check() calls check()`
-- c0025 ..> c0023: `__init__() constructs AgentForgetfulConnection`
-- c0025 ..> c0023: `_call() calls call()`
-- c0025 ..> c0025: `create_plan() calls _call()`
-- c0025 ..> c0025: `create_task() calls _call()`
-- c0025 ..> c0025: `get_plan() calls _call()`
-- c0025 ..> c0025: `plans() calls _call()`
-- c0025 ..> c0025: `plans() calls _rows()`
-- c0025 ..> c0025: `tasks() calls _call()`
-- c0025 ..> c0025: `tasks() calls _rows()`
-- c0025 ..> c0025: `update_plan() calls _call()`
-- c0025 ..> c0025: `update_task() calls _call()`
-- c0025 ..> c0031: `type in __init__`
-- c0025 ..> c0050: `_rows() constructs FactoryError`
-- c0026 ..> c0007: `_api() calls run_command()`
-- c0026 ..> c0026: `check_access() calls _api()`
-- c0026 ..> c0026: `create_label() calls _api()`
-- c0026 ..> c0026: `list_issues() calls _api()`
-- c0026 ..> c0026: `list_issues() calls _validate_issue()`
-- c0026 ..> c0026: `list_labels() calls _api()`
-- c0026 ..> c0050: `_api() constructs FactoryError`
-- c0026 ..> c0050: `_validate_issue() constructs FactoryError`
-- c0026 ..> c0050: `check_access() constructs FactoryError`
-- c0026 ..> c0050: `create_label() constructs FactoryError`
-- c0026 ..> c0050: `list_issues() constructs FactoryError`
-- c0026 ..> c0050: `list_labels() constructs FactoryError`
-- c0026 ..> c0050: `source_from_remote() constructs FactoryError`
-- c0026 ..> c0051: `list_issues() constructs Issue`
-- c0026 ..> c0051: `type in list_issues`
-- c0026 ..> c0052: `list_labels() constructs Label`
-- c0026 ..> c0052: `type in create_label`
-- c0026 ..> c0052: `type in list_labels`
-- c0026 ..> c0054: `source_from_remote() constructs WorkSource`
-- c0026 ..> c0054: `type in _api`
-- c0026 ..> c0054: `type in _validate_issue`
-- c0026 ..> c0054: `type in check_access`
-- c0026 ..> c0054: `type in create_label`
-- c0026 ..> c0054: `type in list_issues`
-- c0026 ..> c0054: `type in list_labels`
-- c0026 ..> c0054: `type in source_from_remote`
-- c0027 ..> c0016: `install() calls write_new()`
-- c0027 ..> c0027: `_check_uv() calls _environment()`
-- c0027 ..> c0027: `_forgetful_python() calls _check_uv()`
-- c0027 ..> c0027: `_forgetful_python() calls _environment()`
-- c0027 ..> c0027: `_install_role_runtime() calls _check_uv()`
-- c0027 ..> c0027: `_install_role_runtime() calls _run()`
-- c0027 ..> c0027: `_install_tmux() calls _run()`
-- c0027 ..> c0027: `_run() calls _environment()`
-- c0027 ..> c0027: `description() calls _forgetful_python()`
-- c0027 ..> c0027: `description() calls _ubuntu_tmux()`
-- c0027 ..> c0027: `install() calls _forgetful_python()`
-- c0027 ..> c0027: `install() calls _install_role_runtime()`
-- c0027 ..> c0027: `install() calls _install_tmux()`
-- c0027 ..> c0027: `install() calls _run()`
-- c0027 ..> c0027: `install() calls _ubuntu_tmux()`
-- c0027 ..> c0027: `pi_ready() calls _environment()`
-- c0027 ..> c0028: `_install_role_runtime() calls sync_fingerprint()`
-- c0027 ..> c0028: `install() calls sync_fingerprint()`
-- c0027 ..> c0028: `pi_ready() calls sync_fingerprint()`
-- c0027 ..> c0029: `_check_uv() calls run_owned()`
-- c0027 ..> c0029: `_forgetful_python() calls run_owned()`
-- c0027 ..> c0029: `_run() calls run_owned()`
-- c0027 ..> c0029: `pi_ready() calls run_owned()`
-- c0027 ..> c0050: `_check_uv() constructs FactoryError`
-- c0027 ..> c0050: `_forgetful_python() constructs FactoryError`
-- c0027 ..> c0050: `_install_role_runtime() constructs FactoryError`
-- c0027 ..> c0050: `_install_tmux() constructs FactoryError`
-- c0027 ..> c0050: `_run() constructs FactoryError`
-- c0027 ..> c0050: `install() constructs FactoryError`
-- c0028 ..> c0028: `runtime_ready() calls sync_fingerprint()`
-- c0028 ..> c0029: `runtime_ready() calls run_owned()`
-- c0029 ..> c0050: `run_owned() constructs FactoryError`
-- c0030 --> c0031: `field forgetful`
-- c0030 --> c0053: `field repository`
-- c0031 ..> c0032: `_validate_server() calls loopback_host()`
-- c0031 ..> c0032: `_validate_server() calls nonblank()`
-- c0031 ..> c0050: `_validate_server() constructs FactoryError`
-- c0032 ..> c0030: `from_mapping() constructs FactoryConfiguration`
-- c0032 ..> c0030: `type in from_mapping`
-- c0032 ..> c0030: `type in validate`
-- c0032 ..> c0031: `connection_from_mapping() constructs ForgetfulConnection`
-- c0032 ..> c0031: `type in connection_from_mapping`
-- c0032 ..> c0031: `validate() calls _validate_server()`
-- c0032 ..> c0032: `connection_from_mapping() calls validate()`
-- c0032 ..> c0032: `from_mapping() calls connection_from_mapping()`
-- c0032 ..> c0032: `from_mapping() calls validate()`
-- c0032 ..> c0032: `unique_labels() calls nonblank()`
-- c0032 ..> c0032: `validate() calls nonblank()`
-- c0032 ..> c0050: `connection_from_mapping() constructs FactoryError`
-- c0032 ..> c0050: `from_mapping() constructs FactoryError`
-- c0032 ..> c0050: `nonblank() constructs FactoryError`
-- c0032 ..> c0050: `validate() constructs FactoryError`
-- c0032 ..> c0053: `from_mapping() constructs RepositoryReference`
-- c0032 ..> c0054: `from_mapping() constructs WorkSource`
-- c0034 ..> c0032: `skill_paths() calls nonblank()`
-- c0034 ..> c0032: `validate_initial_agents() calls nonblank()`
-- c0034 ..> c0032: `validate_workers() calls nonblank()`
-- c0034 ..> c0033: `type in validate_initial_agents`
-- c0034 ..> c0033: `type in validate_workers`
-- c0034 ..> c0034: `validate_initial_agents() calls validate_role_app()`
-- c0034 ..> c0034: `validate_initial_agents() calls validate_workers()`
-- c0034 ..> c0034: `validate_workers() calls validate_role_app()`
-- c0034 ..> c0050: `skill_paths() constructs FactoryError`
-- c0034 ..> c0050: `validate_initial_agents() constructs FactoryError`
-- c0034 ..> c0050: `validate_role_app() constructs FactoryError`
-- c0034 ..> c0050: `validate_workers() constructs FactoryError`
-- c0035 ..> c0003: `initialise() calls save()`
-- c0035 ..> c0009: `prepare_foreman() calls prepare()`
-- c0035 ..> c0011: `check_foreman() calls check()`
-- c0035 ..> c0011: `check_foreman() calls login()`
-- c0035 ..> c0011: `prepare_foreman() calls install()`
-- c0035 ..> c0011: `prepare_foreman() calls installation()`
-- c0035 ..> c0011: `prepare_foreman() calls missing_executables()`
-- c0035 ..> c0013: `_preflight() calls origin()`
-- c0035 ..> c0013: `discover() calls discover()`
-- c0035 ..> c0013: `inspect() calls origin()`
-- c0035 ..> c0018: `load_existing() calls load()`
-- c0035 ..> c0026: `_ensure_label() calls create_label()`
-- c0035 ..> c0026: `_preflight() calls check_access()`
-- c0035 ..> c0026: `_preflight() calls list_labels()`
-- c0035 ..> c0026: `_preflight() calls source_from_remote()`
-- c0035 ..> c0026: `inspect() calls source_from_remote()`
-- c0035 ..> c0030: `configure() constructs FactoryConfiguration`
-- c0035 ..> c0030: `type in _preflight`
-- c0035 ..> c0030: `type in check_foreman`
-- c0035 ..> c0030: `type in configure`
-- c0035 ..> c0030: `type in initialise`
-- c0035 ..> c0030: `type in load_existing`
-- c0035 ..> c0031: `_preflight() calls validate()`
-- c0035 ..> c0031: `type in prepare_foreman`
-- c0035 ..> c0032: `configure() calls unique_labels()`
-- c0035 ..> c0032: `load_existing() calls unique_labels()`
-- c0035 ..> c0035: `configure() calls inspect()`
-- c0035 ..> c0035: `initialise() calls _ensure_label()`
-- c0035 ..> c0035: `initialise() calls _preflight()`
-- c0035 ..> c0036: `type in __init__`
-- c0035 ..> c0037: `type in __init__`
-- c0035 ..> c0039: `type in __init__`
-- c0035 ..> c0042: `type in __init__`
-- c0035 ..> c0050: `_preflight() constructs FactoryError`
-- c0035 ..> c0050: `initialise() constructs FactoryError`
-- c0035 ..> c0050: `inspect() constructs FactoryError`
-- c0035 ..> c0050: `load_existing() constructs FactoryError`
-- c0035 ..> c0050: `prepare_foreman() constructs FactoryError`
-- c0035 ..> c0052: `_ensure_label() constructs Label`
-- c0035 ..> c0052: `type in _preflight`
-- c0035 ..> c0053: `inspect() constructs RepositoryReference`
-- c0035 ..> c0053: `type in inspect`
-- c0035 ..> c0054: `type in _ensure_label`
-- c0035 ..> c0054: `type in _preflight`
-- c0035 ..> c0055: `type in __init__`
-- c0036 ..> c0030: `type in load`
-- c0036 ..> c0030: `type in save`
-- c0037 ..> c0030: `type in prepare_roles`
-- c0037 ..> c0030: `type in record_completion`
-- c0037 ..> c0030: `type in selected_launch`
-- c0037 ..> c0031: `type in check`
-- c0037 ..> c0031: `type in create_project`
-- c0037 ..> c0031: `type in list_models`
-- c0037 ..> c0031: `type in login`
-- c0037 ..> c0031: `type in missing_executables`
-- c0037 ..> c0031: `type in prepare`
-- c0037 ..> c0031: `type in projects`
-- c0037 ..> c0031: `type in uses_browser_login`
-- c0037 ..> c0033: `type in prepare_roles`
-- c0042 ..> c0054: `type in source_from_remote`
-- c0044 ..> c0011: `check() calls check()`
-- c0044 ..> c0014: `_ensure_mapping() calls ensure()`
-- c0044 ..> c0014: `_ensure_mapping() calls verify_removed()`
-- c0044 ..> c0025: `_issue_plan() calls create_plan()`
-- c0044 ..> c0025: `_issue_plan() calls get_plan()`
-- c0044 ..> c0025: `_issue_plan() calls plans()`
-- c0044 ..> c0025: `_ownership() calls tasks()`
-- c0044 ..> c0025: `prepare() calls create_task()`
-- c0044 ..> c0025: `prepare() calls update_plan()`
-- c0044 ..> c0025: `unfinished() calls get_plan()`
-- c0044 ..> c0025: `unfinished() calls plans()`
-- c0044 ..> c0030: `type in __init__`
-- c0044 ..> c0040: `type in __init__`
-- c0044 ..> c0043: `type in __init__`
-- c0044 ..> c0044: `_ensure_worktrees() calls _ensure_mapping()`
-- c0044 ..> c0044: `prepare() calls _context()`
-- c0044 ..> c0044: `prepare() calls _ensure_worktrees()`
-- c0044 ..> c0044: `prepare() calls _issue_plan()`
-- c0044 ..> c0044: `prepare() calls _ownership()`
-- c0044 ..> c0044: `unfinished() calls _context()`
-- c0044 ..> c0044: `unfinished() calls _is_unfinished_factory_plan()`
-- c0044 ..> c0045: `_ensure_mapping() calls _cleanup_state()`
-- c0044 ..> c0050: `_context() constructs FactoryError`
-- c0044 ..> c0050: `_ensure_mapping() constructs FactoryError`
-- c0044 ..> c0050: `_ensure_worktrees() constructs FactoryError`
-- c0044 ..> c0050: `_issue_plan() constructs FactoryError`
-- c0044 ..> c0050: `_ownership() constructs FactoryError`
-- c0044 ..> c0050: `prepare() constructs FactoryError`
-- c0044 ..> c0050: `unfinished() constructs FactoryError`
-- c0044 ..> c0051: `type in _issue_plan`
-- c0044 ..> c0051: `type in prepare`
-- c0044 ..> c0051: `type in unfinished`
-- c0044 ..> c0051: `unfinished() constructs Issue`
-- c0044 ..> c0054: `unfinished() constructs WorkSource`
-- c0045 ..> c0050: `_cleanup_state() constructs FactoryError`
-- c0046 ..> c0000: `_notify_issues() calls send()`
-- c0046 ..> c0000: `_watch() calls close()`
-- c0046 ..> c0000: `_watch() calls start()`
-- c0046 ..> c0000: `_watch() calls wait()`
-- c0046 ..> c0000: `run() calls startup_hint()`
-- c0046 ..> c0009: `_notify_issues() calls prepare()`
-- c0046 ..> c0011: `run() calls check()`
-- c0046 ..> c0026: `_read_issues() calls list_issues()`
-- c0046 ..> c0030: `type in _watch`
-- c0046 ..> c0030: `type in run`
-- c0046 ..> c0038: `type in __init__`
-- c0046 ..> c0044: `_watch() calls unfinished()`
-- c0046 ..> c0044: `type in __init__`
-- c0046 ..> c0046: `_watch() calls _notify_issues()`
-- c0046 ..> c0046: `_watch() calls _read_issues()`
-- c0046 ..> c0046: `run() calls _watch()`
-- c0046 ..> c0051: `type in _notify_issues`
-- c0046 ..> c0051: `type in _read_issues`
-- c0046 ..> c0054: `_watch() constructs WorkSource`
-- c0046 ..> c0054: `type in _read_issues`
-- c0046 ..> c0055: `type in __init__`
-- c0047 ..> c0006: `build_watcher() constructs AgentShellTerminal`
-- c0047 ..> c0011: `build_initialiser() constructs ForemanProfile`
-- c0047 ..> c0011: `prepare_foreman_launch() calls pi_home()`
-- c0047 ..> c0011: `prepare_foreman_launch() calls selected_launch()`
-- c0047 ..> c0011: `prepare_foreman_launch() calls validate_completion()`
-- c0047 ..> c0011: `prepare_foreman_launch() constructs ForemanProfile`
-- c0047 ..> c0013: `build_initialiser() constructs GitRepositories`
-- c0047 ..> c0014: `build_watcher() constructs GitWorktrees`
-- c0047 ..> c0018: `build_initialiser() constructs TomlConfigurationStore`
-- c0047 ..> c0024: `prepare_foreman_launch() calls role_environment()`
-- c0047 ..> c0025: `build_watcher() constructs ForgetfulPlanning`
-- c0047 ..> c0026: `build_initialiser() constructs GitHubWorkTracking`
-- c0047 ..> c0026: `build_watcher() calls source_from_remote()`
-- c0047 ..> c0026: `build_watcher() constructs GitHubWorkTracking`
-- c0047 ..> c0030: `type in build_watcher`
-- c0047 ..> c0030: `type in prepare_foreman_launch`
-- c0047 ..> c0035: `build_initialiser() constructs InitialiseFactory`
-- c0047 ..> c0035: `type in build_initialiser`
-- c0047 ..> c0044: `build_watcher() constructs ScaffoldIssue`
-- c0047 ..> c0046: `build_watcher() constructs WatchFactory`
-- c0047 ..> c0046: `type in build_watcher`
-- c0047 ..> c0047: `build_watcher() calls prepare_foreman_launch()`
-- c0047 ..> c0050: `build_watcher() constructs FactoryError`
-- c0047 ..> c0050: `prepare_foreman_launch() constructs FactoryError`
-- c0048 ..> c0000: `_watch_locked() constructs BorrowedForemanTerminal`
-- c0048 ..> c0003: `_watch_locked() calls run()`
-- c0048 ..> c0005: `_foreman() calls enter_terminal()`
-- c0048 ..> c0005: `_foreman() calls read_state()`
-- c0048 ..> c0005: `_foreman() calls request()`
-- c0048 ..> c0005: `_foreman() calls start_owner()`
-- c0048 ..> c0005: `_initialise() calls enter_terminal()`
-- c0048 ..> c0005: `_initialise() calls request()`
-- c0048 ..> c0005: `_initialise_locked() calls read_state()`
-- c0048 ..> c0005: `_launch_setup_foreman() calls start_owner()`
-- c0048 ..> c0005: `_offer_factory_launch() calls read_state()`
-- c0048 ..> c0005: `_watch() calls read_state()`
-- c0048 ..> c0005: `_watch() calls request()`
-- c0048 ..> c0005: `_watch_locked() calls read_state()`
-- c0048 ..> c0011: `_complete_setup() calls record_completion()`
-- c0048 ..> c0011: `_complete_setup() calls uses_browser_login()`
-- c0048 ..> c0011: `_initialise_locked() calls begin_setup()`
-- c0048 ..> c0011: `_initialise_locked() calls choose_pi_home()`
-- c0048 ..> c0011: `_initialise_locked() calls save_pi_choice()`
-- c0048 ..> c0011: `_initialise_locked() calls selected_launch()`
-- c0048 ..> c0011: `_launch_setup_foreman() calls prepare_setup_guidance()`
-- c0048 ..> c0011: `_select_model() calls list_models()`
-- c0048 ..> c0011: `_select_project() calls create_project()`
-- c0048 ..> c0011: `_select_project() calls projects()`
-- c0048 ..> c0011: `_watch() calls validate_completion()`
-- c0048 ..> c0011: `_watch() constructs ForemanProfile`
-- c0048 ..> c0013: `select_repositories() calls discover()`
-- c0048 ..> c0018: `_initialise_locked() calls load()`
-- c0048 ..> c0019: `_initialise() calls quote()`
-- c0048 ..> c0019: `_initialise_locked() calls quote()`
-- c0048 ..> c0019: `_launch_setup_foreman() calls quote()`
-- c0048 ..> c0019: `_select_model() calls quote()`
-- c0048 ..> c0019: `_watch() calls quote()`
-- c0048 ..> c0019: `_watch_locked() calls quote()`
-- c0048 ..> c0020: `_foreman() calls hold()`
-- c0048 ..> c0020: `_foreman() constructs WorkspaceWatchLease`
-- c0048 ..> c0020: `_initialise() calls hold()`
-- c0048 ..> c0020: `_initialise() constructs WorkspaceWatchLease`
-- c0048 ..> c0020: `_watch() calls hold()`
-- c0048 ..> c0020: `_watch() constructs WorkspaceWatchLease`
-- c0048 ..> c0030: `type in _complete_setup`
-- c0048 ..> c0030: `type in _configure_new_factory`
-- c0048 ..> c0031: `_connection() calls validate()`
-- c0048 ..> c0031: `_connection() constructs ForgetfulConnection`
-- c0048 ..> c0031: `type in _check_existing_connection`
-- c0048 ..> c0031: `type in _configure_new_factory`
-- c0048 ..> c0031: `type in _connection`
-- c0048 ..> c0031: `type in _select_project`
-- c0048 ..> c0033: `_configure_new_factory() constructs InitialAgentChoices`
-- c0048 ..> c0033: `type in _configure_new_factory`
-- c0048 ..> c0033: `type in _owner_choices`
-- c0048 ..> c0033: `type in _worker_choices`
-- c0048 ..> c0034: `_initialise_locked() calls validate_initial_agents()`
-- c0048 ..> c0035: `_complete_setup() calls check_foreman()`
-- c0048 ..> c0035: `_configure_new_factory() calls configure()`
-- c0048 ..> c0035: `_configure_new_factory() calls inspect()`
-- c0048 ..> c0035: `_initialise_locked() calls initialise()`
-- c0048 ..> c0035: `_initialise_locked() calls load_existing()`
-- c0048 ..> c0035: `_launch_setup_foreman() calls check_foreman()`
-- c0048 ..> c0035: `_prepare_foreman() calls prepare_foreman()`
-- c0048 ..> c0035: `type in _complete_setup`
-- c0048 ..> c0035: `type in _configure_new_factory`
-- c0048 ..> c0035: `type in _select_project`
-- c0048 ..> c0035: `type in select_repositories`
-- c0048 ..> c0047: `_foreman() calls prepare_foreman_launch()`
-- c0048 ..> c0047: `_initialise_locked() calls build_initialiser()`
-- c0048 ..> c0047: `_launch_setup_foreman() calls prepare_foreman_launch()`
-- c0048 ..> c0047: `_watch_locked() calls build_watcher()`
-- c0048 ..> c0048: `_configure_new_factory() calls _prepare_foreman()`
-- c0048 ..> c0048: `_configure_new_factory() calls _select_model()`
-- c0048 ..> c0048: `_configure_new_factory() calls _select_numbered()`
-- c0048 ..> c0048: `_configure_new_factory() calls select_repositories()`
-- c0048 ..> c0048: `_connection() calls _check_existing_connection()`
-- c0048 ..> c0048: `_initialise() calls _initialise_locked()`
-- c0048 ..> c0048: `_initialise() calls _offer_factory_launch()`
-- c0048 ..> c0048: `_initialise_locked() calls _complete_setup()`
-- c0048 ..> c0048: `_initialise_locked() calls _configure_new_factory()`
-- c0048 ..> c0048: `_initialise_locked() calls _confirm_pi_home()`
-- c0048 ..> c0048: `_initialise_locked() calls _connection()`
-- c0048 ..> c0048: `_initialise_locked() calls _launch_setup_foreman()`
-- c0048 ..> c0048: `_initialise_locked() calls _owner_choices()`
-- c0048 ..> c0048: `_initialise_locked() calls _research_choices()`
-- c0048 ..> c0048: `_initialise_locked() calls _worker_choices()`
-- c0048 ..> c0048: `_print_models() calls _safe_diagnostic()`
-- c0048 ..> c0048: `_prompt_worker() calls _select_numbered()`
-- c0048 ..> c0048: `_prompt_workers() calls _prompt_worker()`
-- c0048 ..> c0048: `_select_model() calls _print_models()`
-- c0048 ..> c0048: `_select_model() calls _select_numbered()`
-- c0048 ..> c0048: `_select_numbered() calls _safe_diagnostic()`
-- c0048 ..> c0048: `_select_project() calls _listed_project_id()`
-- c0048 ..> c0048: `_select_project() calls _safe_diagnostic()`
-- c0048 ..> c0048: `_watch() calls _watch_locked()`
-- c0048 ..> c0048: `_watch_locked() calls _choose_existing()`
-- c0048 ..> c0048: `_watch_locked() calls _safe_diagnostic()`
-- c0048 ..> c0048: `_worker_choices() calls _prompt_workers()`
-- c0048 ..> c0048: `_worker_choices() calls _select_numbered()`
-- c0048 ..> c0048: `_worker_choices() calls _worker_arguments()`
-- c0048 ..> c0048: `main() calls _foreman()`
-- c0048 ..> c0048: `main() calls _initialise()`
-- c0048 ..> c0048: `main() calls _parse_arguments()`
-- c0048 ..> c0048: `main() calls _safe_diagnostic()`
-- c0048 ..> c0048: `main() calls _watch()`
-- c0048 ..> c0049: `_foreman() calls load_configuration()`
-- c0048 ..> c0049: `_watch() calls load_configuration()`
-- c0048 ..> c0049: `_watch_locked() calls load_configuration()`
-- c0048 ..> c0050: `_check_existing_connection() constructs FactoryError`
-- c0048 ..> c0050: `_choose_existing() constructs FactoryError`
-- c0048 ..> c0050: `_configure_new_factory() constructs FactoryError`
-- c0048 ..> c0050: `_foreman() constructs FactoryError`
-- c0048 ..> c0050: `_initialise() constructs FactoryError`
-- c0048 ..> c0050: `_initialise_locked() constructs FactoryError`
-- c0048 ..> c0050: `_install_missing() constructs FactoryError`
-- c0048 ..> c0050: `_listed_project_id() constructs FactoryError`
-- c0048 ..> c0050: `_prompt_worker() constructs FactoryError`
-- c0048 ..> c0050: `_select_model() constructs FactoryError`
-- c0048 ..> c0050: `_select_numbered() constructs FactoryError`
-- c0048 ..> c0050: `_select_project() constructs FactoryError`
-- c0048 ..> c0050: `_watch() constructs FactoryError`
-- c0048 ..> c0050: `_watch_locked() constructs FactoryError`
-- c0048 ..> c0050: `_worker_choices() constructs FactoryError`
-- c0048 ..> c0050: `main() constructs FactoryError`
-- c0048 ..> c0050: `select_repositories() constructs FactoryError`
-- c0049 ..> c0018: `load_configuration() calls load()`
-- c0049 ..> c0018: `load_configuration() constructs TomlConfigurationStore`
-- c0049 ..> c0030: `type in load_configuration`
-- c0049 ..> c0050: `load_configuration() constructs FactoryError`
-- c0051 --> c0054: `field source`
-- c0053 --> c0054: `field work_source`
-- c0055 ..> c0051: `type in list_issues`
-- c0055 ..> c0052: `type in create_label`
-- c0055 ..> c0052: `type in list_labels`
-- c0055 ..> c0054: `type in check_access`
-- c0055 ..> c0054: `type in create_label`
-- c0055 ..> c0054: `type in list_issues`
-- c0055 ..> c0054: `type in list_labels`
+- c0013 ..> c0014: `origin() calls _resolve_repository()`
+- c0013 ..> c0062: `origin() constructs FactoryError`
+- c0014 ..> c0062: `_resolve_repository() constructs FactoryError`
+- c0015 ..> c0007: `ensure() calls run_command()`
+- c0015 ..> c0015: `_inspect() calls _repository_entries()`
+- c0015 ..> c0015: `_verify_removed() calls _repository_entries()`
+- c0015 ..> c0015: `ensure() calls _inspect()`
+- c0015 ..> c0015: `inspect() calls _inspect()`
+- c0015 ..> c0015: `verify_removed() calls _verify_removed()`
+- c0015 ..> c0016: `_inspect() calls _read_git()`
+- c0015 ..> c0016: `_repository_entries() calls _read_git()`
+- c0015 ..> c0016: `_repository_entries() calls _worktree_entries()`
+- c0015 ..> c0046: `_inspect() constructs WorktreeProblem`
+- c0015 ..> c0046: `_repository_entries() constructs WorktreeProblem`
+- c0015 ..> c0046: `_verify_removed() constructs WorktreeProblem`
+- c0015 ..> c0047: `ensure() constructs WorktreeReadError`
+- c0015 ..> c0047: `inspect() constructs WorktreeReadError`
+- c0015 ..> c0047: `verify_removed() constructs WorktreeReadError`
+- c0015 ..> c0062: `ensure() constructs FactoryError`
+- c0016 ..> c0007: `_read_git() calls run_command()`
+- c0016 ..> c0047: `_read_git() constructs WorktreeReadError`
+- c0017 ..> c0000: `_generated_parent() calls close()`
+- c0017 ..> c0017: `_generated_parent() calls check_real_path()`
+- c0017 ..> c0017: `check_skill_file() calls check_real_path()`
+- c0017 ..> c0017: `read_generated_json() calls _generated_parent()`
+- c0017 ..> c0017: `remove_generated() calls _generated_parent()`
+- c0017 ..> c0017: `replace_generated_json() calls _generated_parent()`
+- c0017 ..> c0017: `write_definition() calls read_generated_json()`
+- c0017 ..> c0017: `write_definition() calls write_json()`
+- c0017 ..> c0017: `write_json() calls write_new()`
+- c0017 ..> c0017: `write_new() calls check_real_path()`
+- c0017 ..> c0019: `read_generated_json() calls load()`
+- c0017 ..> c0062: `_generated_parent() constructs FactoryError`
+- c0017 ..> c0062: `check_real_path() constructs FactoryError`
+- c0017 ..> c0062: `check_skill_file() constructs FactoryError`
+- c0017 ..> c0062: `read_generated_json() constructs FactoryError`
+- c0017 ..> c0062: `write_definition() constructs FactoryError`
+- c0017 ..> c0062: `write_new() constructs FactoryError`
+- c0018 ..> c0062: `selected_skill_files() constructs FactoryError`
+- c0019 ..> c0000: `load() calls close()`
+- c0019 ..> c0000: `save() calls close()`
+- c0019 ..> c0020: `save() calls quote()`
+- c0019 ..> c0032: `type in load`
+- c0019 ..> c0032: `type in save`
+- c0019 ..> c0034: `load() calls from_mapping()`
+- c0019 ..> c0038: `load() calls load()`
+- c0019 ..> c0062: `load() constructs FactoryError`
+- c0019 ..> c0062: `save() constructs FactoryError`
+- c0021 ..> c0000: `_hold_directory() calls close()`
+- c0021 ..> c0021: `hold() calls _hold_directory()`
+- c0021 ..> c0062: `_hold_directory() constructs FactoryError`
+- c0022 ..> c0017: `prepare() calls check_skill_file()`
+- c0022 ..> c0017: `prepare() calls write_definition()`
+- c0022 ..> c0017: `prepare() calls write_new()`
+- c0022 ..> c0035: `type in prepare`
+- c0023 ..> c0005: `uses_browser_login() calls request()`
+- c0023 ..> c0033: `type in uses_browser_login`
+- c0024 ..> c0024: `call() calls command()`
+- c0024 ..> c0024: `check() calls call()`
+- c0024 ..> c0024: `check() calls command()`
+- c0024 ..> c0024: `command() calls _environment()`
+- c0024 ..> c0024: `create_project() calls call()`
+- c0024 ..> c0024: `login() calls _environment()`
+- c0024 ..> c0024: `projects() calls command()`
+- c0024 ..> c0025: `_environment() calls role_environment()`
+- c0024 ..> c0025: `check() calls _catalog_tools()`
+- c0024 ..> c0031: `command() calls run_owned()`
+- c0024 ..> c0031: `login() calls run_owned()`
+- c0024 ..> c0033: `type in _environment`
+- c0024 ..> c0033: `type in call`
+- c0024 ..> c0033: `type in check`
+- c0024 ..> c0033: `type in command`
+- c0024 ..> c0033: `type in create_project`
+- c0024 ..> c0033: `type in login`
+- c0024 ..> c0033: `type in projects`
+- c0024 ..> c0062: `check() constructs FactoryError`
+- c0024 ..> c0062: `command() constructs FactoryError`
+- c0024 ..> c0062: `create_project() constructs FactoryError`
+- c0024 ..> c0062: `login() constructs FactoryError`
+- c0024 ..> c0062: `projects() constructs FactoryError`
+- c0025 ..> c0030: `role_environment() calls executable_path()`
+- c0025 ..> c0033: `type in role_environment`
+- c0026 ..> c0011: `check() calls check()`
+- c0026 ..> c0024: `__init__() constructs AgentForgetfulConnection`
+- c0026 ..> c0024: `_call() calls call()`
+- c0026 ..> c0026: `_read() calls _call()`
+- c0026 ..> c0026: `_task() calls _read()`
+- c0026 ..> c0026: `create_plan() calls _call()`
+- c0026 ..> c0026: `create_task() calls _call()`
+- c0026 ..> c0026: `get_plan() calls _read()`
+- c0026 ..> c0026: `plans() calls _read()`
+- c0026 ..> c0026: `plans() calls _rows()`
+- c0026 ..> c0026: `tasks() calls _read()`
+- c0026 ..> c0026: `tasks() calls _rows()`
+- c0026 ..> c0026: `tasks() calls _task()`
+- c0026 ..> c0026: `update_plan() calls _call()`
+- c0026 ..> c0026: `update_task() calls _call()`
+- c0026 ..> c0027: `_rows() calls _positive_id()`
+- c0026 ..> c0027: `_task() calls _positive_id()`
+- c0026 ..> c0027: `get_plan() calls _positive_id()`
+- c0026 ..> c0033: `type in __init__`
+- c0026 ..> c0043: `_read() constructs PlanningReadError`
+- c0026 ..> c0043: `_rows() constructs PlanningReadError`
+- c0026 ..> c0043: `_task() constructs PlanningReadError`
+- c0026 ..> c0043: `get_plan() constructs PlanningReadError`
+- c0028 ..> c0007: `_api() calls run_command()`
+- c0028 ..> c0028: `check_access() calls _api()`
+- c0028 ..> c0028: `create_label() calls _api()`
+- c0028 ..> c0028: `list_issues() calls _api()`
+- c0028 ..> c0028: `list_issues() calls _validate_issue()`
+- c0028 ..> c0028: `list_labels() calls _api()`
+- c0028 ..> c0062: `_api() constructs FactoryError`
+- c0028 ..> c0062: `_validate_issue() constructs FactoryError`
+- c0028 ..> c0062: `check_access() constructs FactoryError`
+- c0028 ..> c0062: `create_label() constructs FactoryError`
+- c0028 ..> c0062: `list_issues() constructs FactoryError`
+- c0028 ..> c0062: `list_labels() constructs FactoryError`
+- c0028 ..> c0062: `source_from_remote() constructs FactoryError`
+- c0028 ..> c0063: `list_issues() constructs Issue`
+- c0028 ..> c0063: `type in list_issues`
+- c0028 ..> c0064: `list_labels() constructs Label`
+- c0028 ..> c0064: `type in create_label`
+- c0028 ..> c0064: `type in list_labels`
+- c0028 ..> c0066: `source_from_remote() constructs WorkSource`
+- c0028 ..> c0066: `type in _api`
+- c0028 ..> c0066: `type in _validate_issue`
+- c0028 ..> c0066: `type in check_access`
+- c0028 ..> c0066: `type in create_label`
+- c0028 ..> c0066: `type in list_issues`
+- c0028 ..> c0066: `type in list_labels`
+- c0028 ..> c0066: `type in source_from_remote`
+- c0029 ..> c0017: `install() calls write_new()`
+- c0029 ..> c0029: `_check_uv() calls _environment()`
+- c0029 ..> c0029: `_forgetful_python() calls _check_uv()`
+- c0029 ..> c0029: `_forgetful_python() calls _environment()`
+- c0029 ..> c0029: `_install_role_runtime() calls _check_uv()`
+- c0029 ..> c0029: `_install_role_runtime() calls _run()`
+- c0029 ..> c0029: `_install_tmux() calls _run()`
+- c0029 ..> c0029: `_run() calls _environment()`
+- c0029 ..> c0029: `description() calls _forgetful_python()`
+- c0029 ..> c0029: `description() calls _ubuntu_tmux()`
+- c0029 ..> c0029: `install() calls _forgetful_python()`
+- c0029 ..> c0029: `install() calls _install_role_runtime()`
+- c0029 ..> c0029: `install() calls _install_tmux()`
+- c0029 ..> c0029: `install() calls _run()`
+- c0029 ..> c0029: `install() calls _ubuntu_tmux()`
+- c0029 ..> c0029: `pi_ready() calls _environment()`
+- c0029 ..> c0030: `_install_role_runtime() calls sync_fingerprint()`
+- c0029 ..> c0030: `install() calls sync_fingerprint()`
+- c0029 ..> c0030: `pi_ready() calls sync_fingerprint()`
+- c0029 ..> c0031: `_check_uv() calls run_owned()`
+- c0029 ..> c0031: `_forgetful_python() calls run_owned()`
+- c0029 ..> c0031: `_run() calls run_owned()`
+- c0029 ..> c0031: `pi_ready() calls run_owned()`
+- c0029 ..> c0062: `_check_uv() constructs FactoryError`
+- c0029 ..> c0062: `_forgetful_python() constructs FactoryError`
+- c0029 ..> c0062: `_install_role_runtime() constructs FactoryError`
+- c0029 ..> c0062: `_install_tmux() constructs FactoryError`
+- c0029 ..> c0062: `_run() constructs FactoryError`
+- c0029 ..> c0062: `install() constructs FactoryError`
+- c0030 ..> c0030: `runtime_ready() calls sync_fingerprint()`
+- c0030 ..> c0031: `runtime_ready() calls run_owned()`
+- c0031 ..> c0000: `run_owned() calls close()`
+- c0031 ..> c0000: `run_owned() calls wait()`
+- c0031 ..> c0062: `run_owned() constructs FactoryError`
+- c0032 --> c0033: `field forgetful`
+- c0032 --> c0065: `field repository`
+- c0033 ..> c0034: `_validate_server() calls loopback_host()`
+- c0033 ..> c0034: `_validate_server() calls nonblank()`
+- c0033 ..> c0062: `_validate_server() constructs FactoryError`
+- c0034 ..> c0032: `from_mapping() constructs FactoryConfiguration`
+- c0034 ..> c0032: `type in from_mapping`
+- c0034 ..> c0032: `type in validate`
+- c0034 ..> c0033: `connection_from_mapping() constructs ForgetfulConnection`
+- c0034 ..> c0033: `type in connection_from_mapping`
+- c0034 ..> c0033: `validate() calls _validate_server()`
+- c0034 ..> c0034: `connection_from_mapping() calls validate()`
+- c0034 ..> c0034: `from_mapping() calls connection_from_mapping()`
+- c0034 ..> c0034: `from_mapping() calls validate()`
+- c0034 ..> c0034: `unique_labels() calls nonblank()`
+- c0034 ..> c0034: `validate() calls nonblank()`
+- c0034 ..> c0062: `connection_from_mapping() constructs FactoryError`
+- c0034 ..> c0062: `from_mapping() constructs FactoryError`
+- c0034 ..> c0062: `nonblank() constructs FactoryError`
+- c0034 ..> c0062: `validate() constructs FactoryError`
+- c0034 ..> c0065: `from_mapping() constructs RepositoryReference`
+- c0034 ..> c0066: `from_mapping() constructs WorkSource`
+- c0036 ..> c0034: `skill_paths() calls nonblank()`
+- c0036 ..> c0034: `validate_initial_agents() calls nonblank()`
+- c0036 ..> c0034: `validate_workers() calls nonblank()`
+- c0036 ..> c0035: `type in validate_initial_agents`
+- c0036 ..> c0035: `type in validate_workers`
+- c0036 ..> c0036: `validate_initial_agents() calls validate_role_app()`
+- c0036 ..> c0036: `validate_initial_agents() calls validate_workers()`
+- c0036 ..> c0036: `validate_workers() calls validate_role_app()`
+- c0036 ..> c0062: `skill_paths() constructs FactoryError`
+- c0036 ..> c0062: `validate_initial_agents() constructs FactoryError`
+- c0036 ..> c0062: `validate_role_app() constructs FactoryError`
+- c0036 ..> c0062: `validate_workers() constructs FactoryError`
+- c0037 ..> c0003: `initialise() calls save()`
+- c0037 ..> c0009: `prepare_foreman() calls prepare()`
+- c0037 ..> c0011: `check_foreman() calls check()`
+- c0037 ..> c0011: `check_foreman() calls login()`
+- c0037 ..> c0011: `prepare_foreman() calls install()`
+- c0037 ..> c0011: `prepare_foreman() calls installation()`
+- c0037 ..> c0011: `prepare_foreman() calls missing_executables()`
+- c0037 ..> c0013: `_preflight() calls origin()`
+- c0037 ..> c0013: `discover() calls discover()`
+- c0037 ..> c0013: `inspect() calls origin()`
+- c0037 ..> c0019: `load_existing() calls load()`
+- c0037 ..> c0028: `_ensure_label() calls create_label()`
+- c0037 ..> c0028: `_preflight() calls check_access()`
+- c0037 ..> c0028: `_preflight() calls list_labels()`
+- c0037 ..> c0028: `_preflight() calls source_from_remote()`
+- c0037 ..> c0028: `inspect() calls source_from_remote()`
+- c0037 ..> c0032: `configure() constructs FactoryConfiguration`
+- c0037 ..> c0032: `type in _preflight`
+- c0037 ..> c0032: `type in check_foreman`
+- c0037 ..> c0032: `type in configure`
+- c0037 ..> c0032: `type in initialise`
+- c0037 ..> c0032: `type in load_existing`
+- c0037 ..> c0033: `_preflight() calls validate()`
+- c0037 ..> c0033: `type in prepare_foreman`
+- c0037 ..> c0034: `configure() calls unique_labels()`
+- c0037 ..> c0034: `load_existing() calls unique_labels()`
+- c0037 ..> c0037: `configure() calls inspect()`
+- c0037 ..> c0037: `initialise() calls _ensure_label()`
+- c0037 ..> c0037: `initialise() calls _preflight()`
+- c0037 ..> c0038: `type in __init__`
+- c0037 ..> c0039: `type in __init__`
+- c0037 ..> c0041: `type in __init__`
+- c0037 ..> c0045: `type in __init__`
+- c0037 ..> c0062: `_preflight() constructs FactoryError`
+- c0037 ..> c0062: `initialise() constructs FactoryError`
+- c0037 ..> c0062: `inspect() constructs FactoryError`
+- c0037 ..> c0062: `load_existing() constructs FactoryError`
+- c0037 ..> c0062: `prepare_foreman() constructs FactoryError`
+- c0037 ..> c0064: `_ensure_label() constructs Label`
+- c0037 ..> c0064: `type in _preflight`
+- c0037 ..> c0065: `inspect() constructs RepositoryReference`
+- c0037 ..> c0065: `type in inspect`
+- c0037 ..> c0066: `type in _ensure_label`
+- c0037 ..> c0066: `type in _preflight`
+- c0037 ..> c0067: `type in __init__`
+- c0038 ..> c0032: `type in load`
+- c0038 ..> c0032: `type in save`
+- c0039 ..> c0032: `type in prepare_roles`
+- c0039 ..> c0032: `type in record_completion`
+- c0039 ..> c0032: `type in selected_launch`
+- c0039 ..> c0033: `type in check`
+- c0039 ..> c0033: `type in create_project`
+- c0039 ..> c0033: `type in list_models`
+- c0039 ..> c0033: `type in login`
+- c0039 ..> c0033: `type in missing_executables`
+- c0039 ..> c0033: `type in prepare`
+- c0039 ..> c0033: `type in projects`
+- c0039 ..> c0033: `type in uses_browser_login`
+- c0039 ..> c0035: `type in prepare_roles`
+- c0043 --|> c0062: `inherits`
+- c0045 ..> c0066: `type in source_from_remote`
+- c0046 ..> c0000: `__init__() calls __init__()`
+- c0046 --|> c0062: `inherits`
+- c0047 --|> c0062: `inherits`
+- c0049 ..> c0011: `check() calls check()`
+- c0049 ..> c0013: `check_repository() calls origin()`
+- c0049 ..> c0015: `_ensure_mapping() calls ensure()`
+- c0049 ..> c0015: `_ensure_mapping() calls verify_removed()`
+- c0049 ..> c0015: `preflight() calls inspect()`
+- c0049 ..> c0026: `_create_plan() calls create_plan()`
+- c0049 ..> c0026: `_create_plan() calls get_plan()`
+- c0049 ..> c0026: `_create_plan() calls plans()`
+- c0049 ..> c0026: `_ownership() calls tasks()`
+- c0049 ..> c0026: `_prepare_plan() calls create_task()`
+- c0049 ..> c0026: `_prepare_plan() calls update_plan()`
+- c0049 ..> c0026: `lookup() calls plans()`
+- c0049 ..> c0026: `recover() calls get_plan()`
+- c0049 ..> c0026: `recover() calls plans()`
+- c0049 ..> c0026: `unfinished() calls plans()`
+- c0049 ..> c0028: `_check_source() calls source_from_remote()`
+- c0049 ..> c0032: `type in __init__`
+- c0049 ..> c0041: `type in __init__`
+- c0049 ..> c0042: `type in __init__`
+- c0049 ..> c0045: `type in __init__`
+- c0049 ..> c0048: `type in __init__`
+- c0049 ..> c0049: `_ensure_mapping() calls _check_source()`
+- c0049 ..> c0049: `_ensure_worktrees() calls _ensure_mapping()`
+- c0049 ..> c0049: `_initial_mappings() calls _repository()`
+- c0049 ..> c0049: `_prepare_plan() calls _active()`
+- c0049 ..> c0049: `_prepare_plan() calls _context()`
+- c0049 ..> c0049: `_prepare_plan() calls _ensure_worktrees()`
+- c0049 ..> c0049: `_prepare_plan() calls _initial_mappings()`
+- c0049 ..> c0049: `_prepare_plan() calls _ownership()`
+- c0049 ..> c0049: `check_repository() calls _check_source()`
+- c0049 ..> c0049: `preflight() calls _initial_mappings()`
+- c0049 ..> c0049: `preflight() calls _repository()`
+- c0049 ..> c0049: `preflight() calls check_repository()`
+- c0049 ..> c0049: `prepare() calls _create_plan()`
+- c0049 ..> c0049: `prepare() calls _prepare_plan()`
+- c0049 ..> c0049: `prepare() calls lookup()`
+- c0049 ..> c0049: `prepare() calls preflight()`
+- c0049 ..> c0049: `prepare() calls recover()`
+- c0049 ..> c0049: `recover() calls _active()`
+- c0049 ..> c0049: `recover() calls _context()`
+- c0049 ..> c0049: `recover() calls _ensure_worktrees()`
+- c0049 ..> c0049: `recover() calls _ownership()`
+- c0049 ..> c0049: `recover() calls _repository()`
+- c0049 ..> c0049: `recover() calls _snapshot()`
+- c0049 ..> c0049: `recover() calls check_repository()`
+- c0049 ..> c0049: `unfinished() calls _is_unfinished_factory_plan()`
+- c0049 ..> c0050: `_ensure_mapping() calls _cleanup_state()`
+- c0049 ..> c0053: `preflight() constructs IntakeProblem`
+- c0049 ..> c0054: `_check_source() constructs RepositoryProblem`
+- c0049 ..> c0054: `check_repository() constructs RepositoryProblem`
+- c0049 ..> c0055: `_active() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_context() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_create_plan() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_ensure_mapping() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_ensure_worktrees() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_ownership() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_prepare_plan() constructs ScaffoldProblem`
+- c0049 ..> c0055: `_snapshot() constructs ScaffoldProblem`
+- c0049 ..> c0055: `lookup() constructs ScaffoldProblem`
+- c0049 ..> c0055: `recover() constructs ScaffoldProblem`
+- c0049 ..> c0056: `_create_plan() constructs ScaffoldReadProblem`
+- c0049 ..> c0056: `_prepare_plan() constructs ScaffoldReadProblem`
+- c0049 ..> c0056: `lookup() constructs ScaffoldReadProblem`
+- c0049 ..> c0056: `prepare() constructs ScaffoldReadProblem`
+- c0049 ..> c0056: `recover() constructs ScaffoldReadProblem`
+- c0049 ..> c0057: `_create_plan() constructs UncertainScaffold`
+- c0049 ..> c0057: `_prepare_plan() constructs UncertainScaffold`
+- c0049 ..> c0057: `prepare() constructs UncertainScaffold`
+- c0049 ..> c0057: `recover() constructs UncertainScaffold`
+- c0049 ..> c0062: `_is_unfinished_factory_plan() constructs FactoryError`
+- c0049 ..> c0063: `_snapshot() constructs Issue`
+- c0049 ..> c0063: `type in _create_plan`
+- c0049 ..> c0063: `type in _initial_mappings`
+- c0049 ..> c0063: `type in _prepare_plan`
+- c0049 ..> c0063: `type in _snapshot`
+- c0049 ..> c0063: `type in lookup`
+- c0049 ..> c0063: `type in preflight`
+- c0049 ..> c0063: `type in prepare`
+- c0049 ..> c0063: `type in recover`
+- c0049 ..> c0065: `type in _check_source`
+- c0049 ..> c0065: `type in _repository`
+- c0049 ..> c0065: `type in check_repository`
+- c0049 ..> c0066: `_check_source() constructs WorkSource`
+- c0049 ..> c0066: `_snapshot() constructs WorkSource`
+- c0049 ..> c0066: `type in _repository`
+- c0050 ..> c0055: `_cleanup_state() constructs ScaffoldProblem`
+- c0051 --> c0063: `field issue`
+- c0052 ..> c0000: `_alert_plan() calls send()`
+- c0052 ..> c0000: `_read_issues() calls send()`
+- c0052 ..> c0000: `_submit() calls send()`
+- c0052 ..> c0000: `_watch() calls close()`
+- c0052 ..> c0000: `_watch() calls send()`
+- c0052 ..> c0000: `_watch() calls start()`
+- c0052 ..> c0000: `_watch() calls wait()`
+- c0052 ..> c0000: `run() calls startup_hint()`
+- c0052 ..> c0009: `_watch() calls prepare()`
+- c0052 ..> c0011: `_watch() calls check()`
+- c0052 ..> c0028: `_read_issues() calls list_issues()`
+- c0052 ..> c0032: `type in _watch`
+- c0052 ..> c0032: `type in run`
+- c0052 ..> c0040: `type in __init__`
+- c0052 ..> c0049: `_watch() calls check_repository()`
+- c0052 ..> c0049: `_watch() calls lookup()`
+- c0052 ..> c0049: `_watch() calls recover()`
+- c0052 ..> c0049: `_watch() calls unfinished()`
+- c0052 ..> c0049: `type in __init__`
+- c0052 ..> c0051: `_watch() constructs BlockedWork`
+- c0052 ..> c0051: `type in _alert_plan`
+- c0052 ..> c0052: `_watch() calls _alert_plan()`
+- c0052 ..> c0052: `_watch() calls _read_issues()`
+- c0052 ..> c0052: `_watch() calls _submit()`
+- c0052 ..> c0052: `run() calls _watch()`
+- c0052 ..> c0055: `_watch() constructs ScaffoldProblem`
+- c0052 ..> c0055: `type in _alert_plan`
+- c0052 ..> c0058: `_read_issues() calls clear()`
+- c0052 ..> c0058: `_watch() calls clear()`
+- c0052 ..> c0058: `_watch() constructs WatcherAlerts`
+- c0052 ..> c0058: `type in _alert_plan`
+- c0052 ..> c0058: `type in _read_issues`
+- c0052 ..> c0062: `_read_issues() constructs FactoryError`
+- c0052 ..> c0063: `type in _read_issues`
+- c0052 ..> c0063: `type in _submit`
+- c0052 ..> c0066: `_watch() constructs WorkSource`
+- c0052 ..> c0066: `type in _read_issues`
+- c0052 ..> c0067: `type in __init__`
+- c0053 --|> c0055: `inherits`
+- c0054 --|> c0055: `inherits`
+- c0055 --|> c0062: `inherits`
+- c0056 --|> c0055: `inherits`
+- c0057 --|> c0055: `inherits`
+- c0058 ..> c0000: `__init__() calls __init__()`
+- c0058 ..> c0000: `send() calls send()`
+- c0058 ..> c0062: `type in send`
+- c0059 ..> c0006: `build_watcher() constructs AgentShellTerminal`
+- c0059 ..> c0011: `build_initialiser() constructs ForemanProfile`
+- c0059 ..> c0011: `prepare_foreman_launch() calls pi_home()`
+- c0059 ..> c0011: `prepare_foreman_launch() calls selected_launch()`
+- c0059 ..> c0011: `prepare_foreman_launch() calls validate_completion()`
+- c0059 ..> c0011: `prepare_foreman_launch() constructs ForemanProfile`
+- c0059 ..> c0013: `build_initialiser() constructs GitRepositories`
+- c0059 ..> c0013: `build_watcher() constructs GitRepositories`
+- c0059 ..> c0015: `build_watcher() constructs GitWorktrees`
+- c0059 ..> c0019: `build_initialiser() constructs TomlConfigurationStore`
+- c0059 ..> c0025: `prepare_foreman_launch() calls role_environment()`
+- c0059 ..> c0026: `build_watcher() constructs ForgetfulPlanning`
+- c0059 ..> c0028: `build_initialiser() constructs GitHubWorkTracking`
+- c0059 ..> c0028: `build_watcher() calls source_from_remote()`
+- c0059 ..> c0028: `build_watcher() constructs GitHubWorkTracking`
+- c0059 ..> c0032: `type in build_watcher`
+- c0059 ..> c0032: `type in prepare_foreman_launch`
+- c0059 ..> c0037: `build_initialiser() constructs InitialiseFactory`
+- c0059 ..> c0037: `type in build_initialiser`
+- c0059 ..> c0049: `build_watcher() constructs ScaffoldIssue`
+- c0059 ..> c0052: `build_watcher() constructs WatchFactory`
+- c0059 ..> c0052: `type in build_watcher`
+- c0059 ..> c0059: `build_watcher() calls prepare_foreman_launch()`
+- c0059 ..> c0062: `build_watcher() constructs FactoryError`
+- c0059 ..> c0062: `prepare_foreman_launch() constructs FactoryError`
+- c0060 ..> c0000: `_watch_locked() constructs BorrowedForemanTerminal`
+- c0060 ..> c0003: `_watch_locked() calls run()`
+- c0060 ..> c0005: `_foreman() calls enter_terminal()`
+- c0060 ..> c0005: `_foreman() calls read_state()`
+- c0060 ..> c0005: `_foreman() calls request()`
+- c0060 ..> c0005: `_foreman() calls start_owner()`
+- c0060 ..> c0005: `_initialise() calls enter_terminal()`
+- c0060 ..> c0005: `_initialise() calls request()`
+- c0060 ..> c0005: `_initialise_locked() calls read_state()`
+- c0060 ..> c0005: `_launch_setup_foreman() calls start_owner()`
+- c0060 ..> c0005: `_offer_factory_launch() calls read_state()`
+- c0060 ..> c0005: `_watch() calls read_state()`
+- c0060 ..> c0005: `_watch() calls request()`
+- c0060 ..> c0005: `_watch_locked() calls read_state()`
+- c0060 ..> c0011: `_complete_setup() calls record_completion()`
+- c0060 ..> c0011: `_complete_setup() calls uses_browser_login()`
+- c0060 ..> c0011: `_initialise_locked() calls begin_setup()`
+- c0060 ..> c0011: `_initialise_locked() calls choose_pi_home()`
+- c0060 ..> c0011: `_initialise_locked() calls save_pi_choice()`
+- c0060 ..> c0011: `_initialise_locked() calls selected_launch()`
+- c0060 ..> c0011: `_launch_setup_foreman() calls prepare_setup_guidance()`
+- c0060 ..> c0011: `_select_model() calls list_models()`
+- c0060 ..> c0011: `_select_project() calls create_project()`
+- c0060 ..> c0011: `_select_project() calls projects()`
+- c0060 ..> c0011: `_watch() calls validate_completion()`
+- c0060 ..> c0011: `_watch() constructs ForemanProfile`
+- c0060 ..> c0013: `select_repositories() calls discover()`
+- c0060 ..> c0015: `_configure_new_factory() calls inspect()`
+- c0060 ..> c0019: `_initialise_locked() calls load()`
+- c0060 ..> c0020: `_initialise() calls quote()`
+- c0060 ..> c0020: `_initialise_locked() calls quote()`
+- c0060 ..> c0020: `_launch_setup_foreman() calls quote()`
+- c0060 ..> c0020: `_select_model() calls quote()`
+- c0060 ..> c0020: `_watch() calls quote()`
+- c0060 ..> c0020: `_watch_locked() calls quote()`
+- c0060 ..> c0021: `_foreman() calls hold()`
+- c0060 ..> c0021: `_foreman() constructs WorkspaceWatchLease`
+- c0060 ..> c0021: `_initialise() calls hold()`
+- c0060 ..> c0021: `_initialise() constructs WorkspaceWatchLease`
+- c0060 ..> c0021: `_watch() calls hold()`
+- c0060 ..> c0021: `_watch() constructs WorkspaceWatchLease`
+- c0060 ..> c0032: `type in _complete_setup`
+- c0060 ..> c0032: `type in _configure_new_factory`
+- c0060 ..> c0033: `_connection() calls validate()`
+- c0060 ..> c0033: `_connection() constructs ForgetfulConnection`
+- c0060 ..> c0033: `type in _check_existing_connection`
+- c0060 ..> c0033: `type in _configure_new_factory`
+- c0060 ..> c0033: `type in _connection`
+- c0060 ..> c0033: `type in _select_project`
+- c0060 ..> c0035: `_configure_new_factory() constructs InitialAgentChoices`
+- c0060 ..> c0035: `type in _configure_new_factory`
+- c0060 ..> c0035: `type in _owner_choices`
+- c0060 ..> c0035: `type in _worker_choices`
+- c0060 ..> c0036: `_initialise_locked() calls validate_initial_agents()`
+- c0060 ..> c0037: `_complete_setup() calls check_foreman()`
+- c0060 ..> c0037: `_configure_new_factory() calls configure()`
+- c0060 ..> c0037: `_initialise_locked() calls initialise()`
+- c0060 ..> c0037: `_initialise_locked() calls load_existing()`
+- c0060 ..> c0037: `_launch_setup_foreman() calls check_foreman()`
+- c0060 ..> c0037: `_prepare_foreman() calls prepare_foreman()`
+- c0060 ..> c0037: `type in _complete_setup`
+- c0060 ..> c0037: `type in _configure_new_factory`
+- c0060 ..> c0037: `type in _select_project`
+- c0060 ..> c0037: `type in select_repositories`
+- c0060 ..> c0059: `_foreman() calls prepare_foreman_launch()`
+- c0060 ..> c0059: `_initialise_locked() calls build_initialiser()`
+- c0060 ..> c0059: `_launch_setup_foreman() calls prepare_foreman_launch()`
+- c0060 ..> c0059: `_watch_locked() calls build_watcher()`
+- c0060 ..> c0060: `_configure_new_factory() calls _prepare_foreman()`
+- c0060 ..> c0060: `_configure_new_factory() calls _select_model()`
+- c0060 ..> c0060: `_configure_new_factory() calls _select_numbered()`
+- c0060 ..> c0060: `_configure_new_factory() calls select_repositories()`
+- c0060 ..> c0060: `_connection() calls _check_existing_connection()`
+- c0060 ..> c0060: `_initialise() calls _initialise_locked()`
+- c0060 ..> c0060: `_initialise() calls _offer_factory_launch()`
+- c0060 ..> c0060: `_initialise_locked() calls _complete_setup()`
+- c0060 ..> c0060: `_initialise_locked() calls _configure_new_factory()`
+- c0060 ..> c0060: `_initialise_locked() calls _confirm_pi_home()`
+- c0060 ..> c0060: `_initialise_locked() calls _connection()`
+- c0060 ..> c0060: `_initialise_locked() calls _launch_setup_foreman()`
+- c0060 ..> c0060: `_initialise_locked() calls _owner_choices()`
+- c0060 ..> c0060: `_initialise_locked() calls _research_choices()`
+- c0060 ..> c0060: `_initialise_locked() calls _worker_choices()`
+- c0060 ..> c0060: `_print_models() calls _safe_diagnostic()`
+- c0060 ..> c0060: `_prompt_worker() calls _select_numbered()`
+- c0060 ..> c0060: `_prompt_workers() calls _prompt_worker()`
+- c0060 ..> c0060: `_select_model() calls _print_models()`
+- c0060 ..> c0060: `_select_model() calls _select_numbered()`
+- c0060 ..> c0060: `_select_numbered() calls _safe_diagnostic()`
+- c0060 ..> c0060: `_select_project() calls _listed_project_id()`
+- c0060 ..> c0060: `_select_project() calls _safe_diagnostic()`
+- c0060 ..> c0060: `_watch() calls _watch_locked()`
+- c0060 ..> c0060: `_watch_locked() calls _choose_existing()`
+- c0060 ..> c0060: `_watch_locked() calls _safe_diagnostic()`
+- c0060 ..> c0060: `_worker_choices() calls _prompt_workers()`
+- c0060 ..> c0060: `_worker_choices() calls _select_numbered()`
+- c0060 ..> c0060: `_worker_choices() calls _worker_arguments()`
+- c0060 ..> c0060: `main() calls _foreman()`
+- c0060 ..> c0060: `main() calls _initialise()`
+- c0060 ..> c0060: `main() calls _parse_arguments()`
+- c0060 ..> c0060: `main() calls _safe_diagnostic()`
+- c0060 ..> c0060: `main() calls _watch()`
+- c0060 ..> c0061: `_foreman() calls load_configuration()`
+- c0060 ..> c0061: `_watch() calls load_configuration()`
+- c0060 ..> c0061: `_watch_locked() calls load_configuration()`
+- c0060 ..> c0062: `_check_existing_connection() constructs FactoryError`
+- c0060 ..> c0062: `_choose_existing() constructs FactoryError`
+- c0060 ..> c0062: `_configure_new_factory() constructs FactoryError`
+- c0060 ..> c0062: `_foreman() constructs FactoryError`
+- c0060 ..> c0062: `_initialise() constructs FactoryError`
+- c0060 ..> c0062: `_initialise_locked() constructs FactoryError`
+- c0060 ..> c0062: `_install_missing() constructs FactoryError`
+- c0060 ..> c0062: `_listed_project_id() constructs FactoryError`
+- c0060 ..> c0062: `_prompt_worker() constructs FactoryError`
+- c0060 ..> c0062: `_select_model() constructs FactoryError`
+- c0060 ..> c0062: `_select_numbered() constructs FactoryError`
+- c0060 ..> c0062: `_select_project() constructs FactoryError`
+- c0060 ..> c0062: `_watch() constructs FactoryError`
+- c0060 ..> c0062: `_watch_locked() constructs FactoryError`
+- c0060 ..> c0062: `_worker_choices() constructs FactoryError`
+- c0060 ..> c0062: `main() constructs FactoryError`
+- c0060 ..> c0062: `select_repositories() constructs FactoryError`
+- c0061 ..> c0019: `load_configuration() calls load()`
+- c0061 ..> c0019: `load_configuration() constructs TomlConfigurationStore`
+- c0061 ..> c0032: `type in load_configuration`
+- c0061 ..> c0062: `load_configuration() constructs FactoryError`
+- c0063 --> c0066: `field source`
+- c0065 --> c0066: `field work_source`
+- c0067 ..> c0063: `type in list_issues`
+- c0067 ..> c0064: `type in create_label`
+- c0067 ..> c0064: `type in list_labels`
+- c0067 ..> c0066: `type in check_access`
+- c0067 ..> c0066: `type in create_label`
+- c0067 ..> c0066: `type in list_issues`
+- c0067 ..> c0066: `type in list_labels`
 
 ## Type key
 
@@ -1545,30 +1791,34 @@ classDiagram
 - Type5: `dict[tuple[str, Path], list[str]]`
 - Type6: `Path | None`
 - Type7: `tuple[Path, list[dict]]`
-- Type8: `FactoryConfiguration | None`
-- Type9: `dict[str, str]`
-- Type10: `tuple[Label, ...]`
-- Type11: `tuple[Issue, ...]`
-- Type12: `tuple[str, ...]`
-- Type13: `tuple[Path, ...]`
-- Type14: `float | None`
-- Type15: `tuple[RepositoryReference, ...]`
-- Type16: `ForgetfulConnection | None`
-- Type17: `int | None`
-- Type18: `Callable[[list[str]], None]`
-- Type19: `Callable[[str, str], bool]`
-- Type20: `list[Path] | None`
-- Type21: `list[str] | None`
-- Type22: `dict[str, RepositoryReference]`
-- Type23: `dict[WorkSource, tuple[Label, ...]]`
-- Type24: `Callable[[], FactoryConfiguration | None]`
-- Type25: `Callable[[], bool]`
-- Type26: `Callable[[str], None]`
-- Type27: `tuple[Issue, ...] | None`
-- Type28: `tuple[FactoryConfiguration, InitialAgentChoices]`
-- Type29: `list[str] | tuple[str, ...]`
-- Type30: `int | dict | str`
-- Type31: `str | Path`
+- Type8: `tuple[Path, Path] | None`
+- Type9: `FactoryConfiguration | None`
+- Type10: `dict[str, str]`
+- Type11: `tuple[Label, ...]`
+- Type12: `tuple[Issue, ...]`
+- Type13: `tuple[str, ...]`
+- Type14: `tuple[Path, ...]`
+- Type15: `float | None`
+- Type16: `tuple[RepositoryReference, ...]`
+- Type17: `ForgetfulConnection | None`
+- Type18: `int | None`
+- Type19: `Callable[[list[str]], None]`
+- Type20: `Callable[[str, str], bool]`
+- Type21: `list[Path] | None`
+- Type22: `list[str] | None`
+- Type23: `dict[str, RepositoryReference]`
+- Type24: `dict[WorkSource, tuple[Label, ...]]`
+- Type25: `Callable[[], FactoryConfiguration | None]`
+- Type26: `tuple[Issue, dict] | None`
+- Type27: `Issue | None`
+- Type28: `tuple[int, ...] | None`
+- Type29: `Callable[[], bool]`
+- Type30: `Callable[[str], None]`
+- Type31: `tuple[Issue, ...] | None`
+- Type32: `tuple[FactoryConfiguration, InitialAgentChoices]`
+- Type33: `list[str] | tuple[str, ...]`
+- Type34: `int | dict | str`
+- Type35: `str | Path`
 
 ## Signature key
 
@@ -1585,37 +1835,44 @@ classDiagram
 - Signature6: `-__init__(tracking: WorkTrackingService, storage: ConfigurationStore, repositories:
   LocalRepositories, sources: WorkSourceResolver, profile: ForemanProfile) unknown`
 - Signature7: `-__init__(planning: Planning, worktrees: Worktrees, workspace: Path, config:
-  FactoryConfiguration) unknown`
+  FactoryConfiguration, repositories: LocalRepositories, sources: WorkSourceResolver) unknown`
 - Signature8: `-__init__(tracking: WorkTrackingService, terminal: ForemanTerminal, scaffold:
   ScaffoldIssue) unknown`
 - Signature9: `+run(config: FactoryConfiguration, workspace: Path, interval: float, choose_existing:
   Callable[[], bool], report: Callable[[str], None], report_error: Callable[[str], None]) None`
 - Signature10: `-_watch(config: FactoryConfiguration, workspace: Path, interval: float, existing:
   bool, report: Callable[[str], None], report_error: Callable[[str], None]) None`
-- Signature11: `+build_watcher(python: str, config: FactoryConfiguration, workspace: Path, terminal:
+- Signature11: `-_submit(issue: Issue, scaffold: dict | None, seen: dict[str, str], report:
+  Callable[[str], None], recovered: bool) None`
+- Signature12: `-__init__(code: str, diagnostic: str, plan_id: int | None, plan_ids: tuple[int, ...]
+  | None, task_ids: tuple[int, ...] | None, candidate_task_ids: tuple[int, ...] | None, paths:
+  tuple[str, ...], cause: str | None) unknown`
+- Signature13: `+send(subject: str, error: FactoryError, scope: str, code: str, retry: str,
+  identities: unknown) None`
+- Signature14: `+build_watcher(python: str, config: FactoryConfiguration, workspace: Path, terminal:
   unknown) WatchFactory`
-- Signature12: `+prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, complete:
+- Signature15: `+prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, complete:
   unknown) unknown`
-- Signature13: `-_configure_new_factory(application: InitialiseFactory, workspace: Path, args:
+- Signature16: `-_configure_new_factory(application: InitialiseFactory, workspace: Path, args:
   argparse.Namespace, paths: list[Path] | None, connection: ForgetfulConnection, home: str)
   tuple[FactoryConfiguration, InitialAgentChoices]`
-- Signature14: `-_check_existing_connection(args: argparse.Namespace, existing: ForgetfulConnection,
+- Signature17: `-_check_existing_connection(args: argparse.Namespace, existing: ForgetfulConnection,
   executable: str | None) None`
-- Signature15: `-_connection(args: argparse.Namespace, workspace: Path, existing:
+- Signature18: `-_connection(args: argparse.Namespace, workspace: Path, existing:
   ForgetfulConnection | None) ForgetfulConnection`
-- Signature16: `-_prepare_foreman(application: unknown, connection: unknown, args: unknown,
+- Signature19: `-_prepare_foreman(application: unknown, connection: unknown, args: unknown,
   prepared: unknown) unknown`
-- Signature17: `-_select_model(application: unknown, connection: unknown, home: str, requested: str
+- Signature20: `-_select_model(application: unknown, connection: unknown, home: str, requested: str
   | None, owner: str | None) str`
-- Signature18: `-_select_project(application: InitialiseFactory, connection: ForgetfulConnection,
+- Signature21: `-_select_project(application: InitialiseFactory, connection: ForgetfulConnection,
   workspace: Path) int`
-- Signature19: `-_owner_choices(args: argparse.Namespace, choices: InitialAgentChoices)
+- Signature22: `-_owner_choices(args: argparse.Namespace, choices: InitialAgentChoices)
   InitialAgentChoices`
-- Signature20: `-_worker_choices(args: argparse.Namespace, config: InitialAgentChoices,
+- Signature23: `-_worker_choices(args: argparse.Namespace, config: InitialAgentChoices,
   discover_models: unknown) InitialAgentChoices`
-- Signature21: `-_complete_setup(application: InitialiseFactory, config: FactoryConfiguration,
+- Signature24: `-_complete_setup(application: InitialiseFactory, config: FactoryConfiguration,
   workspace: Path, login: bool, initial: bool) None`
-- Signature22: `-_launch_setup_foreman(application: unknown, config: unknown, workspace: unknown,
+- Signature25: `-_launch_setup_foreman(application: unknown, config: unknown, workspace: unknown,
   args: unknown) unknown`
 
 ## Extraction warnings

@@ -26,11 +26,17 @@ def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = 
         with contextlib.suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGTERM)
         try:
-            process.communicate(timeout=3)
+            # KeyboardInterrupt can leave communicate's pipe bookkeeping half-initialized.
+            # Failed/cancelled output is discarded; do not re-enter communicate to drain it.
+            process.wait(timeout=3)
         except subprocess.TimeoutExpired:
             with contextlib.suppress(ProcessLookupError):
                 os.killpg(process.pid, signal.SIGKILL)
-            process.communicate()
+            process.wait()
+        finally:
+            for stream in (process.stdout, process.stderr):
+                if stream is not None:
+                    stream.close()
         if isinstance(error, KeyboardInterrupt):
             raise
         raise FactoryError('Forgetful operation timed out; setup is incomplete. '

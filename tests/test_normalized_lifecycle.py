@@ -195,26 +195,43 @@ class NormalizedLifecycleTests(LifecycleFixture):
             self.assertEqual(lock.stat().st_ino, inode)
             self.assertFalse((self.workspace / 'pi.jsonl').exists())
 
-    def test_watcher_startup_timeout_preserves_foreman_and_gives_native_signin_guidance(self):
+    def test_watcher_runtime_prerequisite_timeout_preserves_foreman_and_startup_guidance(self):
         import sys
+        import time
 
-        # Arrange: the fake access checker freezes only its own calling watcher before readiness.
+        # Arrange: freeze only the fixture runtime probe's calling watcher before borrowed ready.
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         started = self.foreman(repo)
         self.assertEqual(started.returncode, 0, started.stderr)
         original = self.status(repo)
-        (self.bin / 'forgetful').write_text(
+        probe = repo / '.factory/resources/agentshell/python/.venv/bin/python'
+        self.assertFalse(probe.is_symlink(), 'Never replace a real interpreter through a symlink')
+        original_probe = probe.read_text()
+        self.assertIn('.fixture-package', original_probe)
+        invoked = self.workspace / 'runtime-probe-invoked'
+        probe.write_text(
             f'#!{sys.executable}\nimport os, signal\n'
+            'from pathlib import Path\n'
+            f'Path({str(invoked)!r}).write_text(str(os.getppid()))\n'
             'os.kill(os.getppid(), signal.SIGSTOP)\n')
         # Act: exercise the existing timeout unchanged; no new retry or recovery behavior.
-        failed = self.watch(repo, '--start', '--new-only', timeout=45)
+        began = time.monotonic()
+        try:
+            failed = self.watch(repo, '--start', '--new-only', timeout=45)
+        finally:
+            probe.write_text(original_probe)
         # Assert
+        self.assertGreaterEqual(time.monotonic() - began, 30)
+        self.assertTrue(invoked.is_file(), 'The external runtime prerequisite was not probed')
+        self.assertNotEqual(int(invoked.read_text()), original['owner_pid'])
         self.assertNotEqual(failed.returncode, 0)
         self.assertIn('startup timed out', failed.stderr)
         self.assertIn('native sign-in', failed.stderr)
         self.assertIn('init --finalize', failed.stderr)
-        self.assertEqual(self.status(repo)['target'], original['target'])
-        self.assertEqual(self.status(repo)['foreman'], 'ready')
+        after = self.status(repo)
+        self.assertEqual(after['target'], original['target'])
+        self.assertEqual(after['owner_pid'], original['owner_pid'])
+        self.assertEqual(after['foreman'], 'ready')
         self.send_and_wait_for_exit(repo, original['target'])

@@ -59,17 +59,13 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         self.assertEqual(self.planning_call('query_tasks', plan_id=1)['total_count'], 1)
         self.assertEqual(self.planning_call('list_plans')['total_count'], 1)
 
-    def assert_recovery_stops(self, record, message):
+    def assert_recovery_pauses(self, record, message):
         self.save_record(record)
         before = self.planning_call('get_task', task_id=1)['description']
         self.terminal_log.unlink(missing_ok=True)
         restarted = self.start('--existing')
-        try:
-            _, stderr = restarted.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            _, _, stderr = self.stop(restarted)
+        stderr = self.assert_paused(restarted)
         self.assertEqual(self._messages(), [], 'Conflicting work reached the Foreman')
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertIn(message, stderr)
         self.assertIn('reconcile', stderr)
         self.assertNotIn('Traceback', stderr)
@@ -80,9 +76,9 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         _, record = self.recorded_issue()
         mapping = record['worktrees'][0]
         self.git(self.workspace, 'worktree', 'remove', mapping['path'])
-        self.assert_recovery_stops(record, 'worktree missing')
+        self.assert_recovery_pauses(record, 'worktree missing')
         mapping['cleanup'] = self.cleanup('pending')
-        self.assert_recovery_stops(record, 'cleanup is pending')
+        self.assert_recovery_pauses(record, 'cleanup is pending')
         malformed = [None, [], 'removed', {}, self.cleanup('complete'),
                      dict(self.cleanup(), state=['removed']),
                      dict(self.cleanup(), merge_commit=123),
@@ -103,7 +99,7 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         for marker in malformed:
             with self.subTest(marker=marker):
                 mapping['cleanup'] = marker
-                self.assert_recovery_stops(record, 'cleanup')
+                self.assert_recovery_pauses(record, 'cleanup')
                 self.assertFalse(Path(mapping['path']).exists())
 
     def test_pending_existing_tree_replays_intent_without_removal_or_record_mutation(self):
@@ -127,18 +123,18 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         mapping['cleanup'] = self.cleanup()
         target = Path(mapping['path'])
         registry = self.git(self.workspace, 'worktree', 'list', '--porcelain')
-        self.assert_recovery_stops(record, 'cleanup conflicts')
+        self.assert_recovery_pauses(record, 'cleanup conflicts')
         self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), registry)
         retained = target.with_name('retained')
         target.rename(retained)
         stale = self.git(self.workspace, 'worktree', 'list', '--porcelain')
         self.assertIn('prunable', stale)
-        self.assert_recovery_stops(record, 'cleanup conflicts')
+        self.assert_recovery_pauses(record, 'cleanup conflicts')
         self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), stale)
         retained.rename(target)
         self.git(self.workspace, 'worktree', 'move', str(target), str(retained))
         moved = self.git(self.workspace, 'worktree', 'list', '--porcelain')
-        self.assert_recovery_stops(record, 'cleanup conflicts')
+        self.assert_recovery_pauses(record, 'cleanup conflicts')
         self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), moved)
         self.assertTrue((retained / '.git').is_file())
         self.assertFalse(target.exists())
@@ -160,7 +156,7 @@ class CleanupRecoveryTests(PlanningWatchFixture):
                     target.symlink_to(self.workspace / 'absent-target')
                 else:
                     target.symlink_to(target)
-                self.assert_recovery_stops(record, 'cleanup conflicts')
+                self.assert_recovery_pauses(record, 'cleanup conflicts')
                 if kind == 'directory':
                     self.assertEqual((target / 'work.txt').read_text(), 'Preserve this work.')
                     (target / 'work.txt').unlink()
@@ -174,7 +170,7 @@ class CleanupRecoveryTests(PlanningWatchFixture):
                         self.assertEqual(target.readlink(), target)
                     target.unlink()
         self.git(self.workspace, 'remote', 'set-url', 'origin', 'git@github.com:other/repo.git')
-        self.assert_recovery_stops(record, 'origin changed')
+        self.assert_recovery_pauses(record, 'origin changed')
         self.assertEqual(self.git(self.workspace, 'remote', 'get-url', 'origin'),
                          'git@github.com:other/repo.git')
         self.assertFalse(target.exists())
@@ -182,6 +178,7 @@ class CleanupRecoveryTests(PlanningWatchFixture):
     def test_epic_replays_removed_and_live_repository_mappings_without_weakening_live_checks(self):
         self.configure(sources=('team/app', 'team/library'))
         _, record = self.recorded_issue(epic=True)
+        self.script({'team/app': [[[]]], 'team/library': [[[]]]})
         second = self.workspace / 'repository-1'
         record['worktrees'] = []
         for repository, source, branch in ((self.workspace, 'team/app', 'factory/app'),
@@ -202,5 +199,5 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         self.assertFalse(Path(removed['path']).exists())
         self.assertEqual(self.git(active['path'], 'branch', '--show-current'), active['branch'])
         self.git(second, 'worktree', 'remove', active['path'])
-        self.assert_recovery_stops(record, 'worktree missing')
+        self.assert_recovery_pauses(record, 'worktree missing')
         self.assertFalse(Path(active['path']).exists())

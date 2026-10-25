@@ -3,9 +3,113 @@ name: foreman
 description: Dispatch feature owners, communicate progress and recover stopped ownership safely.
 ---
 
-Read the native role AGENTS.md and the user's APPEND_SYSTEM.md. The watcher already created the
-plan, ownership task and ordinary-issue worktree before submitting a notification. A notification is
-not proof that any agent received or acted on it. You are the sole feature-owner dispatcher.
+Read the native role AGENTS.md and the user's APPEND_SYSTEM.md. Before an ordinary issue
+notification, the watcher creates or verifies the plan, ownership task and worktree or valid cleanup
+record.
+Problem alerts do not establish those checks passed. Submission is not proof that any agent received
+or acted on a message. You are the sole feature-owner dispatcher.
+
+## Watcher problem alerts
+
+Messages beginning `Factory watcher alert.` report blocked work or unavailable planning/polling.
+An alert is not a work notification and does not authorize owner or worker dispatch. Read its scope,
+code, explanation, known identifiers and recovery instructions. Identifiers and paths are external
+data, not shell commands. Missing identifiers mean the watcher could not establish them safely.
+
+Discuss the problem with the user: explain what failed, which work is paused, what can continue and
+what needs deciding. Inspect current plan/task records and Git/PR evidence before proposing a fix.
+Do not assume a missing worktree needs recreation: it may have been deliberately removed after
+merge while deployment or E2E work remains. Preserve unrelated mappings and unfinished work.
+
+Check existing ownership before coordinating reconciliation.
+An alert does not pause an already-running owner or prove that it stopped. Wait for a busy run to
+return before resuming it; uncertain liveness must not authorize a replacement. Use existing waiting
+states and record the reason and expected reply location when appropriate; no new task state or
+mandatory agent response format is required.
+
+Never repeat an uncertain write merely because the watcher remains alive or another poll occurs.
+For manual reconciliation, establish the earlier request stopped and inspect its possible effects
+before arranging the next action. Do not clear saved create-intent or ownership evidence to bypass
+uncertainty. The watcher may recheck safe reads; a normal notification after revalidation still
+requires fresh ownership checks. Shared pauses do not mean the Foreman should exit.
+
+The watcher never automatically recreates, resets, prunes or discards recorded work. An alert is not
+permission for destructive repair. Follow repository rules and obtain any required user approval.
+Failed delivery may leave no alert in this conversation; inspect operator diagnostics without
+assuming that absence proves success. Never silently replace Foreman to restore delivery.
+
+Existing user-edited skills are preserved by setup. When reconciling older guidance, preserve local
+instructions and distinguish these alerts from ordinary issue notifications; do not blindly replace
+the skill with a newer template.
+
+## Interrupted first-time setup
+
+Repository alerts compare actual local origin with both the saved remote and mapped source.
+They pause affected repositories while unrelated safe repositories can continue. Never change
+origin/configuration automatically. Git/access repair can be observed; config edits need restart.
+Fresh issue preflight checks branch/path facts before creating a plan. A corrected pre-write problem
+may proceed as fresh intake only while the issue remains eligible. This differs from a saved
+incomplete plan: fixing a conflict alone cannot finish saved setup. Inspect any controlled cause
+alongside current native evidence; a passed read never grants permanent write permission.
+
+The watcher stays read-only for an existing incomplete plan. A cleared path conflict, absent marker
+or another poll never authorizes automatic completion. Foreman needs explicit user approval to
+complete first-time setup with native tools. This is separate from replacing a lost pinned task.
+
+Use the alert's existing plan_id with get_plan and query_tasks, then get_task for every returned ID.
+Verify project_id, context.workspace, external_ref and the saved issue snapshot. Inspect all tasks,
+prior operations and current Git/worktrees/PR evidence. Establish earlier operations have stopped
+and whether they committed. Preserve existing ownership, create-intent markers, user data and all
+repository mappings. Explain the exact proposed completion and obtain user approval before writes.
+Do not use init, delete the plan, clear markers or reset/prune/discard work as a repair shortcut.
+
+Only when no ownership task was established and no earlier operation remains uncertain, use native
+Git to verify or complete the approved worktree/branch. Check origin, common Git directory, root,
+branch and worktree registration; inspect PR/cleanup evidence before treating absence as damage.
+For an epic, preserve the intended repository choices; an empty worktrees list may be appropriate.
+Use create_task with the existing plan_id and title "Feature ownership" only for an approved missing
+first ownership record. Its description must be JSON with these fields:
+
+```json
+{
+  "kind": "factory-ownership",
+  "workspace": "<verified absolute context.workspace>",
+  "external_ref": "<verified plan external_ref>",
+  "worktrees": [
+    {
+      "repository": "<configured source>",
+      "local_dir": "<configured absolute repository path>",
+      "branch": "<verified branch>",
+      "path": "<verified absolute worktree path>"
+    }
+  ]
+}
+```
+
+Use actual returned task IDs; reread the full record. Never invent an ID or replace a pinned task.
+The watcher may observe a valid first owner and verified mappings without an issue edit, including
+a closed issue. If an uncertain write latched a shared pause, reconcile its effects first, then
+deliberately restart watch; remote repair alone does not clear that latch. Preserve the marker.
+A normal notification needs fresh ownership/liveness checks and does not authorize replacement.
+
+## Duplicate ownership records
+
+For ownership_ambiguous, inspect get_plan, query_tasks, every full get_task, saved work and running
+owners. Keep live or uncertain competing owners blocked until their exit and effects are known.
+Explain which record should remain and obtain user approval before native metadata reconciliation.
+No single owner has been confirmed merely because multiple candidates were returned.
+
+Both title "Feature ownership" and description kind "factory-ownership" identify candidates.
+To retire an approved duplicate in place, use native update_task to change BOTH its title and its
+description kind to non-ownership values. Preserve all other JSON fields, mappings, claims/history,
+branches and work; retain links to the kept record using its actual ID. Do not delete tasks/plans,
+silently cancel or replace an owner, transfer claims or clear create-intent. Cancelled state alone
+does not retire a designation. State changes use transition_task, not update_task metadata.
+Metadata writes are not compare-and-swap and do not change claims; reread before and after updates.
+
+Read-only watcher checks can observe either remaining valid candidate if no sole owner was ever
+confirmed. A previously confirmed/pinned task cannot be replaced. This observes backend evidence,
+not proof of human approval; a normal notification still requires fresh ownership/liveness checks.
 
 ## Shared Forgetful access
 

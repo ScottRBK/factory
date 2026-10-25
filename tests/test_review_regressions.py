@@ -5,6 +5,7 @@ import time
 
 from profile_support import events
 from test_init import INIT_SETTINGS, InitFixture
+from test_planning_watch import PlanningWatchFixture
 from test_watch import WatchFixture
 from worker_support import worker_settings
 
@@ -253,7 +254,7 @@ class RenewedConsentTests(InitFixture):
 
 
 
-class RuntimeDiagnosticsTests(WatchFixture):
+class RuntimeDiagnosticsTests(PlanningWatchFixture):
     def test_unknown_status_points_to_standalone_recovery_preserving_recorded_state(self):
         state = self.workspace / '.factory/runtime/foreman/owner.json'
         state.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -326,18 +327,34 @@ class RuntimeDiagnosticsTests(WatchFixture):
         self.assertIs(launch['resources']['include_instruction_files'], False)
 
     def test_failed_backend_readiness_names_finalize_or_restart_and_keeps_diagnostics_private(self):
+        log = self.workspace / 'readiness.jsonl'
         self.env['PROFILE_FAIL'] = 'forgetful'
+        self.env['PROFILE_LOG'] = str(log)
 
-        process = self.start('--new-only')
-        _, errors = process.communicate(timeout=5)
+        process = self.start('--new-only', '--interval', '.5')
+        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: sum(e['name'] == 'forgetful' for e in events(log)) >= 3)
+        # Observe multiple read-only retries, then explicitly stop the paused supervisor.
+        time.sleep(.1)
+        self.assertIsNone(process.poll())
+        self.assertEqual(len(self.alerts()), 1)
+        self.assertEqual(self._messages(), [])
+        self.assertEqual(self.alerts()[0]['code'], 'planning_access_failed')
+        self.assertEqual(self.alerts()[0]['scope'], 'factory')
+        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'send'])
+        code, output, errors = self.stop(process)
 
-        self.assertNotEqual(process.returncode, 0)
+        self.assertEqual(code, 130, errors)
+        self.assertIn('Foreman session ready', output)
         self.assertIn('planning check failed', errors)
         self.assertIn('init --finalize', errors)
         self.assertIn('restart', errors)
         self.assertNotIn('rerun init.', errors)
-        self.assertNotIn('TOP_SECRET', errors)
-        self.assertEqual(self.events(), [])
+        self.assertNotIn('TOP_SECRET', output + errors + json.dumps(self.events()))
+        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'send', 'close'])
+        self.assertFalse((self.workspace / '.factory/fixture-plans.json').exists())
+        self.assertNotIn('counts', json.loads(self.state_path.read_text()))
 
 
 class GeneratedGuidanceTests(InitFixture):
@@ -570,7 +587,7 @@ class SavedConfigurationDiagnosticTests(WatchFixture):
         self.assertNotIn('rerun init', errors)
 
 
-class MalformedPlanningReplyTests(WatchFixture):
+class MalformedPlanningReplyTests(PlanningWatchFixture):
     def reject_reply(self, tool):
         # Only the external fake's reply is damaged, after it saves the operation's actual result.
         program = self.bin / 'forgetful'
@@ -588,20 +605,34 @@ class MalformedPlanningReplyTests(WatchFixture):
         self.reject_reply('list_plans')
         receipt = self.workspace / '.factory/setup-complete.json'
         completion = receipt.read_bytes()
+        log = self.workspace / 'inventory-reads.jsonl'
+        self.env['PROFILE_LOG'] = str(log)
 
         # Act
-        process = self.start('--new-only')
-        _, errors = process.communicate(timeout=5)
+        process = self.start('--new-only', '--interval', '.5')
+        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: sum(e['args'][:2] == ['call', 'list_plans']
+                                           for e in events(log)) >= 3)
+        time.sleep(.1)
+        self.assertIsNone(process.poll())
+        self.assertEqual(len(self.alerts()), 1)
+        self.assertEqual(self.alerts()[0]['code'], 'inventory_read_failed')
+        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.assertEqual(self._messages(), [])
+        self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 0)
+        code, output, errors = self.stop(process)
 
-        # Assert: reach the generic reply handler after launch, then close without delivery.
-        self.assertNotEqual(process.returncode, 0)
+        # Assert: invalid native JSON pauses inventory without writes or ordinary delivery.
+        self.assertEqual(code, 130, errors)
         self.assertRegex(errors, r'Forgetful (check failed|reply was invalid)')
         state = json.loads((self.workspace / '.factory/fixture-plans.json').read_text())
-        self.assertEqual([call[0] for call in state['calls']], ['list_plans'])
+        self.assertGreaterEqual(len(state['calls']), 3)
+        self.assertEqual({call[0] for call in state['calls']}, {'list_plans'})
         self.assertEqual(state['plans'], [])
+        self.assertEqual(state['tasks'], [])
         self.assertEqual(receipt.read_bytes(), completion)
-        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'close'])
-        self.assertNotIn('TOP_SECRET', errors)
+        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'send', 'close'])
+        self.assertNotIn('TOP_SECRET', output + errors + json.dumps(self.events()))
         self.assertNotIn('Traceback', errors)
         self.assertIn('Inspect and reconcile', errors)
         self.assertIn('init --finalize', errors)
@@ -617,18 +648,28 @@ class MalformedPlanningReplyTests(WatchFixture):
 
         # Act
         process = self.start('--existing')
-        _, errors = process.communicate(timeout=5)
+        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        state_path = self.workspace / '.factory/fixture-plans.json'
+        before = state_path.read_bytes()
+        self.wait_until(process, lambda: json.loads(self.state_path.read_text())
+                        .get('counts', {}).get('team/app', 0) >= 3)
+        self.assertIsNone(process.poll())
+        self.assertEqual(len(self.alerts()), 1)
+        self.assertEqual(self.alerts()[0]['retry'], 'manual_reconciliation')
+        self.assertEqual(self._messages(), [])
+        self.assertEqual(state_path.read_bytes(), before)
+        self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 0)
+        code, output, errors = self.stop(process)
 
         # Assert: the diagnostic cannot suggest that repeating an uncertain write is safe.
-        self.assertNotEqual(process.returncode, 0)
+        self.assertEqual(code, 130, errors)
         self.assertRegex(errors, r'Forgetful (check failed|reply was invalid)')
-        state_path = self.workspace / '.factory/fixture-plans.json'
         state = json.loads(state_path.read_text())
         self.assertEqual(len(state['plans']), 1)
         self.assertEqual(state['tasks'], [])
         self.assertTrue(json.loads(state['plans'][0]['context'])['ownership_create_started'])
         self.assertEqual([call[0] for call in state['calls']].count('update_plan'), 1)
-        self.assertNotIn('TOP_SECRET', errors)
+        self.assertNotIn('TOP_SECRET', output + errors + json.dumps(self.events()))
         self.assertNotIn('Traceback', errors)
         self.assertIn('Inspect and reconcile', errors)
         self.assertIn('do not replay uncertain writes', errors)
@@ -636,11 +677,20 @@ class MalformedPlanningReplyTests(WatchFixture):
 
         # Act: merely fixing the reply and restarting cannot clear the existing uncertainty gate.
         del self.env['RESIDUAL_BAD_REPLY']
+        next_polls = json.loads(self.state_path.read_text())['counts']['team/app'] + 3
         restarted = self.start('--existing')
-        _, retry_errors = restarted.communicate(timeout=5)
+        self.wait_until(restarted, lambda: len(self.alerts()) == 2)
+        self.wait_until(restarted, lambda: json.loads(self.state_path.read_text())
+                        ['counts']['team/app'] >= next_polls)
+        self.assertIsNone(restarted.poll())
+        self.assertEqual(len(self.alerts()), 2)
+        self.assertEqual(self.alerts()[-1]['retry'], 'manual_reconciliation')
+        self.assertEqual(self.alerts()[-1]['code'], 'ownership_create_uncertain')
+        self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 1)
+        retry_code, retry_output, retry_errors = self.stop(restarted)
 
         # Assert: no second write or notification; the public outer recovery rules remain intact.
-        self.assertNotEqual(restarted.returncode, 0)
+        self.assertEqual(retry_code, 130, retry_errors)
         self.assertIn('Ownership creation uncertain', retry_errors)
         after = json.loads(state_path.read_text())
         writes = [call[0] for call in after['calls'] if call[0].startswith(('create_', 'update_'))]
@@ -648,5 +698,6 @@ class MalformedPlanningReplyTests(WatchFixture):
         self.assertEqual(after['plans'], state['plans'])
         self.assertEqual(after['tasks'], [])
         self.assertEqual(receipt.read_bytes(), completion)
-        self.assertFalse(any(e['kind'] == 'send' for e in self.events()))
+        self.assertEqual(self._messages(), [])
+        self.assertNotIn('TOP_SECRET', retry_output + retry_errors + json.dumps(self.events()))
         self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 2)

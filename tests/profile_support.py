@@ -108,6 +108,32 @@ elif name in ('forgetful', 'custom forgetful'):
 COMMAND = COMMAND.replace("    failure = os.environ.get('PROFILE_PLANNING_FAILURE')",
                           PLANNING + "    failure = os.environ.get('PROFILE_PLANNING_FAILURE')")
 
+# Optional external-command fault controls. Tests can repair service replies while watch runs.
+COMMAND = COMMAND.replace("name = Path(sys.argv[0]).name", """
+control_path = os.environ.get('PROFILE_PLANNING_CONTROL')
+control = json.loads(Path(control_path).read_text()) if control_path else {}
+name = Path(sys.argv[0]).name
+""").replace("        state['calls'].append([tool, values])", """
+        state['calls'].append([tool, values])
+        if (control.get('fail') == tool
+                and control.get('fail_arguments', values) == values):
+            save_planning_state()
+            sys.exit('TOP_SECRET controlled native failure')
+""").replace("        print(json.dumps(result))\n        sys.exit(0)", """
+        if control.get('incomplete') == tool:
+            result['total_count'] += 1
+        result = control.get('responses', {}).get(tool, result)
+        for case in control.get('response_cases', []):
+            if case['tool'] == tool and case['arguments'] == values:
+                result = case['result']
+        print(json.dumps(result))
+        sys.exit(0)
+""").replace("    failure = os.environ.get('PROFILE_PLANNING_FAILURE')", """
+    if args[:2] == ['call', 'get_project'] and control.get('fail') == 'get_project':
+        sys.exit('TOP_SECRET planning preflight unavailable')
+    failure = os.environ.get('PROFILE_PLANNING_FAILURE')
+""")
+
 
 def install_commands(directory):
     for name in ('pi', 'tmux', 'forgetful'):

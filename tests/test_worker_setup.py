@@ -131,7 +131,7 @@ class WorkerSetupTests(InitFixture):
         receipt = json.loads((repo / '.factory/setup-complete.json').read_text())
         self.assertEqual(receipt, {'complete': True})
 
-    def test_execution_requires_verification_permission_at_init_and_watch(self):
+    def test_execution_requires_verification_permission_before_init_completion(self):
         repo = self.repo()
         settings = worker_settings(self)
         log = self.workspace / 'permissions.jsonl'
@@ -147,18 +147,7 @@ class WorkerSetupTests(InitFixture):
         del self.env['PROFILE_PLANNING_FAILURE']
         setup = self.run_cli(repo, '--finalize', worker_defaults=False)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        self.env['PROFILE_PLANNING_FAILURE'] = 'verification'
-        log.unlink()
-        self.state.write_text('{}')
-        result = subprocess.run([sys.executable, '-m', 'forgetful_factory', 'watch',
-                                 '--new-only'], cwd=repo, env=self.env, capture_output=True,
-                                text=True, timeout=5)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('planning check failed', result.stderr)
-        self.assertEqual(json.loads(self.state.read_text()), {})
-        self.assertEqual([(e['name'], e['args'][:2]) for e in events(log)],
-                         [('forgetful', ['call', 'get_project']),
-                          ('forgetful', ['tools', 'list'])])
+        self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
 
     def test_planning_only_init_retains_twelve_permission_access(self):
         repo = self.repo()

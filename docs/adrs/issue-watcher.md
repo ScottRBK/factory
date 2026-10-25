@@ -34,19 +34,29 @@ an arbitrary pane. AgentShell 0.5.0 already supplies `attach_interactive()` and 
 for that later expansion; [#25][attachment-issue] remains open. Connecting a watcher does not change
 running resources or prove receipt. No custom notification queue is introduced.
 
-Watch first checks native Forgetful project/planning access. Browser sign-in or refresh may occur
-for an attended watcher. The startup prompt then selects existing open matches or new matches only.
-The command polls every 30 seconds by default; `--interval` overrides it.
+After native launch prerequisites and the existing/new-only choice, watch connects Foreman before
+checking Forgetful project/planning access. Access or incomplete inventory reads pause planning and
+alert Foreman while read-only checks continue. Browser sign-in or refresh may occur for an attended
+watcher. The command polls every 30 seconds by default; `--interval` overrides it.
 
-Before each notification, `ScaffoldIssue` creates or reuses the plan, ownership task and ordinary
-issue worktree. The extra `epic` label defers worktrees to the owner. Full recovery and metadata
-rules are in [issue planning](issue-planning.md). The watcher never dispatches owners itself.
+For new intake, `ScaffoldIssue` creates or reuses the plan, ownership task and ordinary issue
+worktree. Saved and blocked plans use a separate read-only recovery path; disappeared records never
+fall back to creation. The extra `epic` label defers worktrees to the owner. Full recovery and
+metadata rules are in [issue planning](issue-planning.md). The watcher never dispatches owners.
 
 In-memory submitted revisions allow issue updates. Restart restores draft/active Factory plans,
 including closed issues; new-only startup still sends replies to recovered work. Other initial
-matches form a baseline. Retry failed GitHub reads on the next poll; stop on unresolved scaffold
-or terminal failures. No work is deleted on failure. Notifications carry body/revision and saved
-plan/task/worktree IDs as escaped external data; agents must reread current issue/comments.
+matches form a baseline. Known planning safety problems pause the affected plan and alert Foreman,
+while unrelated work continues. Shared read failures pause planning for safe rechecks; an operation
+that may have written latches a manual-reconciliation pause, without repeating it. Failed GitHub
+reads alert once per episode and retry on the next poll while healthy sources continue.
+
+Alert suppression, blocked records and issue revisions remain separate. A corrected record can
+recover without an issue edit. No work is deleted on failure. Ordinary notifications carry
+body/revision and saved plan/task/worktree IDs as escaped external data; agents must reread current
+issue/comments. Problem alerts carry controlled explanations and recovery context, not raw external
+diagnostics. See [watcher problems](watcher-problems.md) and its
+[validation record](../plans/watcher-problems.md). Terminal failures retain their lifecycle rules.
 
 Plain watch owns the new Pi process and closes it when stopped. For a persistent Foreman, `watch
 --start` with `--existing` or `--new-only` asks its owner to start a watcher child; status/stop act

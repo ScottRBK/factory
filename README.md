@@ -14,11 +14,13 @@ Deployment and end-to-end verification remain a later slice; live delivery valid
 
 ## Current source and release boundary
 
-Factory source uses one `agent.json` per agent. The full suite passes 373 tests on each of
-Python 3.12.3 and 3.13.5, with no skips. This includes five real Pi SDK probes using isolated homes
-and fake child agents, without inference. Core fixes and the final small delta passed independent
-review. Audited uv/build-backend 0.13.5 fixes the checksum defect; package checks and independent
-upgrade review pass. Explicit runtime repair still awaits Scott's decision.
+Factory source uses one `agent.json` per agent. The full suites pass 465 tests on each of
+Python 3.12.3 and 3.13.5 without skips, including five real Pi SDK probes with isolated homes and
+fake children, without inference. The approved [watcher fixes](docs/plans/watcher-problems.md) are
+implemented; SonarQube failed its gate and needs triage, including findings in unchanged code.
+Final Opus review remains pending. User-approved Foreman repair remains the recovery policy.
+Audited uv/build-backend 0.13.5 fixes the earlier checksum defect. Explicit runtime repair still
+awaits Scott's decision.
 
 Extension 1.5.0 is published from `5acb6aabfaae7c4d889600f6a5fffbb1c412dc6b`, with exact-commit
 hosted CI passing. Factory now includes its independently audited published runtime. Archive
@@ -59,6 +61,13 @@ Use explicit `init --finalize` to complete or revalidate incomplete first setup.
 Assisted setup opens a dedicated Foreman that stays alive after init exits; its watcher starts
 separately. Stopping that watcher leaves Foreman open. Plain `watch` starts and owns a fresh Foreman
 and closes it when stopped; it refuses to duplicate an existing or uncertain owner.
+
+Planning safety problems pause affected work and alert Foreman for discussion with the user.
+A missing recorded worktree does not terminate the watcher or stop unrelated plans. Safe read-only
+rechecks can observe repaired records without an issue edit. Shared failures pause planning;
+uncertain writes require reconciliation and are never automatically repeated. Actual connection
+loss or uncertain message delivery still stops delivery without replacing Foreman. See the
+[problem-handling contract](docs/adrs/watcher-problems.md).
 
 After successful first manual setup, init prints the start command and asks `Launch factory now?
 [y/N]:` when run in a terminal. Enter means No. Yes starts ordinary watch, which asks whether to
@@ -455,8 +464,10 @@ successful model response; terminal submission does not prove an agent acted on 
 
 An ordinary issue gets a branch/worktree under `.factory/worktrees/`. Add the extra `epic` label
 for work spanning repositories: the owner chooses the affected repositories and records their trees.
-Existing matching plans/tasks/trees are reused. Uncertain task creation, duplicate ownership, or
-missing/mismatched saved trees stop for reconciliation; Factory never resets or deletes work.
+Existing valid plans/tasks/trees are reused. Incomplete first-time setup needs user-approved
+Foreman completion; the watcher only observes the repair. Duplicate ownership or mismatched trees
+block affected work and alert Foreman. Uncertain writes pause planning until reconciliation and a
+deliberate restart. None of these safety conditions terminates supervision or permits work reset.
 
 Issue edits produce notifications with the same saved IDs. Restart sends unfinished plans again,
 including closed issues. `--new-only` still sends updates to recovered work while baselining other

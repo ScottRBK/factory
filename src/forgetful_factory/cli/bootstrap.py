@@ -45,7 +45,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                         ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,
                             execution_enabled=config.execution_enabled),
-                                      GitWorktrees(), workspace, config))
+                                      GitWorktrees(), workspace, config, GitRepositories(), github))
 
 
 def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True):

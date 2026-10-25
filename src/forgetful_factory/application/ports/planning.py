@@ -1,5 +1,11 @@
 from typing import Protocol
 
+from forgetful_factory.domain.models import FactoryError
+
+
+class PlanningReadError(FactoryError):
+    """A native read failed or cannot establish a complete inventory or record identity."""
+
 
 class Planning(Protocol):
     def check(self) -> None: ...

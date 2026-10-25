@@ -4,9 +4,18 @@ from forgetful_factory.adapters.command import run_command
 from forgetful_factory.domain.models import FactoryError
 
 
+def _resolve_repository(path: Path) -> Path:
+    try:
+        return path.resolve()
+    except (OSError, RuntimeError) as error:
+        # Path.resolve reports symlink loops as RuntimeError on Python 3.12.
+        raise FactoryError(f'Cannot inspect repository path {path}: {error}') from error
+
+
 class GitRepositories:
     def origin(self, path: Path) -> str:
-        if path != path.resolve():
+        resolved = _resolve_repository(path)
+        if path != resolved:
             raise FactoryError(f'Symlinked repository paths are not supported: {path}')
         if not path.is_dir():
             raise FactoryError(f'Repository directory does not exist: {path}')
@@ -14,7 +23,7 @@ class GitRepositories:
             root = run_command(['git', '-C', str(path), 'rev-parse', '--show-toplevel'])
         except FactoryError as error:
             raise FactoryError(f'Repository {path}: {error}') from error
-        if Path(root).resolve() != path.resolve():
+        if _resolve_repository(Path(root)) != resolved:
             raise FactoryError(f'Choose a Git repository root, not a subdirectory: {path}')
         try:
             return run_command(['git', '-C', str(path), 'remote', 'get-url', 'origin'])

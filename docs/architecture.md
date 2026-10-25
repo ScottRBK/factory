@@ -13,10 +13,17 @@ research and task planning. Optional implementation/review workers and owner-led
 are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
 Deployment and final E2E verification remain planned.
 
+[Watcher problem alerts](adrs/watcher-problems.md) now pause affected work and notify Foreman rather
+than terminate on planning safety failures. Scott chose user-approved Foreman completion for
+interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
+duplicate-owner and startup/pre-create repository corrections pass 465 tests per Python without
+skips. SonarQube failed its gate and needs triage; final Opus review remains pending. The
+[work record](plans/watcher-problems.md) separates completed validation from remaining gates.
+
 [Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
 one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.
 The audited extension 1.5.0 bundle passes native SDK loading and no-inference worker probes.
-Both supported Python runs pass 373 tests without skips; independent source review is accepted.
+Independent review of that earlier baseline is accepted; watcher changes have a separate review.
 Audited uv/build-backend 0.13.5 fixes the checksum defect; CI now verifies wheel RECORD entries.
 Package checks and independent upgrade review pass; runtime repair policy remains open. These
 checks do not establish live delivery or model compliance.
@@ -72,6 +79,8 @@ classDiagram
     WatchFactory --> ScaffoldIssue
     ScaffoldIssue --> Planning
     ScaffoldIssue --> Worktrees
+    ScaffoldIssue --> LocalRepositories
+    ScaffoldIssue --> WorkSourceResolver
     ForgetfulPlanning ..|> Planning
     GitWorktrees ..|> Worktrees
     GitHubWorkTracking ..|> WorkTrackingService
@@ -128,10 +137,28 @@ import or call graph.
   configuration reads or mutations. Existing `.factory` directory locks are also honored. Read-only
   owner status, terminal entry and watcher stop use separate control paths, not the watch lease.
   Watch checks initial completion, consent, the selected root definition/guidance, audited resources
-  and native delegation depth. It does not traverse or fingerprint workers. It then checks Forgetful
-  planning access, connects to its Foreman, restores unfinished plans and polls GitHub.
+  and native delegation depth. It does not traverse or fingerprint workers. It connects to Foreman,
+  checks Forgetful planning access, restores unfinished plans and polls GitHub. Access/inventory
+  failures pause planning and alert through the established connection while read-only checks retry.
   `ScaffoldIssue` coordinates the `Planning` and `Worktrees` ports before terminal submission.
-  Uncertain non-idempotent creates stop for reconciliation.
+  Known safety failures block their plan; unrelated plans continue. Saved/blocked recovery reads
+  known identities without falling back to creation. Unknown operations that may have written latch
+  a manual planning pause; supervision remains alive without repeating the operation. Existing
+  incomplete plans need user-approved native Foreman completion, never automatic task creation.
+  Safe rechecks observe the first valid owner and pin it before later mapping checks. Acknowledged
+  identities, submitted revisions, blocked records, pre-write lookups and alert suppression stay
+  separate in memory; a later issue edit or read failure must not discard known IDs. A failed pure
+  lookup can retry before any write, but finding a saved plan routes to read-only recovery. There
+  is no persistent queue or approval ledger; Python does not claim to verify human approval.
+- Startup checks each configured local repository against its saved origin and provider/source
+  mapping after Foreman is ready. Known repository problems pause only affected work and retry
+  reads. Fresh intake repeats those checks and inspects its derived path/branch before creating
+  a plan. A stale pending lookup can discover saved work, but cannot create for an issue absent
+  from the current eligible poll. A saved plan always uses read-only recovery instead.
+  The existing repository and source-resolver ports supply this check; GitHub parsing stays in its
+  provider adapter. `Worktrees.inspect` is separate from creation-capable `ensure`, which still
+  rechecks at the write boundary. Candidate ownership IDs remain separate from a confirmed pin;
+  approved duplicate reconciliation can leave either valid survivor when no sole owner was pinned.
 - The Git adapter uses native worktree registration, branch/common-directory and origin checks.
   It never resets or deletes existing work. An `epic` label defers worktree selection to the owner.
   Valid owner-recorded cleanup permits an absent merged tree only after read-only origin/path and
@@ -203,6 +230,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   repository discovery, configuration format, preflight, storage safety, and failure handling.
 - [Issue polling and Foreman connection](adrs/issue-watcher.md): polling, matching, startup choices,
   notification safety, AgentShell integration, locking, cleanup, and deferred capabilities.
+- [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
+  behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -223,15 +252,21 @@ Paths below are relative to `src/forgetful_factory/`:
 - CLI entry: `cli/main.py`, line 712; init: line 546; project choice: line 405;
   numbered choices: line 196; worker setup: line 488; completion/skill folders: line 523;
   optional manual launch: line 571; standalone Foreman: line 329.
-  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 51.
+  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 52.
 - Workflows: `application/initialise_factory.py`, line 18;
-  `application/watch_factory.py`, line 12; `application/scaffold_issue.py`, line 31.
-  Cleanup metadata validation: `application/scaffold_issue.py`, line 12.
-- Planning: `application/ports/planning.py`, line 4; `adapters/forgetful/planning.py`, line 8;
+  `application/watch_factory.py`, line 32; `application/scaffold_issue.py`, line 47.
+  Cleanup validation: `application/scaffold_issue.py`, line 25. Problem types and notification
+  formatting: `application/watcher_problems.py`, lines 80 and 112.
+  Repository/pre-create checks: `application/scaffold_issue.py`, lines 61 and 119;
+  read-only lookup/recovery: lines 184 and 234.
+- Planning: `application/ports/planning.py`, lines 6 and 10;
+  `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 118;
   project listing/creation: lines 91 and 101.
-- Worktrees: `application/ports/worktrees.py`, line 4;
-  `adapters/filesystem/git_worktrees.py`, line 21; removed-tree verification: line 32.
+- Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
+  `adapters/filesystem/git_worktrees.py`, line 29; inspection: line 30; write boundary: line 72.
+  Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 16.
+  Owned native-command cancellation: `adapters/sensitive_command.py`, line 12.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
 - Profiles: `adapters/filesystem/foreman_profile.py`, line 48; selected guidance: line 300;
   consent persistence: line 185;
@@ -258,7 +293,16 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
   `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
   `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
-  cleanup replay. `tests/test_architecture.py` proves the import rules reject violations.
+  cleanup replay. `tests/test_watcher_alerts.py` covers scoped pauses, read-only recovery, alert
+  delivery and uncertainty; `tests/test_watcher_guidance.py` covers preserved starter instructions.
+  `tests/test_managed_watcher_alerts.py` covers same-Foreman repair and busy ownership;
+  `tests/test_watcher_cancellation.py` covers owned native-check exits through watch CLI.
+  `tests/test_worker_watch_permissions.py` covers access pauses and in-place permission recovery.
+  `tests/test_foreman_setup_repair.py` covers approved native setup, pure-read retries, identity
+  retention and latched unknown outcomes; managed coverage also preserves the original Foreman.
+  `tests/test_watcher_followup.py` covers current eligibility, duplicate reconciliation and
+  repository/branch/path checks before new planning writes.
+  `tests/test_architecture.py` proves the import rules reject violations.
 - Normalized definitions and root policy: `tests/test_agent_definitions.py`.
   Native lifecycle regressions: `tests/test_normalized_lifecycle.py`,
   `tests/test_assisted_lifecycle.py` and `tests/test_assisted_review_fixes.py`;
@@ -271,8 +315,10 @@ Paths below are relative to `src/forgetful_factory/`:
 ## Using the detailed map
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
-it in full by default. Mycelium 0.4.5 exported the review-fix source with full member detail;
-recognized tests were excluded using `--test-path tests`. Its 56 boxes include module containers.
+it in full by default. Mycelium 0.4.5 exported the approved follow-up source with full member
+detail; recognized tests were excluded using `--test-path tests`. Its 68 boxes include module
+containers. Test filtering removed 3,407 calls and 52 type relationships; signatures remain in
+full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.

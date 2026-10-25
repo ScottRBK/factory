@@ -40,8 +40,16 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+Watcher [problem isolation and Foreman alerts](plans/watcher-problems.md) and the approved follow-up
+pass 465 tests per Python without skips. Stale-issue handling, duplicate-owner reconciliation and
+startup/pre-create repository checks are implemented. SonarQube failed its gate; triage includes
+unchanged protected code. Final Opus acceptance remains pending. User-approved Foreman completion
+for interrupted setup keeps watcher recovery read-only. Planning safety failures pause affected
+work, not the watcher; shared failures pause planning. Terminal loss and uncertain delivery retain
+their safeguards. DinoLand repair is excluded.
+
 The [normalized agent definitions](adrs/agent-definitions.md) now use audited extension 1.5.0.
-Full validation passes 373 tests on Python 3.12 and 3.13, with native SDK probes and no skips.
+That earlier baseline passed 373 tests per Python version, with native SDK probes and no skips.
 Independent source review is accepted. The [uv upgrade](plans/uv-build-upgrade.md) passes package
 checks and independent review. Runtime repair policy remains open. See
 [current evidence](plans/agent-definitions.md). Init provisions the full selected team once.

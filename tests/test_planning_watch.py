@@ -1,5 +1,6 @@
 import json
 import subprocess
+import time
 from pathlib import Path
 
 from test_watch import WatchFixture
@@ -16,11 +17,28 @@ class PlanningWatchFixture(WatchFixture):
 
     def _messages(self):
         return [json.loads(e['text'].split('External issue data: ', 1)[1])
-                for e in self.events() if e['kind'] == 'send']
+                for e in self.events() if e['kind'] == 'send'
+                and e['text'].startswith('Factory issue notification.')]
+
+    def alerts(self):
+        return [json.loads(e['text'].split('External problem data: ', 1)[1])
+                for e in self.events() if e['kind'] == 'send'
+                and e['text'].startswith('Factory watcher alert.')]
+
+    def assert_paused(self, process):
+        self.wait_until(process, lambda: bool(self.alerts()))
+        time.sleep(0.2)
+        self.assertIsNone(process.poll(), 'Safety failure terminated supervising watcher')
+        self.assertEqual(self._messages(), [], 'Blocked work reached Foreman as ordinary work')
+        self.assertEqual(len(self.alerts()), 1,
+                         f'Unchanged failure sent repeated alerts: {self.alerts()}')
+        code, _, errors = self.stop(process)
+        self.assertEqual(code, 130, errors)
+        return errors
 
 
 class PlanningWatchTests(PlanningWatchFixture):
-    def test_repointed_worktree_stops_before_delivery_and_preserves_existing_work(self):
+    def test_repointed_worktree_pauses_delivery_and_preserves_existing_work(self):
         self.assert_worktree_identity_checked('branch')
 
     def test_worktree_gitdir_is_checked_even_when_actual_branch_matches(self):
@@ -67,13 +85,9 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.terminal_log.unlink()
         # Act
         restarted = self.start('--existing')
-        try:
-            _, stderr = restarted.communicate(timeout=5)
-        except subprocess.TimeoutExpired:
-            _, _, stderr = self.stop(restarted)
+        stderr = self.assert_paused(restarted)
         # Assert
         self.assertEqual(self._messages(), [], 'Mismatched worktree reached the Foreman')
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertIn('worktree mismatch', stderr)
         self.assertIn('reconcile', stderr)
         self.assertEqual(gitfile.read_text(), redirected)
@@ -100,7 +114,7 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertEqual(self._messages()[-1]['body'], 'Answer while offline')
         self.assertEqual(self._messages()[-1]['ownership_task_id'], 1)
 
-    def test_changed_repository_origin_stops_before_reusing_recorded_worktree(self):
+    def test_changed_repository_origin_pauses_reuse_of_recorded_worktree(self):
         # Arrange
         self.script({'team/app': [[[self.issue()]]]})
         first = self.start('--existing')
@@ -111,9 +125,8 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.terminal_log.unlink()
         # Act
         restarted = self.start('--existing')
-        _, stderr = restarted.communicate(timeout=5)
+        stderr = self.assert_paused(restarted)
         # Assert
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertIn('origin changed', stderr)
         self.assertEqual(self._messages(), [])
 
@@ -130,9 +143,8 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.terminal_log.unlink()
         # Act
         restarted = self.start('--existing')
-        _, stderr = restarted.communicate(timeout=5)
+        stderr = self.assert_paused(restarted)
         # Assert
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertNotIn('Traceback', stderr)
         self.assertIn('mapping', stderr)
         self.assertEqual(self._messages(), [])
@@ -201,7 +213,7 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertEqual(self._messages()[0]['ownership_task_id'], 1)
         self.assertEqual(self.planning_call('query_tasks', plan_id=1)['total_count'], 1)
 
-    def test_missing_recorded_worktree_stops_without_recreating_it(self):
+    def test_missing_recorded_worktree_pauses_without_recreating_it(self):
         # Arrange
         from pathlib import Path
         self.script({'team/app': [[[self.issue()]]]})
@@ -213,25 +225,23 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.terminal_log.unlink()
         # Act
         restarted = self.start('--existing')
-        _, stderr = restarted.communicate(timeout=5)
+        stderr = self.assert_paused(restarted)
         # Assert
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertIn('worktree mismatch', stderr)
         self.assertFalse(path.exists())
         self.assertTrue(path.with_name('saved-user-work').exists())
         self.assertEqual(self._messages(), [])
 
-    def test_native_login_without_project_access_stops_before_launch_or_scaffolding(self):
+    def test_native_login_without_project_access_alerts_after_launch_without_scaffolding(self):
         # Arrange
         self.env['PROFILE_PROJECT_ACCESS'] = 'denied'
         self.script({'team/app': [[[self.issue()]]]})
         # Act
         process = self.start('--existing')
-        _, stderr = process.communicate(timeout=5)
+        stderr = self.assert_paused(process)
         # Assert
-        self.assertNotEqual(process.returncode, 0)
         self.assertIn('planning check failed', stderr)
-        self.assertEqual(self.events(), [])
+        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'send', 'close'])
 
     def test_full_ownership_record_is_reused_after_title_edit(self):
         # Arrange
@@ -257,9 +267,8 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.script({'team/app': [[[self.issue()]]]})
         # Act
         process = self.start('--existing')
-        _, stderr = process.communicate(timeout=5)
+        stderr = self.assert_paused(process)
         # Assert
-        self.assertNotEqual(process.returncode, 0)
         self.assertIn('another workspace', stderr)
         self.assertEqual(self._messages(), [])
         self.assertEqual(self.planning_call('query_tasks', plan_id=1)['tasks'], [])
@@ -269,16 +278,17 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.env['PLANNING_UNCERTAIN_CREATE'] = 'create_task'
         self.script({'team/app': [[[self.issue()]]]})
         first = self.start('--existing')
-        first.communicate(timeout=5)
-        self.assertNotEqual(first.returncode, 0)
+        self.assert_paused(first)
         del self.env['PLANNING_UNCERTAIN_CREATE']
+        self.terminal_log.unlink()
         # Act
         restarted = self.start('--existing')
-        _, stderr = restarted.communicate(timeout=5)
+        stderr = self.assert_paused(restarted)
         # Assert
-        self.assertNotEqual(restarted.returncode, 0)
         self.assertIn('Ownership creation uncertain', stderr)
         self.assertEqual(self._messages(), [])
+        state = json.loads((self.workspace / '.factory/fixture-plans.json').read_text())
+        self.assertEqual(sum(call[0] == 'create_task' for call in state['calls']), 1)
 
     def test_lost_plan_creation_response_is_reconciled_by_unique_reference(self):
         # Arrange

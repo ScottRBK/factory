@@ -76,6 +76,17 @@ The snapshot supports recovery when an issue is no longer in the open-issue poll
 complete copy of the issue history; agents reread current GitHub body and comments before acting.
 Full ownership tasks are fetched because `query_tasks` summaries omit descriptions.
 
+## Checks before fresh creation
+
+After Foreman is ready, watch checks each configured local root and origin against its saved
+remote and work source. Known repository problems pause affected work and alert Foreman; safe
+repositories continue. Git/access correction can be observed, while configuration edits require a
+restart. Before each new plan, fresh intake repeats repository checks and, for ordinary issues,
+checks the proposed branch/worktree path without creating it. A pre-write conflict creates no plan.
+A retained failed lookup can discover saved work after closure, but fresh creation requires the
+issue to appear in the current successful open/labelled poll. These checks do not repair existing
+incomplete plans or remove the checks at the actual write boundary.
+
 ## Interrupted creation
 
 Plan creation uses Forgetful's unique reference. After a failed create response, Factory rereads
@@ -83,10 +94,23 @@ that reference: the server may have committed the plan even though the response 
 
 Task creation has no unique key. Before creating ownership, Factory saves
 `ownership_create_started=true` in plan context. After a failed response it rereads full tasks.
-If exactly one valid ownership task exists, it reuses it. If the outcome is still unknown, it
-stops, including after restart. Reconciliation requires checking the earlier request has stopped
-and inspecting all tasks before clearing that marker. Duplicate or malformed ownership records
-also stop work. Ordinary description/context updates are not compare-and-swap operations.
+If exactly one valid ownership task exists, it reuses it. If the outcome is still unknown, planning
+pauses and Foreman is alerted; the watcher remains alive without repeating the operation. The saved
+marker still prevents task-create replay after restart. Reconciliation requires checking the earlier
+request has stopped and inspecting all tasks before resolving that marker. Startup and blocked-plan
+recovery are read-only: a missing ownership record is never automatically synthesized, even if a
+marker is cleared. Scott chose user-approved Foreman completion for incomplete first-time setup,
+implemented under the [watcher problem contract](watcher-problems.md). The alert explains the native
+repair and required approval rather than implying polling alone completes it. Read-only recovery
+can observe a first ownership identity established by approved repair, including closed/new-only
+work. It pins that identity before mapping validation and refuses a replacement. Duplicate or
+malformed ownership records block their plan. Valid duplicate candidates are not a confirmed pin.
+Foreman inspects their work and running agents, proposes which to retain and obtains user approval.
+Retiring the extra designation changes both its title and ownership kind, preserving other fields,
+history, claims and work. Merely cancelling its state is not enough. Read-only recovery can observe
+either single valid survivor only when no sole owner had already been confirmed; it never replaces
+a confirmed owner. Unknown or competing live ownership stays blocked. Ordinary description/context
+updates are not compare-and-swap operations or authority to transfer a claim.
 
 An ordinary issue gets a branch and worktree before ownership is saved. If task creation then
 fails, Git state remains available for reconciliation. Nothing resets, forces or deletes work.
@@ -97,16 +121,18 @@ An additional case-insensitive `epic` label leaves repository/worktree choice to
 issues get an initial worktree in their source repository. Both use native Git; no worktree
 extension is required.
 
-The Git adapter checks origin, registered path, branch and common Git directory. Existing matching
-registrations can be reused after interruption. A missing or mismatched active worktree stops
-rather than being silently recreated. Generated worktrees live under `.factory/worktrees/` and are
-ignored by Git. Uncommitted changes in the original working copy are not copied into a new tree.
+The Git adapter checks origin, registered path, branch and common Git directory. Initial intake can
+reuse an existing matching registration; saved incomplete plans require approved Foreman completion.
+A missing or mismatched recorded worktree blocks its plan and alerts Foreman, without stopping
+unrelated plans or the watcher. It is never silently recreated. Generated worktrees live under
+`.factory/worktrees/`, ignored by Git. Uncommitted changes in the original working copy are not
+copied into a new tree.
 
 Slice 6 adds an optional cleanup record for safely removed, merged worktrees. The owner saves the
 canonical matching GitHub PR URL, full merge SHA and `pending` intent before removal; it records
 `removed` only after confirming path and registration absence. On restart, only a valid `removed`
 record permits absence. The adapter checks the origin and refuses occupied paths, symlinks or
-remaining registrations. Missing unmarked or pending work still stops for reconciliation.
+remaining registrations. Missing unmarked or pending work remains blocked for reconciliation.
 
 The watcher does not delete worktrees or verify GitHub merge evidence. It preserves the reported
 cleanup metadata in the notification so the Foreman can inspect unfinished post-merge work without
@@ -123,6 +149,12 @@ At restart, draft/active Factory plans for the configured repositories are recov
 including plans whose issues are closed. They are sent again to the new Foreman. `--new-only`
 still forwards changes to recovered work, while baselining unrelated open matches. Duplicate
 notifications after restart are expected; the Foreman must inspect current ownership before acting.
+
+[Problem alerts](watcher-problems.md) are independent of successful issue submissions. Blocked
+records are re-read by their known identities, including closed issues absent from GitHub polling.
+Revalidation never calls the creation path and does not change ownership or task state. Repairs can
+therefore produce a normal notification without an issue revision change. Completed plans do not
+become new work. An alert itself cannot pause a busy owner or authorize dispatch/replacement.
 
 ## Ownership and safe continuation
 

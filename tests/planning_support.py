@@ -5,6 +5,13 @@ PLANNING = '''
         tool = args[1]
         values = json.loads(args[args.index('--args') + 1])
         state_path = Path(os.environ.get('PLANNING_STATE', Path.cwd() / 'fixture-plans.json'))
+        import fcntl
+        lock = state_path.with_suffix('.lock').open('a')
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        def save_planning_state():
+            replacement = state_path.with_suffix('.next')
+            replacement.write_text(json.dumps(state))
+            replacement.replace(state_path)
         state = json.loads(state_path.read_text()) if state_path.exists() else {
             'plans': [], 'tasks': [], 'calls': []}
         state['calls'].append([tool, values])
@@ -20,7 +27,7 @@ PLANNING = '''
                                 for t in rows], 'total_count': len(rows)}
         elif tool in ('create_plan', 'create_task'):
             if os.environ.get('PLANNING_UNCERTAIN_CREATE') == tool:
-                state_path.write_text(json.dumps(state))
+                save_planning_state()
                 sys.exit('fixture uncertain create')
             rows = state['plans' if tool == 'create_plan' else 'tasks']
             result = dict(values, id=len(rows) + 1)
@@ -36,7 +43,7 @@ PLANNING = '''
                 result.update({k: v for k, v in values.items() if k != kind + '_id'})
         else:
             sys.exit('unsupported fixture call: ' + tool)
-        state_path.write_text(json.dumps(state))
+        save_planning_state()
         if os.environ.get('PLANNING_LOST_RESPONSE') == tool:
             sys.exit('fixture lost response')
         print(json.dumps(result))
