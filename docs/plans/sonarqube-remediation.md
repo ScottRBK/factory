@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: resources merged into integration; four implementation groups and final review remain.
+Status: resources and planning/Git merged; three implementation groups and final review remain.
 
 ## Scope and baseline
 
@@ -39,6 +39,10 @@ working copy safe; do not remove branches/worktrees until their changes are dura
 - The first integration scan confirms all eight resources findings cleared, with no new findings
   in those files. Thirty issues remain across the other groups, so the overall gate still fails.
   The eight existing scanner/engine/plugin JARs remained byte-identical; no install or upgrade.
+- Planning/Git commit `6ae010d13c7e29b11ad0083c2f1e299f116dcafa` changes its two assigned files.
+  Parent verified source hashes and 111 passing related tests on each Python. All six findings
+  cleared in the next integration scan: 24 remain, with none in either merged group. Three parent
+  startup/source/branch-conflict probes also pass on both Pythons against the combined source.
 - These are partial integration results, not full-suite or final review acceptance. Temporary
   branches/worktrees remain until the complete reviewed result is integrated into the main branch.
 
