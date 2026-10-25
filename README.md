@@ -17,8 +17,9 @@ Deployment and end-to-end verification remain a later slice; live delivery valid
 Factory source uses one `agent.json` per agent. The approved
 [watcher fixes](docs/plans/watcher-problems.md) are implemented. The
 [full SonarQube cleanup](docs/plans/sonarqube-remediation.md) has zero outstanding findings and
-passes its assigned gate. Combined validation passes 465 tests on Python 3.12; a Python 3.13
-shutdown timeout is under investigation. Final review remains pending. Native probes use isolated
+passes its assigned gate. Combined validation passes 471 tests on each supported Python without
+skips. An earlier shutdown timeout remains unexplained after bounded investigation; diagnostics are
+improved, but no timeout fix is claimed. Final review remains pending. Native probes use isolated
 homes and fake children, without inference. Recovery still requires user-approved Foreman repair.
 Audited uv/build-backend 0.13.5 fixes the earlier checksum defect. Explicit runtime repair still
 awaits Scott's decision.

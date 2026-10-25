@@ -65,6 +65,11 @@ lookup or unknown create outcome does not have that authority. Finding a saved p
 to read-only recovery, not creation-capable setup. Both transport and malformed read failures use
 the same policy; Git inspection is separate from its directory/worktree write boundary.
 
+Record every source's complete first-success `--new-only` baseline immediately after its validated
+fetch, even when another source's planning failure pauses intake in the same poll. This is only
+in-memory bookkeeping. It neither performs writes nor clears a manual pause. Issues arriving after
+that first read must not be silently absorbed into a delayed baseline when planning recovers.
+
 Sending an alert does not mark the issue revision as successfully submitted. An unchanged problem
 is reported once per episode; a meaningful change or recurrence can be reported again. A restart
 may repeat alerts, as it already may repeat normal issue notifications. There is no persistent

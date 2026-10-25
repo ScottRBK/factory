@@ -18,8 +18,9 @@ than terminate on planning safety failures. Scott chose user-approved Foreman co
 interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
 duplicate-owner and startup/pre-create repository corrections passed their baseline suites.
 The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outstanding findings and
-passes the assigned gate. Combined validation found a Python 3.13 shutdown timeout; investigation
-and final review remain pending. The work records separate completed checks from acceptance.
+passes the assigned gate. Combined validation now passes 471 tests on each supported Python. An
+earlier shutdown timeout remains unexplained; no product fix is claimed. Final review remains
+pending. The work records separate completed checks from acceptance.
 
 [Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
 one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.
@@ -328,7 +329,7 @@ Paths below are relative to `src/forgetful_factory/`:
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 exported the combined SQ-refactor source with full member
 detail; recognized tests were excluded using `--test-path tests`. Its 72 boxes include module
-containers. Test filtering removed 3,407 calls and 52 type relationships; signatures remain in
+containers. Test filtering removed 3,470 calls and 52 type relationships; signatures remain in
 full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded

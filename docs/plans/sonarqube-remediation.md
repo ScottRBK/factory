@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: SQ clear and diagnostics merged; baseline/coverage follow-ups and acceptance remain pending.
+Status: combined checks pass; final Claude review and main integration remain pending.
 
 ## Scope and baseline
 
@@ -112,6 +112,51 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   repeat exports and eleven external-base warnings. Tests filter 3,407 calls and 52 relationships;
   diagram validation is text-only. Package checks and final review await settled source.
 - Temporary branches/worktrees remain until the complete reviewed result is integrated into main.
+
+## Settled combined validation
+
+All implementation and follow-up branches are now integrated in the review branch. The last product
+change is `2a054cd`: record each first-success baseline before the cross-source pause guard. Its
+permanent public regression failed on both Pythons before the two-line reorder, then passed.
+Existing manual/read-pause assertions remain unchanged. The same independent parent probe also
+passes against the combined tree, along with all three startup/source/branch checks on each Python.
+
+Owner-startup coverage `91dbe4c` adds exactly five process-boundary tests for the moved checks and
+controlled runtime-directory error. Parent verified both five-test and overlapping 22-test runs
+against their final bytes, plus the expected scratch mutation failure. No product change was needed.
+
+Fresh complete suites on the combined tree:
+
+- Python 3.12.3: 471 passed, no skips, 632.289 seconds.
+- Python 3.13.5: 471 passed, no skips, 626.467 seconds.
+- Both runs and scan 8 pin the same unchanged 118 source/test files.
+- All original 465 test IDs remain; the six additions are the baseline regression and owner tests.
+- Scan 8 analysis `e7294eac-ddb2-4f42-9ce8-77761dfdacec`: zero findings, assigned gate OK.
+  The eight cached analyzer JARs are unchanged. No suppression, exclusion or gate change occurred.
+  Coverage was not imported; the separate `caycStatus` remains non-compliant.
+- Ruff and all three import contracts pass. The refreshed map has 72 boxes and eleven external-base
+  warnings; 3,470 calls and 52 type relationships are filtered with tests. Repeat exports match;
+  diagram checks remain text-only.
+
+The additional read-only timeout investigation ran 987 executions: 986 non-synthetic passes and
+one deliberate stall that proved stack capture and owned cleanup. Its one-way diagnostic transfer
+avoided receiving on the normal ready-to-SIGINT path, but still changed controller timing slightly.
+It did not reproduce either historical timeout. The synthetic case demonstrated that a deliberately
+stalled 3+10+3-second cleanup can exceed the fixture's 15 seconds; that does not explain the
+historical failures. No production fix, deadline increase or blame assignment is justified.
+The original failed runs and unresolved risk remain part of final review.
+
+Settled offline packages verify 72 wheel checksums, all 69 source/resource files and all 49 test
+files. Wheel and source metadata preserve the current README; source TOML is exact and normalized
+TOML equivalent. Five extracted-wheel help commands pass. No installation occurred. Package hashes
+and complete evidence are retained outside the repository.
+
+Scope checks pass: only assigned code/tests and parent-owned documentation changed.
+Protected files and Design questions are unchanged. The overview is 349 lines.
+Changed files stay within 100 columns and all 87 local links resolve.
+The original main checkout's 149 captured file hashes remain intact.
+Claude's follow-up review still precedes main integration and removal of the recorded temporary
+branches/worktrees. No push or release is authorized.
 
 ## Safety and validation
 
