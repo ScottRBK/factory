@@ -21,8 +21,8 @@ def check_skill_file(path: Path) -> None:
     if not path.is_file():
         raise FactoryError(f'Local skill must be a regular file: {path}. File preserved.')
     try:
-        with path.open('rb'):
-            pass
+        # Opening is the availability check; the native harness owns content parsing.
+        path.open('rb').close()
     except OSError as error:
         raise FactoryError(f'Local skill must be readable: {path}. File preserved.') from error
 
