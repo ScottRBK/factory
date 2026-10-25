@@ -116,7 +116,7 @@ class PartialSetupTests(InitFixture):
 
 
 class WatchOutcomeFixture(WatchFixture):
-    def launch_outcome(self):
+    def _launch_outcome(self):
         process = self.start('--new-only')
         deadline = time.monotonic() + 8
         while time.monotonic() < deadline:
@@ -144,7 +144,7 @@ class RequiredGuidanceTests(WatchOutcomeFixture):
                 original.rename(target)
                 self.terminal_log.unlink(missing_ok=True)
                 try:
-                    outcome, errors = self.launch_outcome()
+                    outcome, errors = self._launch_outcome()
 
                     self.assertEqual(outcome, 'rejected', errors)
                     self.assertIn('Required Foreman guidance', errors)
@@ -159,7 +159,7 @@ class RequiredGuidanceTests(WatchOutcomeFixture):
         shutil.move(str(skills / 'foreman'), str(shared))
         (skills / 'foreman').symlink_to(shared, target_is_directory=True)
 
-        outcome, errors = self.launch_outcome()
+        outcome, errors = self._launch_outcome()
 
         self.assertEqual(outcome, 'launched', errors)
         launch = next(e for e in self.events() if e['kind'] == 'launch')
@@ -169,7 +169,7 @@ class RequiredGuidanceTests(WatchOutcomeFixture):
         skills = self.workspace / '.factory/agents/foreman/skills'
         (skills / 'loop').symlink_to(skills, target_is_directory=True)
 
-        outcome, errors = self.launch_outcome()
+        outcome, errors = self._launch_outcome()
 
         self.assertEqual(outcome, 'rejected', errors)
         self.assertIn('cycle', errors)
@@ -179,7 +179,7 @@ class RequiredGuidanceTests(WatchOutcomeFixture):
         skills = self.workspace / '.factory/agents/foreman/skills'
         shutil.copytree(skills / 'foreman', skills / 'extra/foreman')
 
-        outcome, errors = self.launch_outcome()
+        outcome, errors = self._launch_outcome()
 
         self.assertEqual(outcome, 'rejected', errors)
         self.assertIn('Ambiguous required Foreman guidance', errors)
@@ -424,7 +424,7 @@ class LocalSelectorTests(WatchOutcomeFixture):
                 before = definition.read_bytes()
                 self.terminal_log.unlink(missing_ok=True)
 
-                outcome, errors = self.launch_outcome()
+                outcome, errors = self._launch_outcome()
 
                 self.assertEqual(outcome, 'rejected', errors)
                 self.assertIn('local paths', errors)
@@ -445,7 +445,7 @@ class LocalSelectorTests(WatchOutcomeFixture):
                 before = definition.read_bytes()
                 self.terminal_log.unlink(missing_ok=True)
 
-                outcome, errors = self.launch_outcome()
+                outcome, errors = self._launch_outcome()
 
                 self.assertEqual(outcome, 'rejected', errors)
                 self.assertIn('cwd must select a local path', errors)

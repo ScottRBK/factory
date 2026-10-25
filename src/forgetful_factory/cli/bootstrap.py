@@ -40,7 +40,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; run init in a fresh factory. '
                            'Migration of old testing factories is not supported.')
-    profile, environment, launch = prepare_foreman_launch(config, workspace)
+    _, environment, launch = prepare_foreman_launch(config, workspace)
     return WatchFactory(github, terminal or AgentShellTerminal(python, environment, **launch),
                         ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,

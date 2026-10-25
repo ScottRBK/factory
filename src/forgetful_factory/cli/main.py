@@ -4,8 +4,10 @@ import os
 import shlex
 import signal
 import sys
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from functools import partial
 from pathlib import Path
+from typing import cast
 
 from forgetful_factory.application.configuration import (
     FactoryConfiguration,
@@ -271,57 +273,67 @@ def _choose_existing(args: argparse.Namespace) -> bool:
     return answer == 'e'
 
 
-def _watch(args: argparse.Namespace, workspace: Path) -> int:
+def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
+    import json
+
     from forgetful_factory.adapters.agentshell.owner_client import request
+
+    if args.start:
+        if not args.existing and not args.new_only:
+            raise FactoryError('Managed watch needs --existing or --new-only.')
+        if not math.isfinite(args.interval) or args.interval <= 0:
+            raise FactoryError('--interval must be positive and finite.')
+        result = request(workspace, 'start', existing=args.existing, interval=args.interval)
+    else:
+        result = request(workspace, 'stop')
+    print(json.dumps(result))
+    return 0
+
+
+def _watch_status(workspace: Path) -> int:
+    import json
+
+    from forgetful_factory.adapters.agentshell.owner_client import read_state, request
+    from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
+    from forgetful_factory.configuration import load_configuration
+
+    state = read_state(workspace)
+    if state is None:
+        state = {'foreman': 'absent', 'watcher': 'stopped', 'target': None}
+    else:
+        try:
+            state = {**request(workspace, 'status'), 'observation': 'live'}
+        except FactoryError as error:
+            state = {**state, 'observation': 'saved'}
+            if state.get('foreman') != 'stopped':
+                state['recorded_foreman'] = state.get('foreman')
+                state['foreman'] = 'unknown'
+                state['watcher'] = 'unknown'
+                state['warning'] = str(error)
+                state['recovery'] = (
+                    'Saved state is not a live observation. Inspect the recorded socket/pane '
+                    'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
+                    'Only after independently confirming the original Foreman and owner '
+                    'have exited, archive owner.json and control.sock from '
+                    '.factory/runtime/foreman, then retry foreman '
+                    f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
+    try:
+        ForemanProfile(workspace).validate_completion(load_configuration(workspace))
+        state['setup'] = 'complete'
+    except (FactoryError, OSError):
+        state['setup'] = 'incomplete'
+    print(json.dumps(state))
+    return 0
+
+
+def _watch(args: argparse.Namespace, workspace: Path) -> int:
+    if args.start or args.stop:
+        return _change_managed_watch(args, workspace)
+    if args.status:
+        return _watch_status(workspace)
+
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
 
-    if args.start or args.stop:
-        import json
-
-        if args.start:
-            if not args.existing and not args.new_only:
-                raise FactoryError('Managed watch needs --existing or --new-only.')
-            if not math.isfinite(args.interval) or args.interval <= 0:
-                raise FactoryError('--interval must be positive and finite.')
-            result = request(workspace, 'start', existing=args.existing, interval=args.interval)
-        else:
-            result = request(workspace, 'stop')
-        print(json.dumps(result))
-        return 0
-    if args.status:
-        import json
-
-        from forgetful_factory.adapters.agentshell.owner_client import read_state, request
-        from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
-        from forgetful_factory.configuration import load_configuration
-
-        state = read_state(workspace)
-        if state is None:
-            state = {'foreman': 'absent', 'watcher': 'stopped', 'target': None}
-        else:
-            try:
-                state = {**request(workspace, 'status'), 'observation': 'live'}
-            except FactoryError as error:
-                state = {**state, 'observation': 'saved'}
-                if state.get('foreman') != 'stopped':
-                    state['recorded_foreman'] = state.get('foreman')
-                    state['foreman'] = 'unknown'
-                    state['watcher'] = 'unknown'
-                    state['warning'] = str(error)
-                    state['recovery'] = (
-                        'Saved state is not a live observation. Inspect the recorded socket/pane '
-                        'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
-                        'Only after independently confirming the original Foreman and owner '
-                        'have exited, archive owner.json and control.sock from '
-                        '.factory/runtime/foreman, then retry foreman '
-                        f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
-        try:
-            ForemanProfile(workspace).validate_completion(load_configuration(workspace))
-            state['setup'] = 'complete'
-        except (FactoryError, OSError):
-            state['setup'] = 'incomplete'
-        print(json.dumps(state))
-        return 0
     with WorkspaceWatchLease(workspace).hold():
         return _watch_locked(args, workspace)
 
@@ -427,12 +439,14 @@ def _select_project(application: InitialiseFactory, connection: ForgetfulConnect
 
 
 def _owner_choices(args: argparse.Namespace, choices: InitialAgentChoices) -> InitialAgentChoices:
-    return replace(choices,
+    # replace returns the same concrete dataclass type; retain that contract for static analyzers.
+    return cast(InitialAgentChoices, replace(
+        choices,
         feature_owner_agent_model=args.feature_owner_model or choices.foreman_agent_model,
         feature_owner_agent_effort=args.feature_owner_effort or choices.foreman_agent_effort,
         grill_me_skill=str((args.grill_me_skill or
                            Path.home() / '.agents/skills/grill-me/SKILL.md')
-                          .expanduser().resolve()))
+                          .expanduser().resolve())))
 
 
 def _worker_arguments(args: argparse.Namespace) -> dict:
@@ -485,36 +499,48 @@ def _prompt_workers(discover_models) -> dict:
     return supplied
 
 
+def _select_setup_route(args: argparse.Namespace) -> bool:
+    print('How would you like to set up your factory?\n'
+          '  1. Manual — Choose agents, models and settings through step-by-step prompts.\n'
+          '  2. Foreman-assisted — Chat with Foreman, your coordinating AI agent, '
+          'to finish setup together.')
+    route = _select_numbered('Setup', ('Manual', 'Foreman-assisted'),
+                             show_choices=False, prompt='Select 1 or 2: ')
+    if route == 'Foreman-assisted':
+        args.assisted = True
+        return True
+    return False
+
+
+def _prompt_coordinator_choices(args: argparse.Namespace, config: InitialAgentChoices,
+                                discover_models) -> InitialAgentChoices:
+    if config.research_agent_harness not in (None, 'pi'):
+        raise FactoryError('Factory research setup currently supports Pi only; '
+                           'choose --research-harness pi before selecting its model.')
+    for role, title in (('feature_owner', 'Feature-owner'), ('research', 'Research')):
+        model = getattr(args, f'{role}_model')
+        effort = getattr(args, f'{role}_effort')
+        if model is None:
+            model = _select_numbered(f'{title} model', discover_models('pi', role))
+        if effort is None:
+            effort = _select_numbered(f'{title} effort', WORKER_EFFORTS['pi'])
+        harness = args.research_harness or 'pi' if role == 'research' else 'pi'
+        config = replace(config, **{f'{role}_agent_model': model,
+                                   f'{role}_agent_effort': effort,
+                                   f'{role}_agent_harness': harness})
+    return config
+
+
 def _worker_choices(args: argparse.Namespace, config: InitialAgentChoices,
                     discover_models=None) -> InitialAgentChoices:
     supplied = _worker_arguments(args)
     if args.planning_only and (supplied or config.execution_enabled):
         raise FactoryError('--planning-only conflicts with explicit worker configuration.')
-    if not supplied and not args.planning_only and not args.assisted:
-        print('How would you like to set up your factory?\n'
-              '  1. Manual — Choose agents, models and settings through step-by-step prompts.\n'
-              '  2. Foreman-assisted — Chat with Foreman, your coordinating AI agent, '
-              'to finish setup together.')
-        route = _select_numbered('Setup', ('Manual', 'Foreman-assisted'),
-                                 show_choices=False, prompt='Select 1 or 2: ')
-        if route == 'Foreman-assisted':
-            args.assisted = True
+    interactive = not supplied and not args.planning_only and not args.assisted
+    if interactive:
+        if _select_setup_route(args):
             return config
-        if config.research_agent_harness not in (None, 'pi'):
-            raise FactoryError('Factory research setup currently supports Pi only; '
-                               'choose --research-harness pi before selecting its model.')
-        for role, title in (('feature_owner', 'Feature-owner'), ('research', 'Research')):
-            model = getattr(args, f'{role}_model')
-            effort = getattr(args, f'{role}_effort')
-            if model is None:
-                model = _select_numbered(f'{title} model', discover_models('pi', role))
-            if effort is None:
-                effort = _select_numbered(f'{title} effort', WORKER_EFFORTS['pi'])
-            config = replace(config, **{f'{role}_agent_model': model,
-                                       f'{role}_agent_effort': effort,
-                                       f'{role}_agent_harness': (
-                                           args.research_harness or 'pi'
-                                           if role == 'research' else 'pi')})
+        config = _prompt_coordinator_choices(args, config, discover_models)
         supplied = _prompt_workers(discover_models)
     updated = replace(config, **supplied)
     return updated
@@ -599,6 +625,106 @@ def _offer_factory_launch(args: argparse.Namespace, workspace: Path) -> int:
     return 0
 
 
+@dataclass
+class _InitialSetupState:
+    connection: ForgetfulConnection
+    config: FactoryConfiguration
+    prepared: bool
+
+
+def _validate_setup_owner(args: argparse.Namespace, workspace: Path, state: dict | None) -> None:
+    if not state or state.get('foreman') == 'stopped':
+        return
+    if args.assisted:
+        raise FactoryError('Foreman already exists or is uncertain; use init --attach '
+                           f'--workspace {shlex.quote(str(workspace))} or inspect '
+                           f'watch --status --workspace {shlex.quote(str(workspace))}. '
+                           'Nothing was replaced.')
+    if not args.delegated_work_stopped:
+        raise FactoryError('Confirm delegated work is stopped with --delegated-work-stopped '
+                           'before revalidating the live setup Foreman.')
+
+
+def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfiguration,
+                           args: argparse.Namespace, workspace: Path) -> int:
+    _connection(args, workspace, config.forgetful)
+    application.profile.choose_pi_home(args.pi_agent_dir,
+                                       lambda home: _confirm_pi_home(home, args))
+    application.profile.save_pi_choice()
+    application.profile.selected_launch(config)
+    for message in application.initialise(config, before_writes=lambda: None, save=False):
+        print(message)
+    _complete_setup(application, config, workspace, login=args.login)
+    print('First setup validated. Use /reload while idle in the same conversation. '
+          'Finalization does not clear delivery uncertainty.')
+    return 0
+
+
+def _discover_worker_models(harness, role=None, *, application: InitialiseFactory,
+                            args: argparse.Namespace, workspace: Path,
+                            state: _InitialSetupState):
+    if not state.prepared:
+        _prepare_foreman(application, state.connection, args)
+        state.prepared = True
+    if role is not None:
+        from forgetful_factory.adapters.filesystem.resource_files import check_real_path
+
+        directory = workspace / '.factory/agents' / role.replace('_', '-')
+        check_real_path(directory)
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        return application.profile.list_models(state.connection, harness=harness, cwd=directory)
+    catalogs = [set(application.profile.list_models(
+        state.connection, harness=harness, cwd=Path(repository.local_dir)))
+        for repository in state.config.repository]
+    return sorted(set.intersection(*catalogs))
+
+
+def _validate_initial_model(application: InitialiseFactory, args: argparse.Namespace,
+                            choices: InitialAgentChoices, home: str, workspace: Path,
+                            state: _InitialSetupState) -> FactoryConfiguration:
+    if args.foreman_model is not None:
+        _prepare_foreman(application, state.connection, args, prepared=state.prepared)
+        _select_model(application, state.connection, home, choices.foreman_agent_model,
+                      choices.feature_owner_agent_model)
+    if state.connection.project_id is None:
+        project_id = _select_project(application, state.connection, workspace)
+        state.connection = replace(state.connection, project_id=project_id)
+        state.config = replace(state.config, forgetful=state.connection)
+    if state.config.execution_enabled:
+        print('Checking worker model catalogs using the selected native apps/accounts. '
+              'Listing may read native settings, credentials and network catalogs; '
+              'it does not verify model access or model-specific effort support.')
+    application.profile.prepare_roles(state.config, choices)
+    return state.config
+
+
+def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespace,
+                         workspace: Path, paths: list[Path] | None) -> int | dict:
+    connection = _connection(args, workspace, None)
+    home = application.profile.choose_pi_home(args.pi_agent_dir,
+                                             lambda value: _confirm_pi_home(value, args))
+    application.profile.begin_setup()
+    config, choices = _configure_new_factory(
+        application, workspace, args, paths, connection, home)
+    state = _InitialSetupState(connection, config, args.foreman_model is None)
+    choices = _research_choices(args, _owner_choices(args, choices))
+    discover_models = partial(_discover_worker_models, application=application, args=args,
+                              workspace=workspace, state=state)
+    choices = _worker_choices(args, choices, discover_models)
+    validate_initial_agents(choices)
+    state.config = replace(state.config, execution_enabled=choices.execution_enabled,
+                           forgetful=state.connection)
+    validate_model = partial(_validate_initial_model, application, args, choices, home,
+                             workspace, state)
+    for message in application.initialise(state.config, before_writes=validate_model):
+        print(message)
+    if args.assisted:
+        return _launch_setup_foreman(application, state.config, workspace, args)
+    _complete_setup(application, state.config, workspace, login=args.login, initial=True)
+    print('\nFactory setup complete.')
+    return 0
+
+
 def _initialise_locked(args: argparse.Namespace, workspace: Path) -> int | dict | str:
     from forgetful_factory.adapters.agentshell.owner_client import read_state
 
@@ -607,89 +733,16 @@ def _initialise_locked(args: argparse.Namespace, workspace: Path) -> int | dict 
         print('Factory already initialized. Edit factory.toml and agent.json directly; '
               'reload or restart affected agents. Use init --finalize for incomplete first setup.')
         return 'existing'
-    state = read_state(workspace)
-    if state and state.get('foreman') != 'stopped':
-        if args.assisted:
-            raise FactoryError('Foreman already exists or is uncertain; use init --attach '
-                               f'--workspace {shlex.quote(str(workspace))} or inspect '
-                               f'watch --status --workspace {shlex.quote(str(workspace))}. '
-                               'Nothing was replaced.')
-        if not args.delegated_work_stopped:
-            raise FactoryError('Confirm delegated work is stopped with --delegated-work-stopped '
-                               'before revalidating the live setup Foreman.')
+    _validate_setup_owner(args, workspace, read_state(workspace))
     paths = ([Path(os.path.abspath(path.expanduser())) for path in args.repo]
              if args.repo is not None else None)
     config = application.load_existing(paths, args.label)
     if args.finalize and config is None:
         raise FactoryError('Finalization requires saved configuration. '
                            'Run init in a terminal first.')
-    existing = config is not None
-    if existing:
-        _connection(args, workspace, config.forgetful)
-        application.profile.choose_pi_home(args.pi_agent_dir,
-                                           lambda home: _confirm_pi_home(home, args))
-        application.profile.save_pi_choice()
-        application.profile.selected_launch(config)
-        for message in application.initialise(config, before_writes=lambda: None, save=False):
-            print(message)
-        _complete_setup(application, config, workspace, login=args.login)
-        print('First setup validated. Use /reload while idle in the same conversation. '
-              'Finalization does not clear delivery uncertainty.')
-        return 0
-    connection = _connection(args, workspace, None)
-    home = application.profile.choose_pi_home(args.pi_agent_dir,
-                                             lambda home: _confirm_pi_home(home, args))
-    application.profile.begin_setup()
-    config, choices = _configure_new_factory(
-        application, workspace, args, paths, connection, home)
-    prepared = args.foreman_model is None
-    choices = _owner_choices(args, choices)
-    choices = _research_choices(args, choices)
-
-    def discover_worker_models(harness, role=None):
-        nonlocal prepared
-        if not prepared:
-            _prepare_foreman(application, connection, args)
-            prepared = True
-        if role is not None:
-            from forgetful_factory.adapters.filesystem.resource_files import check_real_path
-
-            directory = workspace / '.factory/agents' / role.replace('_', '-')
-            check_real_path(directory)
-            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-            return application.profile.list_models(connection, harness=harness, cwd=directory)
-        catalogs = [set(application.profile.list_models(
-            connection, harness=harness, cwd=Path(repository.local_dir)))
-            for repository in config.repository]
-        return sorted(set.intersection(*catalogs))
-
-    choices = _worker_choices(args, choices, discover_worker_models)
-    validate_initial_agents(choices)
-    config = replace(config, execution_enabled=choices.execution_enabled, forgetful=connection)
-    def validate_model():
-        nonlocal connection, config
-        if args.foreman_model is not None:
-            _prepare_foreman(application, connection, args, prepared=prepared)
-            _select_model(application, connection, home, choices.foreman_agent_model,
-                          choices.feature_owner_agent_model)
-
-        if connection.project_id is None:
-            project_id = _select_project(application, connection, workspace)
-            connection = replace(connection, project_id=project_id)
-            config = replace(config, forgetful=connection)
-        if config.execution_enabled:
-            print('Checking worker model catalogs using the selected native apps/accounts. '
-                  'Listing may read native settings, credentials and network catalogs; '
-                  'it does not verify model access or model-specific effort support.')
-        application.profile.prepare_roles(config, choices)
-        return config
-    for message in application.initialise(config, before_writes=validate_model):
-        print(message)
-    if args.assisted:
-        return _launch_setup_foreman(application, config, workspace, args)
-    _complete_setup(application, config, workspace, login=args.login, initial=True)
-    print('\nFactory setup complete.')
-    return 0
+    if config is not None:
+        return _finish_existing_setup(application, config, args, workspace)
+    return _start_initial_setup(application, args, workspace, paths)
 
 
 def _launch_setup_foreman(application, config, workspace, args):
