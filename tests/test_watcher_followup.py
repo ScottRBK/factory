@@ -21,7 +21,7 @@ class FollowupFixture(PlanningWatchFixture):
     git_fault = setup_repair.ForemanSetupRepairTests.git_fault
     repair_git = setup_repair.ForemanSetupRepairTests.repair_git
 
-    def state(self):
+    def _state(self):
         path = self.workspace / '.factory/fixture-plans.json'
         return json.loads(path.read_text()) if path.exists() else dict(plans=[], tasks=[], calls=[])
 
@@ -44,8 +44,8 @@ class PendingEligibilityTests(FollowupFixture):
         self.wait_until(process, lambda: self.polls() >= observed + 4)
         # Assert: stale data may discover saved work, but cannot authorize fresh scaffolding.
         self.assertIsNone(process.poll())
-        self.assertEqual(self.state()['plans'], [])
-        self.assertEqual(self.state()['tasks'], [])
+        self.assertEqual(self._state()['plans'], [])
+        self.assertEqual(self._state()['tasks'], [])
         self.assertEqual(self._messages(), [])
         # Act: eligible work may return with a new revision, alongside genuinely new work.
         self.script({'team/app': [[[self.issue(1, updated_at='eligible-again'), self.issue(2)]]]})
@@ -54,7 +54,7 @@ class PendingEligibilityTests(FollowupFixture):
         self.assertEqual(code, 130, errors)
         self.assertEqual([(m['id'], m['revision']) for m in self._messages()], [
             ('github:team/app#1', 'eligible-again'), ('github:team/app#2', '')])
-        self.assertEqual(sum(c[0] == 'create_plan' for c in self.state()['calls']), 2)
+        self.assertEqual(sum(c[0] == 'create_plan' for c in self._state()['calls']), 2)
 
     def test_closed_pending_lookup_drops_without_create_and_reopen_keeps_latest_revision(self):
         self.assert_ineligible_pending_is_not_created(state='closed')
@@ -76,7 +76,7 @@ class PendingEligibilityTests(FollowupFixture):
         self.wait_until(process, lambda: any(a['code'] == 'setup_incomplete'
                                             for a in self.alerts()))
         self.assertEqual(self.alerts()[-1]['plan_id'], plan['id'])
-        self.assertEqual(self.state()['tasks'], [])
+        self.assertEqual(self._state()['tasks'], [])
         owner = self.native_owner(plan['id'])
         self.wait_until(process, lambda: len(self._messages()) == 1)
         self.assertEqual(self.stop(process)[0], 130)
@@ -142,8 +142,8 @@ class OwnershipReconciliationTests(FollowupFixture):
         for field in ('workspace', 'external_ref', 'worktrees', 'notes', 'links'):
             self.assertEqual(json.loads(repaired['description'])[field], record[field])
         self.assertIn('Keep my edits.', skill.read_text())
-        self.assertEqual(self.state()['plans'], [plan])
-        self.assertEqual(len(self.state()['tasks']), 2)
+        self.assertEqual(self._state()['plans'], [plan])
+        self.assertEqual(len(self._state()['tasks']), 2)
 
     def test_approved_retirement_accepts_first_candidate_when_no_owner_was_confirmed(self):
         self.assert_either_unconfirmed_survivor(keep_second=False)
@@ -197,7 +197,7 @@ class RepositoryPreflightTests(FollowupFixture):
         self.assertEqual(self.alerts()[0]['scope'], 'repository')
         self.assertNotIn('plan_id', self.alerts()[0])
         self.wait_until(process, lambda: bool(self._messages()))
-        self.assertEqual([p['external_ref'] for p in self.state()['plans']],
+        self.assertEqual([p['external_ref'] for p in self._state()['plans']],
                          ['github:team/healthy#3'])
         self.assertEqual(len(self.alerts()), 1)
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
@@ -220,7 +220,7 @@ class RepositoryPreflightTests(FollowupFixture):
         self.assertEqual(self.alerts()[0]['code'], 'repository_origin_changed')
         self.assertNotIn('plan_id', self.alerts()[0])
         self.wait_until(process, lambda: bool(self._messages()))
-        self.assertEqual([p['external_ref'] for p in self.state()['plans']],
+        self.assertEqual([p['external_ref'] for p in self._state()['plans']],
                          ['github:team/healthy#3'])
         self.set_origin('git@github.com:team/app.git')
         self.wait_until(process, lambda: len(self._messages()) == 2)
@@ -235,13 +235,14 @@ class RepositoryPreflightTests(FollowupFixture):
         self.wait_until(process, lambda: bool(self.alerts()) and bool(self._messages()))
         self.assertEqual(self.alerts()[0]['code'], 'worktree_path_conflict')
         self.assertNotIn('plan_id', self.alerts()[0])
-        self.assertEqual([p['external_ref'] for p in self.state()['plans']], ['github:team/app#2'])
+        self.assertEqual([p['external_ref'] for p in self._state()['plans']],
+                         ['github:team/app#2'])
         saved = target.with_name('saved-user-directory')
         target.rename(saved)
         self.wait_until(process, lambda: len(self._messages()) == 2)
         self.assertEqual(self.stop(process)[0], 130)
         self.assertEqual((saved / 'user.txt').read_text(), 'TOP_SECRET preserve data')
-        self.assertEqual(len(self.state()['tasks']), 2)
+        self.assertEqual(len(self._state()['tasks']), 2)
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
 
     def test_unused_existing_branch_is_found_before_plan_and_preserved_on_correction(self):
@@ -251,7 +252,7 @@ class RepositoryPreflightTests(FollowupFixture):
         process = self.start('--existing')
         self.wait_until(process, lambda: bool(self.alerts()))
         self.assertEqual(self.alerts()[0]['code'], 'worktree_branch_conflict')
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         subprocess.run(['git', '-C', str(self.workspace), 'branch', '-m', branch,
                         'preserved-user-branch'], check=True)
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -267,12 +268,12 @@ class RepositoryPreflightTests(FollowupFixture):
         self.assertEqual(self.alerts()[0]['code'], 'worktree_read_failed')
         self.assertNotIn('plan_id', self.alerts()[0])
         self.wait_until(process, lambda: self.polls() >= 4)
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.assertEqual(len(self.alerts()), 1)
         self.repair_git(control)
         self.wait_until(process, lambda: len(self._messages()) == 1)
         self.assertEqual(self.stop(process)[0], 130)
-        self.assertEqual(sum(c[0] == 'create_plan' for c in self.state()['calls']), 1)
+        self.assertEqual(sum(c[0] == 'create_plan' for c in self._state()['calls']), 1)
 
     def test_backend_read_episode_clears_even_when_fresh_path_is_still_blocked(self):
         target = self.workspace / '.factory/worktrees/team-app-1'
@@ -291,7 +292,7 @@ class RepositoryPreflightTests(FollowupFixture):
         observed = self.polls()
         self.wait_until(process, lambda: self.polls() >= observed + 3)
         self.assertEqual(sum(a['code'] == 'recovery_read_failed' for a in self.alerts()), 2)
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.fault()
         target.rmdir()
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -307,14 +308,14 @@ class RepositoryPreflightTests(FollowupFixture):
         self.wait_until(process, lambda: bool(self.alerts()))
         self.assertEqual(self.alerts()[0]['code'], 'repository_source_mismatch')
         self.assertIsNone(process.poll())
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.assertEqual(self._messages(), [])
         # Updating the file cannot change this running watcher's configuration snapshot.
         config.write_text(config.read_text().replace(wrong, 'git@github.com:team/app.git'))
         self.set_origin('git@github.com:team/app.git')
         observed = self.polls()
         self.wait_until(process, lambda: self.polls() >= observed + 3)
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.assertEqual(self._messages(), [])
         self.assertEqual(self.stop(process)[0], 130)
         self.terminal_log.unlink()
@@ -332,7 +333,7 @@ class RepositoryPreflightTests(FollowupFixture):
         self.script({'team/app': [[[self.issue(1, labels=('factory', 'epic'))]]]})
         process = self.start('--existing')
         self.wait_until(process, lambda: bool(self.alerts()))
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.set_origin('git@github.com:team/app.git')
         self.wait_until(process, lambda: len(self._messages()) == 1)
         self.assertEqual(self.stop(process)[0], 130)
@@ -347,7 +348,7 @@ class RepositoryPreflightTests(FollowupFixture):
         self.wait_until(process, lambda: bool(self.alerts()))
         self.assertEqual(self.alerts()[0]['code'], 'repository_read_failed')
         self.wait_until(process, lambda: self.polls() >= 4)
-        self.assertEqual(self.state()['plans'], [])
+        self.assertEqual(self._state()['plans'], [])
         self.assertEqual(len(self.alerts()), 1)
         self.repair_git(control)
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -365,7 +366,8 @@ class RepositoryPreflightTests(FollowupFixture):
         self.wait_until(process, lambda: bool(self.alerts()))
         self.assertEqual(self.alerts()[0]['code'], 'repository_read_failed')
         self.wait_until(process, lambda: len(self._messages()) == 1)
-        self.assertEqual([p['external_ref'] for p in self.state()['plans']], ['github:team/app#1'])
+        self.assertEqual([p['external_ref'] for p in self._state()['plans']],
+                         ['github:team/app#1'])
         repository.unlink()  # Remove only this fixture's loop, preserving the real Git directory.
         saved.rename(repository)
         self.wait_until(process, lambda: len(self._messages()) == 2)
@@ -391,13 +393,15 @@ class RepositoryPreflightTests(FollowupFixture):
         first = self.alerts()[0]
         self.assertEqual(first['code'], 'setup_incomplete')
         self.assertEqual(first.get('cause'), 'repository_origin_changed')
-        self.assertEqual(len(self.state()['plans']), 1, 'Fault must follow the actual plan write')
+        self.assertEqual(len(self._state()['plans']), 1,
+                         'Fault must follow the actual plan write')
         plan_id = first['plan_id']
-        self.assertEqual(self.state()['tasks'], [])
+        self.assertEqual(self._state()['tasks'], [])
         command.write_text(original)
         self.set_origin('git@github.com:team/app.git')
         self.wait_until(process, lambda: self.polls() >= 4)
-        self.assertEqual(self.state()['tasks'], [], 'Saved setup cannot automatically complete')
+        self.assertEqual(self._state()['tasks'], [],
+                         'Saved setup cannot automatically complete')
         self.assertFalse((self.workspace / '.factory/worktrees/team-app-1').exists())
         owner = self.native_owner(plan_id)
         self.wait_until(process, lambda: len(self._messages()) == 1)

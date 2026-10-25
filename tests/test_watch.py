@@ -245,7 +245,7 @@ class WatchFixture(unittest.TestCase):
             return []
         return [json.loads(line) for line in self.terminal_log.read_text().splitlines()]
 
-    def issue_events(self):
+    def _issue_events(self):
         return [e for e in self.events() if e['kind'] == 'send'
                 and e['text'].startswith('Factory issue notification.')]
 
@@ -451,13 +451,13 @@ class WatchCliTests(WatchFixture):
                      'team/healthy': [[[]], [[self.issue(3)]], [[self.issue(3)]]]})
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.issue_events()) == 2)
+        self.wait_until(process, lambda: len(self._issue_events()) == 2)
         code, _, stderr = self.stop(process)
         # Assert
         self.assertEqual(code, 130, stderr)
         self.assertIn('HTTP 503', stderr)
         self.assertIn('retry', stderr.lower())
-        sent = [e['text'] for e in self.issue_events()]
+        sent = [e['text'] for e in self._issue_events()]
         self.assertEqual(len(sent), 2)
         self.assertIn('github:team/healthy#3', sent[0])
         self.assertIn('github:team/app#2', sent[1])
@@ -474,13 +474,13 @@ class WatchCliTests(WatchFixture):
                 self.script({'team/app': [malformed, [[self.issue(10)]]]})
                 # Act
                 process = self.start('--existing')
-                self.wait_until(process, lambda: len(self.issue_events()) == 1)
+                self.wait_until(process, lambda: len(self._issue_events()) == 1)
                 code, _, stderr = self.stop(process)
                 # Assert
                 self.assertEqual(code, 130, stderr)
                 self.assertIn('malformed', stderr.lower())
                 self.assertNotIn('Traceback', stderr)
-                self.assertEqual(len(self.issue_events()), 1)
+                self.assertEqual(len(self._issue_events()), 1)
                 self.assertEqual(sum(e['kind'] == 'send' for e in self.events()), 2)
 
     def test_invalid_watch_options_and_providers_fail_before_pi_or_github(self):
@@ -691,11 +691,11 @@ class WatchCliTests(WatchFixture):
         self.script({'team/app': ['HTTP 503 \x1b[31m untrusted', [[self.issue(title=title)]]]})
         # Act
         process = self.start('--existing')
-        self.wait_until(process, lambda: len(self.issue_events()) == 1)
+        self.wait_until(process, lambda: len(self._issue_events()) == 1)
         code, stdout, stderr = self.stop(process)
         # Assert
         self.assertEqual(code, 130, stderr)
-        sent = self.issue_events()[0]['text']
+        sent = self._issue_events()[0]['text']
         self.assertTrue(sent.startswith('Factory issue notification.'))
         self.assertIn('External issue data', sent)
         self.assertNotIn('\n', sent)
