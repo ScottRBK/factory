@@ -5,6 +5,7 @@ import os
 import selectors
 import signal
 import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -65,9 +66,9 @@ def transfer_controller_handle():
         error = ctypes.get_errno()
         raise OSError(error, os.strerror(error))
     try:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as channel:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
             channel.connect(path)
-            channel.sendmsg([str(os.getpid()).encode()],
+            channel.sendmsg([json.dumps({'pid': os.getpid()}).encode()],
                             [(socket.SOL_SOCKET, socket.SCM_RIGHTS,
                               array.array('i', [descriptor]))])
     finally:
@@ -193,9 +194,10 @@ class WatchFixture(unittest.TestCase):
         self.state_path = self.workspace / 'gh.json'
         self.terminal_log = self.workspace / 'terminal.jsonl'
         self.state_path.write_text(json.dumps({'sources': {'team/app': [[[]]]}}))
-        self.controller_handles = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        self.controller_handles = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         controller_handle_path = self.workspace / 'controller-handles.sock'
         self.controller_handles.bind(str(controller_handle_path))
+        self.controller_handles.listen()
         self.controller_handles.setblocking(False)
         self.controller_descriptors: list[int] = []
         self.addCleanup(self._close_controller_handles)
@@ -300,49 +302,128 @@ class WatchFixture(unittest.TestCase):
     def cleanup_process(self, process):
         if process.poll() is None:
             process.kill()
+        timeout_error = None
+        diagnostic = None
+        stream_cleanup_errors = []
+        owned_cleanup_error = None
         try:
-            process.wait(timeout=5)
+            process.communicate(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            timeout_error = error
+            try:
+                diagnostic = self._shutdown_diagnostic(process, error)
+            except Exception as diagnostic_error:
+                diagnostic = {'diagnostic_error': repr(diagnostic_error)}
         finally:
             for stream in (process.stdin, process.stdout, process.stderr):
                 if stream is not None:
-                    stream.close()
+                    try:
+                        stream.close()
+                    except Exception as error:
+                        stream_cleanup_errors.append(error)
+            if timeout_error is not None:
+                try:
+                    self._close_controller_handles()
+                except Exception as error:
+                    owned_cleanup_error = repr(error)
+        if timeout_error is not None:
+            raise AssertionError(
+                'Watcher fixture cleanup could not drain pipes: '
+                f'{diagnostic}; stream_cleanup_errors={stream_cleanup_errors!r}; '
+                f'owned_cleanup_error={owned_cleanup_error}') from timeout_error
+        if stream_cleanup_errors:
+            raise AssertionError('Watcher fixture stream cleanup failed') \
+                from stream_cleanup_errors[0]
 
     def _collect_controller_handles(self):
+        if self.controller_handles is None:
+            return
         while True:
             try:
-                data, controls, flags, _ = self.controller_handles.recvmsg(
-                    1024, socket.CMSG_SPACE(4))
+                connection, _ = self.controller_handles.accept()
             except BlockingIOError:
                 return
-            self.assertFalse(flags & socket.MSG_CTRUNC)
             descriptors = array.array('i')
-            for level, kind, payload in controls:
-                if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
-                    descriptors.frombytes(payload)
-            self.assertEqual(len(descriptors), 1)
-            descriptor = descriptors[0]
-            with open(f'/proc/self/fdinfo/{descriptor}') as stream:
-                identity = dict(line.split(':', 1) for line in stream if ':' in line)
-            self.assertEqual(os.readlink(f'/proc/self/fd/{descriptor}'), 'anon_inode:[pidfd]')
-            if int(identity['Pid']) != -1:
-                self.assertEqual(int(identity['Pid']), int(data))
-            self.controller_descriptors.append(descriptor)
+            retained = None
+            validation_error = None
+            try:
+                with connection:
+                    credentials = connection.getsockopt(
+                        socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+                    peer_pid, peer_uid, _ = struct.unpack('3i', credentials)
+                    data, controls, flags, _ = connection.recvmsg(
+                        1024, socket.CMSG_SPACE(4))
+                for level, kind, payload in controls:
+                    if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
+                        descriptors.frombytes(payload[:len(payload) - len(payload) % 4])
+                self.assertFalse(flags & socket.MSG_CTRUNC)
+                self.assertEqual(len(descriptors), 1)
+                self.assertEqual(peer_uid, os.getuid())
+                self.assertEqual(json.loads(data)['pid'], peer_pid)
+                descriptor = descriptors[0]
+                self.assertEqual(
+                    os.readlink(f'/proc/self/fd/{descriptor}'), 'anon_inode:[pidfd]')
+                with open(f'/proc/self/fdinfo/{descriptor}') as stream:
+                    identity = dict(line.split(':', 1) for line in stream if ':' in line)
+                pidfd_pid = int(identity['Pid'])
+                if pidfd_pid == -1:
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(descriptor, selectors.EVENT_READ)
+                        self.assertTrue(selector.select(0), 'Exited pidfd was not readable')
+                else:
+                    self.assertEqual(pidfd_pid, peer_pid)
+                    retained = descriptor
+                    self.controller_descriptors.append(descriptor)
+            except Exception as error:
+                validation_error = error
+            close_errors = []
+            for descriptor in descriptors:
+                if descriptor != retained:
+                    try:
+                        os.close(descriptor)
+                    except OSError as error:
+                        close_errors.append(error)
+            if validation_error is not None:
+                raise validation_error
+            if close_errors:
+                raise AssertionError('Could not close rejected controller handles') \
+                    from close_errors[0]
 
     def _close_controller_handles(self):
         from lifecycle_support import pidfd_send_signal
 
-        self._collect_controller_handles()
+        failures = []
+        try:
+            self._collect_controller_handles()
+        except Exception as error:
+            failures.append(error)
         for descriptor in self.controller_descriptors:
             try:
                 with selectors.DefaultSelector() as selector:
                     selector.register(descriptor, selectors.EVENT_READ)
                     if not selector.select(0):
                         pidfd_send_signal(descriptor, signal.SIGKILL)
-                        self.assertTrue(selector.select(5), 'Diagnostic controller survived')
+                        if not selector.select(5):
+                            failures.append(AssertionError(
+                                'Diagnostic controller survived cleanup'))
+            except Exception as error:
+                failures.append(error)
             finally:
-                os.close(descriptor)
+                try:
+                    os.close(descriptor)
+                except OSError as error:
+                    failures.append(error)
         self.controller_descriptors.clear()
-        self.controller_handles.close()
+        if self.controller_handles is not None:
+            try:
+                self.controller_handles.close()
+            except Exception as error:
+                failures.append(error)
+            self.controller_handles = None
+        if failures:
+            raise AssertionError(
+                'Controller handle cleanup failed: '
+                + '; '.join(repr(error) for error in failures)) from failures[0]
 
     def wait_until(self, process, predicate, timeout=5):
         deadline = time.monotonic() + timeout
@@ -357,26 +438,27 @@ class WatchFixture(unittest.TestCase):
             time.sleep(0.02)
         self.fail(f'Watch did not reach expected state; terminal events: {self.events()}')
 
+    def _shutdown_diagnostic(self, process, error):
+        self._collect_controller_handles()
+        with selectors.DefaultSelector() as selector:
+            for descriptor in self.controller_descriptors:
+                selector.register(descriptor, selectors.EVENT_READ)
+            ready = {key.fd for key, _ in selector.select(0)}
+        return {
+            'root_poll': process.poll(),
+            'partial_stdout': str(error.stdout),
+            'partial_stderr': str(error.stderr),
+            'events': self.events(),
+            'controller_exited': [descriptor in ready
+                                  for descriptor in self.controller_descriptors],
+        }
+
     def stop(self, process, sig=signal.SIGINT):
         process.send_signal(sig)
         try:
             stdout, stderr = process.communicate(timeout=15)
         except subprocess.TimeoutExpired as error:
-            self._collect_controller_handles()
-            controller_exited = []
-            with selectors.DefaultSelector() as selector:
-                for descriptor in self.controller_descriptors:
-                    selector.register(descriptor, selectors.EVENT_READ)
-                ready = {key.fd for key, _ in selector.select(0)}
-                controller_exited = [descriptor in ready
-                                     for descriptor in self.controller_descriptors]
-            diagnostic = {
-                'root_poll': process.poll(),
-                'partial_stdout': str(error.stdout),
-                'partial_stderr': str(error.stderr),
-                'events': self.events(),
-                'controller_exited': controller_exited,
-            }
+            diagnostic = self._shutdown_diagnostic(process, error)
             raise AssertionError(
                 f'Watcher shutdown timed out before fixture cleanup: {diagnostic}') from error
         return process.returncode, stdout, stderr
