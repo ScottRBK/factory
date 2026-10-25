@@ -112,9 +112,9 @@ class ScaffoldIssue:
             return []
         repository = self._repository(issue.source)
         name = issue.source.reference.replace('/', '-') + f'-{issue.number}'
-        return [dict(repository=issue.source.reference, local_dir=repository.local_dir,
-                     branch=f'factory/{name}',
-                     path=str(self.workspace / '.factory/worktrees' / name))]
+        return [{'repository': issue.source.reference, 'local_dir': repository.local_dir,
+                 'branch': f'factory/{name}',
+                 'path': str(self.workspace / '.factory/worktrees' / name)}]
 
     def preflight(self, issue: Issue) -> None:
         self.check_repository(self._repository(issue.source))
@@ -132,12 +132,22 @@ class ScaffoldIssue:
         context = self._context(plan)
         if not self._active(plan):
             return None
-        tasks = self._ownership(plan['id'], issue.id)
+        tasks, mappings = self._setup_ownership(plan['id'], issue, context)
+        self._ensure_setup_worktrees(mappings, tasks)
+        if not tasks:
+            tasks = self._create_ownership(plan['id'], issue.id, context, mappings)
+        task = tasks[0]
+        return {'plan_id': plan['id'], 'ownership_task_id': task['id'], 'worktrees': mappings,
+                'epic': issue.epic, 'repositories': [asdict(r) for r in self.config.repository]}
+
+    def _setup_ownership(self, plan_id: int, issue: Issue,
+                         context: dict) -> tuple[list[dict], list[dict]]:
+        tasks = self._ownership(plan_id, issue.id)
         if len(tasks) > 1:
-            raise ScaffoldProblem('ownership_ambiguous',
-                                  f'Ambiguous ownership for plan {plan["id"]}; '
-                                  'reconcile duplicates.',
-                                  candidate_task_ids=tuple(sorted(task['id'] for task in tasks)))
+            raise ScaffoldProblem(
+                'ownership_ambiguous',
+                f'Ambiguous ownership for plan {plan_id}; reconcile duplicates.',
+                candidate_task_ids=tuple(sorted(task['id'] for task in tasks)))
         if not tasks and context.get('ownership_create_started'):
             raise UncertainScaffold(
                 'ownership_create_uncertain',
@@ -146,40 +156,44 @@ class ScaffoldIssue:
                 'ownership_create_started in the plan context. No retry was made.')
         mappings = (json.loads(tasks[0]['description'])['worktrees'] if tasks
                     else self._initial_mappings(issue))
+        return tasks, mappings
+
+    def _ensure_setup_worktrees(self, mappings: list[dict], tasks: list[dict]) -> None:
+        task_ids = tuple(task['id'] for task in tasks)
         try:
             self._ensure_worktrees(mappings, recorded=bool(tasks))
         except WorktreeReadError as error:
             raise ScaffoldReadProblem('recovery_read_failed', str(error),
-                                      task_ids=tuple(task['id'] for task in tasks)) from error
+                                      task_ids=task_ids) from error
         except ScaffoldProblem as error:
-            error.task_ids = tuple(task['id'] for task in tasks)
+            error.task_ids = task_ids
             if not tasks:
                 error.cause = error.code
                 error.code = 'setup_incomplete'
             raise
-        if not tasks:
-            context['ownership_create_started'] = True
-            self.planning.update_plan(plan['id'], context=json.dumps(context))
-            try:
-                self.planning.create_task(
-                    plan_id=plan['id'], title='Feature ownership',
-                    description=json.dumps({'kind': 'factory-ownership',
-                                            'workspace': str(self.workspace),
-                                            'external_ref': issue.id, 'worktrees': mappings}))
-            except FactoryError:
-                pass
-            try:
-                tasks = self._ownership(plan['id'], issue.id)
-            except FactoryError as error:
-                raise UncertainScaffold('ownership_create_uncertain', str(error)) from error
-            if len(tasks) != 1:
-                raise UncertainScaffold(
-                    'ownership_create_uncertain',
-                    'Ownership creation uncertain; reconcile all plan tasks. '
-                    'The create-intent is saved; no automatic retry is permitted.')
-        task = tasks[0]
-        return {'plan_id': plan['id'], 'ownership_task_id': task['id'], 'worktrees': mappings,
-                'epic': issue.epic, 'repositories': [asdict(r) for r in self.config.repository]}
+
+    def _create_ownership(self, plan_id: int, external_ref: str, context: dict,
+                          mappings: list[dict]) -> list[dict]:
+        context['ownership_create_started'] = True
+        self.planning.update_plan(plan_id, context=json.dumps(context))
+        try:
+            self.planning.create_task(
+                plan_id=plan_id, title='Feature ownership',
+                description=json.dumps({'kind': 'factory-ownership',
+                                        'workspace': str(self.workspace),
+                                        'external_ref': external_ref, 'worktrees': mappings}))
+        except FactoryError:
+            pass
+        try:
+            tasks = self._ownership(plan_id, external_ref)
+        except FactoryError as error:
+            raise UncertainScaffold('ownership_create_uncertain', str(error)) from error
+        if len(tasks) != 1:
+            raise UncertainScaffold(
+                'ownership_create_uncertain',
+                'Ownership creation uncertain; reconcile all plan tasks. '
+                'The create-intent is saved; no automatic retry is permitted.')
+        return tasks
 
     def lookup(self, issue: Issue) -> int | None:
         """Read-only identity lookup; no create has been attempted on this path."""
@@ -235,21 +249,7 @@ class ScaffoldIssue:
                 task_ids: tuple[int, ...] | None = None) -> tuple[Issue, dict] | None:
         """Read known identities only. Missing records never fall back to scaffolding."""
         try:
-            matches = self.planning.plans(external_ref)
-            if len(matches) > 1:
-                raise ScaffoldProblem('plan_ambiguous',
-                                      'Multiple plans match this issue; reconcile duplicates.',
-                                      plan_ids=tuple(sorted(plan['id'] for plan in matches)))
-            if len(matches) != 1 or matches[0]['id'] != plan_id:
-                raise ScaffoldProblem('plan_identity_changed',
-                                      'Saved plan is missing or replaced; reconcile it.')
-            plan = self.planning.get_plan(plan_id)
-            if plan.get('id') != plan_id or plan.get('external_ref') != external_ref:
-                raise ScaffoldProblem('plan_identity_changed',
-                                      'Saved plan identity changed; reconcile it.')
-            if plan.get('project_id') != self.config.forgetful.project_id:
-                raise ScaffoldProblem('plan_project_mismatch',
-                                      'Saved plan belongs to another project; reconcile it.')
+            plan = self._recovery_plan(plan_id, external_ref)
             context = self._context(plan)
             if not self._active(plan):
                 return None
@@ -257,30 +257,15 @@ class ScaffoldIssue:
             self.check_repository(self._repository(snapshot.source))
             owners = self._ownership(plan_id, external_ref)
             current_ids = tuple(sorted(task['id'] for task in owners))
-            if task_ids and current_ids != task_ids:
-                raise ScaffoldProblem('ownership_identity_changed',
-                                      'Saved ownership is missing or replaced; reconcile it.',
-                                      candidate_task_ids=current_ids)
-            if len(owners) > 1:
-                raise ScaffoldProblem('ownership_ambiguous',
-                                      'Multiple valid ownership candidates need reconciliation.',
-                                      candidate_task_ids=current_ids)
+            self._validate_recovery_candidates(owners, current_ids, task_ids)
             task_ids = current_ids
-            if len(owners) != 1:
-                if not owners and context.get('ownership_create_started'):
-                    raise UncertainScaffold(
-                        'ownership_create_uncertain',
-                        'Ownership creation uncertain; inspect all plan tasks and confirm the '
-                        'earlier request stopped before explicitly reconciling '
-                        'ownership_create_started in the plan context. No retry was made.')
-                code = 'ownership_ambiguous' if owners else 'setup_incomplete'
-                raise ScaffoldProblem(code,
-                                      'Saved ownership is missing or ambiguous; reconcile it.')
-            mappings = json.loads(owners[0]['description'])['worktrees']
+            owner = self._sole_recovery_owner(owners, context)
+            mappings = json.loads(owner['description'])['worktrees']
             self._ensure_worktrees(mappings, recorded=True)
-            return issue or snapshot, {
-                'plan_id': plan_id, 'ownership_task_id': owners[0]['id'],
-                'worktrees': mappings, 'epic': (issue or snapshot).epic,
+            recovered_issue = issue or snapshot
+            return recovered_issue, {
+                'plan_id': plan_id, 'ownership_task_id': owner['id'],
+                'worktrees': mappings, 'epic': recovered_issue.epic,
                 'repositories': [asdict(r) for r in self.config.repository]}
         except ScaffoldProblem as error:
             error.plan_id = plan_id
@@ -291,6 +276,49 @@ class ScaffoldIssue:
             # Every recovery operation is read-only, including mapping/Git revalidation.
             raise ScaffoldReadProblem('recovery_read_failed', str(error), plan_id=plan_id,
                                       task_ids=task_ids) from error
+
+    def _recovery_plan(self, plan_id: int, external_ref: str) -> dict:
+        matches = self.planning.plans(external_ref)
+        if len(matches) > 1:
+            raise ScaffoldProblem('plan_ambiguous',
+                                  'Multiple plans match this issue; reconcile duplicates.',
+                                  plan_ids=tuple(sorted(plan['id'] for plan in matches)))
+        if len(matches) != 1 or matches[0]['id'] != plan_id:
+            raise ScaffoldProblem('plan_identity_changed',
+                                  'Saved plan is missing or replaced; reconcile it.')
+        plan = self.planning.get_plan(plan_id)
+        if plan.get('id') != plan_id or plan.get('external_ref') != external_ref:
+            raise ScaffoldProblem('plan_identity_changed',
+                                  'Saved plan identity changed; reconcile it.')
+        if plan.get('project_id') != self.config.forgetful.project_id:
+            raise ScaffoldProblem('plan_project_mismatch',
+                                  'Saved plan belongs to another project; reconcile it.')
+        return plan
+
+    @staticmethod
+    def _validate_recovery_candidates(owners: list[dict], current_ids: tuple[int, ...],
+                                      known_ids: tuple[int, ...] | None) -> None:
+        if known_ids and current_ids != known_ids:
+            raise ScaffoldProblem('ownership_identity_changed',
+                                  'Saved ownership is missing or replaced; reconcile it.',
+                                  candidate_task_ids=current_ids)
+        if len(owners) > 1:
+            raise ScaffoldProblem('ownership_ambiguous',
+                                  'Multiple valid ownership candidates need reconciliation.',
+                                  candidate_task_ids=current_ids)
+
+    @staticmethod
+    def _sole_recovery_owner(owners: list[dict], context: dict) -> dict:
+        if owners:
+            return owners[0]
+        if context.get('ownership_create_started'):
+            raise UncertainScaffold(
+                'ownership_create_uncertain',
+                'Ownership creation uncertain; inspect all plan tasks and confirm the '
+                'earlier request stopped before explicitly reconciling '
+                'ownership_create_started in the plan context. No retry was made.')
+        raise ScaffoldProblem('setup_incomplete',
+                              'Saved ownership is missing or ambiguous; reconcile it.')
 
     def _snapshot(self, context: dict, external_ref: str) -> Issue:
         try:
@@ -373,29 +401,44 @@ class ScaffoldIssue:
     def _ensure_worktrees(self, mappings: list[dict], *, recorded: bool) -> None:
         seen = set()
         for mapping in mappings:
-            try:
-                if not isinstance(mapping, dict) or any(
-                        not isinstance(mapping.get(key), str) or not mapping[key]
-                        for key in ('repository', 'local_dir', 'branch', 'path')):
-                    raise ValueError('Incomplete mapping')
-                if not Path(mapping['path']).is_absolute() or mapping['path'] in seen:
-                    raise ValueError('Invalid or duplicate path')
-                seen.add(mapping['path'])
-                repository = next(r for r in self.config.repository
-                                  if r.local_dir == mapping['local_dir'] and
-                                  r.work_source.reference.casefold() == mapping['repository'])
-            except (ValueError, StopIteration) as error:
-                raise ScaffoldProblem(
-                    'mapping_invalid', 'Invalid ownership worktree mapping; reconcile it with the '
-                    'configured repositories; work is preserved.') from error
-            try:
-                self._ensure_mapping(repository, mapping, recorded=recorded)
-            except ScaffoldProblem as error:
-                error.paths = (mapping['path'],)
-                raise
-            except WorktreeProblem as error:
-                raise ScaffoldProblem(error.code, str(error),
-                                      paths=error.paths or (mapping['path'],)) from error
+            repository = self._mapping_repository(mapping, seen)
+            self._ensure_validated_mapping(repository, mapping, recorded=recorded)
+
+    def _mapping_repository(self, mapping: dict, seen: set[str]) -> RepositoryReference:
+        try:
+            if not isinstance(mapping, dict):
+                raise ValueError('Mapping is not an object')
+            repository_name = mapping.get('repository')
+            local_dir = mapping.get('local_dir')
+            branch = mapping.get('branch')
+            path = mapping.get('path')
+            if (not isinstance(repository_name, str) or not repository_name
+                    or not isinstance(local_dir, str) or not local_dir
+                    or not isinstance(branch, str) or not branch
+                    or not isinstance(path, str) or not path):
+                raise ValueError('Incomplete mapping')
+            if not Path(path).is_absolute() or path in seen:
+                raise ValueError('Invalid or duplicate path')
+            repository = next(r for r in self.config.repository
+                              if r.local_dir == local_dir and
+                              r.work_source.reference.casefold() == repository_name)
+        except (ValueError, StopIteration) as error:
+            raise ScaffoldProblem(
+                'mapping_invalid', 'Invalid ownership worktree mapping; reconcile it with the '
+                'configured repositories; work is preserved.') from error
+        seen.add(path)
+        return repository
+
+    def _ensure_validated_mapping(self, repository: RepositoryReference, mapping: dict, *,
+                                  recorded: bool) -> None:
+        try:
+            self._ensure_mapping(repository, mapping, recorded=recorded)
+        except ScaffoldProblem as error:
+            error.paths = (mapping['path'],)
+            raise
+        except WorktreeProblem as error:
+            raise ScaffoldProblem(error.code, str(error),
+                                  paths=error.paths or (mapping['path'],)) from error
 
     def _ensure_mapping(self, repository, mapping: dict, *, recorded: bool) -> None:
         self._check_source(repository)
