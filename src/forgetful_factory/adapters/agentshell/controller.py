@@ -7,7 +7,7 @@ import os
 import select
 import signal
 import sys
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
 
 async def ready(session) -> None:
@@ -117,125 +117,165 @@ async def resume_exit_observation(session) -> int:
 
 def runtime():
     try:
-        from agent_shell.models.agent import AgentType
-        from agent_shell.models.resources import SessionResources
-        from agent_shell.shell import AgentShell
-        from agent_shell.tmux import TmuxExecutionHost, TmuxPlacement
+        from agent_shell.models.agent import AgentType as agent_type
+        from agent_shell.models.resources import SessionResources as session_resources
+        from agent_shell.shell import AgentShell as agent_shell
+        from agent_shell.tmux import TmuxExecutionHost as tmux_execution_host
+        from agent_shell.tmux import TmuxPlacement as tmux_placement
     except ImportError as error:
         raise RuntimeError('Select --agentshell-python pointing to an installed interpreter '
                            'with AgentShell 0.5 SessionResources and interactive tmux support: '
                            f'{error}') from error
-    if not callable(getattr(AgentShell, 'open_interactive', None)):
+    if not callable(getattr(agent_shell, 'open_interactive', None)):
         raise RuntimeError('AgentShell lacks open_interactive. Select --agentshell-python '
                            'pointing to an already installed compatible interpreter.')
-    return AgentType, SessionResources, AgentShell, TmuxExecutionHost, TmuxPlacement
+    return agent_type, session_resources, agent_shell, tmux_execution_host, tmux_placement
 
 
-async def serve(reader, config, reply, opened) -> None:
+@dataclass
+class SessionState:
+    session: object | None = None
+    worker: int | None = None
+    worker_error: str | None = None
+    cleanup_known: bool = True
+
+
+def validate_launch_config(config) -> None:
     if (not isinstance(config, dict)
             or any(not isinstance(config.get(key), str)
                    for key in ('cwd', 'model', 'effort', 'session_name'))
             or not isinstance(config.get('resources'), dict)
             or not isinstance(config.get('prompt'), (str, type(None)))):
         raise ValueError('Invalid Foreman launch configuration.')
-    AgentType, SessionResources, AgentShell, TmuxExecutionHost, TmuxPlacement = runtime()
 
-    shell = AgentShell(agent_type=AgentType.PI, execution_host=TmuxExecutionHost(
-        TmuxPlacement.new_session(config['session_name'])))
-    session = None
-    worker = None
-    worker_error = None
-    tasks = []
-    cleanup_known = True
+
+def build_shell(config):
+    agent_type, session_resources, agent_shell, execution_host, placement = runtime()
+    shell = agent_shell(agent_type=agent_type.PI, execution_host=execution_host(
+        placement.new_session(config['session_name'])))
+    return shell, session_resources
+
+
+async def open_session(state, shell, resources_type, config, reply, opened) -> None:
     try:
-        try:
-            async with asyncio.timeout(30):
-                resources = SessionResources(**config['resources'])
-                session = await shell.open_interactive(
-                    config['cwd'], model=config['model'], effort=config['effort'],
-                    resources=resources, prompt=config['prompt'],
-                )
-                if config.get('report_target'):
-                    try:
-                        worker = await pin_worker(session.terminal.target)
-                    except Exception as error:
-                        worker_error = ('Native worker lifetime unavailable; exit remains '
-                                        f'uncertain: {str(error) or type(error).__name__}')
-                        print(worker_error, file=sys.stderr, flush=True)
-                    reply({'kind': 'launched', 'target': asdict(session.terminal.target)})
-                opened.set()
-        except TimeoutError as error:
-            raise RuntimeError('AgentShell launch timed out after 30 seconds; '
-                               'check Pi and tmux installations.') from error
-        conversation = asyncio.create_task(interact(
-            session, reader, reply, config['session_name'],
-            persistent=config.get('report_target', False), startup_warning=worker_error))
-        exit_task = asyncio.create_task(session.terminal.wait())
-        tasks = [conversation, exit_task]
-        identity_task = None
+        async with asyncio.timeout(30):
+            resources = resources_type(**config['resources'])
+            state.session = await shell.open_interactive(
+                config['cwd'], model=config['model'], effort=config['effort'],
+                resources=resources, prompt=config['prompt'],
+            )
+            if config.get('report_target'):
+                await capture_worker(state, reply)
+            opened.set()
+    except TimeoutError as error:
+        raise RuntimeError('AgentShell launch timed out after 30 seconds; '
+                           'check Pi and tmux installations.') from error
+
+
+async def capture_worker(state, reply) -> None:
+    try:
+        state.worker = await pin_worker(state.session.terminal.target)
+    except Exception as error:
+        state.worker_error = ('Native worker lifetime unavailable; exit remains '
+                              f'uncertain: {str(error) or type(error).__name__}')
+        print(state.worker_error, file=sys.stderr, flush=True)
+    reply({'kind': 'launched', 'target': asdict(state.session.terminal.target)})
+
+
+async def replace_failed_exit_task(state, exit_task, session, config, reply, failed):
+    error = exit_task.exception()
+    if error is None:
         if config.get('report_target'):
-            identity_task = asyncio.create_task(retain_identity(session, reply))
-            tasks.append(identity_task)
-        lost_worker = None
-        if worker is not None:
-            lost_worker = asyncio.create_task(worker_exited(worker))
-            tasks.append(lost_worker)
-        pending = set(tasks)
-        exit_failed = False
+            reply({'kind': 'exited', 'code': exit_task.result()})
+        raise RuntimeError(f'Pi exited with status {exit_task.result()}; watcher stopped.')
+    state.cleanup_known = False
+    if not config.get('report_target'):
+        raise error
+    if not failed:
+        suffix = f'. {state.worker_error}' if state.worker_error else ''
+        reply({'kind': 'uncertain', 'message':
+               'Foreman exit observation failed; terminal state uncertain: '
+               f'{error}{suffix}'})
+    return asyncio.create_task(resume_exit_observation(session)), True
+
+
+async def cancel_tasks(tasks) -> None:
+    for task in tasks:
+        task.cancel()
+    for task in tasks:
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await task
+
+
+async def supervise_session(state, reader, config, reply) -> None:
+    session = state.session
+    conversation = asyncio.create_task(interact(
+        session, reader, reply, config['session_name'],
+        persistent=config.get('report_target', False), startup_warning=state.worker_error))
+    exit_task = asyncio.create_task(session.terminal.wait())
+    tasks = [conversation, exit_task]
+    identity_task = None
+    if config.get('report_target'):
+        identity_task = asyncio.create_task(retain_identity(session, reply))
+        tasks.append(identity_task)
+    lost_worker = None
+    if state.worker is not None:
+        lost_worker = asyncio.create_task(worker_exited(state.worker))
+        tasks.append(lost_worker)
+    pending = set(tasks)
+    exit_failed = False
+    try:
         while pending:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             if exit_task in done:
-                error = exit_task.exception()
-                if error is not None:
-                    cleanup_known = False
-                    if not config.get('report_target'):
-                        raise error
-                    if not exit_failed:
-                        reply({'kind': 'uncertain', 'message':
-                               'Foreman exit observation failed; terminal state uncertain: '
-                               f'{error}' + (f'. {worker_error}' if worker_error else '')})
-                    exit_failed = True
-                    tasks.remove(exit_task)
-                    exit_task = asyncio.create_task(resume_exit_observation(session))
-                    tasks.append(exit_task)
-                    pending.add(exit_task)
-                else:
-                    if config.get('report_target'):
-                        reply({'kind': 'exited', 'code': exit_task.result()})
-                    raise RuntimeError(f'Pi exited with status {exit_task.result()}; '
-                                       'watcher stopped.')
+                tasks.remove(exit_task)
+                exit_task, exit_failed = await replace_failed_exit_task(
+                    state, exit_task, session, config, reply, exit_failed)
+                tasks.append(exit_task)
+                pending.add(exit_task)
             if lost_worker in done:
                 lost_worker.result()
-                cleanup_known = False
+                state.cleanup_known = False
                 reply({'kind': 'uncertain', 'message':
                        'Original pane worker exited; SDK Pi exit remains unconfirmed.'})
                 break  # Original worker exit permits release, never a confirmed Pi stop.
             if identity_task in done:
-                cleanup_known = False
-                identity_task.result()  # Confirmed mismatch is fatal; unavailable stays uncertain.
-                if worker_error:
-                    reply({'kind': 'uncertain', 'message': worker_error})
+                state.cleanup_known = False
+                identity_task.result()  # Mismatch is fatal; unavailable stays uncertain.
+                if state.worker_error:
+                    reply({'kind': 'uncertain', 'message': state.worker_error})
             if conversation in done:
                 conversation.result()
                 break
     finally:
-        for task in tasks:
-            task.cancel()
-        for task in tasks:
-            with contextlib.suppress(asyncio.CancelledError, Exception):
-                await task
-        if worker is not None:
-            os.close(worker)
-        if session is not None:
-            try:
-                async with asyncio.timeout(8):
-                    await session.close()
-                if config.get('report_target') and cleanup_known:
-                    reply({'kind': 'stopped'})
-            except Exception as error:
-                raise RuntimeError('Pi cleanup failed or timed out; '
-                                   f'check session {config["session_name"]}: '
-                                   f'{str(error) or type(error).__name__}') from error
+        await cancel_tasks(tasks)
+
+
+async def close_session(state, config, reply) -> None:
+    if state.worker is not None:
+        os.close(state.worker)
+    if state.session is None:
+        return
+    try:
+        async with asyncio.timeout(8):
+            await state.session.close()
+        if config.get('report_target') and state.cleanup_known:
+            reply({'kind': 'stopped'})
+    except Exception as error:
+        raise RuntimeError('Pi cleanup failed or timed out; '
+                           f'check session {config["session_name"]}: '
+                           f'{str(error) or type(error).__name__}') from error
+
+
+async def serve(reader, config, reply, opened) -> None:
+    validate_launch_config(config)
+    shell, resources_type = build_shell(config)
+    state = SessionState()
+    try:
+        await open_session(state, shell, resources_type, config, reply, opened)
+        await supervise_session(state, reader, config, reply)
+    finally:
+        await close_session(state, config, reply)
 
 
 async def control(reply) -> None:
