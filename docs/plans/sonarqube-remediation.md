@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: resources and planning/Git merged; three implementation groups and final review remain.
+Status: four groups provisionally merged; watcher, lifecycle follow-up and final checks remain.
 
 ## Scope and baseline
 
@@ -49,6 +49,13 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   SonarQube found two new async-without-await findings, leaving fourteen outstanding overall.
   The agent is correcting those and preserving cleanup guards around partially started resources
   identified during parent inspection. That follow-up needs fresh tests and another scan.
+- CLI/helpers commit `24b517b8739f369ce1734d02c6772fda6011d00f` is provisionally merged. Its eight
+  findings clear in the fourth scan; six findings remain overall. Parent verified final hashes and
+  that test syntax differs only by the three private-helper names, preserving every assertion.
+  Discovery still yields exactly the original 465 test IDs, with none removed or invented.
+  The reported 135/70/36-test selections passed on both Pythons, but their manifests predate the
+  final CLI source bytes. A final-source rerun and explanation are requested; those earlier runs
+  are not being presented as validation of the exact delivered commit.
 - These are partial integration results, not full-suite or final review acceptance. Temporary
   branches/worktrees remain until the complete reviewed result is integrated into the main branch.
 
