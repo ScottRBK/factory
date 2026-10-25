@@ -1,6 +1,7 @@
 # Watcher problem alerts
 
-Status: approved follow-up implemented; full suites pass, SonarQube failed, final review pending.
+Status: watcher follow-up implemented; later SQ refactors and final review are tracked separately.
+The [SQ cleanup](sonarqube-remediation.md) records current combined validation and remaining gates.
 [Decision and boundaries](../adrs/watcher-problems.md).
 
 ## Approved scope

@@ -16,9 +16,10 @@ Deployment and final E2E verification remain planned.
 [Watcher problem alerts](adrs/watcher-problems.md) now pause affected work and notify Foreman rather
 than terminate on planning safety failures. Scott chose user-approved Foreman completion for
 interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
-duplicate-owner and startup/pre-create repository corrections pass 465 tests per Python without
-skips. SonarQube failed its gate and needs triage; final Opus review remains pending. The
-[work record](plans/watcher-problems.md) separates completed validation from remaining gates.
+duplicate-owner and startup/pre-create repository corrections passed their baseline suites.
+The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outstanding findings and
+passes the assigned gate. Combined validation found a Python 3.13 shutdown timeout; investigation
+and final review remain pending. The work records separate completed checks from acceptance.
 
 [Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
 one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.
@@ -150,6 +151,10 @@ import or call graph.
   separate in memory; a later issue edit or read failure must not discard known IDs. A failed pure
   lookup can retry before any write, but finding a saved plan routes to read-only recovery. There
   is no persistent queue or approval ledger; Python does not claim to verify human approval.
+  Private stages now separate repository/access checks, inventory, blocked recovery and source
+  intake. One run-scoped record keeps the distinct maps and flags; a local enum communicates
+  continue/read-pause/manual-pause outcomes. Submission stays outside recoverable-operation
+  exception handlers, so failed delivery still terminates rather than entering a retry loop.
 - Startup checks each configured local repository against its saved origin and provider/source
   mapping after Foreman is ready. Known repository problems pause only affected work and retry
   reads. Fresh intake repeats those checks and inspects its derived path/branch before creating
@@ -252,38 +257,41 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 712; init: line 546; project choice: line 405;
-  numbered choices: line 196; worker setup: line 488; completion/skill folders: line 523;
-  optional manual launch: line 571; standalone Foreman: line 329.
-  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 52.
+- CLI entry: `cli/main.py`, line 765; init: line 572; project choice: line 417;
+  numbered choices: line 198; worker setup: line 534; completion/skill folders: line 549;
+  optional manual launch: line 597; standalone Foreman: line 341.
+  Initial wizard state: line 629; new-setup orchestration: line 701.
+  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 51.
 - Workflows: `application/initialise_factory.py`, line 18;
-  `application/watch_factory.py`, line 32; `application/scaffold_issue.py`, line 47.
+  `application/watch_factory.py`, line 60; private run state: line 39;
+  `application/scaffold_issue.py`, line 47.
   Cleanup validation: `application/scaffold_issue.py`, line 25. Problem types and notification
   formatting: `application/watcher_problems.py`, lines 80 and 112.
   Repository/pre-create checks: `application/scaffold_issue.py`, lines 61 and 119;
-  read-only lookup/recovery: lines 184 and 234.
+  read-only lookup/recovery: lines 198 and 248.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 118;
   project listing/creation: lines 91 and 101.
 - Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
-  `adapters/filesystem/git_worktrees.py`, line 29; inspection: line 30; write boundary: line 72.
+  `adapters/filesystem/git_worktrees.py`, line 32; inspection: line 33; write boundary: line 73.
   Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 16.
-  Owned native-command cancellation: `adapters/sensitive_command.py`, line 12.
+  Owned native-command cancellation: `adapters/sensitive_command.py`, lines 18 and 33.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 48; selected guidance: line 300;
-  consent persistence: line 185;
-  `adapters/filesystem/coordinator_profiles.py`, line 26;
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 49; selected guidance: line 303;
+  consent persistence: line 186;
+  `adapters/filesystem/coordinator_profiles.py`, line 27;
   `adapters/filesystem/worker_profiles.py`, line 15. Starter templates live under `resources/`.
 - Transient wizard choices: `application/initial_agent_choices.py`, line 9.
-  Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 21 and 70.
+  Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `adapters/filesystem/resource_files.py`,
-  lines 18 and 46; selected guidance walk: `adapters/filesystem/selected_skills.py`, line 7.
+  lines 18 and 46; selected guidance walk: `adapters/filesystem/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
-  controller: `adapters/agentshell/controller.py`, line 134; live worker pinning: line 70.
-- Setup lifecycle: `adapters/agentshell/owner.py`, line 22;
-  client: `adapters/agentshell/owner_client.py`, line 103;
+  controller: `adapters/agentshell/controller.py`, line 273; live worker pinning: line 70.
+- Setup lifecycle: `adapters/agentshell/owner.py`, line 102;
+  synchronous lock/startup: lines 61 and 78; process entrypoint: line 460;
+  client: `adapters/agentshell/owner_client.py`, line 108;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 9;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
@@ -318,8 +326,8 @@ Paths below are relative to `src/forgetful_factory/`:
 ## Using the detailed map
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
-it in full by default. Mycelium 0.4.5 exported the approved follow-up source with full member
-detail; recognized tests were excluded using `--test-path tests`. Its 68 boxes include module
+it in full by default. Mycelium 0.4.5 exported the combined SQ-refactor source with full member
+detail; recognized tests were excluded using `--test-path tests`. Its 72 boxes include module
 containers. Test filtering removed 3,407 calls and 52 type relationships; signatures remain in
 full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
@@ -332,7 +340,7 @@ by this map.
 - Check filtering notices and warnings. Missing edges do not establish independence.
 - Verify important relationships against source; static call matching is heuristic.
 
-The map reports ten unresolved external-base warnings (`Protocol` and `Exception`). Some
+The map reports eleven unresolved external-base warnings (`Protocol`, `Exception` and `Enum`). Some
 same-name call edges are incorrect: command execution's `run` is associated with `ForemanOwner.run`,
 and external session/file `close` calls with `BorrowedForemanTerminal.close`. Use source and import
 checks, not those inferred edges, to judge dependencies. The compact diagram above was checked

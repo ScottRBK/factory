@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: four groups merged; four watcher findings, final-source checks and review remain.
+Status: all SQ findings clear; combined Python 3.13 shutdown failure under investigation.
 
 ## Scope and baseline
 
@@ -61,8 +61,24 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   The reported 135/70/36-test selections passed on both Pythons, but their manifests predate the
   final CLI source bytes. A final-source rerun and explanation are requested; those earlier runs
   are not being presented as validation of the exact delivered commit.
-- These are partial integration results, not full-suite or final review acceptance. Temporary
-  branches/worktrees remain until the complete reviewed result is integrated into the main branch.
+- Watcher commit `38e7a60386196a17e83d0d1a4ce76cf2481de1c7` changes only watcher orchestration.
+  Parent verified its source hashes and final 133-test selections on both Pythons. An earlier
+  parallel 3.13 run timed out stopping a watcher; the individual test and full selection reran
+  successfully without a code change. That result alone does not explain the earlier failure.
+- The sixth scan of all integrated groups reports zero outstanding issues and assigned gate OK.
+  It used unchanged cached analyzers, with no exclusions, issue suppression or gate changes.
+- Full combined Python 3.12.3 passes 465 tests without skips in 641.935 seconds. The subsequent,
+  sequential Python 3.13.5 run executed 465 tests in 676.205 seconds with one shutdown timeout in
+  `test_relocated_definition_keeps_selected_guidance_and_explicit_launch_directory`.
+  Source/test hashes stayed unchanged. This failed run is retained, not counted as acceptance.
+- A new Pi investigation worktree starts from the complete integrated source. It must capture the
+  public shutdown failure and distinguish a live watcher from an exited watcher whose child holds
+  a pipe. No assumed load diagnosis, timeout increase, weakened assertion or historical-PID cleanup.
+  Any actual bug fix needs a public failing regression; lack of reproduction remains uncertainty.
+- Ruff and all three import contracts pass. The refreshed Mycelium map has 72 boxes, identical
+  repeat exports and eleven external-base warnings. Tests filter 3,407 calls and 52 relationships;
+  diagram validation is text-only. Package checks and final review await settled source.
+- Temporary branches/worktrees remain until the complete reviewed result is integrated into main.
 
 ## Safety and validation
 

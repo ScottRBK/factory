@@ -107,8 +107,9 @@ These mappings need no per-repository `envault.toml`. Use explicit mappings for 
 never put token values in arguments or source `.env`. This development check is not a factory
 runtime dependency. The expected server gate is `Sonar way sans code coverage`; complexity rules
 come from the Python quality profile. Local scanner setup does not follow Git worktrees and must
-be repeated where needed. See [CLI onboarding](../plans/cli-onboarding.md) for the latest gate
-result and credential-permission limits.
+be repeated where needed. See [full SQ cleanup](../plans/sonarqube-remediation.md) for current
+scan results. [CLI onboarding](../plans/cli-onboarding.md) records earlier credential-permission
+limits.
 
 ## Consequences
 

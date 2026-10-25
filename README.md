@@ -14,11 +14,12 @@ Deployment and end-to-end verification remain a later slice; live delivery valid
 
 ## Current source and release boundary
 
-Factory source uses one `agent.json` per agent. The full suites pass 465 tests on each of
-Python 3.12.3 and 3.13.5 without skips, including five real Pi SDK probes with isolated homes and
-fake children, without inference. The approved [watcher fixes](docs/plans/watcher-problems.md) are
-implemented; SonarQube failed its gate and needs triage, including findings in unchanged code.
-Final Opus review remains pending. User-approved Foreman repair remains the recovery policy.
+Factory source uses one `agent.json` per agent. The approved
+[watcher fixes](docs/plans/watcher-problems.md) are implemented. The
+[full SonarQube cleanup](docs/plans/sonarqube-remediation.md) has zero outstanding findings and
+passes its assigned gate. Combined validation passes 465 tests on Python 3.12; a Python 3.13
+shutdown timeout is under investigation. Final review remains pending. Native probes use isolated
+homes and fake children, without inference. Recovery still requires user-approved Foreman repair.
 Audited uv/build-backend 0.13.5 fixes the earlier checksum defect. Explicit runtime repair still
 awaits Scott's decision.
 
