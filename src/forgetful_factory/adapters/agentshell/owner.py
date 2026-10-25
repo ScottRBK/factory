@@ -348,13 +348,6 @@ class ForemanOwner:
             writer.close()
             await writer.wait_closed()
 
-    async def _start_control_server(self, endpoint):
-        self.save()
-        server = await asyncio.start_unix_server(self.control, path=str(endpoint))
-        endpoint.chmod(0o600)
-        info = endpoint.lstat()
-        return server, (info.st_dev, info.st_ino)
-
     async def _start_controller(self, reader):
         async with asyncio.timeout(5):
             launch = json.loads(await reader.readline())
@@ -401,7 +394,7 @@ class ForemanOwner:
             await observer
         self.save()
 
-    async def _remove_control_socket(self, server, endpoint, socket_identity) -> None:
+    def _remove_control_socket(self, server, endpoint, socket_identity) -> None:
         if not server:
             return
         with contextlib.suppress(FileNotFoundError):
@@ -420,14 +413,18 @@ class ForemanOwner:
         if disconnected:
             disconnected.cancel()
         await self._close_controller(observer)
-        await self._remove_control_socket(server, endpoint, socket_identity)
+        self._remove_control_socket(server, endpoint, socket_identity)
 
     async def run(self, handover, endpoint):
         reader, writer = await asyncio.open_connection(sock=handover)
         server = observer = disconnected = None
         socket_identity = None
         try:
-            server, socket_identity = await self._start_control_server(endpoint)
+            self.save()
+            server = await asyncio.start_unix_server(self.control, path=str(endpoint))
+            endpoint.chmod(0o600)
+            info = endpoint.lstat()
+            socket_identity = (info.st_dev, info.st_ino)
             observer, disconnected = await self._start_controller(reader)
             await self._await_readiness(disconnected)
             await self._complete_handover(writer, disconnected)

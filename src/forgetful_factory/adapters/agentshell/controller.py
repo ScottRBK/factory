@@ -182,7 +182,7 @@ async def capture_worker(state, reply) -> None:
     reply({'kind': 'launched', 'target': asdict(state.session.terminal.target)})
 
 
-async def replace_failed_exit_task(state, exit_task, session, config, reply, failed):
+def replace_failed_exit_task(state, exit_task, session, config, reply, failed):
     error = exit_task.exception()
     if error is None:
         if config.get('report_target'):
@@ -209,27 +209,30 @@ async def cancel_tasks(tasks) -> None:
 
 async def supervise_session(state, reader, config, reply) -> None:
     session = state.session
-    conversation = asyncio.create_task(interact(
-        session, reader, reply, config['session_name'],
-        persistent=config.get('report_target', False), startup_warning=state.worker_error))
-    exit_task = asyncio.create_task(session.terminal.wait())
-    tasks = [conversation, exit_task]
-    identity_task = None
-    if config.get('report_target'):
-        identity_task = asyncio.create_task(retain_identity(session, reply))
-        tasks.append(identity_task)
-    lost_worker = None
-    if state.worker is not None:
-        lost_worker = asyncio.create_task(worker_exited(state.worker))
-        tasks.append(lost_worker)
-    pending = set(tasks)
-    exit_failed = False
+    tasks = []
     try:
+        conversation = asyncio.create_task(interact(
+            session, reader, reply, config['session_name'],
+            persistent=config.get('report_target', False),
+            startup_warning=state.worker_error))
+        tasks.append(conversation)
+        exit_task = asyncio.create_task(session.terminal.wait())
+        tasks.append(exit_task)
+        identity_task = None
+        if config.get('report_target'):
+            identity_task = asyncio.create_task(retain_identity(session, reply))
+            tasks.append(identity_task)
+        lost_worker = None
+        if state.worker is not None:
+            lost_worker = asyncio.create_task(worker_exited(state.worker))
+            tasks.append(lost_worker)
+        pending = set(tasks)
+        exit_failed = False
         while pending:
             done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
             if exit_task in done:
                 tasks.remove(exit_task)
-                exit_task, exit_failed = await replace_failed_exit_task(
+                exit_task, exit_failed = replace_failed_exit_task(
                     state, exit_task, session, config, reply, exit_failed)
                 tasks.append(exit_task)
                 pending.add(exit_task)
