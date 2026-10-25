@@ -61,6 +61,42 @@ class WatcherAlertTests(PlanningWatchFixture):
                          ['github:team/app#1', 'github:team/app#3'])
         self.assertEqual(self.planning_call('query_tasks', plan_id=1)['total_count'], 1)
 
+    def test_other_source_first_success_baselines_before_shared_planning_pause(self):
+        # Arrange: saved work retries while both sources initially fail to return issues.
+        self.seed((1,))
+        self.configure(sources=('team/app', 'team/other'))
+        plan = self.planning_call('get_plan', plan_id=1)
+        changed = self.issue(1, updated_at='changed')
+        old = self.issue(1, updated_at='old',
+                         html_url='https://github.com/team/other/issues/1')
+        new = self.issue(2, updated_at='new',
+                         html_url='https://github.com/team/other/issues/2')
+        self.script({'team/app': ['HTTP 503 unavailable', [[changed]]],
+                     'team/other': ['HTTP 503 unavailable', [[old]]]})
+        process = self.start('--new-only', '--interval', '0.5')
+        self.wait_until(process, lambda: len([
+            alert for alert in self.alerts() if alert['code'] == 'source_read_failed']) == 2)
+        self.fault(responses={'get_plan': dict(plan, id=999)})
+        self.wait_until(process, lambda: any(
+            alert['code'] == 'recovery_read_failed' for alert in self.alerts()))
+        self.wait_until(process, lambda: json.loads(self.state_path.read_text()).get(
+            'counts', {}).get('team/other', 0) >= 2)
+        self.assertEqual(len(self._messages()), 1)
+        # Act: a genuinely new issue follows the first successful read of the other source.
+        self.script({'team/app': [[[changed]]], 'team/other': [[[old, new]]]})
+        self.fault()
+        self.wait_until(process, lambda: json.loads(self.state_path.read_text()).get(
+            'counts', {}).get('team/other', 0) >= 4)
+        code, _, errors = self.stop(process)
+        # Assert: only the old other-source issue was part of its first-success baseline.
+        self.assertEqual(code, 130, errors)
+        self.assertEqual([message['id'] for message in self._messages()], [
+            'github:team/app#1', 'github:team/app#1', 'github:team/other#2'],
+            'A new issue after the first successful source read was silently baselined')
+        self.assertEqual(
+            [saved['external_ref'] for saved in self.planning_call('list_plans')['plans']],
+            ['github:team/app#1', 'github:team/other#2'])
+
     def duplicate_plan(self, plan_id=1):
         plan = self.planning_call('get_plan', plan_id=plan_id)
         return self.planning_call('create_plan', **{key: plan[key] for key in (
