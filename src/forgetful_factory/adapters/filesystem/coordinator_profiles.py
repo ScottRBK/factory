@@ -14,6 +14,7 @@ from forgetful_factory.domain.models import FactoryError
 
 TEMPLATES = Path(__file__).resolve().parents[2] / 'resources'
 ROLE_INSTRUCTIONS_FILE = 'AGENTS.md'
+LOCAL_SKILLS_DIRECTORY = './skills'
 
 
 def selected_resources(skills: list[str], extensions: list[str]) -> dict:
@@ -62,17 +63,18 @@ class CoordinatorProfiles:
                           choices.feature_owner_agent_model,
                           choices.research_agent_effort or choices.feature_owner_agent_effort,
                           'Gather facts and return context', [],
-                          selected_resources(['./skills'], []))
+                          selected_resources([LOCAL_SKILLS_DIRECTORY], []))
         if config.execution_enabled:
             self.workers.prepare(choices)
             children.extend(('implementation', 'review'))
         extension = '../../resources/agentshell/extensions/agentshell.ts'
         self._write_agent('feature-owner', choices.feature_owner_agent_model,
                           choices.feature_owner_agent_effort, 'Plan and own a feature', children,
-                          selected_resources(['./skills', choices.grill_me_skill], [extension]))
+                          selected_resources([LOCAL_SKILLS_DIRECTORY, choices.grill_me_skill],
+                                             [extension]))
         self._write_agent('foreman', choices.foreman_agent_model, choices.foreman_agent_effort,
                           'Coordinate the factory and its feature owners', ['feature-owner'],
-                          selected_resources(['./skills'], [
+                          selected_resources([LOCAL_SKILLS_DIRECTORY], [
                               '../../resources/agentshell/extensions/agentshell.ts',
                               '../../resources/hide-tools/index.ts']))
 

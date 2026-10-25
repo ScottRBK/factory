@@ -43,6 +43,7 @@ ROLE_GUIDANCE_FILE = 'APPEND_SYSTEM.md'
 PI_PROFILE_FILE = 'pi-profile.json'
 COMPLETION_FILE = 'setup-complete.json'
 ROLE_RESOURCES_FILE = 'role-resources.json'
+FACTORY_DIRECTORY = '.factory'
 
 
 class ForemanProfile:
@@ -184,7 +185,7 @@ class ForemanProfile:
 
     def save_pi_choice(self) -> None:
         if self._pi_choice is not None:
-            write_json(self.workspace / '.factory' / PI_PROFILE_FILE, self._pi_choice)
+            write_json(self.workspace / FACTORY_DIRECTORY / PI_PROFILE_FILE, self._pi_choice)
 
     def prepare_roles(self, config, choices) -> None:
         profiles = CoordinatorProfiles(self.workspace)
@@ -220,7 +221,7 @@ class ForemanProfile:
                                        ) from error
 
     def choose_pi_home(self, requested: str | None, confirm) -> str:
-        path = self.workspace / '.factory' / PI_PROFILE_FILE
+        path = self.workspace / FACTORY_DIRECTORY / PI_PROFILE_FILE
         if path.exists():
             directory = self.pi_home()
             if requested is not None and str(Path(requested).expanduser().absolute()) != directory:
@@ -232,7 +233,7 @@ class ForemanProfile:
             return directory
         directory = str(Path(requested or os.environ.get('PI_CODING_AGENT_DIR')
                              or Path.home() / '.pi/agent').expanduser().absolute())
-        if Path(directory).is_relative_to(self.workspace / '.factory'):
+        if Path(directory).is_relative_to(self.workspace / FACTORY_DIRECTORY):
             raise FactoryError('Select your normal native Pi agent directory, outside .factory.')
         if requested is not None:
             self.require_pi_home(directory)
@@ -259,11 +260,13 @@ class ForemanProfile:
 
     def pi_home(self) -> str:
         try:
-            data = read_generated_json(self.workspace / '.factory' / PI_PROFILE_FILE)
+            data = read_generated_json(
+                self.workspace / FACTORY_DIRECTORY / PI_PROFILE_FILE)
             directory = data['agent_directory']
             if (data['shared_profile_consent'] is not True or not isinstance(directory, str)
                     or not Path(directory).is_absolute() or '\x00' in directory
-                    or Path(directory).is_relative_to(self.workspace / '.factory')):
+                    or Path(directory).is_relative_to(
+                        self.workspace / FACTORY_DIRECTORY)):
                 raise ValueError('Invalid consent')
             return directory
         except (OSError, ValueError, TypeError, KeyError) as error:
@@ -323,14 +326,17 @@ class ForemanProfile:
 
     def record_completion(self, config: FactoryConfiguration) -> None:
         self.selected_launch(config)
-        replace_generated_json(self.workspace / '.factory' / COMPLETION_FILE, {'complete': True})
+        replace_generated_json(
+            self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE, {'complete': True})
 
     def begin_setup(self) -> None:
-        remove_generated(self.workspace / '.factory' / COMPLETION_FILE)
+        remove_generated(self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE)
 
-    def validate_completion(self, config: FactoryConfiguration) -> None:
+    def validate_completion(self, _config: FactoryConfiguration) -> None:
+        """Validate the receipt; completion is independent of editable configuration."""
         try:
-            data = read_generated_json(self.workspace / '.factory' / COMPLETION_FILE)
+            data = read_generated_json(
+                self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE)
             if data != {'complete': True}:
                 raise ValueError('Incomplete initial setup')
         except (OSError, ValueError) as error:
