@@ -345,9 +345,9 @@ class WatchFixture(unittest.TestCase):
                 return
             descriptors = array.array('i')
             retained = None
-            validation_error = None
             try:
                 with connection:
+                    connection.settimeout(5)
                     credentials = connection.getsockopt(
                         socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
                     peer_pid, peer_uid, _ = struct.unpack('3i', credentials)
@@ -372,22 +372,24 @@ class WatchFixture(unittest.TestCase):
                         self.assertTrue(selector.select(0), 'Exited pidfd was not readable')
                 else:
                     self.assertEqual(pidfd_pid, peer_pid)
-                    retained = descriptor
                     self.controller_descriptors.append(descriptor)
-            except Exception as error:
-                validation_error = error
-            close_errors = []
-            for descriptor in descriptors:
-                if descriptor != retained:
-                    try:
-                        os.close(descriptor)
-                    except OSError as error:
-                        close_errors.append(error)
-            if validation_error is not None:
-                raise validation_error
-            if close_errors:
-                raise AssertionError('Could not close rejected controller handles') \
-                    from close_errors[0]
+                    retained = descriptor
+            finally:
+                active_error = sys.exception()
+                close_errors = []
+                for descriptor in descriptors:
+                    if descriptor != retained:
+                        try:
+                            os.close(descriptor)
+                        except OSError as error:
+                            close_errors.append(error)
+                if close_errors:
+                    message = 'Could not close rejected controller handles: ' + '; '.join(
+                        repr(error) for error in close_errors)
+                    if active_error is not None:
+                        active_error.add_note(message)
+                    else:
+                        raise AssertionError(message) from close_errors[0]
 
     def _close_controller_handles(self):
         from lifecycle_support import pidfd_send_signal
