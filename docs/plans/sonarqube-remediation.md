@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: all SQ findings clear; combined Python 3.13 shutdown failure under investigation.
+Status: all SQ findings clear; baseline follow-up, diagnostics and final validation/review pending.
 
 ## Scope and baseline
 
@@ -79,6 +79,24 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   public shutdown failure and distinguish a live watcher from an exited watcher whose child holds
   a pipe. No assumed load diagnosis, timeout increase, weakened assertion or historical-PID cleanup.
   Any actual bug fix needs a public failing regression; lack of reproduction remains uncertainty.
+- No shutdown cause was reproduced: 500 repetitions of the failing test with diagnostic
+  instrumentation passed, as did 100 uninstrumented pre-SQ baseline repetitions. These do not prove
+  the timeout absent. The proposed diagnostic fixture needs authenticated process handles and the
+  original pipe-drain cleanup check preserved before integration. Product code remains unchanged
+  by this investigation; the original failed runs remain visible.
+- Parent found a separate remaining first-success baseline gap, with real public assertion failures
+  on both Pythons against combined and pre-SQ source. A shared planning read failure in source A
+  can skip source B's first-success baseline even though B was successfully fetched. A new B issue
+  arriving before planning recovers is then incorrectly treated as old. Earlier coverage handled
+  the interrupted source's own whole batch, not another source's first success in the same poll.
+  A separate Pi worktree is adding the public regression and completing the approved F2 correction.
+- Actual Claude Code/Opus review has started against an immutable 150-file snapshot of the combined
+  production changes. It is not final acceptance: the two follow-ups and renewed aggregate evidence
+  must be reviewed afterward. Parent self-review is permitted only if Claude exhausts capacity.
+- Candidate offline packages verify 72 wheel checksums, 69 source/resource files, 48 test files,
+  README/TOML equality and five extracted-wheel help commands. No installation occurred. The uv
+  executable matches its previously audited wheel contents; these candidate artifacts must be
+  refreshed after the remaining source/test/documentation changes.
 - Ruff and all three import contracts pass. The refreshed Mycelium map has 72 boxes, identical
   repeat exports and eleven external-base warnings. Tests filter 3,407 calls and 52 relationships;
   diagram validation is text-only. Package checks and final review await settled source.
