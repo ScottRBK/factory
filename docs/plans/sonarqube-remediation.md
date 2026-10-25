@@ -43,6 +43,12 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   Parent verified source hashes and 111 passing related tests on each Python. All six findings
   cleared in the next integration scan: 24 remain, with none in either merged group. Three parent
   startup/source/branch-conflict probes also pass on both Pythons against the combined source.
+- Lifecycle commit `2befd8e4fb31c7fd4e5d2d2031b857ff08333f90` is provisionally merged after hash,
+  scope and test verification. Its 43-test lifecycle and ten-test controller selections pass on
+  both Pythons. All twelve original findings cleared, including the synchronous-open report.
+  SonarQube found two new async-without-await findings, leaving fourteen outstanding overall.
+  The agent is correcting those and preserving cleanup guards around partially started resources
+  identified during parent inspection. That follow-up needs fresh tests and another scan.
 - These are partial integration results, not full-suite or final review acceptance. Temporary
   branches/worktrees remain until the complete reviewed result is integrated into the main branch.
 

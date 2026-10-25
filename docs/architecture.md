@@ -178,7 +178,10 @@ import or call graph.
   [onboarding ADR](adrs/agent-onboarding.md) and [validation record](plans/agent-onboarding.md).
 - Assisted init provisions the selected starter team without a completion receipt and starts a
   detached owner retaining the AgentShell Foreman. Private state and its Unix socket remain under
-  `.factory/runtime/foreman`. Setup instructions distinguish setup from delivery; Python refuses
+  `.factory/runtime/foreman`. The process acquires its lifetime lock and checks old state/socket
+  safety synchronously before starting its event loop; the same descriptor remains held through
+  asynchronous cleanup. No background file-open thread or replacement authority is added.
+  Setup instructions distinguish setup from delivery; Python refuses
   watching before completion. The full configured roster exists already and is not a sandbox.
   Explicit finalization validates first setup and writes the receipt last, without rewriting agent
   definitions or clearing uncertainty. Newly approved missing home consent is saved separately,

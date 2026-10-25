@@ -203,6 +203,14 @@ that known child after graceful cancellation fails, reporting uncertain delivery
 PID taken from editable saved state. A free owner lock proves only owner exit, not that its old Pi
 has stopped; stale or uncertain terminal identity must not authorize a replacement launch.
 
+The [SonarQube cleanup](../plans/sonarqube-remediation.md) makes owner startup explicit: the
+synchronous process entrypoint opens and validates the private lifetime-lock descriptor, acquires
+its nonblocking lock, and checks old state/socket safety before starting the event loop. That same
+descriptor stays held through asynchronous startup, handover and cleanup, then closes when the
+loop finishes. This avoids blocking file-open work inside the running loop without introducing a
+background thread or changing replacement authority. Startup failures report through the inherited
+handover connection. Final combined validation/review for this refactor remains pending.
+
 A persistent-session send failure stops the watcher and preserves Foreman, but delivery remains
 uncertain. It cannot acquire a later acknowledgement once the send failed. Inspect the possible
 submission, exit Foreman deliberately and relaunch before restarting watching; finalization does
