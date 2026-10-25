@@ -1,7 +1,11 @@
+import array
 import fcntl
 import json
 import os
+import selectors
 import signal
+import socket
+import struct
 import subprocess
 import sys
 import tempfile
@@ -41,10 +45,34 @@ if isinstance(result, str):
 print(json.dumps(result))
 '''
 
-SHELL = '''import asyncio
+SHELL = '''import array
+import asyncio
+import ctypes
 import json
 import os
+import socket
 from types import SimpleNamespace
+
+
+def transfer_controller_handle():
+    path = os.environ.get('WATCH_CONTROLLER_HANDLES')
+    if not path:
+        return
+    function = ctypes.CDLL(None, use_errno=True).pidfd_open
+    function.argtypes = [ctypes.c_int, ctypes.c_uint]
+    function.restype = ctypes.c_int
+    descriptor = function(os.getpid(), 0)
+    if descriptor < 0:
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as channel:
+            channel.connect(path)
+            channel.sendmsg([json.dumps({'pid': os.getpid()}).encode()],
+                            [(socket.SOL_SOCKET, socket.SCM_RIGHTS,
+                              array.array('i', [descriptor]))])
+    finally:
+        os.close(descriptor)
 
 
 def record(kind, **fields):
@@ -105,6 +133,7 @@ class AgentShell:
         return ['provider/model']
 
     async def open_interactive(self, cwd, *, model=None, effort=None, resources=None, prompt=None):
+        transfer_controller_handle()
         print('library stdout banner', flush=True)
         os.write(1, b'native library stdout banner\\n')
         record('launch', cwd=cwd, model=model, effort=effort, agent_type=self.agent_type,
@@ -165,13 +194,21 @@ class WatchFixture(unittest.TestCase):
         self.state_path = self.workspace / 'gh.json'
         self.terminal_log = self.workspace / 'terminal.jsonl'
         self.state_path.write_text(json.dumps({'sources': {'team/app': [[[]]]}}))
+        self.controller_handles = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        controller_handle_path = self.workspace / 'controller-handles.sock'
+        self.controller_handles.bind(str(controller_handle_path))
+        self.controller_handles.listen()
+        self.controller_handles.setblocking(False)
+        self.controller_descriptors: list[int] = []
+        self.addCleanup(self._close_controller_handles)
         self.env = dict(os.environ,
                         PYTHONPATH=os.pathsep.join((str(external), str(ROOT / 'src'))),
                         PATH=str(self.bin) + os.pathsep + os.environ['PATH'],
                         PI_CODING_AGENT_DIR=str(self.workspace / 'native pi'),
                         XDG_STATE_HOME=str(self.workspace / 'state'),
                         GH_HOST='wrong.example', WATCH_GH_STATE=str(self.state_path),
-                        WATCH_TERMINAL_LOG=str(self.terminal_log))
+                        WATCH_TERMINAL_LOG=str(self.terminal_log),
+                        WATCH_CONTROLLER_HANDLES=str(controller_handle_path))
         # The external program fixture models a standalone root, not this test runner's ancestry.
         for key in ('PI_AGENT_SHELL_CHILD', 'PI_AGENT_SHELL_DEPTH', 'PI_AGENT_SHELL_MAX_DEPTH'):
             self.env.pop(key, None)
@@ -252,8 +289,8 @@ class WatchFixture(unittest.TestCase):
     def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None):
         process = subprocess.Popen(
             [sys.executable, '-m', 'forgetful_factory', 'watch', '--workspace',
-             str(self.workspace), '--interval', '0.05',
-             *arguments], cwd=cwd or self.workspace, env=self.env, stdin=subprocess.PIPE,
+             str(self.workspace), '--interval', '0.05', *arguments],
+            cwd=cwd or self.workspace, env=self.env, stdin=subprocess.PIPE,
             stdout=stdout, stderr=subprocess.PIPE, text=True,
         )
         self.addCleanup(self.cleanup_process, process)
@@ -265,12 +302,137 @@ class WatchFixture(unittest.TestCase):
     def cleanup_process(self, process):
         if process.poll() is None:
             process.kill()
-        process.communicate(timeout=15)
+        timeout_error = None
+        diagnostic = None
+        stream_cleanup_errors = []
+        owned_cleanup_error = None
+        try:
+            process.communicate(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            timeout_error = error
+            try:
+                diagnostic = self._shutdown_diagnostic(process, error)
+            except Exception as diagnostic_error:
+                diagnostic = {'diagnostic_error': repr(diagnostic_error)}
+        finally:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                if stream is not None:
+                    try:
+                        stream.close()
+                    except Exception as error:
+                        stream_cleanup_errors.append(error)
+            if timeout_error is not None:
+                try:
+                    self._close_controller_handles()
+                except Exception as error:
+                    owned_cleanup_error = repr(error)
+        if timeout_error is not None:
+            raise AssertionError(
+                'Watcher fixture cleanup could not drain pipes: '
+                f'{diagnostic}; stream_cleanup_errors={stream_cleanup_errors!r}; '
+                f'owned_cleanup_error={owned_cleanup_error}') from timeout_error
+        if stream_cleanup_errors:
+            raise AssertionError('Watcher fixture stream cleanup failed') \
+                from stream_cleanup_errors[0]
+
+    def _collect_controller_handles(self):
+        if self.controller_handles is None:
+            return
+        while True:
+            try:
+                connection, _ = self.controller_handles.accept()
+            except BlockingIOError:
+                return
+            descriptors = array.array('i')
+            retained = None
+            try:
+                with connection:
+                    connection.settimeout(5)
+                    credentials = connection.getsockopt(
+                        socket.SOL_SOCKET, socket.SO_PEERCRED, 12)
+                    peer_pid, peer_uid, _ = struct.unpack('3i', credentials)
+                    data, controls, flags, _ = connection.recvmsg(
+                        1024, socket.CMSG_SPACE(4))
+                for level, kind, payload in controls:
+                    if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS:
+                        descriptors.frombytes(payload[:len(payload) - len(payload) % 4])
+                self.assertFalse(flags & socket.MSG_CTRUNC)
+                self.assertEqual(len(descriptors), 1)
+                self.assertEqual(peer_uid, os.getuid())
+                self.assertEqual(json.loads(data)['pid'], peer_pid)
+                descriptor = descriptors[0]
+                self.assertEqual(
+                    os.readlink(f'/proc/self/fd/{descriptor}'), 'anon_inode:[pidfd]')
+                with open(f'/proc/self/fdinfo/{descriptor}') as stream:
+                    identity = dict(line.split(':', 1) for line in stream if ':' in line)
+                pidfd_pid = int(identity['Pid'])
+                if pidfd_pid == -1:
+                    with selectors.DefaultSelector() as selector:
+                        selector.register(descriptor, selectors.EVENT_READ)
+                        self.assertTrue(selector.select(0), 'Exited pidfd was not readable')
+                else:
+                    self.assertEqual(pidfd_pid, peer_pid)
+                    self.controller_descriptors.append(descriptor)
+                    retained = descriptor
+            finally:
+                active_error = sys.exception()
+                close_errors = []
+                for descriptor in descriptors:
+                    if descriptor != retained:
+                        try:
+                            os.close(descriptor)
+                        except OSError as error:
+                            close_errors.append(error)
+                if close_errors:
+                    message = 'Could not close rejected controller handles: ' + '; '.join(
+                        repr(error) for error in close_errors)
+                    if active_error is not None:
+                        active_error.add_note(message)
+                    else:
+                        raise AssertionError(message) from close_errors[0]
+
+    def _close_controller_handles(self):
+        from lifecycle_support import pidfd_send_signal
+
+        failures = []
+        try:
+            self._collect_controller_handles()
+        except Exception as error:
+            failures.append(error)
+        for descriptor in self.controller_descriptors:
+            try:
+                with selectors.DefaultSelector() as selector:
+                    selector.register(descriptor, selectors.EVENT_READ)
+                    if not selector.select(0):
+                        pidfd_send_signal(descriptor, signal.SIGKILL)
+                        if not selector.select(5):
+                            failures.append(AssertionError(
+                                'Diagnostic controller survived cleanup'))
+            except Exception as error:
+                failures.append(error)
+            finally:
+                try:
+                    os.close(descriptor)
+                except OSError as error:
+                    failures.append(error)
+        self.controller_descriptors.clear()
+        if self.controller_handles is not None:
+            try:
+                self.controller_handles.close()
+            except Exception as error:
+                failures.append(error)
+            self.controller_handles = None
+        if failures:
+            raise AssertionError(
+                'Controller handle cleanup failed: '
+                + '; '.join(repr(error) for error in failures)) from failures[0]
 
     def wait_until(self, process, predicate, timeout=5):
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            self._collect_controller_handles()
             if predicate():
+                self._collect_controller_handles()
                 return
             if process.poll() is not None:
                 stdout, stderr = process.communicate()
@@ -278,9 +440,29 @@ class WatchFixture(unittest.TestCase):
             time.sleep(0.02)
         self.fail(f'Watch did not reach expected state; terminal events: {self.events()}')
 
+    def _shutdown_diagnostic(self, process, error):
+        self._collect_controller_handles()
+        with selectors.DefaultSelector() as selector:
+            for descriptor in self.controller_descriptors:
+                selector.register(descriptor, selectors.EVENT_READ)
+            ready = {key.fd for key, _ in selector.select(0)}
+        return {
+            'root_poll': process.poll(),
+            'partial_stdout': str(error.stdout),
+            'partial_stderr': str(error.stderr),
+            'events': self.events(),
+            'controller_exited': [descriptor in ready
+                                  for descriptor in self.controller_descriptors],
+        }
+
     def stop(self, process, sig=signal.SIGINT):
         process.send_signal(sig)
-        stdout, stderr = process.communicate(timeout=15)
+        try:
+            stdout, stderr = process.communicate(timeout=15)
+        except subprocess.TimeoutExpired as error:
+            diagnostic = self._shutdown_diagnostic(process, error)
+            raise AssertionError(
+                f'Watcher shutdown timed out before fixture cleanup: {diagnostic}') from error
         return process.returncode, stdout, stderr
 
 
