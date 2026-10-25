@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: combined checks pass; final Claude review and main integration remain pending.
+Status: independently reviewed and integrated locally. R5 remains an unresolved limitation.
 
 ## Scope and baseline
 
@@ -31,7 +31,9 @@ commit locally under Scott's identity, with no agent authorship trailers. No pus
 Merge only completed handoffs after checking scope, evidence and source hashes. Keep the initial
 working copy safe; do not remove branches/worktrees until their changes are durably integrated.
 
-## Integration evidence
+## Earlier integration checkpoints
+
+These entries preserve the sequence of findings and corrections. Final results follow below.
 
 - Resources commit `819def8317ac680dae4bc78987415bdb5b59f6be` changes only its five assigned files.
   Parent verified its clean worktree, source/test hashes and 131 passing tests on each Python.
@@ -155,8 +157,31 @@ Scope checks pass: only assigned code/tests and parent-owned documentation chang
 Protected files and Design questions are unchanged. The overview is 349 lines.
 Changed files stay within 100 columns and all 87 local links resolve.
 The original main checkout's 149 captured file hashes remain intact.
-Claude's follow-up review still precedes main integration and removal of the recorded temporary
-branches/worktrees. No push or release is authorized.
+
+## Final review and local integration
+
+Actual Claude Code/Opus accepted commit `56228f3` for main integration. Parent verified all 151
+snapshot hashes before and after review, with no extra files, and checked the independent six-test
+runs on both Pythons. Both reviewer mutations reverted the baseline fix and failed as intended.
+The full source/test suites and scan still match the reviewed 118 source/test files exactly.
+
+R5 is accepted as a documented limitation, not a fix or proof that the timeout cannot recur.
+The reviewer found no blocking runtime defect or safety regression. Non-blocking harness notes
+remain: teardown can kill a surviving controller without failing the test; committed diagnostics
+lack stack capture; process-exit checks do not prove explicit descriptor closure; the baseline
+fixture has timing-dependent setup; a long temporary path can fail socket binding and leak that
+fixture socket; and the new owner tests lack explicit Arrange/Act/Assert comments. These are not
+additional Sonar findings. No speculative production changes or relaxed checks were introduced.
+
+Parent recorded the original dirty main checkout as exact checkpoint `fcfb663`, preserving all 149
+captured files and modes, then fast-forwarded main to the accepted `56228f3` tree. All 151 reviewed
+files matched and the checkout was clean. Only then were the ten recorded, clean, merged worktrees
+and their branches removed, without force or pruning. Evidence and commit history remain intact.
+The final documentation records these completed steps without changing product or test source.
+
+The review, manifests, logs, package checks and cleanup record are retained under
+`/tmp/ff-sq-IV8BPd`. Live backend/model smoke, fresh-host installation, DinoLand repair and separate
+runtime-repair/cancellation/messaging work remain excluded. No push or release occurred.
 
 ## Safety and validation
 

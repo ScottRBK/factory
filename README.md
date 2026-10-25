@@ -19,8 +19,9 @@ Factory source uses one `agent.json` per agent. The approved
 [full SonarQube cleanup](docs/plans/sonarqube-remediation.md) has zero outstanding findings and
 passes its assigned gate. Combined validation passes 471 tests on each supported Python without
 skips. An earlier shutdown timeout remains unexplained after bounded investigation; diagnostics are
-improved, but no timeout fix is claimed. Final review remains pending. Native probes use isolated
-homes and fake children, without inference. Recovery still requires user-approved Foreman repair.
+improved, but no timeout fix is claimed. Claude Code accepted the code with this limitation.
+Changes are integrated locally. Native probes use isolated homes and fake children, without
+inference. Recovery still requires user-approved Foreman repair.
 Audited uv/build-backend 0.13.5 fixes the earlier checksum defect. Explicit runtime repair still
 awaits Scott's decision.
 

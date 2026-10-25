@@ -19,8 +19,8 @@ interrupted first-time setup, keeping watcher recovery read-only. The approved s
 duplicate-owner and startup/pre-create repository corrections passed their baseline suites.
 The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outstanding findings and
 passes the assigned gate. Combined validation now passes 471 tests on each supported Python. An
-earlier shutdown timeout remains unexplained; no product fix is claimed. Final review remains
-pending. The work records separate completed checks from acceptance.
+earlier shutdown timeout remains unexplained; no product fix is claimed. Claude Code accepted the
+code with this limitation, and it is integrated locally. The work records retain the evidence.
 
 [Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
 one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.

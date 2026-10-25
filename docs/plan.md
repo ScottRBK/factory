@@ -43,10 +43,11 @@ includes earlier MCP and separate-login choices that no longer apply.
 Watcher [problem isolation and Foreman alerts](plans/watcher-problems.md) and the approved follow-up
 are implemented: current issue eligibility, duplicate-owner reconciliation and startup/pre-create
 repository checks. The [SQ cleanup](plans/sonarqube-remediation.md) passes its assigned gate
-with zero outstanding findings. All groups and follow-ups are integrated in a review branch.
+with zero outstanding findings. All groups and follow-ups are integrated locally into `main`.
 Combined checks pass 471 tests on each supported Python without skips. The cross-source first-poll
 baseline gap is corrected. Earlier shutdown timeouts remain unexplained after bounded investigation;
-no timeout fix is claimed. Final review and main-branch integration remain pending.
+no timeout fix is claimed. Claude Code accepted the code with this limitation. The ten recorded
+temporary branches/worktrees are removed; evidence is retained. No push or release occurred.
 User-approved Foreman completion for interrupted setup keeps watcher recovery read-only. Planning
 safety failures pause affected work, not the watcher; shared failures pause planning. Terminal loss
 and uncertain delivery retain their safeguards. DinoLand repair is excluded.

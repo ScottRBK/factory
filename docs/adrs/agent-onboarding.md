@@ -212,7 +212,8 @@ background thread or changing replacement authority. Startup failures report thr
 handover connection. One error-reporting detail changes: an unsafe runtime directory now produces a
 controlled handover error and owner-process exit 0, rather than a traceback, exit 1 and no reply.
 The client rejects the error packet before adoption; exit 0 is not readiness or launch success.
-Combined suites and source checks pass; final review remains pending.
+Combined suites and source checks pass. Claude Code accepted the code with the documented,
+unexplained shutdown-timeout limitation; the changes are integrated locally.
 
 A persistent-session send failure stops the watcher and preserves Foreman, but delivery remains
 uncertain. It cannot acquire a later acknowledgement once the send failed. Inspect the possible
