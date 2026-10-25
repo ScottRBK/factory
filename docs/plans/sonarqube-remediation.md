@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: all SQ findings clear; baseline follow-up, diagnostics and final validation/review pending.
+Status: SQ clear and diagnostics merged; baseline/coverage follow-ups and acceptance remain pending.
 
 ## Scope and baseline
 
@@ -81,9 +81,13 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   Any actual bug fix needs a public failing regression; lack of reproduction remains uncertainty.
 - No shutdown cause was reproduced: 500 repetitions of the failing test with diagnostic
   instrumentation passed, as did 100 uninstrumented pre-SQ baseline repetitions. These do not prove
-  the timeout absent. The proposed diagnostic fixture needs authenticated process handles and the
-  original pipe-drain cleanup check preserved before integration. Product code remains unchanged
-  by this investigation; the original failed runs remain visible.
+  the timeout absent. Parent verified and merged the diagnostic series ending at `1d0e29f`:
+  authenticated original pidfds, bounded socket reads and preserved 15-second pipe-drain checks.
+  Both final-byte 134-test selections pass. Wrong-payload and non-pidfd controls reject safely;
+  a stalled peer now fails at the five-second socket deadline rather than its ten-second watchdog.
+  These are fixture controls, not product defects. The seventh scan stays at zero findings and gate
+  OK with all eight analyzer JARs unchanged. Product code is unchanged by this investigation;
+  the original failed runs remain visible.
 - Parent found a separate remaining first-success baseline gap, with real public assertion failures
   on both Pythons against combined and pre-SQ source. A shared planning read failure in source A
   can skip source B's first-success baseline even though B was successfully fetched. A new B issue
