@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: Scott approved all outstanding findings; five implementation groups are in progress.
+Status: resources merged into integration; four implementation groups and final review remain.
 
 ## Scope and baseline
 
@@ -30,6 +30,17 @@ Source ownership is disjoint. Shared documentation and map changes belong to int
 commit locally under Scott's identity, with no agent authorship trailers. No push is authorized.
 Merge only completed handoffs after checking scope, evidence and source hashes. Keep the initial
 working copy safe; do not remove branches/worktrees until their changes are durably integrated.
+
+## Integration evidence
+
+- Resources commit `819def8317ac680dae4bc78987415bdb5b59f6be` changes only its five assigned files.
+  Parent verified its clean worktree, source/test hashes and 131 passing tests on each Python.
+  No tests changed. Ruff and the three import contracts pass for that slice.
+- The first integration scan confirms all eight resources findings cleared, with no new findings
+  in those files. Thirty issues remain across the other groups, so the overall gate still fails.
+  The eight existing scanner/engine/plugin JARs remained byte-identical; no install or upgrade.
+- These are partial integration results, not full-suite or final review acceptance. Temporary
+  branches/worktrees remain until the complete reviewed result is integrated into the main branch.
 
 ## Safety and validation
 
