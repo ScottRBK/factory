@@ -79,8 +79,13 @@ def request(workspace: Path, operation: str, **fields) -> dict:
         if (not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid()
                 or stat.S_IMODE(info.st_mode) & 0o077):
             raise FactoryError('Foreman control socket identity is invalid; preserved.')
+        timeout = 5
+        if operation == 'start':
+            timeout = 40
+        elif operation == 'stop':
+            timeout = 15
         with socket.socket(socket.AF_UNIX) as connection:
-            connection.settimeout(40 if operation == 'start' else 15 if operation == 'stop' else 5)
+            connection.settimeout(timeout)
             connection.connect(str(path))
             _, uid, _ = struct.unpack('3i', connection.getsockopt(
                 socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize('3i')))

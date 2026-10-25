@@ -9,6 +9,27 @@ from pathlib import Path
 from forgetful_factory.domain.models import FactoryError
 
 
+def _close_capture_streams(process: subprocess.Popen) -> None:
+    for stream in (process.stdout, process.stderr):
+        if stream is not None:
+            stream.close()
+
+
+def _terminate_owned_process(process: subprocess.Popen) -> None:
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(process.pid, signal.SIGTERM)
+    try:
+        # KeyboardInterrupt can leave communicate's pipe bookkeeping half-initialized.
+        # Failed/cancelled output is discarded; do not re-enter communicate to drain it.
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+    finally:
+        _close_capture_streams(process)
+
+
 def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = False,
               timeout: float | None = None) -> str:
     interactive = login and sys.stdin.isatty()
@@ -23,20 +44,7 @@ def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = 
     try:
         stdout, _ = process.communicate(timeout=timeout or (300 if login else 45))
     except (subprocess.TimeoutExpired, KeyboardInterrupt) as error:
-        with contextlib.suppress(ProcessLookupError):
-            os.killpg(process.pid, signal.SIGTERM)
-        try:
-            # KeyboardInterrupt can leave communicate's pipe bookkeeping half-initialized.
-            # Failed/cancelled output is discarded; do not re-enter communicate to drain it.
-            process.wait(timeout=3)
-        except subprocess.TimeoutExpired:
-            with contextlib.suppress(ProcessLookupError):
-                os.killpg(process.pid, signal.SIGKILL)
-            process.wait()
-        finally:
-            for stream in (process.stdout, process.stderr):
-                if stream is not None:
-                    stream.close()
+        _terminate_owned_process(process)
         if isinstance(error, KeyboardInterrupt):
             raise
         raise FactoryError('Forgetful operation timed out; setup is incomplete. '
