@@ -1,6 +1,6 @@
 # Full SonarQube remediation
 
-Status: four groups provisionally merged; watcher, lifecycle follow-up and final checks remain.
+Status: four groups merged; four watcher findings, final-source checks and review remain.
 
 ## Scope and baseline
 
@@ -49,6 +49,11 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   SonarQube found two new async-without-await findings, leaving fourteen outstanding overall.
   The agent is correcting those and preserving cleanup guards around partially started resources
   identified during parent inspection. That follow-up needs fresh tests and another scan.
+- Lifecycle follow-up `0a009d392edb1326df96ff0c2eb6b52d65ca5103` restores caller ownership before
+  fallible socket setup and guards all partially created supervision tasks. Parent verified its
+  exact source hashes and sixteen fresh focused tests per Python. The fifth scan clears both new
+  async findings; four original watcher findings remain, with none elsewhere. The prior 43-test
+  lifecycle results describe the earlier commit, not this follow-up.
 - CLI/helpers commit `24b517b8739f369ce1734d02c6772fda6011d00f` is provisionally merged. Its eight
   findings clear in the fourth scan; six findings remain overall. Parent verified final hashes and
   that test syntax differs only by the three private-helper names, preserving every assertion.
