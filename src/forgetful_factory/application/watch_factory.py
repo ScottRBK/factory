@@ -274,10 +274,10 @@ class WatchFactory:
             issues = self._read_issues(source, config.watcher_label, alerts)
             if issues is None:
                 continue
-            if state.manual_pause or shared_read_failed:
-                continue
             if not existing and source not in state.baselined:
                 self._baseline_source(source, issues, state, report)
+            if state.manual_pause or shared_read_failed:
+                continue
             repository = self._repository_for_source(config, source)
             shared_read_failed = self._process_source(
                 source, issues, repository, state, attempted, alerts, report)
