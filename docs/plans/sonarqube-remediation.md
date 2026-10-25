@@ -61,6 +61,10 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   The reported 135/70/36-test selections passed on both Pythons, but their manifests predate the
   final CLI source bytes. A final-source rerun and explanation are requested; those earlier runs
   are not being presented as validation of the exact delivered commit.
+  The follow-up explains that the last CLI change was one explanatory comment; parent verified
+  removing that exact line reproduces the earlier hash. Fresh 135-test public and 36-test native
+  selections now pass on both Pythons. Their four 117-file manifests match one another and the
+  delivered bytes. This closes that evidence gap without a source or assertion change.
 - Watcher commit `38e7a60386196a17e83d0d1a4ce76cf2481de1c7` changes only watcher orchestration.
   Parent verified its source hashes and final 133-test selections on both Pythons. An earlier
   parallel 3.13 run timed out stopping a watcher; the individual test and full selection reran
