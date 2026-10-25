@@ -209,7 +209,10 @@ its nonblocking lock, and checks old state/socket safety before starting the eve
 descriptor stays held through asynchronous startup, handover and cleanup, then closes when the
 loop finishes. This avoids blocking file-open work inside the running loop without introducing a
 background thread or changing replacement authority. Startup failures report through the inherited
-handover connection. Final combined validation/review for this refactor remains pending.
+handover connection. One error-reporting detail changes: an unsafe runtime directory now produces a
+controlled handover error and owner-process exit 0, rather than a traceback, exit 1 and no reply.
+The client rejects the error packet before adoption; exit 0 is not readiness or launch success.
+Final combined validation/review for this refactor remains pending.
 
 A persistent-session send failure stops the watcher and preserves Foreman, but delivery remains
 uncertain. It cannot acquire a later acknowledgement once the send failed. Inspect the possible

@@ -52,8 +52,9 @@ There is no automatic replacement, repeated send or alternate tmux transport.
 Explicit cancellation still ends watch. The native-command wrapper waits for its owned process
 instead of re-entering an interrupted Python `communicate()` call, whose pipe bookkeeping may be
 partially initialized. It retains the existing TERM, three-second grace and KILL sequence, discards
-failed/cancelled output and closes capture pipes. AgentShell lifecycle adapters and deadlines are
-unchanged. This is not evidence of universal detached-descendant cleanup.
+failed/cancelled output and closes capture pipes. Lifecycle deadlines remain unchanged. The later
+[SonarQube cleanup](../plans/sonarqube-remediation.md) refactors the AgentShell adapters while
+preserving lifecycle safeguards. This does not prove that every detached descendant is stopped.
 
 ## Pending work and recovery
 

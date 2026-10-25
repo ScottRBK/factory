@@ -92,7 +92,14 @@ working copy safe; do not remove branches/worktrees until their changes are dura
   A separate Pi worktree is adding the public regression and completing the approved F2 correction.
 - Actual Claude Code/Opus review has started against an immutable 150-file snapshot of the combined
   production changes. It is not final acceptance: the two follow-ups and renewed aggregate evidence
-  must be reviewed afterward. Parent self-review is permitted only if Claude exhausts capacity.
+  must be reviewed afterward. The first review completed without a capacity failure and found no
+  blocking SQ regression. Its 150-file snapshot remained unchanged. R1 corrects stale adapter
+  wording; R2 records the benign startup-error reporting difference. Parent selected tests of the
+  owner process for R3's moved defensive checks. R4's conservative saved `starting` state is
+  pre-existing and remains outside this work. R5 leaves the shutdown timeout unexplained; a bounded
+  stack-capture investigation will test it without changing production or fixture deadlines.
+  The separately discovered cross-source baseline fix also needs final review.
+  Parent self-review is permitted only if Claude exhausts capacity.
 - Candidate offline packages verify 72 wheel checksums, 69 source/resource files, 48 test files,
   README/TOML equality and five extracted-wheel help commands. No installation occurred. The uv
   executable matches its previously audited wheel contents; these candidate artifacts must be
