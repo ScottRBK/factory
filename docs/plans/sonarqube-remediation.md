@@ -1,0 +1,56 @@
+# Full SonarQube remediation
+
+Status: Scott approved all outstanding findings; five implementation groups are in progress.
+
+## Scope and baseline
+
+This extends the watcher work to all 38 outstanding findings from analysis
+`51ceacbb-2597-4877-8f42-0fce536f1bbc`: 37 maintainability findings and one bug-classified finding.
+Twenty-four are in unchanged code; fourteen are in changed/new functions, not necessarily introduced
+by the watcher changes. The [watcher work record](watcher-problems.md) retains that scan's evidence.
+
+Scott clarified that the cleanup includes existing Factory code, including its AgentShell adapters.
+These are Factory files, not the external AgentShell project or installed SDK. The earlier adapter
+byte-freeze is lifted for these fixes; ownership, cancellation and lifecycle safety remain required.
+The starting source passes 465 tests on each of Python 3.12.3 and 3.13.5 without skips. Those checks
+are baseline evidence, not acceptance of the upcoming refactors.
+
+## Delegation and integration
+
+Each group uses Pi with `openai-codex/gpt-5.6-sol` in a separate branch/worktree. All use one
+snapshot including the uncommitted watcher changes. Main remains untouched during implementation.
+
+- Watcher supervision: four findings in the polling/recovery loop and alert formatting.
+- Planning and Git: six findings in scaffolding, recovery and worktree validation.
+- Lifecycle: twelve findings in Factory's AgentShell integration and owned-command cancellation.
+- Resources: eight findings in definitions, profiles, selected skills and resource files.
+- CLI and test helpers: eight findings in setup flow, typing and inherited test helpers.
+
+Source ownership is disjoint. Shared documentation and map changes belong to integration. Agents
+commit locally under Scott's identity, with no agent authorship trailers. No push is authorized.
+Merge only completed handoffs after checking scope, evidence and source hashes. Keep the initial
+working copy safe; do not remove branches/worktrees until their changes are durably integrated.
+
+## Safety and validation
+
+Use the approved public CLI, external-command, real Git and native SDK/private-tmux test seams.
+Existing failing SonarQube findings provide the static-analysis baseline. Preserve behavior with
+focused public baselines and small refactors; any behavioral bug needs an actual failing public
+regression before its fix. Do not weaken assertions, turn helpers into fake tests, suppress rules,
+exclude code or change the quality gate/new-code baseline to manufacture a pass. Investigate proven
+false positives honestly, with their call-site/type-resolution evidence.
+
+Preserve read-only saved-plan recovery, user-approved Foreman completion, established ownership
+identity, scoped repository pauses and uncertain-write latches. Terminal loss and uncertain delivery
+remain fatal. Keep lifecycle deadlines, owned handles, safe cancellation and private socket/lock
+boundaries. A blocking call must not merely move into a helper to evade an async rule.
+
+No dependency install/upgrade, SDK workaround, live product inference/backend test, DinoLand repair
+or unrelated cleanup. Keep `FACTORY.md`, `AGENTS.md`, Design questions, dependency/lock/CI files and
+audited bundles unchanged. Context7 remains unavailable; use pinned official documentation.
+
+After integration, repeat both full native-enabled suites, lint/import/scope checks, a fresh
+SonarQube scan, Mycelium repeat export and offline package checks. Report the assigned gate apart
+from `caycStatus`, with actual findings rather than assumed fixes. Claude Code reviews the immutable
+combined source and validation evidence; parent self-review is allowed only if Claude runs out of
+capacity. Address review findings and revalidate changed source before final acceptance and cleanup.

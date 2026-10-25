@@ -204,8 +204,10 @@ Source hashes and protected Design questions were captured before edits.
   imported. Evidence is in `sonar-followup`, including gate/issue results and scope triage.
 - Current offline packages pass 72 wheel digests, exact matching of 69 source/resource files and
   48 test files, safe/unique archive checks and five extracted-wheel help commands. No installation.
-- SonarQube triage/remediation and renewed Opus acceptance remain gates. Resolving findings in
-  protected or unrelated baseline code requires an explicit scope decision.
+- SonarQube remediation and renewed review acceptance remain gates. Scott subsequently approved
+  [fixing all outstanding findings](sonarqube-remediation.md), including the previously protected
+  Factory integration code, with separate Pi worktrees and Claude Code review. Behavioral safety
+  remains required; the source-byte freeze no longer prevents those approved refactors.
 
 Transient logs and review material live under `/tmp/factory-watcher-alerts-hpVnTr`, not in the repo.
 Only durable architecture and progress records belong here. No commit or push is part of this task.
