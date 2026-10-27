@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from functools import partial
 from pathlib import Path
 from typing import cast
+from urllib.parse import urlsplit
 
 from forgetful_factory.application.configuration import (
     FactoryConfiguration,
@@ -45,6 +46,7 @@ def _parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog='forgetful-factory')
     commands = parser.add_subparsers(dest='command', required=True)
     init = commands.add_parser('init', help='Configure this workspace factory')
+    init.set_defaults(manual_setup=False)
     mode = init.add_mutually_exclusive_group()
     mode.add_argument('--finalize', action='store_true',
                       help='Validate saved setup through the normal init checks')
@@ -62,6 +64,10 @@ def _parse_arguments() -> argparse.Namespace:
     init.add_argument('--label', action='append', help='Watched label or *; repeat for multiple')
     init.add_argument('--foreman-model', help='Foreman model text setting (provider/model)')
     init.add_argument('--foreman-effort', help='Foreman effort text setting')
+    init.add_argument('--foreman-memory', action=argparse.BooleanOptionalAction, default=None,
+                      help='Enable Foreman recall/capture for a Forgetful server')
+    init.add_argument('--foreman-memory-model',
+                      help='Exact native model selector for Foreman recall and capture')
     init.add_argument('--feature-owner-model', help='Native Pi model; defaults to Foreman model')
     init.add_argument('--feature-owner-effort', help='Native Pi effort; defaults to Foreman effort')
     init.add_argument('--research-model', help='Independent native research model selector')
@@ -135,7 +141,12 @@ def _configure_new_factory(application: InitialiseFactory, workspace: Path,
         'Foreman effort', WORKER_EFFORTS['pi'])
     config = application.configure(paths, labels,
         str(workspace / '.factory/agents/foreman/agent.json'))
-    return config, InitialAgentChoices(model, effort)
+    return config, InitialAgentChoices(
+        model,
+        effort,
+        foreman_memory_enabled=args.foreman_memory is True,
+        foreman_memory_model=args.foreman_memory_model,
+    )
 
 
 def _check_existing_connection(args: argparse.Namespace, existing: ForgetfulConnection,
@@ -360,7 +371,10 @@ def _foreman(args: argparse.Namespace, workspace: Path) -> int:
                 raise FactoryError('Foreman already exists or is uncertain; use foreman --attach '
                                    'or watch --status. The existing owner was preserved.')
             config = load_configuration(workspace)
-            _, environment, launch = prepare_foreman_launch(config, workspace)
+            profile, environment, launch = prepare_foreman_launch(config, workspace)
+            notice = profile.managed_memory_notice()
+            if notice is not None:
+                print(notice, flush=True)
             state = start_owner(workspace, args.agentshell_python, environment, {
                 **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}',
                 'prompt': None})
@@ -509,6 +523,7 @@ def _select_setup_route(args: argparse.Namespace) -> bool:
     if route == 'Foreman-assisted':
         args.assisted = True
         return True
+    args.manual_setup = True
     return False
 
 
@@ -529,6 +544,48 @@ def _prompt_coordinator_choices(args: argparse.Namespace, config: InitialAgentCh
                                    f'{role}_agent_effort': effort,
                                    f'{role}_agent_harness': harness})
     return config
+
+
+def _foreman_memory_choices(
+        args: argparse.Namespace, config: InitialAgentChoices, discover_models,
+        connection: ForgetfulConnection) -> InitialAgentChoices:
+    enabled = args.foreman_memory is True
+    model = args.foreman_memory_model
+    if args.manual_setup and args.foreman_memory is None:
+        try:
+            enabled = _select_numbered(
+                'Foreman automatic memory',
+                ('Off', 'Automatic recall and capture'),
+            ) == 'Automatic recall and capture'
+        except EOFError:
+            enabled = False
+    if enabled and connection.instance != 'server':
+        raise FactoryError('Foreman automatic memory requires a Forgetful server. '
+                           'Local CLI planning remains available; rerun init with '
+                           '--no-foreman-memory or configure an existing server.')
+    if enabled and not _managed_rest_mapping_available(connection):
+        raise FactoryError('Foreman automatic memory cannot derive the server REST endpoint. '
+                           'Use a server root URL or an exact terminal /mcp path, or rerun with '
+                           '--no-foreman-memory. Native CLI planning can still use this server '
+                           'URL; Factory did not guess a REST target.')
+    if enabled and model is None and args.manual_setup:
+        models = discover_models()
+        if not models:
+            raise FactoryError('No native Pi model catalog choices are available for Foreman '
+                               'automatic recall and capture.')
+        model = _select_numbered('Foreman memory model', models)
+    return cast(InitialAgentChoices, replace(
+        config,
+        foreman_memory_enabled=enabled,
+        foreman_memory_model=model,
+    ))
+
+
+def _managed_rest_mapping_available(connection: ForgetfulConnection) -> bool:
+    if connection.instance != 'server' or connection.server is None:
+        return False
+    path = urlsplit(connection.server).path
+    return path in ('', '/') or path.endswith('/mcp')
 
 
 def _worker_choices(args: argparse.Namespace, config: InitialAgentChoices,
@@ -554,7 +611,7 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
     if application.profile.uses_browser_login(config.forgetful):
         print('If your browser opens, complete Forgetful sign-in there.', flush=True)
     print(application.check_foreman(config, login=login))
-    application.profile.record_completion(config)
+    memory_selected = application.profile.record_completion(config)
     if initial:
         print('Add your skills as <skill-name>/SKILL.md inside these agent folders:')
         roles = ['foreman', 'feature-owner', 'research']
@@ -567,6 +624,23 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
         print('Follow agent_file references and use each agent\'s selected skills directories.')
     print('Agent settings live in agent.json. Add skills to a selected directory; '
           'reload or restart affected agents. Repeated init preserves your files.')
+    notice = application.profile.managed_memory_notice()
+    if notice is not None:
+        print(notice)
+    elif config.forgetful.instance == 'server' and not _managed_rest_mapping_available(
+            config.forgetful):
+        print('The managed Foreman extension reports unavailable for this server URL; '
+              'no REST target was guessed. Native Factory CLI planning remains available.')
+    elif config.forgetful.instance == 'server':
+        definition = Path(config.foreman_agent_file)
+        print('The Foreman server extension plans against the selected Forgetful project even '
+              'when automatic memory is off.')
+        print(f'Optional extension authentication: {definition.with_name("forgetful-auth.json")} '
+              'may contain token_env naming a distinct environment variable. '
+              'Factory does not create this file or copy a token; native CLI login is separate.')
+    elif memory_selected:
+        print('The Foreman memory extension reports unavailable for local Forgetful. '
+              'Local Factory CLI planning remains available; no server is started.')
 
 
 def _initialise(args: argparse.Namespace, workspace: Path) -> int:
@@ -711,6 +785,14 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
     discover_models = partial(_discover_worker_models, application=application, args=args,
                               workspace=workspace, state=state)
     choices = _worker_choices(args, choices, discover_models)
+
+    def memory_models():
+        if not state.prepared:
+            _prepare_foreman(application, state.connection, args)
+            state.prepared = True
+        return application.profile.list_models(state.connection)
+
+    choices = _foreman_memory_choices(args, choices, memory_models, state.connection)
     validate_initial_agents(choices)
     state.config = replace(state.config, execution_enabled=choices.execution_enabled,
                            forgetful=state.connection)
@@ -718,6 +800,8 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
                              workspace, state)
     for message in application.initialise(state.config, before_writes=validate_model):
         print(message)
+    if choices.foreman_memory_enabled:
+        print('Foreman automatic memory enabled for the configured Forgetful server.')
     if args.assisted:
         return _launch_setup_foreman(application, state.config, workspace, args)
     _complete_setup(application, state.config, workspace, login=args.login, initial=True)

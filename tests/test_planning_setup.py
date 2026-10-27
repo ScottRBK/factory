@@ -72,6 +72,7 @@ class PlanningSetupTests(InitFixture):
         self.assertEqual(json.loads(receipt.read_text()), {'complete': True})
 
     def test_runtime_rejects_missing_foreman_selections_and_preserves_edits(self):
+        # Only guidance and AgentShell are mandatory; managed memory is optional.
         for missing in ('both', 'skill', 'agentshell'):
             with self.subTest(missing=missing):
                 # Arrange
@@ -102,7 +103,10 @@ class PlanningSetupTests(InitFixture):
                     [sys.executable, '-m', 'forgetful_factory', 'watch', '--new-only'],
                     cwd=repo, env=self.env, capture_output=True, text=True, timeout=5)
                 self.assertNotEqual(watch.returncode, 0)
-                self.assertRegex(watch.stderr, 'Foreman guidance|audited AgentShell extension')
+                self.assertRegex(
+                    watch.stderr,
+                    'Foreman guidance|audited AgentShell extension',
+                )
 
     def test_init_accepts_essential_foreman_resources_without_optional_hide_tools(self):
         # Arrange

@@ -16,6 +16,7 @@ if os.environ.get('PROFILE_LOG'):
         stream.write(json.dumps({'name': name, 'args': args, 'cwd': os.getcwd(), 'pid': os.getpid(),
             'has_token': 'FORGETFUL_TOKEN' in os.environ,
             'pi_offline': os.environ.get('PI_OFFLINE'),
+            'milo': os.environ.get('UNDICI_USE_MILO'),
             'models_offline': os.environ.get('HF_HUB_OFFLINE'),
             'agent_dir': os.environ.get('PI_CODING_AGENT_DIR'),
             'role_dir': os.environ.get('FACTORY_ROLE_DIR'),
@@ -32,7 +33,7 @@ if os.environ.get('PROFILE_FAIL') == name:
     print('TOP_SECRET failure', file=sys.stderr)
     sys.exit(1)
 if name == 'pi' and args == ['--version']:
-    print('1.2.0')
+    print('1.4.0')
 elif name == 'pi' and args == ['--no-approve', '--list-models']:
     print(os.environ.get('PROFILE_MODELS',
         'provider  model  context  max-out  thinking  images\\n'

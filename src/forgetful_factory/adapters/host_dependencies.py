@@ -67,7 +67,7 @@ class HostDependencies:
             env.pop('FORGETFUL_TOKEN', None)
             version = run_owned([str(directory / 'node_modules/.bin/pi'), '--version'],
                                 directory, env, timeout=10)
-            return version.strip() == '1.2.0'
+            return version.strip() == '1.4.0'
         except (OSError, FactoryError):
             return False
 
@@ -85,7 +85,7 @@ class HostDependencies:
             return ('Install the AgentShell extension runtime from its reviewed upstream uv lock? '
                     'Uses existing Python and uv >=0.13.5 in the role directory. [y/N]: ')
         if command == 'pi':
-            return ('Install Pi 1.2.0 in .factory/runtime/pi with the reviewed npm lock? '
+            return ('Install Pi 1.4.0 in .factory/runtime/pi with the reviewed npm lock? '
                     'Uses existing Node/npm; npm scripts are disabled. [y/N]: ')
         if command == 'forgetful':
             # The workflow requests this description before asking for installation consent.
@@ -104,7 +104,7 @@ class HostDependencies:
     def _environment(self, extra: dict[str, str] | None = None) -> dict[str, str]:
         env = {key: value for key, value in os.environ.items()
                if not key.upper().startswith(('UV_', 'PIP_', 'NPM_CONFIG_'))
-               and key not in ('NODE_OPTIONS', 'VIRTUAL_ENV', 'CONDA_PREFIX')}
+               and key not in ('NODE_OPTIONS', 'VIRTUAL_ENV', 'CONDA_PREFIX', 'UNDICI_USE_MILO')}
         return dict(env, LC_ALL='C', **(extra or {}))
 
     def _run(self, args: list[str], cwd: Path, *, interactive: bool = False,

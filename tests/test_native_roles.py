@@ -36,20 +36,133 @@ await loader.reload();
 const loaded = loader.getExtensions();
 if (loaded.errors.length) throw new Error(JSON.stringify(loaded.errors));
 const tools = loaded.extensions.flatMap(e => [...e.tools.values()].map(t => t.definition));
+const commands = loaded.extensions.flatMap(e => [...e.commands.keys()]);
 const roster = tools.find(t => t.name === "subagent_roster");
 const result = roster ? await roster.execute("probe", {}, undefined, undefined, {}) : null;
 console.log(JSON.stringify({
     agents: loader.getAgentsFiles().agentsFiles.map(f => f.path),
     skills: loader.getSkills().skills,
     tools: tools.map(t => t.name),
+    commands,
     roles: result ? JSON.parse(result.content[0].text) : [],
     systemPrompt: loader.getSystemPrompt() ?? null
+}));
+'''
+
+MANAGED_PROBE = r'''
+import fs from "node:fs";
+import path from "node:path";
+import {once} from "node:events";
+import {createServer} from "node:http";
+import {pathToFileURL} from "node:url";
+const {createAgentSession, DefaultResourceLoader, SessionManager, SettingsManager} = await import(
+    pathToFileURL(process.env.NATIVE_PI_SDK).href);
+const cwd = process.env.PROBE_ROLE;
+const selection = JSON.parse(fs.readFileSync(path.join(cwd, "agent.json"), "utf8")).agent.resources;
+const requests = [];
+const server = createServer((request, response) => {
+  requests.push(`${request.method} ${request.url}`);
+  response.setHeader("content-type", "application/json");
+  response.end(JSON.stringify({id: 12, name: "Factory fixture project"}));
+});
+server.listen(0, "127.0.0.1");
+await once(server, "listening");
+process.env.FORGETFUL_SERVER =
+    `http://127.0.0.1:${server.address().port}/factory/mcp`;
+const settings = SettingsManager.create(cwd, process.env.PI_CODING_AGENT_DIR);
+settings.setProjectTrusted(true);
+const loader = new DefaultResourceLoader({
+  cwd, agentDir: process.env.PI_CODING_AGENT_DIR, settingsManager: settings,
+  additionalExtensionPaths: selection.extensions.map(p => path.resolve(cwd, p)),
+  additionalSkillPaths: selection.skills.map(p => path.resolve(cwd, p)),
+  noExtensions: true, noSkills: true, noPromptTemplates: true, noThemes: true,
+  disabledBuiltinExtensions: ["codemode", "tool_search", "mcp"], noContextFiles: false,
+  systemPrompt: ""
+});
+await loader.reload();
+const loaded = loader.getExtensions();
+const {session} = await createAgentSession({
+  cwd, agentDir: process.env.PI_CODING_AGENT_DIR, settingsManager: settings,
+  sessionManager: SessionManager.inMemory(cwd), resourceLoader: loader, noTools: true
+});
+const notices = [];
+const errors = [];
+await session.bindExtensions({mode: "json", onError: error => errors.push(error.error),
+  uiContext: {notify: message => notices.push(message), setWidget: () => undefined}});
+await session.prompt("/forgetful status");
+await session.extensionRunner.emit({type: "session_shutdown", reason: "quit"});
+session.dispose();
+await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
+console.log(JSON.stringify({
+  loadErrors: loaded.errors, errors, notices, requests,
+  tools: loaded.extensions.flatMap(e => [...e.tools.keys()]),
+  commands: loaded.extensions.flatMap(e => [...e.commands.keys()])
 }));
 '''
 
 
 @unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native loading')
 class NativeRoleTests(InitFixture):
+    def test_native_pi_loads_relocated_managed_foreman_with_controlled_rest(self):
+        # Arrange
+        repo = self.repo()
+        setup = self.run_cli(
+            repo,
+            '--repo', '.',
+            *INIT_SETTINGS,
+            '--no-foreman-memory',
+            '--forgetful-instance', 'server',
+            '--forgetful-server', 'https://memory.example/factory/mcp',
+        )
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        factory = repo / '.factory'
+        original = factory / 'agents/foreman'
+        role = factory / 'coordinators/dispatch'
+        role.parent.mkdir()
+        original.rename(role)
+        definition = role / 'agent.json'
+        document = json.loads(definition.read_text())
+        document['agent']['name'] = 'dispatch-lead'
+        document['agent']['resources']['extensions'] = [
+            '../../resources/agentshell/extensions/agentshell.ts',
+            '../../resources/hide-tools/index.ts',
+            '../../resources/pi-forgetful/factory.ts',
+        ]
+        document['roster']['roles'] = [{'agent_file': '../../agents/feature-owner/agent.json'}]
+        definition.write_text(json.dumps(document))
+        config = factory / 'factory.toml'
+        config.write_text(config.read_text().replace(
+            'agents/foreman/agent.json', 'coordinators/dispatch/agent.json'))
+        env = {
+            'PATH': os.environ['PATH'],
+            'HOME': str(self.workspace),
+            'PI_OFFLINE': '1',
+            'PI_CODING_AGENT_DIR': str(self.workspace / 'native pi'),
+            'PROBE_ROLE': str(role),
+            'PI_AGENTSHELL_ROSTER_FILE': str(definition),
+            'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
+            'FACTORY_WORKSPACE': str(repo),
+            'FACTORY_FOREMAN_AGENT_FILE': str(definition),
+            'FACTORY_FORGETFUL_INSTANCE': 'server',
+            'FACTORY_FORGETFUL_PROJECT_ID': '12',
+            'FORGETFUL_SERVER': 'https://memory.example/factory/mcp',
+        }
+
+        # Act
+        result = subprocess.run(
+            [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', MANAGED_PROBE],
+            cwd=role, env=env, capture_output=True, text=True, timeout=30, check=True)
+
+        # Assert
+        observation = json.loads(result.stdout)
+        self.assertEqual(observation['loadErrors'], [])
+        self.assertEqual(observation['errors'], [])
+        self.assertIn('forgetful', observation['commands'])
+        self.assertIn('forgetful_recall_wait', observation['tools'])
+        self.assertEqual(observation['requests'], ['GET /factory/api/v1/projects/12'])
+        self.assertIn('Factory fixture project (#12)', '\n'.join(observation['notices']))
+        self.assertFalse((role / 'forgetful-auth.json').exists())
+
     def test_native_pi_discovers_added_local_skill_without_init_or_inference(self):
         # Arrange
         repo = self.repo()

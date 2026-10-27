@@ -120,7 +120,7 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/custom-endpoint')
+                              '--forgetful-server', 'https://memory.example/factory/mcp')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Checking Forgetful connection and planning access', result.stdout)
@@ -140,13 +140,13 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--forgetful-server', 'https://memory.example/factory/mcp',
                               '--login')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         calls = [e for e in events(self.log) if e['name'] == 'forgetful']
         self.assertEqual(calls[0]['args'],
-                         ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
+                         ['auth', 'login', '--server', 'https://memory.example/factory/mcp'])
         self.assertEqual(calls[1]['args'][:2], ['call', 'get_project'])
         self.assertTrue(any(e['args'][:2] == ['tools', 'list'] for e in calls))
         self.assertTrue(all(e['config_home'] == str(repo / '.factory/cli-config')
@@ -159,13 +159,13 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-method', 'cli', '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--forgetful-server', 'https://memory.example/factory/mcp',
                               '--login')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         calls = [e for e in events(self.log) if e['name'] == 'forgetful']
         self.assertEqual(calls[0]['args'],
-                         ['auth', 'login', '--server', 'https://memory.example/custom-endpoint'])
+                         ['auth', 'login', '--server', 'https://memory.example/factory/mcp'])
         self.assertEqual(calls[0]['config_home'],
                          str(repo / '.factory/cli-config'))
         self.assertNotIn('Forgetful: connected', result.stdout)
@@ -184,7 +184,7 @@ class ProfileTests(InitFixture):
         settings = document['agent']['resources']
         self.assertIn('../../resources/agentshell/extensions/agentshell.ts', settings['extensions'])
         self.assertIn('../../resources/hide-tools/index.ts', settings['extensions'])
-        self.assertFalse(any('forgetful-extension' in item for item in settings['extensions']))
+        self.assertIn('../../resources/pi-forgetful/factory.ts', settings['extensions'])
         extension = repo / '.factory/resources/hide-tools/index.ts'
         self.assertIn('hide-tools', extension.read_text())
         self.assertTrue((repo / '.factory/resources/agentshell/python/.venv/bin/python').exists())
@@ -240,7 +240,8 @@ class ProfileTests(InitFixture):
         settings = document['agent']['resources']
         self.assertEqual(settings['extensions'], [
             '../../resources/agentshell/extensions/agentshell.ts',
-            '../../resources/hide-tools/index.ts'])
+            '../../resources/hide-tools/index.ts',
+            '../../resources/pi-forgetful/factory.ts'])
         self.assertFalse((profile / 'resources/factory-status.ts').exists())
         self.assertTrue((profile / 'skills/foreman/SKILL.md').is_file())
 
@@ -400,7 +401,7 @@ class ProfileTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               '--forgetful-instance', 'server',
-                              '--forgetful-server', 'https://memory.example/custom-endpoint',
+                              '--forgetful-server', 'https://memory.example/factory/mcp',
                               '--login')
         # Assert
         self.assertEqual(result.returncode, 130, result.stderr)

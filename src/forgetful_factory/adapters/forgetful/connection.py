@@ -28,6 +28,8 @@ def role_environment(workspace: Path, connection: ForgetfulConnection,
         env.setdefault('HF_HUB_OFFLINE', '1')
     # Do not implicitly import a personal Forgetful target or bearer credential.
     env.pop('FORGETFUL_TOKEN', None)
+    # The audited Pi runtime uses Undici's standard parser, not its experimental Milo backend.
+    env.pop('UNDICI_USE_MILO', None)
     if connection.instance == 'local':
         env.update(DATABASE='SQLite', SQLITE_PATH=connection.database, SQLITE_MEMORY='false',
                    PLANNING_ENABLED='true')

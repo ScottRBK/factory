@@ -17,7 +17,7 @@ Deployment and end-to-end verification remain a later slice; live delivery valid
 Factory source uses one `agent.json` per agent. The approved
 [watcher fixes](docs/plans/watcher-problems.md) are implemented. The
 [full SonarQube cleanup](docs/plans/sonarqube-remediation.md) has zero outstanding findings and
-passes its assigned gate. Combined validation passes 471 tests on each supported Python without
+passes its assigned gate. That historical baseline passed 471 tests on each supported Python without
 skips. An earlier shutdown timeout remains unexplained after bounded investigation; diagnostics are
 improved, but no timeout fix is claimed. Claude Code accepted the code with this limitation.
 Changes are integrated locally. Native probes use isolated homes and fake children, without
@@ -31,10 +31,18 @@ signatures, provenance and source bytes were verified; hide-tools and the SDK lo
 The commands below describe the implemented CLI; they do not establish installation readiness.
 There is no automatic migration for existing factories, including DinoLand.
 
+The internal bundle now includes Foreman's server planning UI and optional automatic memory.
+`/forgetful plans` works with automatic memory off. Current Factory validation passes 503 tests on
+both Python versions without skips, and actual Claude review through AgentShell is approved.
+See the [integration record](docs/plans/foreman-memory.md) for scans, packages and remaining limits.
+This private extension is for authorized internal use, not public redistribution. No installation,
+existing-resource upgrade or live automatic-memory enablement is implied.
+
 ## Run locally
 
 Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL. Foreman setup also
-needs Pi and tmux. Forgetful access uses its native CLI only. Persistent Foreman sessions need Linux
+needs Pi and tmux. Factory workflows use the native Forgetful CLI; Foreman's optional planning UI
+and memory extension use REST independently. Persistent Foreman sessions need Linux
 5.3+ process handles (`pidfd`); Python builds without `os.pidfd_open` also need glibc 2.36+. `uvx`
 installs the AgentShell dependency automatically.
 
@@ -96,14 +104,17 @@ Use uv 0.13.5 or newer. It creates `.venv` and installs the locked runtime and d
 uv sync --locked
 uv run --locked ruff check src tests
 uv run --locked lint-imports --no-cache
-uv run --locked python -m unittest discover -s tests -v
+uv run --locked python -m compileall -q -f --invalidation-mode checked-hash src
+uv run --locked python -m unittest discover -s tests -v --durations 25
 ```
 
 Dependencies live in `pyproject.toml`; commit `uv.lock` after reviewed dependency changes.
 Dev tools are not installed with the published package. CI runs all three checks on Python 3.12
 and 3.13. Tests use external-command fixtures. Lifecycle tests also need installed tmux: they run
 real AgentShell in a private tmux server with fake Pi, isolated homes and no service or model calls.
-Optional SDK checks load Pi without inference.
+Optional SDK checks load Pi without inference. The duration report includes setup and cleanup;
+verbose progress remains available if CI stops before the summary. See the
+[CI runtime work record](docs/plans/ci-test-runtime.md) for measured costs and current limits.
 
 ## Foreman and Forgetful setup
 
@@ -486,13 +497,50 @@ Init provisions pinned AgentShell and hide-tools extensions; `/hide-tools` chang
 The current bundle contains audited AgentShell extension 1.5.0; its independent worker uses
 AgentShell 0.5.0. Normalized native loading is tested without inference. Its real
 Python environment requires installation consent (`--install-role-runtime`), using
-existing uv >=0.13.5 and Python. No background-memory or custom Factory Pi extension is installed.
+existing uv >=0.13.5 and Python. The internal bundle also contains the managed Forgetful entrypoint.
 Generated ignore rules protect runtime and credential paths without weakening existing exclusions.
 
-Missing executables require consent. Pi 1.2.0 can be installed into `.factory/runtime/pi` using
-existing Node 22.19+ and npm, with a reviewed npm lock and scripts disabled. Forgetful 0.5.5 can be
-installed as the **Forgetful CLI** into `.factory/runtime/forgetful`, with frozen hashes and wheels
-only. It does not start another server. The installer checks uv and selects an already installed
+### Foreman server planning and optional memory
+
+New starter Foreman definitions select the managed Forgetful extension; children do not. Existing
+edited definitions are preserved and need not select it. Automatic recall/capture defaults off.
+Opt in with `--foreman-memory --foreman-memory-model provider/model`; use an exact native Pi catalog
+selector. Manual setup offers off/on and numbered models. A model choice alone does not enable it.
+Preferences live in `forgetful.json` beside the selected Foreman definition, including renamed or
+relocated definitions. Ordinary init does not synchronize them.
+
+The server extension provides `/forgetful plans` even with automatic memory off. It uses Factory's
+configured server and project. CLI and extension logins are separate; shared Pi model access does
+not grant REST access. Optional sibling `forgetful-auth.json` may name an existing extension token
+variable using `token_env`; it must not contain a token. Factory creates no auth file and copies no
+credential. See the [memory ADR](docs/adrs/foreman-memory.md) for the configuration contract.
+
+Managed REST requires a root URL or exact terminal `/mcp` path. Other native CLI paths remain valid
+with memory off, but the managed extension reports unavailable. Local SQLite/CLI planning remains
+supported; local automatic-memory opt-in is refused without starting a server or changing targets.
+Restart Foreman after target/project changes; `/reload` does not refresh launch-time environment.
+
+The selected host must have the reviewed Pi/Undici runtime before managed REST or memory work.
+A Pi 1.4.0 version string alone is insufficient. An unsupported host is reported unavailable rather
+than globally upgraded. Queue state stays in the workspace, while file inspection retains Pi's
+trusted cwd. Source files and HTTP responses are limited to 1 MiB.
+
+The panel's local visibility file uses owner-only creation permissions without changing them later.
+Additional protection against concurrent replacement of workspace paths was explicitly deferred;
+this is not a filesystem sandbox. Existing settings are preserved and unsafe reads are refused.
+
+Validation is recorded in the [work record](docs/plans/foreman-memory.md). Live automatic-memory
+enablement still needs the capture-URL policy decision. Internal use does not grant public
+redistribution permission for the unlicensed extension. Existing installations and edited root
+resources are not automatically updated or activated by installing a newer Factory wheel.
+
+### Managed runtime dependencies
+
+Missing executables require consent. Pi 1.4.0 can be installed into `.factory/runtime/pi` using
+existing Node 22.19+ and npm, with reviewed Undici 8.12.2 pinned and scripts disabled. The
+experimental `UNDICI_USE_MILO` switch is removed from Factory's Pi processes. Forgetful 0.5.5 can
+be installed as the **Forgetful CLI** into `.factory/runtime/forgetful`, using frozen hashes and
+wheels only. It does not start another server. The installer checks uv and selects an existing
 Python 3.12 before asking permission; Factory itself can run under Python 3.13 or later. Missing
 prerequisites give retry guidance, without downloading Python or changing existing installations.
 Ubuntu 24.04 amd64 supports a pinned tmux 3.4-1ubuntu0.1 APT installation, after a
@@ -510,7 +558,7 @@ claim. These defaults do not block model-provider calls for conversations, but `
 stops automatic model-catalog/provider-list refresh, update checks, and telemetry. New or account-
 specific models may therefore be absent. Refresh the shared native Pi catalog outside the watcher
 with Pi's `update --models` command and `PI_OFFLINE` unset, or configure the shared home's
-`models.json`. Setting `PI_OFFLINE=0` is not a reliable opt-out in Pi 1.2.0.
+`models.json`. Setting `PI_OFFLINE=0` is not a reliable opt-out in Pi 1.4.0.
 
 Most tests use controlled external commands and temporary Git repositories. Optional native tests
 can load an isolated Pi SDK without inference. Normalized loading still needs the audited released
@@ -518,7 +566,7 @@ bundle and successful native checks; the earlier checks do not establish that re
 
 ```bash
 NATIVE_PI_SDK=/absolute/pi-coding-agent/dist/index.js \
-  uv run --locked python -m unittest discover -s tests -v
+  uv run --locked python -m unittest discover -s tests -v --durations 25
 ```
 
 The [Slice 4/5 record](docs/plans/slices-4-5.md) distinguishes command-fixture tests, actual local

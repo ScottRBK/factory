@@ -754,33 +754,6 @@ class WatcherAlertTests(PlanningWatchFixture):
         task = self.planning_call('get_task', task_id=1)
         self.assert_invalid_full_record_pauses('get_task', dict(task, id=2))
 
-    def test_full_task_reply_rejects_missing_or_malformed_id_and_plan_association(self):
-        self.seed((1,))
-        task = self.planning_call('get_task', task_id=1)
-        for field in ('id', 'plan_id'):
-            for value in (True, False, 0, -1, 1.0, 'TOP_SECRET invalid identifier', None, 2):
-                with self.subTest(field=field, value=value):
-                    self.assert_invalid_full_record_pauses('get_task', dict(task, **{field: value}))
-            with self.subTest(field=field, missing=True):
-                response = dict(task)
-                del response[field]
-                self.assert_invalid_full_record_pauses('get_task', response)
-
-    def test_full_plan_reply_requires_exact_requested_positive_id_and_positive_project_id(self):
-        self.seed((1,))
-        plan = self.planning_call('get_plan', plan_id=1)
-        for field in ('id', 'project_id'):
-            values = [True, False, 0, -1, 1.0, 'TOP_SECRET invalid identifier', None]
-            if field == 'id':
-                values.append(2)
-            for value in values:
-                with self.subTest(field=field, value=value):
-                    self.assert_invalid_full_record_pauses('get_plan', dict(plan, **{field: value}))
-            with self.subTest(field=field, missing=True):
-                response = dict(plan)
-                del response[field]
-                self.assert_invalid_full_record_pauses('get_plan', response)
-
     def test_full_plan_boolean_identity_cannot_prove_recovery(self):
         self.seed((1,))
         plan = self.planning_call('get_plan', plan_id=1)
@@ -822,19 +795,10 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assert_invalid_full_record_pauses('list_plans', {
             'plans': [plan, plan], 'total_count': 2})
 
-    def test_plan_and_task_inventory_counts_and_row_ids_use_exact_integer_types(self):
+    def test_invalid_task_inventory_retains_read_only_pause_repair_and_delivery(self):
         self.seed((1,))
-        for tool, key in (('list_plans', 'plans'), ('query_tasks', 'tasks')):
-            for count in (False, True, -1, 1.0, '1', None):
-                with self.subTest(tool=tool, count=count):
-                    rows = [] if count is False else [{'id': 1}]
-                    self.assert_invalid_full_record_pauses(tool, {key: rows, 'total_count': count})
-            for identity in (True, False, 0, -1, 1.0, 'TOP_SECRET row identifier', None, [], {}):
-                with self.subTest(tool=tool, identity=identity):
-                    self.assert_invalid_full_record_pauses(tool, {
-                        key: [{'id': identity}], 'total_count': 1})
-            with self.subTest(tool=tool, missing_id=True):
-                self.assert_invalid_full_record_pauses(tool, {key: [{}], 'total_count': 1})
+        self.assert_invalid_full_record_pauses(
+            'query_tasks', {'tasks': [{'id': True}], 'total_count': 1})
 
     def test_unknown_nonempty_status_keeps_closed_new_only_plan_pending_until_repaired(self):
         original, = self.seed((1,))

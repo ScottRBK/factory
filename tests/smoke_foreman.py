@@ -34,7 +34,8 @@ from forgetful_factory.configuration import load_configuration
 
 MODEL = 'factory-smoke/no-inference'
 ROLE_EXTENSIONS = ['../../resources/agentshell/extensions/agentshell.ts',
-                   '../../resources/hide-tools/index.ts']
+                   '../../resources/hide-tools/index.ts',
+                   '../../resources/pi-forgetful/factory.ts']
 # Test instrumentation only: never copied into production resources or selected automatically.
 PROBE = r'''import fs from "node:fs";
 export default function(pi) {

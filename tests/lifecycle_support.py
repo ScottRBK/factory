@@ -48,7 +48,13 @@ elif name == 'pi' and '--extension' in args:
         log.write(json.dumps({'started': os.getpid(), 'cwd': os.getcwd(), 'args': args,
                              'command': os.environ.get('FACTORY_COMMAND'),
                              'workspace': os.environ.get('FACTORY_WORKSPACE'),
-                             'roster': os.environ.get('PI_AGENTSHELL_ROSTER_FILE')}) + '\n')
+                             'roster': os.environ.get('PI_AGENTSHELL_ROSTER_FILE'),
+                             'foreman_file':
+                                 os.environ.get('FACTORY_FOREMAN_AGENT_FILE'),
+                             'has_native_forgetful_token':
+                                 'FORGETFUL_TOKEN' in os.environ,
+                             'has_extension_token':
+                                 'FACTORY_EXTENSION_TOKEN' in os.environ}) + '\n')
     if os.environ.get('FAKE_PI_NOTIFY'):
         with open(os.environ['FAKE_PI_NOTIFY'], 'w') as notify:
             notify.write('started\n')

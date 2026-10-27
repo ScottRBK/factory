@@ -424,7 +424,10 @@ class AgentDefinitionLaunchTests(WatchFixture):
         document['agent']['cwd'] = '../agents/foreman'
         document['agent']['resources']['skills'] = ['../agents/foreman/skills']
         document['agent']['resources']['extensions'] = [
-            '../resources/agentshell/extensions/agentshell.ts', '../resources/hide-tools/index.ts']
+            '../resources/agentshell/extensions/agentshell.ts',
+            '../resources/hide-tools/index.ts',
+            '../resources/pi-forgetful/factory.ts',
+        ]
         document['roster']['roles'] = [{'agent_file': '../agents/feature-owner/agent.json'}]
         original.unlink()
         definition.write_text(json.dumps(document))

@@ -5,7 +5,9 @@ from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.resource_files import (
     check_skill_file,
+    read_generated_json,
     write_definition,
+    write_json,
     write_new,
 )
 from forgetful_factory.adapters.filesystem.worker_profiles import WorkerProfiles
@@ -72,11 +74,33 @@ class CoordinatorProfiles:
                           choices.feature_owner_agent_effort, 'Plan and own a feature', children,
                           selected_resources([LOCAL_SKILLS_DIRECTORY, choices.grill_me_skill],
                                              [extension]))
+        foreman_extensions = [
+            '../../resources/agentshell/extensions/agentshell.ts',
+            '../../resources/hide-tools/index.ts',
+            '../../resources/pi-forgetful/factory.ts',
+        ]
         self._write_agent('foreman', choices.foreman_agent_model, choices.foreman_agent_effort,
                           'Coordinate the factory and its feature owners', ['feature-owner'],
-                          selected_resources([LOCAL_SKILLS_DIRECTORY], [
-                              '../../resources/agentshell/extensions/agentshell.ts',
-                              '../../resources/hide-tools/index.ts']))
+                          selected_resources([LOCAL_SKILLS_DIRECTORY], foreman_extensions))
+        self._write_foreman_memory(choices)
+
+    def _write_foreman_memory(self, choices) -> None:
+        path = self.directory / 'foreman/forgetful.json'
+        value = {
+            'enabled': choices.foreman_memory_enabled,
+            'capture_mode': 'auto' if choices.foreman_memory_enabled else 'off',
+            'model': choices.foreman_memory_model,
+        }
+        write_json(path, value)
+        try:
+            saved = read_generated_json(path)
+            if json.dumps(saved, sort_keys=True) == json.dumps(value, sort_keys=True):
+                return
+        except (OSError, ValueError, UnicodeError):
+            pass
+        raise FactoryError(f'Existing Foreman memory preferences differ or are invalid: {path}. '
+                           'The file is preserved. Review it and retry first setup with matching '
+                           'choices, or explicitly move the conflicting file aside.')
 
     def _write_agent(self, name, model, effort, description, children, resources):
         write_definition(self.directory / name / 'agent.json', {

@@ -18,9 +18,31 @@ than terminate on planning safety failures. Scott chose user-approved Foreman co
 interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
 duplicate-owner and startup/pre-create repository corrections passed their baseline suites.
 The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outstanding findings and
-passes the assigned gate. Combined validation now passes 471 tests on each supported Python. An
+passes the assigned gate. That baseline passed 471 tests on each supported Python. An
 earlier shutdown timeout remains unexplained; no product fix is claimed. Claude Code accepted the
-code with this limitation, and it is integrated locally. The work records retain the evidence.
+code with this limitation, and it is integrated and pushed. The work records retain the evidence.
+The latest hosted jobs exceeded their 15-minute limit. The [runtime work](plans/ci-test-runtime.md)
+now checks exhaustive malformed replies through the public planning adapter while retaining watcher
+recovery proofs and real lifecycle deadlines. That snapshot passed 479 tests on both supported
+Pythons without skips, in about ten minutes. Hosted validation remains pending.
+
+[Foreman memory integration](adrs/foreman-memory.md) is implemented for internal server use.
+New starter roots select a managed entrypoint; edited roots can keep native CLI planning without
+selecting it. The selected definition's sibling preferences control automatic recall/capture and
+its exact model. Server extension planning remains available with automatic memory off.
+Factory supplies the target/project, while the CLI and extension keep separate authentication.
+The shared-login helper is withdrawn; no credential copying or Forgetful changes are required.
+Local setup retains SQLite/CLI planning and starts no HTTP server. CLI transport and local extension
+support remain deferred. The installer pins audited Pi 1.4.0 with Undici 8.12.2 and disables Milo;
+existing runtimes were not upgraded. Exact source approval and the internal bundle are complete;
+503 Factory tests pass on each supported Python, with actual AgentShell Claude review approved.
+Live adoption is separate. The source-URL policy question applies before live memory enablement.
+The panel preference uses bounded reads and owner-only file creation;
+additional protection against concurrent workspace-path replacement was explicitly deferred.
+[Issue-intake guidance](adrs/foreman-issue-intake.md) tells Foreman to read watched labels and
+ask before adding one to a new issue, with explicit watch-all handling. The reviewed-fix snapshot
+passed 491 tests on each supported Python without skips. This is not runtime memory integration,
+live adoption or hosted CI evidence.
 
 [Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
 one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.
@@ -174,6 +196,14 @@ import or call graph.
   These defaults belong to `agent.json`, not the controller. Edited resource options pass through;
   omitted options retain native SDK defaults. Shared settings and append/context files may apply.
   Model listing has a separate loading policy. This is not a security sandbox.
+- The managed memory entrypoint obtains `FACTORY_FOREMAN_AGENT_FILE` only from root launch wiring.
+  It reads preferences beside that lexical file, regardless of display name or location. Its REST
+  mapping accepts only root or exact terminal `/mcp` URLs and preserves proxy prefixes. These rules
+  do not restrict native CLI-only targets. Separate optional `token_env` authentication must grant
+  access to the fixed project before automatic model work. Queues use workspace storage partitioned
+  by target, credential identity and project; source inspection retains the trusted Pi cwd.
+  Selected managed resources are validated without making them mandatory for edited legacy roots.
+  See the [memory ADR](adrs/foreman-memory.md) for runtime, file bounds and policy gates.
 - Foreman requires selected Foreman/maintenance guidance and the audited AgentShell entry point.
   Definition location does not require resource co-location. Maintenance guidance explains direct
   configuration edits, reload/restart and explicit first finalization. No registration ledger,
@@ -238,6 +268,10 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 - [Normalized agent definitions](adrs/agent-definitions.md): approved single-definition direction,
   cross-repository contract, one-time init and standalone Foreman launch; integration in progress.
+- [Foreman memory](adrs/foreman-memory.md): scoped setup, staged fixed-project REST integration,
+  separate authentication, resource preservation and outstanding validation/enablement gates.
+- [Foreman issue intake](adrs/foreman-issue-intake.md): authoritative watched labels, user consent,
+  watch-all behavior and the boundary between eligibility and actual execution.
 - [Initialization and provider separation](adrs/initialization.md): package layout, contracts,
   repository discovery, configuration format, preflight, storage safety, and failure handling.
 - [Issue polling and Foreman connection](adrs/issue-watcher.md): polling, matching, startup choices,
@@ -261,11 +295,11 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 765; init: line 572; project choice: line 417;
-  numbered choices: line 198; worker setup: line 534; completion/skill folders: line 549;
-  optional manual launch: line 597; standalone Foreman: line 341.
-  Initial wizard state: line 629; new-setup orchestration: line 701.
-  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 51.
+- CLI entry: `cli/main.py`, line 849; init: line 646; project choice: line 431;
+  numbered choices: line 209; worker setup: line 591; completion/skill folders: line 606;
+  optional manual launch: line 671; standalone Foreman: line 352.
+  New-setup orchestration: line 775; memory choices: line 549; REST eligibility: line 584.
+  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 54.
 - Workflows: `application/initialise_factory.py`, line 18;
   `application/watch_factory.py`, line 60; private run state: line 39;
   `application/scaffold_issue.py`, line 47.
@@ -275,17 +309,19 @@ Paths below are relative to `src/forgetful_factory/`:
   read-only lookup/recovery: lines 198 and 248.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
-  shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 118;
-  project listing/creation: lines 91 and 101.
+  shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 120;
+  project listing/creation: lines 93 and 103.
 - Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
   `adapters/filesystem/git_worktrees.py`, line 32; inspection: line 33; write boundary: line 73.
   Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 16.
   Owned native-command cancellation: `adapters/sensitive_command.py`, lines 18 and 33.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 49; selected guidance: line 303;
-  consent persistence: line 186;
-  `adapters/filesystem/coordinator_profiles.py`, line 27;
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 313;
+  consent persistence: line 191; unselected-memory notice: line 341.
+  `adapters/filesystem/coordinator_profiles.py`, line 29; memory preferences: line 87;
   `adapters/filesystem/worker_profiles.py`, line 15. Starter templates live under `resources/`.
+  Profile contract: `application/ports/foreman_profile.py`, line 8.
+  Managed Pi readiness: `adapters/host_dependencies.py`, line 57.
 - Transient wizard choices: `application/initial_agent_choices.py`, line 9.
   Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `adapters/filesystem/resource_files.py`,
@@ -302,9 +338,13 @@ Paths below are relative to `src/forgetful_factory/`:
   `application/configuration.py`, lines 11 and 82; public loader: `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
-  and `tests/test_watch.py`. `tests/test_init_launch.py` exercises terminal-only launch, decline,
+  and `tests/test_watch.py`. `tests/test_planning_adapter.py` checks malformed and valid native
+  planning replies through public adapter reads, without full watcher setup per input.
+  `tests/test_init_launch.py` exercises terminal-only launch, decline,
   cancellation, copied commands and assisted exclusions. `tests/test_project_onboarding.py` covers
   project selection/creation.
+  `tests/test_foreman_memory_setup.py` checks opt-in, model choices and preference preservation.
+  `tests/test_foreman_issue_intake.py` checks delivered label/consent guidance and preservation.
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
   `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
   `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
@@ -330,10 +370,9 @@ Paths below are relative to `src/forgetful_factory/`:
 ## Using the detailed map
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
-it in full by default. Mycelium 0.4.5 refreshed the source map after the Foreman delegation-guidance
-regression, with full member detail; recognized tests were excluded using `--test-path tests`.
-Its 72 boxes include module containers. Test filtering removed 3,472 calls and 52 type
-relationships; signatures remain in full detail.
+it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
+detail; tests were excluded using `--test-path tests`. Its 72 boxes include module containers.
+Test filtering removed 3,574 calls and 56 type relationships; signatures remain in full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.

@@ -18,6 +18,17 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
+- ScottRBK/pi-forgetful-extension, base `e670a88e5aaedb45132bca05c2c4f1a827c44f3c`, with
+  reviewed local patch `17994ef077ba5ac694cd0112c6038ec2dc11828257e2f85aa15395d0b3251d59`.
+  The 40-file runtime closure was independently approved for inert internal inclusion. Its managed
+  entrypoint is `pi-forgetful/factory.ts`; `index.ts` retains standalone behavior. New starter
+  Foreman definitions select the managed entry, while child and edited legacy selections remain
+  unchanged. No upstream license grant exists: internal use only, no public redistribution.
+  The unused post-close permission change was removed. Scott accepted the remaining concurrent
+  workspace-path replacement limitation rather than adding containment work. Existing checks
+  remain; source approval does not claim sandboxing, live enablement or backend/model access.
+  Exact approval: `implementation/source-audit/v7/approval.json` under
+  `/tmp/factory-foreman-forgetful-2ptedi1m/`. All 15 prior bundle members are byte-identical.
 
 The 1.5.0 published archive passed independent signature/provenance and source-byte verification.
 Its exact 11 runtime files were adopted after source and artifact review. All four hide-tools files
@@ -32,11 +43,18 @@ worker with argument arrays; that worker delegates agent execution to the AgentS
 Hide-tools writes only its preference file under the selected Pi directory. Both extensions run
 with the host user's privileges. This review is not a guarantee of security or Pi compatibility.
 
-The hide-tools package declares Pi 0.99.1/0.99.2 peers. Pi 1.2.0 compatibility requires a live
-lifecycle check. The factory does not use npm to resolve or replace those peers. The adjacent
-`install-locks.zip` contains the reviewed npm lock and hash-bearing Python
-requirements from the Slice 3 source audit. Pi 1.2.0 installs with `npm ci --ignore-scripts` into
-`.factory/runtime/pi`; Forgetful 0.5.5 uses wheel-only, hash-checked `uv pip sync` in its own
+The hide-tools package declares Pi 0.99.1/0.99.2 peers. The factory does not use npm to resolve
+or replace those peers; native compatibility checks use the reviewed runtime below.
+The adjacent `install-locks.zip` now pins Pi 1.4.0 with a root Undici 8.12.2 override. Its exact
+SHA-256 is `32d2e178a3cbb1ad02d224d7fa810d35f86749bf9feb0fe47f87097e17c2bde0`.
+The independent audit promoted this lock for internal product use after offline verification of
+119 package archives, 15,012 installed files, native lifecycle checks and fresh clean advisory
+queries. The experimental Milo parser remains disabled. This installer audit is separate from
+memory-source approval and grants no public redistribution.
+Evidence: `implementation/AUDIT.md` below
+`/tmp/factory-foreman-forgetful-2ptedi1m/`.
+Pi installs with `npm ci --ignore-scripts` into `.factory/runtime/pi`. The hash-bearing Python
+requirements are unchanged; Forgetful 0.5.5 uses wheel-only, hash-checked `uv pip sync` in its own
 `.factory/runtime/forgetful` environment. The reviewed Python resolution targets Python 3.12.
 The factory asks before either installation. Existing executables are never upgraded.
 

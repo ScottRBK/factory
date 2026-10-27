@@ -40,6 +40,38 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+[Foreman memory integration](plans/foreman-memory.md) is implemented for internal server use.
+It connects scoped opt-in and exact model selection to the existing REST components, using
+Factory's fixed server/project and separate extension authentication. New starter roots select it;
+edited roots and ordinary native CLI targets remain supported without forced activation. Local
+automatic-memory opt-in is refused while SQLite/CLI planning remains available. The audited
+Pi/Undici installer lock is adopted internally, with no live runtime upgrade. The runtime-metadata
+override found in review is fixed and tested. The final TypeScript scan has zero new findings;
+exact-source approval and internal bundle adoption are complete. The redundant permission change
+was removed; Scott deferred additional protection against concurrent workspace-path replacement.
+Full extension and terminal checks pass. Aggregate suites pass 503 tests on each Python without
+skips; the final Python scan has zero findings. Actual Claude integration review through AgentShell
+is approved after correcting a false test expectation. Package evidence is in the work record.
+The capture-URL question remains open before live memory enablement. The shared-login helper is
+withdrawn, and CLI transport/local
+extension support remain deferred. No Forgetful CLI/server or authentication changes are planned.
+
+[Watched-label guidance](plans/foreman-issue-intake.md) is implemented locally: Foreman reads the
+saved configuration and asks before adding an intake label to a new issue. Watch-all cannot be
+avoided by omitting labels. The combined setup/guidance snapshot passes 491 tests per Python and
+its assigned SonarQube gate. Independent review accepted the initial slice with a CLI-wording fix;
+that fix is included in these full passes and a separate actual Claude text-only closure approved
+it. Those results cover the configuration/guidance snapshot. Current runtime checks have separate
+evidence and do not establish live adoption or hosted CI.
+
+[CI runtime improvements](plans/ci-test-runtime.md) are implemented and locally validated. Scott
+approved testing malformed planning replies through the public adapter, then limited the pass to
+safe, simple improvements. All 67 malformed cases remain; the affected checks take about three
+seconds instead of 43 locally. Full suites pass 479 tests without skips on each supported Python,
+in about ten minutes. Lifecycle deadlines are unchanged. The two latest pushed revisions exceeded
+CI's 15-minute limit; these local passes are not hosted success. No new commit or push was made.
+The work record also covers the source-only diagnosis of Foreman's `/forgetful plan` command.
+
 Watcher [problem isolation and Foreman alerts](plans/watcher-problems.md) and the approved follow-up
 are implemented: current issue eligibility, duplicate-owner reconciliation and startup/pre-create
 repository checks. The [SQ cleanup](plans/sonarqube-remediation.md) passes its assigned gate
@@ -47,7 +79,8 @@ with zero outstanding findings. All groups and follow-ups are integrated locally
 Combined checks pass 471 tests on each supported Python without skips. The cross-source first-poll
 baseline gap is corrected. Earlier shutdown timeouts remain unexplained after bounded investigation;
 no timeout fix is claimed. Claude Code accepted the code with this limitation. The ten recorded
-temporary branches/worktrees are removed; evidence is retained. No push or release occurred.
+temporary branches/worktrees are removed; evidence is retained. That integration was later pushed
+as `966e89e`, followed by Foreman guidance at `0013a37`. No release occurred; CI timed out as above.
 User-approved Foreman completion for interrupted setup keeps watcher recovery read-only. Planning
 safety failures pause affected work, not the watcher; shared failures pause planning. Terminal loss
 and uncertain delivery retain their safeguards. DinoLand repair is excluded.
@@ -156,6 +189,24 @@ AgentShell [0.5.0 already supports attachment][agentshell-release], although [is
 is still open. Factory's current setup-owner integration does not use arbitrary-pane attachment.
 Connection cannot change an agent's settings or prove receipt; see the
 [attachment docs][attach-contract].
+
+### Later slice: CLI-backed Foreman extension and local Forgetful support
+
+After the server-only extension works, revisit moving its planning, recall and capture calls onto
+the native Forgetful CLI used by Factory. This transport change is deferred. Local setup normally
+initializes or reuses
+`.factory/data/forgetful.db`; it does not start an HTTP server. Both CLI callers must use that same
+selected database/project, or the same configured server/project when in server mode.
+
+- Preserve server support, setup preferences and Foreman-only resources; agree authentication
+  reuse during that later design. Separate authentication remains the current approach.
+- Replace the local-extension warning with supported local behavior only after validation.
+- Test local/server routing, existing database reuse, fixed projects, background login, saved-work
+  isolation, uncertain saves and local startup cost through supported interfaces.
+- Determine any minimal upstream CLI changes from demonstrated gaps; the earlier broad list is
+  not an approved prerequisite for the server-first slice.
+- Keep migration and live adoption separate; do not create a second backend or silently start a
+  server for a local factory. See the [memory work plan](plans/foreman-memory.md).
 
 ## Other follow-ups
 

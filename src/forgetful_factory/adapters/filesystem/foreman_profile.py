@@ -44,6 +44,7 @@ PI_PROFILE_FILE = 'pi-profile.json'
 COMPLETION_FILE = 'setup-complete.json'
 ROLE_RESOURCES_FILE = 'role-resources.json'
 FACTORY_DIRECTORY = '.factory'
+MANAGED_MEMORY_RESOURCE = 'pi-forgetful'
 
 
 class ForemanProfile:
@@ -54,6 +55,7 @@ class ForemanProfile:
         self.bundle_directory = workspace / '.factory/resources'
         self._pi_choice: dict | None = None
         self._model_catalogs: dict[tuple[str, Path], list[str]] = {}
+        self._managed_memory_selected: bool | None = None
 
     def prepare_setup_guidance(self) -> None:
         template = (RESOURCES / 'AGENTS.md').read_text()
@@ -93,18 +95,21 @@ class ForemanProfile:
         return missing
 
     def validate_setup(self, connection: ForgetfulConnection, *,
-                       include_home_system_prompt: bool = False) -> None:
+                       include_home_system_prompt: bool = False,
+                       include_memory_extension: bool = False) -> None:
         """Read-only preflight. Connection/authentication readiness belongs to Pi/CLI."""
         self.validate_guidance(include_home_system_prompt=include_home_system_prompt)
         self.require_pi_home(self.pi_home())
         if self.missing_executables(connection):
             raise FactoryError('Foreman profile/runtime is incomplete; complete first setup.')
         CoordinatorProfiles(self.workspace).validate_depth(self.pi_home())
-        self.validate_bundled_resources()
+        self.validate_bundled_resources(include_memory_extension=include_memory_extension)
 
-    def validate_bundled_resources(self) -> None:
+    def validate_bundled_resources(self, *, include_memory_extension: bool = False) -> None:
         manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
         for name, source in manifest.items():
+            if name == MANAGED_MEMORY_RESOURCE and not include_memory_extension:
+                continue
             for relative, digest in source['files'].items():
                 path = self.bundle_directory / name / relative
                 check_real_path(path)
@@ -192,6 +197,11 @@ class ForemanProfile:
         profiles.validate_depth(self.pi_home())
         if config.execution_enabled:
             self.validate_worker_models(config, choices)
+        if choices.foreman_memory_model is not None:
+            models = self.list_models(config.forgetful)
+            if choices.foreman_memory_model not in models:
+                raise FactoryError('Foreman memory model is not selectable in the native Pi '
+                                   'catalog; choose an exact provider/model and rerun init.')
         if choices.research_agent_model is not None:
             directory = self.workspace / '.factory/agents/research'
             check_real_path(directory)
@@ -320,14 +330,26 @@ class ForemanProfile:
         if str(extension) not in launch['resources']['extensions']:
             raise FactoryError('Foreman must select the audited AgentShell extension. '
                                'Agent files were preserved.')
+        memory_extension = self.bundle_directory / 'pi-forgetful/factory.ts'
+        self._managed_memory_selected = str(memory_extension.absolute()) in (
+            launch['resources']['extensions'])
         self.validate_setup(config.forgetful, include_home_system_prompt=
-                            launch['resources'].get('include_home_system_prompt', True))
+                            launch['resources'].get('include_home_system_prompt', True),
+                            include_memory_extension=self._managed_memory_selected)
         return launch
 
-    def record_completion(self, config: FactoryConfiguration) -> None:
+    def managed_memory_notice(self) -> str | None:
+        if self._managed_memory_selected is not False:
+            return None
+        return ('The managed Foreman extension is not selected; saved automatic-memory '
+                'preferences are inactive. Native Factory CLI planning remains available; '
+                'no REST target was guessed.')
+
+    def record_completion(self, config: FactoryConfiguration) -> bool:
         self.selected_launch(config)
         replace_generated_json(
             self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE, {'complete': True})
+        return self._managed_memory_selected is True
 
     def begin_setup(self) -> None:
         remove_generated(self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE)

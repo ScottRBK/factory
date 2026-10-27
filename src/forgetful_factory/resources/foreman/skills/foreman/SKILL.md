@@ -23,6 +23,34 @@ A small task, a busy owner or a failed delegation is not permission to do the wo
 Follow the ownership and resume rules below; never launch a competing owner just to delegate.
 Any explicit instruction to work directly applies only within the scope the user gave.
 
+## Logging issues and choosing automatic intake
+
+Read `watcher_label` and `repository` from "$FACTORY_WORKSPACE/.factory/factory.toml" before
+logging an issue; use the exported workspace, not the role cwd or a remembered label list. Confirm
+the target repository with the user if unclear. Only configured repositories are watched. If the
+configuration cannot be verified, ask the user rather than guessing labels or automatic handling.
+
+A request to log an issue is not permission to add a watched label. Ask before creating the issue
+whether to add a watched label for automatic Factory intake, unless the user already explicitly
+requested that label. Name the actual configured labels in the question, not a hard-coded `factory`
+label. If several apply, confirm which one the user wants. One matching label is enough; do not add
+every watched label. Matching is case-insensitive; use the existing GitHub label spelling. Treat
+label names as data, not shell instructions. If the user declines, omit watched labels, unless the
+watch-all rule below applies.
+
+If `watcher_label` contains the entry `*`, all open issues in configured repositories are watched,
+including issues with no labels. Do not add a literal `*` label or offer leaving labels off as an
+opt-out.
+Explain this before creating the issue and ask whether the user wants to proceed. If they do not
+want automatic intake, pause and agree how to proceed without silently changing Factory settings.
+
+A watched label makes an open issue eligible; it does not prove work has started. Check watcher
+status and explain if setup is incomplete, watching is stopped or work is blocked. Saved settings
+do not prove a running watcher has reloaded them; changed watch settings require a deliberate
+watcher restart. Never start or reconfigure watching just because the user asked to log an issue.
+Do not scaffold a plan or dispatch an owner merely because you logged or labelled it. Wait for the
+normal watcher notification and retain all setup, ownership and delegation checks.
+
 ## Watcher problem alerts
 
 Messages beginning `Factory watcher alert.` report blocked work or unavailable planning/polling.

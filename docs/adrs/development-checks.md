@@ -48,8 +48,17 @@ CI installs through `uv sync --locked` and runs Ruff, the real-source architectu
 and the full unittest suite through `uv run --locked` on Python 3.12/3.13. CI also runs
 `uv build` followed by `uv run --locked python tests/check_package.py dist/*.whl` to verify
 wheel RECORD membership, sizes and standard Base64 digests, instead of relying on editable installs.
-Local commands are in the README. Validation and hosted-CI status are tracked in the
-[quality-checks plan](../plans/quality-checks.md).
+CI rebuilds the repository's Python source caches once before testing, using checked-hash
+bytecode. The force option also replaces valid timestamp-based caches. Repeated CLI children can
+reuse compiled source; Python checks its content hash before using a cache. This changes no
+production behavior, assertion or deadline. The test-runner environment keeps bytecode writing
+disabled; lifecycle fixtures manage their own child environments. No cache is restored from another
+CI job.
+The existing unittest runner reports the slowest 25 cases, including setup and cleanup. Verbose
+progress remains available when a run stops before its duration summary. Local commands are in
+the README. Validation and hosted-CI status are tracked in the
+[quality-checks plan](../plans/quality-checks.md) and
+[runtime follow-up](../plans/ci-test-runtime.md).
 
 ## Public testing boundaries
 
@@ -64,6 +73,11 @@ Use TDD at the public boundaries approved by Scott:
 - **Watcher CLI:** temporary configuration and controlled external commands, using real Git for
   worktree safety. Cover plan/task creation, uncertain outcomes, revisions, restart, notification,
   cleanup and exclusive workspace ownership. Run the real AgentShell lifecycle with Pi/tmux doubles.
+- **Planning adapter reads:** approved for the CI runtime follow-up. Exercise the real
+  `ForgetfulPlanning.plans()`, `get_plan()` and `tasks()` operations with a controlled external
+  Forgetful executable and real temporary files. Check complete malformed-input matrices here;
+  retain watcher CLI proofs for each distinct inventory/detail pause, alert and recovery path.
+  No private validation helpers or mocked internal calls replace either boundary.
 - **Package artifacts:** build the real wheel/sdist and inspect their public contents. The wheel
   checksum gate catches invalid RECORD encoding without importing or installing package code.
 - **Native integration:** opt-in isolated Pi SDK/lifecycle and local Forgetful checks. Use temporary
@@ -90,6 +104,9 @@ Movable tags can change after their release was checked. Hosted validation evide
 [slice 1](../plans/slice-1.md), [slice 2](../plans/slice-2.md), and
 [quality-checks](../plans/quality-checks.md) plans.
 PR-event execution and cancellation have not yet been exercised on GitHub.
+The [CI runtime follow-up](../plans/ci-test-runtime.md) records the latest job-limit failures,
+measured test costs and the approved small improvements. Runtime work does not authorize shorter
+production deadlines or weaker process/Git checks.
 
 ## Local static analysis
 

@@ -9,6 +9,8 @@ from forgetful_factory.domain.models import FactoryError
 class InitialAgentChoices:
     foreman_agent_model: str
     foreman_agent_effort: str
+    foreman_memory_enabled: bool = False
+    foreman_memory_model: str | None = None
     feature_owner_agent_model: str | None = None
     feature_owner_agent_effort: str | None = None
     feature_owner_agent_harness: str = 'pi'
@@ -92,8 +94,19 @@ def skill_paths(data: dict, field: str) -> tuple[str, ...]:
     return tuple(nonblank(path, field) for path in paths)
 
 
+def _validate_foreman_memory(configuration: InitialAgentChoices) -> None:
+    if configuration.foreman_memory_enabled and configuration.foreman_memory_model is None:
+        raise FactoryError('Foreman automatic recall and capture requires a memory model.')
+    if configuration.foreman_memory_model is not None:
+        model = nonblank(configuration.foreman_memory_model, 'foreman_memory_model')
+        if model.startswith('-') or any(ord(char) < 32 or ord(char) == 127 for char in model):
+            raise FactoryError('Foreman memory model must be an exact native selector without '
+                               'control characters.')
+
+
 def validate_initial_agents(configuration: InitialAgentChoices) -> None:
     validate_workers(configuration)
+    _validate_foreman_memory(configuration)
     research = [getattr(configuration, field) for field in RESEARCH_FIELDS]
     if any(value is not None for value in research):
         for field in RESEARCH_FIELDS:

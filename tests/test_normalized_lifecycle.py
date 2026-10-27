@@ -1,11 +1,135 @@
 """Normalized Factory lifecycle through public CLI, real tmux and fake native Pi."""
 import json
+import shutil
 
 from lifecycle_support import LifecycleFixture
 from test_init import INIT_SETTINGS
 
 
 class NormalizedLifecycleTests(LifecycleFixture):
+    def test_legacy_root_preserves_edits_and_keeps_unselected_memory_inactive(self):
+        # Arrange: finish an older edited root without selecting the optional managed extension.
+        repo = self.repo()
+        self.env['PROFILE_FAIL'] = 'forgetful'
+        first = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertNotEqual(first.returncode, 0)
+        del self.env['PROFILE_FAIL']
+        definition = repo / '.factory/agents/foreman/agent.json'
+        document = json.loads(definition.read_text())
+        managed = '../../resources/pi-forgetful/factory.ts'
+        document['agent']['name'] = 'dispatch-lead'
+        document['agent']['resources']['extensions'].remove(managed)
+        custom = definition.parent / 'custom-extension.ts'
+        custom.write_text('// Existing user-managed extension.\n')
+        document['agent']['resources']['extensions'].append('./custom-extension.ts')
+        definition.write_text(json.dumps(document))
+        shutil.rmtree(repo / '.factory/resources/pi-forgetful', ignore_errors=True)
+        finalized = self.run_cli(repo, '--finalize')
+        self.assertEqual(finalized.returncode, 0, finalized.stderr)
+        preferences = definition.with_name('forgetful.json')
+        before = {definition: definition.read_bytes(), custom: custom.read_bytes(),
+                  preferences: preferences.read_bytes()}
+
+        # Act: ordinary rerun and launch must use the edited definition without repairing it.
+        rerun = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        started = self.foreman(repo)
+
+        # Assert
+        self.assertEqual(rerun.returncode, 0, rerun.stderr)
+        self.assertEqual(started.returncode, 0, started.stderr)
+        self.assertIn('managed Foreman extension is not selected', started.stdout)
+        self.assertIn('saved automatic-memory preferences are inactive', started.stdout)
+        self.assertEqual({path: path.read_bytes() for path in before}, before)
+        state = self.status(repo)
+        events = [json.loads(line)
+                  for line in (self.workspace / 'pi.jsonl').read_text().splitlines()]
+        launch, = [event for event in events if 'started' in event]
+        self.assertIn(str(custom), launch['args'])
+        self.assertNotIn('pi-forgetful/factory.ts', ' '.join(launch['args']))
+        self.send_and_wait_for_exit(repo, state['target'])
+
+        # Arrange / Act / Assert: an old enabled preference remains saved but stays inactive.
+        enabled = {'enabled': True, 'capture_mode': 'auto', 'model': 'provider/model'}
+        preferences.write_text(json.dumps(enabled))
+        enabled_before = preferences.read_bytes()
+        restarted = self.foreman(repo)
+        self.assertEqual(restarted.returncode, 0, restarted.stderr)
+        self.assertIn('saved automatic-memory preferences are inactive', restarted.stdout)
+        self.assertEqual(preferences.read_bytes(), enabled_before)
+        self.assertNotIn('pi-forgetful/factory.ts', ' '.join(
+            json.loads((self.workspace / 'pi.jsonl').read_text().splitlines()[-1])['args']))
+        self.send_and_wait_for_exit(repo, self.status(repo)['target'])
+
+    def test_foreman_keeps_extension_auth_separate_from_native_cli_auth(self):
+        # Arrange
+        repo = self.repo()
+        setup = self.run_cli(
+            repo,
+            '--repo', '.',
+            *INIT_SETTINGS,
+            '--forgetful-instance', 'server',
+            '--forgetful-server', 'https://memory.example/factory/mcp',
+        )
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        auth = repo / '.factory/agents/foreman/forgetful-auth.json'
+        auth.write_text('{"token_env":"FACTORY_EXTENSION_TOKEN"}\n')
+        before = auth.read_bytes()
+        self.env['FORGETFUL_TOKEN'] = 'native-fixture-token'
+        self.env['FACTORY_EXTENSION_TOKEN'] = 'extension-fixture-token'
+
+        # Act
+        started = self.foreman(repo)
+
+        # Assert
+        self.assertEqual(started.returncode, 0, started.stderr)
+        state = self.status(repo)
+        events = [json.loads(line)
+                  for line in (self.workspace / 'pi.jsonl').read_text().splitlines()]
+        launch, = [event for event in events if 'started' in event]
+        self.assertFalse(launch['has_native_forgetful_token'])
+        self.assertTrue(launch['has_extension_token'])
+        self.assertEqual(auth.read_bytes(), before)
+        self.send_and_wait_for_exit(repo, state['target'])
+
+    def test_relocated_foreman_receives_its_absolute_definition_without_changing_children(self):
+        # Arrange
+        repo = self.repo()
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        factory = repo / '.factory'
+        original = factory / 'agents/foreman'
+        relocated = factory / 'coordinators/dispatch'
+        relocated.parent.mkdir()
+        original.rename(relocated)
+        definition = relocated / 'agent.json'
+        document = json.loads(definition.read_text())
+        document['agent']['resources']['extensions'] = [
+            '../../resources/agentshell/extensions/agentshell.ts',
+            '../../resources/hide-tools/index.ts',
+            '../../resources/pi-forgetful/factory.ts',
+        ]
+        document['roster']['roles'] = [{'agent_file': '../../agents/feature-owner/agent.json'}]
+        definition.write_text(json.dumps(document))
+        config = factory / 'factory.toml'
+        config.write_text(config.read_text().replace(
+            'agents/foreman/agent.json', 'coordinators/dispatch/agent.json'))
+        child = factory / 'agents/feature-owner/agent.json'
+        child_before = child.read_bytes()
+
+        # Act
+        started = self.foreman(repo)
+
+        # Assert
+        self.assertEqual(started.returncode, 0, started.stderr)
+        state = self.status(repo)
+        events = [json.loads(line)
+                  for line in (self.workspace / 'pi.jsonl').read_text().splitlines()]
+        launch, = [event for event in events if 'started' in event]
+        self.assertEqual(launch['foreman_file'], str(definition.absolute()))
+        self.assertEqual(launch['roster'], str(definition.absolute()))
+        self.assertEqual(child.read_bytes(), child_before)
+        self.send_and_wait_for_exit(repo, state['target'])
+
     def test_standalone_start_attach_and_borrowed_watcher_keep_original_foreman(self):
         # Arrange
         repo = self.repo()
