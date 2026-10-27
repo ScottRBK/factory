@@ -4,8 +4,10 @@ import selectors
 import subprocess
 import time
 import uuid
+from dataclasses import asdict
 from pathlib import Path
 
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -14,7 +16,8 @@ class AgentShellTerminal:
 
     def __init__(self, python: str, environment: dict[str, str] | None = None,
                  resources: dict | None = None, prompt: str | None = None,
-                 cwd: str | None = None, model: str | None = None, effort: str | None = None):
+                 cwd: str | None = None, model: str | None = None, effort: str | None = None,
+                 deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines()):
         self.python = python
         self.environment = environment
         self.resources = resources
@@ -22,6 +25,7 @@ class AgentShellTerminal:
         self.cwd = cwd
         self.model = model
         self.effort = effort
+        self.deadlines = deadlines
         self.process: subprocess.Popen | None = None
         self.buffer = b''
         self.session_name = f'factory-foreman-{uuid.uuid4().hex[:12]}'
@@ -92,8 +96,8 @@ class AgentShellTerminal:
         os.set_blocking(self.process.stdin.fileno(), False)
         self._write({'cwd': self.cwd, 'model': self.model, 'effort': self.effort,
                      'session_name': self.session_name, 'resources': self.resources,
-                     'prompt': self.prompt}, 10)
-        self._read(35, 'ready')
+                     'prompt': self.prompt, 'deadlines': asdict(self.deadlines)}, 10)
+        self._read(self.deadlines.parent_ready, 'ready')
 
     def send(self, message: str) -> None:
         self._write({'text': message}, 10)

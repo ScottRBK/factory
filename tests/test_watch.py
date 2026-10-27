@@ -13,9 +13,12 @@ import time
 import unittest
 from pathlib import Path
 
+from deadline_support import programmatic_factory
 from profile_support import install_commands, install_grill_skill
 from test_init import GH as INIT_GH
 from test_init import INIT_SETTINGS
+
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,6 +43,15 @@ replacement.write_text(json.dumps(state))
 replacement.replace(path)
 steps = state['sources'][source]
 result = steps[min(count, len(steps) - 1)]
+fcntl.flock(lock, fcntl.LOCK_UN)
+if isinstance(result, dict) and 'gate' in result:
+    import socket
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as gate:
+        gate.settimeout(5)
+        gate.connect(result['gate'])
+        if gate.recv(1) != b'1':
+            sys.exit('GitHub response gate closed without release')
+    result = result['result']
 if isinstance(result, str):
     sys.exit(result)
 print(json.dumps(result))
@@ -286,9 +298,11 @@ class WatchFixture(unittest.TestCase):
         return [e for e in self.events() if e['kind'] == 'send'
                 and e['text'].startswith('Factory issue notification.')]
 
-    def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None):
+    def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None, deadlines=None):
+        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+                      else programmatic_factory(deadlines))
         process = subprocess.Popen(
-            [sys.executable, '-m', 'forgetful_factory', 'watch', '--workspace',
+            [sys.executable, *entrypoint, 'watch', '--workspace',
              str(self.workspace), '--interval', '0.05', *arguments],
             cwd=cwd or self.workspace, env=self.env, stdin=subprocess.PIPE,
             stdout=stdout, stderr=subprocess.PIPE, text=True,
@@ -804,12 +818,16 @@ class WatchCliTests(WatchFixture):
         # Arrange
         self.env['WATCH_NO_READY'] = '1'
         self.script({'team/app': [[[self.issue()]]]})
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            controller_ready=0.2,
+        ))
         # Act
-        process = self.start('--existing')
-        stdout, stderr = process.communicate(timeout=40)
+        process = self.start('--existing', deadlines=deadlines)
+        stdout, stderr = process.communicate(timeout=5)
         # Assert
         self.assertEqual(process.returncode, 1, stderr)
         self.assertIn('ready', stderr.lower())
+        self.assertIn('0.2 seconds', stderr)
         self.assertIn('trust', stderr.lower())
         self.assertIn('new tmux attach-session', stderr)
         self.assertIn('restart watch', stderr.lower())
@@ -840,9 +858,12 @@ class WatchCliTests(WatchFixture):
         # Arrange
         self.env['WATCH_SEND_HANG'] = '1'
         self.script({'team/app': [[[self.issue()]]]})
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            controller_send=0.2,
+        ))
         # Act
-        process = self.start('--existing')
-        stdout, stderr = process.communicate(timeout=15)
+        process = self.start('--existing', deadlines=deadlines)
+        stdout, stderr = process.communicate(timeout=5)
         # Assert
         self.assertEqual(process.returncode, 1, stderr)
         self.assertIn('send', stderr.lower())
@@ -858,8 +879,11 @@ class WatchCliTests(WatchFixture):
                 self.env.pop('WATCH_CLOSE_FAIL', None)
                 self.env.pop('WATCH_CLOSE_HANG', None)
                 self.env[mode] = '1'
+                deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+                    controller_close=0.2,
+                ))
                 # Act
-                process = self.start('--existing')
+                process = self.start('--existing', deadlines=deadlines)
                 self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
                 _, _, stderr = self.stop(process)
                 # Assert
@@ -946,11 +970,15 @@ class WatchCliTests(WatchFixture):
 
     def test_startup_deadline_after_slow_launch_still_gives_trust_help(self):
         # Arrange
-        self.env['WATCH_LAUNCH_DELAY'] = '6'
+        self.env['WATCH_LAUNCH_DELAY'] = '0.2'
         self.env['WATCH_NO_READY'] = '1'
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            controller_ready=1,
+            parent_ready=1,
+        ))
         # Act
-        process = self.start('--existing')
-        stdout, stderr = process.communicate(timeout=40)
+        process = self.start('--existing', deadlines=deadlines)
+        stdout, stderr = process.communicate(timeout=5)
         # Assert
         self.assertEqual(process.returncode, 1, stderr)
         self.assertIn('ready', stderr.lower())

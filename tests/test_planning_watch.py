@@ -25,9 +25,18 @@ class PlanningWatchFixture(WatchFixture):
                 for e in self.events() if e['kind'] == 'send'
                 and e['text'].startswith('Factory watcher alert.')]
 
-    def assert_paused(self, process):
+    def polls(self, source='team/app'):
+        state = json.loads(self.state_path.read_text())
+        return state.get('counts', {}).get(source, 0)
+
+    def assert_paused(self, process, *, synchronize_poll=False):
         self.wait_until(process, lambda: bool(self.alerts()))
-        time.sleep(0.2)
+        if synchronize_poll:
+            observed = self.polls()
+            # Counts mark request entry. Two later entries prove one later cycle completed.
+            self.wait_until(process, lambda: self.polls() >= observed + 2)
+        else:
+            time.sleep(0.2)
         self.assertIsNone(process.poll(), 'Safety failure terminated supervising watcher')
         self.assertEqual(self._messages(), [], 'Blocked work reached Foreman as ordinary work')
         self.assertEqual(len(self.alerts()), 1,

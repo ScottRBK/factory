@@ -3,6 +3,7 @@ import json
 
 from test_init import INIT_SETTINGS, InitFixture
 
+from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.configuration import load_configuration
 from forgetful_factory.domain.models import FactoryError
 
@@ -184,6 +185,12 @@ class WorkerConfigurationTests(InitFixture):
         self.assertEqual(self.agent(repo, 'review')['model'], 'opus')
         self.assertEqual(self.agent(repo, 'implementation')['effort'], 'xhigh')
         self.assertEqual(self.agent(repo, 'review')['effort'], 'high')
+        for title, role in (('Feature-owner', 'feature-owner'), ('Research', 'research')):
+            self.assertIn(f'{title} model choices:\n  1. provider/model', result.stdout)
+            self.assertIn(f'Select {title} model number:', result.stdout)
+            self.assertIn(f'Select {title} effort number:', result.stdout)
+            self.assertEqual(self.agent(repo, role)['model'], 'provider/model')
+            self.assertEqual(self.agent(repo, role)['effort'], 'high')
         self.assertIn('Implementation app choices:\n  1. pi\n  2. codex\n  3. claude_code',
                       result.stdout)
         self.assertIn('Select Implementation app number:', result.stdout)
@@ -203,36 +210,66 @@ class WorkerConfigurationTests(InitFixture):
         self.assertIn('Select Review effort number:', result.stdout)
         self.assertEqual(self.agent(repo, 'review')['resources']['skills'], ['./skills'])
 
+    def test_numbered_selection_preserves_all_worker_answer_results(self):
+        # Arrange: preserve every answer from the former seven-prompt CLI matrix.
+        prompts = (
+            ('Setup', 2, '3', 'Manual'),
+            ('Implementation app', 3, '4', 'codex'),
+            ('Implementation model', 1, '2', 'gpt-5.4'),
+            ('Implementation effort', 9, '10', 'xhigh'),
+            ('Review app', 3, '4', 'claude_code'),
+            ('Review model', 1, '2', 'opus'),
+            ('Review effort', 5, '6', 'high'),
+        )
+        for label, choice_count, upper, old_name in prompts:
+            invalid = (('', 'number'), ('not-a-number', 'number'), ('0', 'range'),
+                       ('-1', 'range'), (upper, 'range'), (old_name, 'number'))
+            for answer, failure in invalid:
+                with self.subTest(prompt=label, answer=answer):
+                    expected = (f'{label}: select a number from 1 to {choice_count}.'
+                                if failure == 'number' else
+                                f'{label} selection is out of range; '
+                                f'select a number from 1 to {choice_count}.')
+                    # Act / Assert
+                    with self.assertRaises(FactoryError) as raised:
+                        parse_numbered_selection(label, answer, choice_count)
+                    self.assertEqual(str(raised.exception), expected)
+            # Act / Assert: preserve both accepted endpoints for each prompt.
+            self.assertEqual(parse_numbered_selection(label, '1', choice_count), 1)
+            self.assertEqual(
+                parse_numbered_selection(label, str(choice_count), choice_count),
+                choice_count,
+            )
+
     def test_invalid_worker_numbers_stop_before_config_or_label_changes(self):
-        # Arrange: exact former text answers now require their displayed menu number.
+        # Keep one invalid answer at every distinct CLI prompt, without repeating the matrix.
         from worker_support import worker_settings
         worker_settings(self)
-        prompts = (
-            ('Setup', '', '3', 'Manual'),
-            ('Implementation app', '1\n1\n5\n1\n5\n', '4', 'codex'),
-            ('Implementation model', '1\n1\n5\n1\n5\n2\n', '2', 'gpt-5.4'),
-            ('Implementation effort', '1\n1\n5\n1\n5\n2\n1\n', '10', 'xhigh'),
-            ('Review app', '1\n1\n5\n1\n5\n2\n1\n6\n', '4', 'claude_code'),
-            ('Review model', '1\n1\n5\n1\n5\n2\n1\n6\n3\n', '2', 'opus'),
-            ('Review effort', '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n', '6', 'high'),
+        cases = (
+            ('Setup', '', 'Manual'),
+            ('Implementation app', '1\n1\n5\n1\n5\n', 'codex'),
+            ('Implementation model', '1\n1\n5\n1\n5\n2\n', 'gpt-5.4'),
+            ('Implementation effort', '1\n1\n5\n1\n5\n2\n1\n', '10'),
+            ('Review app', '1\n1\n5\n1\n5\n2\n1\n6\n', 'claude_code'),
+            ('Review model', '1\n1\n5\n1\n5\n2\n1\n6\n3\n', 'opus'),
+            ('Review effort', '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n', '6'),
         )
-        for prompt_index, (label, prefix, upper, old_name) in enumerate(prompts):
-            for answer_index, answer in enumerate(('', 'not-a-number', '0', '-1', upper, old_name)):
-                with self.subTest(prompt=label, answer=answer):
-                    repo = self.repo(f'choice-{prompt_index}-{answer_index}')
-                    self.state.write_text('{}')
-                    # Act
-                    result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
-                                          worker_defaults=False, input=prefix + answer + '\n')
-                    # Assert
-                    self.assertEqual(result.returncode, 1)
-                    self.assertIn(label, result.stderr)
-                    self.assertIn('select a number from 1 to', result.stderr)
-                    self.assertNotIn('Traceback', result.stderr)
-                    self.assertFalse((repo / '.factory/factory.toml').exists())
-                    receipt = repo / '.factory/setup-complete.json'
-                    self.assertFalse(receipt.exists())
-                    self.assertEqual(json.loads(self.state.read_text()), {})
+        for index, (label, prefix, answer) in enumerate(cases):
+            with self.subTest(prompt=label):
+                # Arrange
+                repo = self.repo(f'choice-{index}')
+                self.state.write_text('{}')
+                # Act
+                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
+                                      worker_defaults=False, input=prefix + answer + '\n')
+                # Assert
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(label, result.stderr)
+                self.assertIn('select a number from 1 to', result.stderr)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertFalse((repo / '.factory/factory.toml').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
+                self.assertEqual(json.loads(self.state.read_text()), {})
 
     def test_numbered_pi_workers_preserve_exact_models_and_native_effort_order(self):
         # Arrange

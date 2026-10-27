@@ -21,6 +21,8 @@ from forgetful_factory.application.initial_agent_choices import (
 )
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
+from forgetful_factory.cli.numbered_selection import parse_numbered_selection
+from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -212,13 +214,8 @@ def _select_numbered(label: str, choices: list[str] | tuple[str, ...],
         print(f'{label} choices:')
         for index, choice in enumerate(choices, 1):
             print(f'  {index}. {_safe_diagnostic(choice)}')
-    try:
-        index = int(input(prompt if prompt is not None else f'Select {label} number: '))
-    except ValueError as error:
-        raise FactoryError(f'{label}: select a number from 1 to {len(choices)}.') from error
-    if index < 1 or index > len(choices):
-        raise FactoryError(f'{label} selection is out of range; '
-                           f'select a number from 1 to {len(choices)}.')
+    answer = input(prompt if prompt is not None else f'Select {label} number: ')
+    index = parse_numbered_selection(label, answer, len(choices))
     return choices[index - 1]
 
 
@@ -337,7 +334,7 @@ def _watch_status(workspace: Path) -> int:
     return 0
 
 
-def _watch(args: argparse.Namespace, workspace: Path) -> int:
+def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     if args.start or args.stop:
         return _change_managed_watch(args, workspace)
     if args.status:
@@ -346,10 +343,10 @@ def _watch(args: argparse.Namespace, workspace: Path) -> int:
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
 
     with WorkspaceWatchLease(workspace).hold():
-        return _watch_locked(args, workspace)
+        return _watch_locked(args, workspace, deadlines)
 
 
-def _foreman(args: argparse.Namespace, workspace: Path) -> int:
+def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     import uuid
 
     from forgetful_factory.adapters.agentshell.owner_client import (
@@ -371,13 +368,14 @@ def _foreman(args: argparse.Namespace, workspace: Path) -> int:
                 raise FactoryError('Foreman already exists or is uncertain; use foreman --attach '
                                    'or watch --status. The existing owner was preserved.')
             config = load_configuration(workspace)
-            profile, environment, launch = prepare_foreman_launch(config, workspace)
+            profile, environment, launch = prepare_foreman_launch(
+                config, workspace, term_grace=deadlines.owned_process_term_grace)
             notice = profile.managed_memory_notice()
             if notice is not None:
                 print(notice, flush=True)
             state = start_owner(workspace, args.agentshell_python, environment, {
                 **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}',
-                'prompt': None})
+                'prompt': None}, deadlines.agentshell)
     if state['foreman'] != 'ready':
         raise FactoryError(state.get('warning', 'Foreman is not ready.') +
                            ' Foreman was preserved; inspect watch --status.')
@@ -385,7 +383,7 @@ def _foreman(args: argparse.Namespace, workspace: Path) -> int:
     return 0
 
 
-def _watch_locked(args: argparse.Namespace, workspace: Path) -> int:
+def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from forgetful_factory.adapters.agentshell.borrowed_terminal import BorrowedForemanTerminal
     from forgetful_factory.adapters.agentshell.owner_client import read_state
     from forgetful_factory.configuration import load_configuration
@@ -402,7 +400,8 @@ def _watch_locked(args: argparse.Namespace, workspace: Path) -> int:
             raise FactoryError('Setup Foreman exists or is uncertain; use watch --start '
                                f'--workspace {shlex.quote(str(workspace))} after completing setup. '
                                'No second Foreman was launched.')
-    application = build_watcher(args.agentshell_python, config, workspace, terminal)
+    application = build_watcher(
+        args.agentshell_python, config, workspace, terminal, deadlines)
 
     def interrupted(signum, frame):
         raise KeyboardInterrupt
@@ -643,7 +642,7 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
               'Local Factory CLI planning remains available; no server is started.')
 
 
-def _initialise(args: argparse.Namespace, workspace: Path) -> int:
+def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from forgetful_factory.adapters.agentshell.owner_client import enter_terminal, request
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
 
@@ -655,7 +654,7 @@ def _initialise(args: argparse.Namespace, workspace: Path) -> int:
         enter_terminal(state['target'])
         return 0
     with WorkspaceWatchLease(workspace).hold():
-        result = _initialise_locked(args, workspace)
+        result = _initialise_locked(args, workspace, deadlines)
     if result == 'existing':
         return 0
     if isinstance(result, dict):
@@ -773,7 +772,8 @@ def _validate_initial_model(application: InitialiseFactory, args: argparse.Names
 
 
 def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespace,
-                         workspace: Path, paths: list[Path] | None) -> int | dict:
+                         workspace: Path, paths: list[Path] | None,
+                         deadlines: DeadlinePolicy) -> int | dict:
     connection = _connection(args, workspace, None)
     home = application.profile.choose_pi_home(args.pi_agent_dir,
                                              lambda value: _confirm_pi_home(value, args))
@@ -803,16 +803,18 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
     if choices.foreman_memory_enabled:
         print('Foreman automatic memory enabled for the configured Forgetful server.')
     if args.assisted:
-        return _launch_setup_foreman(application, state.config, workspace, args)
+        return _launch_setup_foreman(
+            application, state.config, workspace, args, deadlines)
     _complete_setup(application, state.config, workspace, login=args.login, initial=True)
     print('\nFactory setup complete.')
     return 0
 
 
-def _initialise_locked(args: argparse.Namespace, workspace: Path) -> int | dict | str:
+def _initialise_locked(args: argparse.Namespace, workspace: Path,
+                       deadlines: DeadlinePolicy) -> int | dict | str:
     from forgetful_factory.adapters.agentshell.owner_client import read_state
 
-    application = build_initialiser(workspace)
+    application = build_initialiser(workspace, deadlines)
     if application.storage.load() is not None and not args.finalize:
         print('Factory already initialized. Edit factory.toml and agent.json directly; '
               'reload or restart affected agents. Use init --finalize for incomplete first setup.')
@@ -826,10 +828,10 @@ def _initialise_locked(args: argparse.Namespace, workspace: Path) -> int | dict 
                            'Run init in a terminal first.')
     if config is not None:
         return _finish_existing_setup(application, config, args, workspace)
-    return _start_initial_setup(application, args, workspace, paths)
+    return _start_initial_setup(application, args, workspace, paths, deadlines)
 
 
-def _launch_setup_foreman(application, config, workspace, args):
+def _launch_setup_foreman(application, config, workspace, args, deadlines):
     import uuid
 
     from forgetful_factory.adapters.agentshell.owner_client import start_owner
@@ -837,26 +839,29 @@ def _launch_setup_foreman(application, config, workspace, args):
 
     application.profile.prepare_setup_guidance()
     print(application.check_foreman(config, login=args.login))
-    _, environment, launch = prepare_foreman_launch(config, workspace, complete=False)
+    _, environment, launch = prepare_foreman_launch(
+        config, workspace, complete=False,
+        term_grace=deadlines.owned_process_term_grace)
     result = start_owner(workspace, args.agentshell_python, environment, {
-        **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}', 'prompt': None})
+        **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}', 'prompt': None},
+        deadlines.agentshell)
     print('Setup is incomplete. Review the starter team with Foreman, then run '
           'init --finalize --delegated-work-stopped '
           f'--workspace {shlex.quote(str(workspace))}. Use /reload after finalization.')
     return result
 
 
-def main() -> int:
+def main(deadlines: DeadlinePolicy = DeadlinePolicy()) -> int:
     args = _parse_arguments()
     try:
         workspace = args.workspace.expanduser().resolve()
         if not workspace.is_dir():
             raise FactoryError(f'Workspace must be an existing directory: {workspace}')
         if args.command == 'watch':
-            return _watch(args, workspace)
+            return _watch(args, workspace, deadlines)
         if args.command == 'foreman':
-            return _foreman(args, workspace)
-        return _initialise(args, workspace)
+            return _foreman(args, workspace, deadlines)
+        return _initialise(args, workspace, deadlines)
     except EOFError:
         message = ('For noninteractive watch provide --existing or --new-only.'
                    if args.command == 'watch' else

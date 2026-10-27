@@ -6,8 +6,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from lifecycle_support import LifecycleFixture
-from test_init import INIT_SETTINGS
+from test_init import INIT_SETTINGS, InitFixture
 
 PROBE = r'''
 import fs from 'node:fs';
@@ -55,12 +54,16 @@ session.dispose();
 
 
 @unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native Pi reload')
-class NativeAssistedReloadTests(LifecycleFixture):
+class NativeSetupReloadTests(InitFixture):
     def test_first_finalization_and_direct_file_edits_reload_in_same_native_session(self):
-        # Arrange: fake terminal exercises Factory ownership; real Pi SDK verifies reload semantics.
+        # Arrange: save incomplete setup, then observe its resources through a real Pi SDK session.
         repo = self.repo()
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--assisted', timeout=20)
-        self.assertEqual(setup.returncode, 0, setup.stderr)
+        self.env['PROFILE_FAIL'] = 'forgetful'
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.env.pop('PROFILE_FAIL')
+        self.assertNotEqual(setup.returncode, 0)
+        self.assertTrue((repo / '.factory/factory.toml').is_file())
+        self.assertFalse((repo / '.factory/setup-complete.json').exists())
         directory = repo / '.factory/agents/foreman'
         env = {**self.env, 'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
                'PI_AGENTSHELL_ROSTER_FILE': str(repo / '.factory/agents/foreman/agent.json')}
@@ -81,8 +84,12 @@ class NativeAssistedReloadTests(LifecycleFixture):
             self.assertEqual([r['name'] for r in initial['roles']], ['feature-owner'])
 
             # Act: normal public finalization, followed by explicit native session reload.
-            finalize = self.run_cli(repo, '--finalize', '--delegated-work-stopped')
+            finalize = self.run_cli(repo, '--finalize')
             self.assertEqual(finalize.returncode, 0, finalize.stderr)
+            self.assertEqual(
+                json.loads((repo / '.factory/setup-complete.json').read_text()),
+                {'complete': True},
+            )
             process.stdin.write('reload\n')
             process.stdin.flush()
             completed = observation()
@@ -117,4 +124,3 @@ class NativeAssistedReloadTests(LifecycleFixture):
             if process.poll() is None:
                 process.kill()
             process.communicate(timeout=10)
-        self.send_and_wait_for_exit(repo, self.status(repo)['target'])

@@ -14,18 +14,21 @@ from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
+from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.domain.models import FactoryError
 
 
-def build_initialiser(workspace: Path) -> InitialiseFactory:
-    github = GitHubWorkTracking()
+def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolicy()
+                      ) -> InitialiseFactory:
+    github = GitHubWorkTracking(deadlines.external_command)
     return InitialiseFactory(github, TomlConfigurationStore(workspace),
-                             GitRepositories(), github, ForemanProfile(workspace))
+                             GitRepositories(deadlines.external_command), github,
+                             ForemanProfile(workspace, deadlines.owned_process_term_grace))
 
 
 def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
-                  terminal=None) -> WatchFactory:
-    github = GitHubWorkTracking()
+                  terminal=None, deadlines: DeadlinePolicy = DeadlinePolicy()) -> WatchFactory:
+    github = GitHubWorkTracking(deadlines.external_command)
     for repository in config.repository:
         source = repository.work_source
         if source.provider != 'github':
@@ -40,19 +43,26 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; run init in a fresh factory. '
                            'Migration of old testing factories is not supported.')
-    profile, environment, launch = prepare_foreman_launch(config, workspace)
+    profile, environment, launch = prepare_foreman_launch(
+        config, workspace, term_grace=deadlines.owned_process_term_grace)
     notice = profile.managed_memory_notice()
     if notice is not None:
         print(notice, flush=True)
-    return WatchFactory(github, terminal or AgentShellTerminal(python, environment, **launch),
-                        ScaffoldIssue(ForgetfulPlanning(
+    return WatchFactory(
+        github,
+        terminal or AgentShellTerminal(
+            python, environment, **launch, deadlines=deadlines.agentshell),
+        ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,
-                            execution_enabled=config.execution_enabled),
-                                      GitWorktrees(), workspace, config, GitRepositories(), github))
+                            execution_enabled=config.execution_enabled,
+                            term_grace=deadlines.owned_process_term_grace),
+                      GitWorktrees(deadlines.external_command), workspace, config,
+                      GitRepositories(deadlines.external_command), github))
 
 
-def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True):
-    profile = ForemanProfile(workspace)
+def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True,
+                           term_grace: float = 3):
+    profile = ForemanProfile(workspace, term_grace)
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; complete first setup.')
     if complete:

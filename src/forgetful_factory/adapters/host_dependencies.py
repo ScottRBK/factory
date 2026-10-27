@@ -30,14 +30,15 @@ def sync_fingerprint(inputs: tuple[Path, ...]) -> str:
     return hashlib.sha256(b'\0'.join(path.read_bytes() for path in inputs)).hexdigest()
 
 
-def runtime_ready(runtime: Path, inputs: tuple[Path, ...], probe: str) -> bool:
+def runtime_ready(runtime: Path, inputs: tuple[Path, ...], probe: str,
+                  term_grace: float = 3) -> bool:
     """A successful locked sync and a usable package are both required; no install here."""
     try:
         if (not (runtime / 'pyvenv.cfg').is_file()
                 or (runtime / SYNC_RECEIPT).read_text() != sync_fingerprint(inputs)):
             return False
         run_owned([str(runtime / 'bin/python'), '-I', '-B', '-c', probe], runtime,
-                  dict(os.environ), timeout=10)
+                  dict(os.environ), timeout=10, term_grace=term_grace)
     except (OSError, FactoryError):
         return False
     return True
@@ -50,9 +51,10 @@ FORGETFUL_PROBE = ('import app; import importlib.util; '
 
 
 class HostDependencies:
-    def __init__(self, workspace: Path):
+    def __init__(self, workspace: Path, term_grace: float = 3):
         self.workspace = workspace
         self.runtime = workspace / '.factory/runtime'
+        self.term_grace = term_grace
 
     def pi_ready(self, pi_home: str) -> bool:
         directory = self.runtime / 'pi'
@@ -66,7 +68,7 @@ class HostDependencies:
             })
             env.pop('FORGETFUL_TOKEN', None)
             version = run_owned([str(directory / 'node_modules/.bin/pi'), '--version'],
-                                directory, env, timeout=10)
+                                directory, env, timeout=10, term_grace=self.term_grace)
             return version.strip() == '1.4.0'
         except (OSError, FactoryError):
             return False
@@ -111,7 +113,7 @@ class HostDependencies:
              extra_env: dict[str, str] | None = None) -> str:
         try:
             return run_owned(args, cwd, self._environment(extra_env),
-                             timeout=600, login=interactive)
+                             timeout=600, login=interactive, term_grace=self.term_grace)
         except FactoryError as error:
             raise FactoryError('Dependency installation failed; setup is incomplete. '
                                'Check the package manager and rerun init. '
@@ -122,7 +124,8 @@ class HostDependencies:
                    'Select a working uv on PATH and rerun init; setup is incomplete. '
                    'No upgrade was performed.')
         try:
-            output = run_owned(['uv', '--version'], self.workspace, self._environment(), timeout=10)
+            output = run_owned(['uv', '--version'], self.workspace, self._environment(), timeout=10,
+                               term_grace=self.term_grace)
         except FactoryError as error:
             raise FactoryError(message) from error
         version = re.fullmatch(r'uv (\d+)\.(\d+)\.(\d+)(?: \([^\r\n]+\))?', output.strip())
@@ -137,7 +140,7 @@ class HostDependencies:
             python = run_owned(
                 ['uv', 'python', 'find', 'cpython@3.12', '--system', '--no-project',
                  '--no-config', '--no-python-downloads', '--offline', '--no-cache'],
-                self.workspace, env, timeout=10).strip()
+                self.workspace, env, timeout=10, term_grace=self.term_grace).strip()
             path = Path(python)
             if (not python.isprintable() or not path.is_absolute() or not path.is_file()
                     or not os.access(path, os.X_OK)):
@@ -145,7 +148,7 @@ class HostDependencies:
             version = run_owned(
                 [python, '-I', '-B', '-S', '-c',
                  'import sys; print(sys.implementation.name, *sys.version_info[:2])'],
-                self.workspace, env, timeout=10)
+                self.workspace, env, timeout=10, term_grace=self.term_grace)
             if version.strip() != 'cpython 3 12':
                 raise ValueError('Incompatible Python')
             return python

@@ -52,15 +52,17 @@ def _catalog_tools(catalog: object) -> dict:
 
 
 class AgentForgetfulConnection:
-    def __init__(self, workspace: Path):
+    def __init__(self, workspace: Path, term_grace: float = 3):
         self.workspace = workspace
         self.role = workspace / '.factory'
+        self.term_grace = term_grace
 
     def login(self, connection: ForgetfulConnection) -> None:
         if connection.instance != 'server':
             raise FactoryError('--login applies only to an existing HTTP server.')
         args = [connection.executable, 'auth', 'login', '--server', connection.server]
-        run_owned(args, self.role, self._environment(connection), login=True)
+        run_owned(args, self.role, self._environment(connection), login=True,
+                  term_grace=self.term_grace)
 
     def _environment(self, connection: ForgetfulConnection) -> dict[str, str]:
         env = role_environment(self.workspace, connection)
@@ -72,7 +74,7 @@ class AgentForgetfulConnection:
         target = (['--local'] if connection.instance == 'local' else
                   ['--server', connection.server])
         args = [connection.executable, *arguments, *target, '--json']
-        output = run_owned(args, self.role, env)
+        output = run_owned(args, self.role, env, term_grace=self.term_grace)
         try:
             data = json.loads(output)
             if not isinstance(data, dict) or 'error' in data:

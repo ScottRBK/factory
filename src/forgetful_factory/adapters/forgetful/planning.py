@@ -12,8 +12,8 @@ def _positive_id(value: object) -> bool:
 
 class ForgetfulPlanning:
     def __init__(self, workspace: Path, connection: ForgetfulConnection, *,
-                 execution_enabled: bool):
-        self.cli = AgentForgetfulConnection(workspace)
+                 execution_enabled: bool, term_grace: float = 3):
+        self.cli = AgentForgetfulConnection(workspace, term_grace)
         self.connection = connection
         self.execution_enabled = execution_enabled
 

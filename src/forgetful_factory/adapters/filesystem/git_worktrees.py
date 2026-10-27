@@ -8,13 +8,6 @@ _INSPECTION_ERROR = ('Cannot inspect worktree paths; reconcile filesystem access
                      'Existing work is preserved. ')
 
 
-def _read_git(arguments: list[str]) -> str:
-    try:
-        return run_command(arguments)
-    except FactoryError as error:
-        raise WorktreeReadError(str(error)) from error
-
-
 def _worktree_entries(output: str) -> list[dict]:
     entries = []
     entry = {}
@@ -30,21 +23,30 @@ def _worktree_entries(output: str) -> list[dict]:
 
 
 class GitWorktrees:
+    def __init__(self, command_timeout: float = 30):
+        self.command_timeout = command_timeout
+
+    def _read_git(self, arguments: list[str]) -> str:
+        try:
+            return run_command(arguments, timeout=self.command_timeout)
+        except FactoryError as error:
+            raise WorktreeReadError(str(error)) from error
+
     def inspect(self, repository: str, branch: str, path: str, *, remote: str) -> None:
         try:
             self._inspect(repository, branch, path, recorded=False, remote=remote)
         except OSError as error:
             raise WorktreeReadError(_INSPECTION_ERROR + str(error)) from error
 
-    @staticmethod
-    def _repository_entries(repository: str, remote: str) -> tuple[Path, list[dict]]:
+    def _repository_entries(self, repository: str, remote: str) -> tuple[Path, list[dict]]:
         root = Path(repository).resolve()
-        actual = _read_git(['git', '-C', str(root), 'remote', 'get-url', 'origin'])
+        actual = self._read_git(['git', '-C', str(root), 'remote', 'get-url', 'origin'])
         if actual != remote:
             raise WorktreeProblem(
                 'repository_origin_changed', 'Repository origin changed; reconcile factory.toml '
                 'and the recorded worktree before continuing. Existing work is preserved.')
-        output = _read_git(['git', '-C', str(root), 'worktree', 'list', '--porcelain', '-z'])
+        output = self._read_git(
+            ['git', '-C', str(root), 'worktree', 'list', '--porcelain', '-z'])
         return root, _worktree_entries(output)
 
     def verify_removed(self, repository: str, branch: str, path: str, *, remote: str) -> None:
@@ -83,7 +85,7 @@ class GitWorktrees:
             # This is the write boundary. Failures after it never become retryable reads.
             target.parent.mkdir(parents=True, exist_ok=True)
             run_command(['git', '-C', str(root), 'worktree', 'add', '-b',
-                         branch, str(target), 'HEAD'])
+                         branch, str(target), 'HEAD'], timeout=self.command_timeout)
         except OSError as error:
             raise FactoryError('Cannot prepare worktree paths; reconcile filesystem state '
                                'before continuing. Existing work is preserved. ' + str(error)) \
@@ -107,8 +109,8 @@ class GitWorktrees:
             raise WorktreeProblem('worktree_path_conflict',
                                   f'New worktree path conflicts with existing work: {target}.',
                                   path)
-        branches = _read_git(['git', '-C', str(root), 'for-each-ref',
-                              '--format=%(refname)', 'refs/heads/']).splitlines()
+        branches = self._read_git(['git', '-C', str(root), 'for-each-ref',
+                                   '--format=%(refname)', 'refs/heads/']).splitlines()
         if f'refs/heads/{branch}' in branches:
             raise WorktreeProblem('worktree_branch_conflict',
                                   f'New worktree branch already exists: {branch}.', path)
@@ -127,25 +129,25 @@ class GitWorktrees:
             raise WorktreeProblem('worktree_mismatch', f'Recorded worktree mismatch: {target}; '
                                   'reconcile without reset.', path)
 
-    @staticmethod
-    def _validate_common_directory(root: Path, target: Path, path: str) -> str:
-        common = _read_git(['git', '-C', str(target), 'rev-parse',
-                            '--path-format=absolute', '--git-common-dir'])
-        expected = _read_git(['git', '-C', str(root), 'rev-parse',
-                              '--path-format=absolute', '--git-common-dir'])
+    def _validate_common_directory(self, root: Path, target: Path, path: str) -> str:
+        common = self._read_git(['git', '-C', str(target), 'rev-parse',
+                                 '--path-format=absolute', '--git-common-dir'])
+        expected = self._read_git(['git', '-C', str(root), 'rev-parse',
+                                   '--path-format=absolute', '--git-common-dir'])
         if common != expected:
             raise WorktreeProblem('worktree_repository_mismatch',
                                   f'Worktree belongs to another repository: {target}.', path)
         return expected
 
-    @staticmethod
-    def _validate_target_identity(target: Path, path: str, match: dict,
+    def _validate_target_identity(self, target: Path, path: str, match: dict,
                                   expected: str) -> None:
         try:
-            actual_branch = _read_git(['git', '-C', str(target), 'symbolic-ref', 'HEAD'])
-            actual_root = _read_git(['git', '-C', str(target), 'rev-parse', '--show-toplevel'])
-            gitdir = Path(_read_git(['git', '-C', str(target), 'rev-parse',
-                                     '--absolute-git-dir'])).resolve()
+            actual_branch = self._read_git(
+                ['git', '-C', str(target), 'symbolic-ref', 'HEAD'])
+            actual_root = self._read_git(
+                ['git', '-C', str(target), 'rev-parse', '--show-toplevel'])
+            gitdir = Path(self._read_git(
+                ['git', '-C', str(target), 'rev-parse', '--absolute-git-dir'])).resolve()
             # The registry alone does not prove the target uses its registered HEAD/index.
             if (actual_branch != match['branch'] or Path(actual_root).resolve() != target
                     or gitdir.parent != Path(expected).resolve() / 'worktrees'

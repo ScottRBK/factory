@@ -174,6 +174,7 @@ class WorkerSetupTests(InitFixture):
 
     def test_invalid_external_skills_create_no_worker_metadata_and_corrected_init_succeeds(self):
         settings = worker_settings(self)
+        review_failure_repo = None
         for index, (flag, bad) in enumerate((
                 ('--tdd-skill', self.workspace / 'tdd/SKIL.md'),
                 ('--implementation-skill', self.workspace / 'standards'),
@@ -187,8 +188,13 @@ class WorkerSetupTests(InitFixture):
                 self.assertNotIn('Traceback', result.stderr)
                 self.assertFalse((repo / '.factory/factory.toml').exists())
                 self.assertFalse((repo / '.factory/agents/feature-owner/agent.json').exists())
-                corrected = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
-                self.assertEqual(corrected.returncode, 0, corrected.stderr)
+                if flag == '--review-skill':
+                    review_failure_repo = repo
+
+        # Retry the case that left partial implementation resources, regardless of tuple order.
+        self.assertIsNotNone(review_failure_repo)
+        corrected = self.run_cli(review_failure_repo, '--repo', '.', *INIT_SETTINGS, *settings)
+        self.assertEqual(corrected.returncode, 0, corrected.stderr)
 
     def test_relative_worker_skill_edit_is_preserved_without_reconciliation(self):
         # Arrange

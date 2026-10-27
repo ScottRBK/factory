@@ -78,6 +78,18 @@ Use TDD at the public boundaries approved by Scott:
   Forgetful executable and real temporary files. Check complete malformed-input matrices here;
   retain watcher CLI proofs for each distinct inventory/detail pause, alert and recovery path.
   No private validation helpers or mocked internal calls replace either boundary.
+- **Numbered choices:** use public `parse_numbered_selection()` for every malformed answer and
+  both valid endpoints. Retain a real CLI rejection at each distinct prompt, positive model/effort
+  wiring, and no configuration, receipt or label mutation.
+- **Planning access catalogs:** call `AgentForgetfulConnection.check()` through a controlled real
+  executable and JSON. Retain every permission/reference-field case and CLI access/completion
+  proofs.
+- **Login metadata:** call `uses_browser_login()` against real loopback HTTP for the policy matrix.
+  Retain CLI notice/access routing, absent credentials and redirect refusal.
+- **Persisted cleanup:** use public `validate_cleanup_marker()` for malformed and canonical markers.
+  Use `GitWorktrees.verify_removed()` with real Git/files for occupied paths, stale/relocated
+  registrations and changed origins. Retain absent/pending/invalid/removed watcher routes,
+  occupied-path/changed-origin routing, no mutation and no recreation.
 - **Package artifacts:** build the real wheel/sdist and inspect their public contents. The wheel
   checksum gate catches invalid RECORD encoding without importing or installing package code.
 - **Native integration:** opt-in isolated Pi SDK/lifecycle and local Forgetful checks. Use temporary
@@ -88,6 +100,28 @@ Do not add tests coupled to private helpers or internal mock calls. Use Python's
 the architecture proof tests additionally invoke the development-only Import Linter command.
 Independently validate the installed package through local `uvx`.
 Live GitHub label validation in Dark Business requires separate confirmation of target repositories.
+
+## Explicit deadline composition
+
+`deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each
+value must be finite and positive. Public `cli.main.main(policy)` and bootstrap composition pass
+command deadlines, owned-process TERM grace, and lifecycle deadlines to the relevant adapters.
+Owned owner/controller startup transports the lifecycle values as JSON; the controller validates
+all fields before opening a session. Application workflows retain their existing port contracts.
+
+Ordinary CLI execution uses the original production values. There is no timeout flag, environment
+variable, saved setting, global multiplier or fake clock. Existing installer/access deadlines and
+unrelated transport waits are not globally scaled. The native AgentShell SDK's fixed five-second
+command timeout remains unchanged and has its own real timeout/cleanup test.
+
+Tests may supply short real expiry through this public composition. They must still observe the
+actual process or session failure, signal handling, ownership, cleanup and uncertain outcomes.
+The three-second threshold identifies cases to investigate; it is not a required test limit.
+Repeated setup may be reused only with complete restoration of files, environment, Git origin,
+external state and logs. Replace race-avoidance sleeps with observable external synchronization,
+not shorter sleeps or production polling changes. Preserve distinct busy-owner and pane-loss tests.
+
+Implementation and measured evidence are in the [runtime plan](../plans/ci-test-runtime.md).
 
 ## Continuous integration
 

@@ -9,8 +9,11 @@ import subprocess
 import sys
 import time
 
+from deadline_support import programmatic_factory
 from lifecycle_support import LifecycleFixture, pidfd_open, pidfd_send_signal
 from test_init import INIT_SETTINGS
+
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 
 class AssistedReviewFixes(LifecycleFixture):
@@ -121,10 +124,16 @@ class AssistedReviewFixes(LifecycleFixture):
         self.assertNotEqual(self.foreman(repo).returncode, 0)
 
     def test_cancelled_init_allows_bounded_slow_controller_cleanup(self):
-        # Controlled interpreter models the controller's eight-second open plus eight-second
-        # close allowance. The inherited tracking shim pins its actual owner before notification.
+        # The controller delays cleanup, then waits for acknowledgement before reporting stopped.
+        # The inherited tracking shim pins its actual owner before notification.
         repo = self.repo()
         notify_path, notification = self.notification('slow-open.fifo')
+        complete_path, completion = self.notification('cleanup-complete.fifo')
+        acknowledge_path, acknowledge = self.notification('cleanup-acknowledged.fifo')
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            owner_controller_close=10,
+            owner_pre_adoption_cleanup=20,
+        ))
         shim = self.interpreter.read_text().rsplit('os.execv(', 1)[0]
         self.interpreter.write_text(shim +
             'import json, time\n'
@@ -134,10 +143,13 @@ class AssistedReviewFixes(LifecycleFixture):
             'json.loads(sys.stdin.readline())\n'
             f'with open({notify_path!r}, "w") as notify: notify.write("opening\\n")\n'
             'sys.stdin.read()\n'
-            'time.sleep(15.5)\n'
+            'time.sleep(0.3)\n'
+            f'with open({complete_path!r}, "w") as notify: notify.write("complete\\n")\n'
+            f'with open({acknowledge_path!r}, "r") as ack: assert ack.read(1) == "1"\n'
             'print(json.dumps({"kind": "stopped"}), flush=True)\n')
+        entrypoint = programmatic_factory(deadlines)
         process = subprocess.Popen([
-            sys.executable, '-m', 'forgetful_factory', 'init', '--workspace', str(repo),
+            sys.executable, *entrypoint, 'init', '--workspace', str(repo),
             '--repo', str(repo), *INIT_SETTINGS, '--assisted', '--share-pi-profile',
             '--agentshell-python', str(self.interpreter), '--forgetful-instance', 'local',
             '--forgetful-project', '12', '--planning-only', '--grill-me-skill',
@@ -148,13 +160,17 @@ class AssistedReviewFixes(LifecycleFixture):
             self.collect_owner_handles()
             self.assertEqual(len(self.owner_descriptors), 1)
             owner = next(iter(self.owner_descriptors.values()))
-            began = time.monotonic()
             process.send_signal(signal.SIGINT)
-            stdout, stderr = process.communicate(timeout=40)
+            self.assertTrue(select.select([completion], [], [], 10)[0],
+                            'Controller did not report graceful cleanup completion')
+            self.assertIsNone(process.poll(), 'Init exited before controller cleanup completed')
+            self.assertFalse(select.select([owner], [], [], 0)[0],
+                             'Owner exited before controller cleanup completed')
+            self.assertEqual(os.read(completion, 100), b'complete\n')
+            os.write(acknowledge, b'1')
+            stdout, stderr = process.communicate(timeout=20)
             self.assertEqual(process.returncode, 130, stdout + stderr)
             self.assertTrue(select.select([owner], [], [], 1)[0], 'Owner still running')
-            self.assertGreater(time.monotonic() - began, 15)
-            self.assertLess(time.monotonic() - began, 35)
             state = self.status(repo)
             self.assertEqual(state['foreman'], 'stopped')
             self.assertEqual(state['observation'], 'saved')
@@ -502,9 +518,17 @@ class AssistedReviewFixes(LifecycleFixture):
         # Arrange: a real owned terminal opens, but fake Pi never sends readiness.
         repo = self.repo()
         self.env['FAKE_PI_NO_READY'] = '1'
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            controller_ready=1,
+            owner_ready=3,
+            owner_controller_close=5,
+            owner_pre_adoption_cleanup=10,
+        ))
 
         # Act
-        failed = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--assisted', timeout=50)
+        failed = self.run_cli(
+            repo, '--repo', '.', *INIT_SETTINGS, '--assisted', timeout=20,
+            deadlines=deadlines)
 
         # Assert: successful owned cleanup is distinct from a lost controller.
         self.assertNotEqual(failed.returncode, 0)

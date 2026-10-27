@@ -7,10 +7,12 @@ import stat
 import struct
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.foreman_runtime import runtime_directory
 from forgetful_factory.adapters.filesystem.resource_files import read_generated_json
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -105,7 +107,9 @@ def request(workspace: Path, operation: str, **fields) -> dict:
     return result
 
 
-def start_owner(workspace: Path, python: str, environment: dict, launch: dict) -> dict:
+def start_owner(
+        workspace: Path, python: str, environment: dict, launch: dict,
+        deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines()) -> dict:
     try:
         checked = subprocess.run([python, '-u', str(Path(__file__).with_name('controller.py')),
                                   '--check'], env=environment, stdin=subprocess.DEVNULL,
@@ -137,7 +141,7 @@ def start_owner(workspace: Path, python: str, environment: dict, launch: dict) -
                 env=environment)
         child.close()
         parent.settimeout(40)
-        parent.sendall((json.dumps(launch) + '\n').encode())
+        parent.sendall((json.dumps({**launch, 'deadlines': asdict(deadlines)}) + '\n').encode())
         with parent.makefile('rb') as stream:
             result = _reply(stream)
             if 'error' in result:
@@ -157,7 +161,7 @@ def start_owner(workspace: Path, python: str, environment: dict, launch: dict) -
             try:
                 # Cover owner watcher-stop (up to 15s), controller-close (20s), and escalation
                 # (5s), leaving room for scheduling and the final saved-state/socket cleanup.
-                process.wait(timeout=45)
+                process.wait(timeout=deadlines.owner_pre_adoption_cleanup)
             except subprocess.TimeoutExpired:
                 process.terminate()
                 try:

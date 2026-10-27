@@ -48,8 +48,9 @@ MANAGED_MEMORY_RESOURCE = 'pi-forgetful'
 
 
 class ForemanProfile:
-    def __init__(self, workspace: Path):
+    def __init__(self, workspace: Path, term_grace: float = 3):
         self.workspace = workspace
+        self.term_grace = term_grace
         self.directory = workspace / '.factory/agents/foreman'
         self.foreman_skill = self.directory / FOREMAN_SKILL_PATH
         self.bundle_directory = workspace / '.factory/resources'
@@ -78,7 +79,8 @@ class ForemanProfile:
         managed_pi = self.workspace / '.factory/runtime/pi/node_modules/.bin/pi'
         if (shutil.which('pi', path=path) == str(managed_pi)
                 and Path(self.pi_home()).is_dir()
-                and not HostDependencies(self.workspace).pi_ready(self.pi_home())):
+                and not HostDependencies(
+                    self.workspace, self.term_grace).pi_ready(self.pi_home())):
             missing.append('pi')
         managed = self.workspace / '.factory/runtime/forgetful'
         selected = shutil.which(connection.executable, path=path)
@@ -86,11 +88,11 @@ class ForemanProfile:
                 and selected == str(managed / 'bin/forgetful')
                 and connection.executable not in missing
                 and not runtime_ready(managed, (managed / 'forgetful-requirements.txt',),
-                                      FORGETFUL_PROBE)):
+                                      FORGETFUL_PROBE, self.term_grace)):
             missing.append('forgetful')
         project = self.bundle_directory / 'agentshell/python'
         if not runtime_ready(project / '.venv', (project / 'pyproject.toml', project / 'uv.lock'),
-                             ROLE_PROBE):
+                             ROLE_PROBE, self.term_grace):
             missing.append('agentshell-runtime')
         return missing
 
@@ -121,10 +123,10 @@ class ForemanProfile:
                                        'first setup. Existing files are preserved.')
 
     def installation(self, command: str) -> str | None:
-        return HostDependencies(self.workspace).description(command)
+        return HostDependencies(self.workspace, self.term_grace).description(command)
 
     def install(self, command: str) -> None:
-        HostDependencies(self.workspace).install(command)
+        HostDependencies(self.workspace, self.term_grace).install(command)
 
     def _install_resources(self) -> None:
         manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
@@ -147,18 +149,19 @@ class ForemanProfile:
         return uses_browser_login(connection)
 
     def login(self, connection: ForgetfulConnection) -> None:
-        AgentForgetfulConnection(self.workspace).login(connection)
+        AgentForgetfulConnection(self.workspace, self.term_grace).login(connection)
 
     def check(self, connection: ForgetfulConnection, *, execution_enabled: bool) -> str:
-        AgentForgetfulConnection(self.workspace).check(
+        AgentForgetfulConnection(self.workspace, self.term_grace).check(
             connection, execution_enabled=execution_enabled)
         return 'Forgetful: connected; selected project and planning permissions verified.'
 
     def projects(self, connection: ForgetfulConnection) -> list[dict]:
-        return AgentForgetfulConnection(self.workspace).projects(connection)
+        return AgentForgetfulConnection(self.workspace, self.term_grace).projects(connection)
 
     def create_project(self, connection: ForgetfulConnection, name: str) -> int:
-        return AgentForgetfulConnection(self.workspace).create_project(connection, name)
+        return AgentForgetfulConnection(self.workspace, self.term_grace).create_project(
+            connection, name)
 
     def _protect_runtime(self) -> None:
         path = self.workspace / '.factory/.gitignore'
@@ -296,7 +299,7 @@ class ForemanProfile:
         environment = role_environment(self.workspace, connection, self.pi_home())
         try:
             output = run_owned([sys.executable, str(helper), harness],
-                               cwd, environment)
+                               cwd, environment, term_grace=self.term_grace)
             models = json.loads(output)
             if not isinstance(models, list) or any(not isinstance(m, str) for m in models):
                 raise ValueError('Invalid catalog')

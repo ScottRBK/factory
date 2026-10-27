@@ -21,10 +21,12 @@ The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outsta
 passes the assigned gate. That baseline passed 471 tests on each supported Python. An
 earlier shutdown timeout remains unexplained; no product fix is claimed. Claude Code accepted the
 code with this limitation, and it is integrated and pushed. The work records retain the evidence.
-The latest hosted jobs exceeded their 15-minute limit. The [runtime work](plans/ci-test-runtime.md)
-now checks exhaustive malformed replies through the public planning adapter while retaining watcher
-recovery proofs and real lifecycle deadlines. That snapshot passed 479 tests on both supported
-Pythons without skips, in about ten minutes. Hosted validation remains pending.
+Earlier hosted jobs exceeded their 15-minute limit. The [runtime work](plans/ci-test-runtime.md)
+now checks exhaustive malformed replies at approved public boundaries while retaining CLI routing,
+recovery, signals and ownership proofs. Immutable deadline composition supports shorter real expiry
+in tests without changing production defaults. The native SDK's fixed timeout remains unchanged.
+Final local suites pass 511 tests per Python without skips; independent review approves the fixes.
+The latest inspected hosted workflow was cancelled; hosted success remains unverified.
 
 [Foreman memory integration](adrs/foreman-memory.md) is implemented for internal server use.
 New starter roots select a managed entrypoint; edited roots can keep native CLI planning without
@@ -69,6 +71,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `domain/` | Define provider-independent models and work-tracking services. |
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
+| `deadlines.py` | Define immutable, finite-positive command and AgentShell deadline policies. |
 
 ## Main classes and contracts
 
@@ -129,6 +132,10 @@ import or call graph.
 - Application workflows use domain services and their own ports, not concrete adapters.
 - CLI bootstrap supplies concrete implementations. The public configuration loader is also a
   composition entry point; adapters do not depend on CLI.
+  `main(policy)` passes explicit deadlines to adapters; ordinary `main()` keeps production values.
+  Owned owner/controller children receive and validate lifecycle values through their launch JSON.
+  There is no user timeout flag, environment override, saved setting or global time scaling.
+  See [deadline composition](adrs/development-checks.md#explicit-deadline-composition).
 - First initialization gathers shared-Pi-profile consent and native model choices, validates
   repositories, selects or explicitly creates a project, and ensures labels. Wizard choices are
   transient: TOML stores factory settings and one Foreman file pointer; each generated `agent.json`
@@ -295,43 +302,47 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 849; init: line 646; project choice: line 431;
-  numbered choices: line 209; worker setup: line 591; completion/skill folders: line 606;
-  optional manual launch: line 671; standalone Foreman: line 352.
-  New-setup orchestration: line 775; memory choices: line 549; REST eligibility: line 584.
-  Adapter wiring: `cli/bootstrap.py`, lines 20 and 26; selected root launch: line 54.
+- CLI entry: `cli/main.py`, line 854; init: line 645; project choice: line 430;
+  numbered choices: line 211; worker setup: line 590; completion/skill folders: line 605;
+  optional manual launch: line 670; standalone Foreman: line 349.
+  New-setup orchestration: line 774; memory choices: line 548; REST eligibility: line 583.
+  Public numbered parser: `cli/numbered_selection.py`, line 6.
+  Adapter wiring: `cli/bootstrap.py`, lines 21 and 29; selected root launch: line 63.
+  Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 18;
   `application/watch_factory.py`, line 60; private run state: line 39;
-  `application/scaffold_issue.py`, line 47.
-  Cleanup validation: `application/scaffold_issue.py`, line 25. Problem types and notification
-  formatting: `application/watcher_problems.py`, lines 80 and 112.
-  Repository/pre-create checks: `application/scaffold_issue.py`, lines 61 and 119;
-  read-only lookup/recovery: lines 198 and 248.
+  `application/scaffold_issue.py`, line 28.
+  Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
+  Problem types and formatting: `application/watcher_problems.py`, lines 80 and 112.
+  Repository/pre-create checks: `application/scaffold_issue.py`, lines 42 and 100;
+  read-only lookup/recovery: lines 179 and 229.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
-  shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 120;
-  project listing/creation: lines 93 and 103.
+  shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 122;
+  project listing/creation: lines 95 and 105.
 - Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
-  `adapters/filesystem/git_worktrees.py`, line 32; inspection: line 33; write boundary: line 73.
-  Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 16.
+  `adapters/filesystem/git_worktrees.py`, line 25; inspection: line 35; write boundary: line 75.
+  Removed-tree verification: line 52.
+  Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 19.
   Owned native-command cancellation: `adapters/sensitive_command.py`, lines 18 and 33.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 313;
-  consent persistence: line 191; unselected-memory notice: line 341.
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 316;
+  consent persistence: line 194; unselected-memory notice: line 344.
   `adapters/filesystem/coordinator_profiles.py`, line 29; memory preferences: line 87;
   `adapters/filesystem/worker_profiles.py`, line 15. Starter templates live under `resources/`.
   Profile contract: `application/ports/foreman_profile.py`, line 8.
-  Managed Pi readiness: `adapters/host_dependencies.py`, line 57.
+  Managed Pi readiness: `adapters/host_dependencies.py`, line 59.
 - Transient wizard choices: `application/initial_agent_choices.py`, line 9.
   Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `adapters/filesystem/resource_files.py`,
   lines 18 and 46; selected guidance walk: `adapters/filesystem/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
-  controller: `adapters/agentshell/controller.py`, line 273; live worker pinning: line 70.
-- Setup lifecycle: `adapters/agentshell/owner.py`, line 102;
-  synchronous lock/startup: lines 61 and 78; process entrypoint: line 460;
-  client: `adapters/agentshell/owner_client.py`, line 108;
+  controller: `adapters/agentshell/controller.py`, line 298; live worker pinning: line 74;
+  child launch validation: line 147.
+- Setup lifecycle: `adapters/agentshell/owner.py`, line 103;
+  synchronous lock/startup: lines 62 and 79; process entrypoint: line 463;
+  client: `adapters/agentshell/owner_client.py`, line 110;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 9;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
@@ -348,7 +359,9 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
   `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
   `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
-  cleanup replay. `tests/test_watcher_alerts.py` covers scoped pauses, read-only recovery, alert
+  cleanup replay. `tests/test_cleanup_boundaries.py` covers malformed markers and real Git/path
+  safety without repeated watcher startup. `tests/test_auth_notice.py` uses real loopback HTTP.
+  `tests/test_watcher_alerts.py` covers scoped pauses, read-only recovery, alert
   delivery and uncertainty; `tests/test_watcher_guidance.py` covers preserved starter instructions.
   `tests/test_managed_watcher_alerts.py` covers same-Foreman repair and busy ownership;
   `tests/test_watcher_cancellation.py` covers owned native-check exits through watch CLI.
@@ -371,8 +384,8 @@ Paths below are relative to `src/forgetful_factory/`:
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
-detail; tests were excluded using `--test-path tests`. Its 72 boxes include module containers.
-Test filtering removed 3,574 calls and 56 type relationships; signatures remain in full detail.
+detail; tests were excluded using `--test-path tests`. Its 77 boxes include module containers.
+Test filtering removed 3,682 calls and 56 type relationships; signatures remain in full detail.
 The previously audited cached executable was reused directly; no package installation was needed.
 A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
 by this map.
@@ -383,7 +396,8 @@ by this map.
 - Check filtering notices and warnings. Missing edges do not establish independence.
 - Verify important relationships against source; static call matching is heuristic.
 
-The map reports eleven unresolved external-base warnings (`Protocol`, `Exception` and `Enum`). Some
+The map reports twelve unresolved external-base warnings (`Protocol`, `Exception`, `ValueError`
+and `Enum`). Some
 same-name call edges are incorrect: command execution's `run` is associated with `ForemanOwner.run`,
 and external session/file `close` calls with `BorrowedForemanTerminal.close`. Use source and import
 checks, not those inferred edges, to judge dependencies. The compact diagram above was checked

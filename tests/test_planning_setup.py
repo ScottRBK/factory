@@ -1,11 +1,15 @@
 import json
+import os
 import subprocess
 import sys
 
 from profile_support import events
 from test_init import INIT_SETTINGS, InitFixture
 
+from forgetful_factory.adapters.forgetful.connection import AgentForgetfulConnection
+from forgetful_factory.application.configuration import ForgetfulConnection
 from forgetful_factory.configuration import load_configuration
+from forgetful_factory.domain.models import FactoryError
 
 
 class PlanningSetupTests(InitFixture):
@@ -157,6 +161,7 @@ class PlanningSetupTests(InitFixture):
                 self.assertFalse(receipt.exists())
 
     def test_bulk_catalog_still_requires_every_planning_permission_and_both_reference_fields(self):
+        # Arrange: use the real public adapter with a controlled external CLI process.
         required = ('create_plan', 'list_plans', 'get_plan', 'update_plan', 'create_task',
                     'query_tasks', 'get_task', 'update_task', 'claim_task', 'transition_task',
                     'add_criterion', 'add_dependency')
@@ -171,18 +176,42 @@ class PlanningSetupTests(InitFixture):
         cases.extend([('not-object', []), ('bad-group', {'plan': {}}),
                       ('bad-entry', {'plan': [None]}), ('bad-name', {'plan': [{'name': 1}]}),
                       ('duplicate', {'plan': [*catalog, catalog[0]]})])
-        for index, (name, groups) in enumerate(cases):
-            with self.subTest(name=name, index=index):
-                # Arrange
-                repo = self.repo(f'app-{index}')
-                self.env['PROFILE_TOOL_CATALOG'] = json.dumps({'tools_by_category': groups})
-                # Act
-                result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-                # Assert
-                self.assertNotEqual(result.returncode, 0)
-                self.assertIn('planning check failed', result.stderr)
-                self.assertNotIn('Traceback', result.stderr)
-                self.assertFalse((repo / '.factory/setup-complete.json').exists())
+        workspace = self.workspace / 'adapter'
+        (workspace / '.factory').mkdir(parents=True)
+        connection = ForgetfulConnection(
+            executable=str(self.bin / 'forgetful'),
+            database=str(self.workspace / 'forgetful.db'),
+            project_id=12,
+        )
+        adapter = AgentForgetfulConnection(workspace)
+        previous = dict(os.environ)
+        try:
+            os.environ.clear()
+            os.environ.update(self.env)
+            for index, (name, groups) in enumerate(cases):
+                with self.subTest(name=name, index=index):
+                    os.environ['PROFILE_TOOL_CATALOG'] = json.dumps(
+                        {'tools_by_category': groups},
+                    )
+                    # Act / Assert
+                    with self.assertRaisesRegex(FactoryError, 'planning check failed'):
+                        adapter.check(connection, execution_enabled=False)
+            # Act / Assert: planning and execution catalogs accept their positive endpoints.
+            os.environ['PROFILE_TOOL_CATALOG'] = json.dumps(
+                {'tools_by_category': {'plan': catalog}},
+            )
+            adapter.check(connection, execution_enabled=False)
+            execution_catalog = [
+                *catalog,
+                {'name': 'verify_criterion', 'parameters': {}},
+            ]
+            os.environ['PROFILE_TOOL_CATALOG'] = json.dumps(
+                {'tools_by_category': {'plan': execution_catalog}},
+            )
+            adapter.check(connection, execution_enabled=True)
+        finally:
+            os.environ.clear()
+            os.environ.update(previous)
 
     def test_connection_preflight_only_checks_project_and_tool_catalog(self):
         # Arrange

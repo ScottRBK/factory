@@ -5,6 +5,8 @@ import shutil
 from lifecycle_support import LifecycleFixture
 from test_init import INIT_SETTINGS
 
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+
 
 class NormalizedLifecycleTests(LifecycleFixture):
     def test_legacy_root_preserves_edits_and_keeps_unselected_memory_inactive(self):
@@ -27,6 +29,8 @@ class NormalizedLifecycleTests(LifecycleFixture):
         finalized = self.run_cli(repo, '--finalize')
         self.assertEqual(finalized.returncode, 0, finalized.stderr)
         preferences = definition.with_name('forgetful.json')
+        enabled = {'enabled': True, 'capture_mode': 'auto', 'model': 'provider/model'}
+        preferences.write_text(json.dumps(enabled))
         before = {definition: definition.read_bytes(), custom: custom.read_bytes(),
                   preferences: preferences.read_bytes()}
 
@@ -47,18 +51,6 @@ class NormalizedLifecycleTests(LifecycleFixture):
         self.assertIn(str(custom), launch['args'])
         self.assertNotIn('pi-forgetful/factory.ts', ' '.join(launch['args']))
         self.send_and_wait_for_exit(repo, state['target'])
-
-        # Arrange / Act / Assert: an old enabled preference remains saved but stays inactive.
-        enabled = {'enabled': True, 'capture_mode': 'auto', 'model': 'provider/model'}
-        preferences.write_text(json.dumps(enabled))
-        enabled_before = preferences.read_bytes()
-        restarted = self.foreman(repo)
-        self.assertEqual(restarted.returncode, 0, restarted.stderr)
-        self.assertIn('saved automatic-memory preferences are inactive', restarted.stdout)
-        self.assertEqual(preferences.read_bytes(), enabled_before)
-        self.assertNotIn('pi-forgetful/factory.ts', ' '.join(
-            json.loads((self.workspace / 'pi.jsonl').read_text().splitlines()[-1])['args']))
-        self.send_and_wait_for_exit(repo, self.status(repo)['target'])
 
     def test_foreman_keeps_extension_auth_separate_from_native_cli_auth(self):
         # Arrange
@@ -321,13 +313,15 @@ class NormalizedLifecycleTests(LifecycleFixture):
 
     def test_watcher_runtime_prerequisite_timeout_preserves_foreman_and_startup_guidance(self):
         import sys
-        import time
-
         # Arrange: freeze only the fixture runtime probe's calling watcher before borrowed ready.
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
-        started = self.foreman(repo)
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            owner_watcher_start=2,
+            owner_watcher_stop=0.5,
+        ))
+        started = self.foreman(repo, deadlines=deadlines)
         self.assertEqual(started.returncode, 0, started.stderr)
         original = self.status(repo)
         probe = repo / '.factory/resources/agentshell/python/.venv/bin/python'
@@ -341,13 +335,11 @@ class NormalizedLifecycleTests(LifecycleFixture):
             f'Path({str(invoked)!r}).write_text(str(os.getppid()))\n'
             'os.kill(os.getppid(), signal.SIGSTOP)\n')
         # Act: exercise the existing timeout unchanged; no new retry or recovery behavior.
-        began = time.monotonic()
         try:
-            failed = self.watch(repo, '--start', '--new-only', timeout=45)
+            failed = self.watch(repo, '--start', '--new-only', timeout=5)
         finally:
             probe.write_text(original_probe)
         # Assert
-        self.assertGreaterEqual(time.monotonic() - began, 30)
         self.assertTrue(invoked.is_file(), 'The external runtime prerequisite was not probed')
         self.assertNotEqual(int(invoked.read_text()), original['owner_pid'])
         self.assertNotEqual(failed.returncode, 0)

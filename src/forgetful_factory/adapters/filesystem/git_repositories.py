@@ -13,6 +13,9 @@ def _resolve_repository(path: Path) -> Path:
 
 
 class GitRepositories:
+    def __init__(self, command_timeout: float = 30):
+        self.command_timeout = command_timeout
+
     def origin(self, path: Path) -> str:
         resolved = _resolve_repository(path)
         if path != resolved:
@@ -20,13 +23,15 @@ class GitRepositories:
         if not path.is_dir():
             raise FactoryError(f'Repository directory does not exist: {path}')
         try:
-            root = run_command(['git', '-C', str(path), 'rev-parse', '--show-toplevel'])
+            root = run_command(['git', '-C', str(path), 'rev-parse', '--show-toplevel'],
+                               timeout=self.command_timeout)
         except FactoryError as error:
             raise FactoryError(f'Repository {path}: {error}') from error
         if _resolve_repository(Path(root)) != resolved:
             raise FactoryError(f'Choose a Git repository root, not a subdirectory: {path}')
         try:
-            return run_command(['git', '-C', str(path), 'remote', 'get-url', 'origin'])
+            return run_command(['git', '-C', str(path), 'remote', 'get-url', 'origin'],
+                               timeout=self.command_timeout)
         except FactoryError as error:
             raise FactoryError(f'Repository {path}: cannot read origin: {error}') from error
 

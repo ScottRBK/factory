@@ -6,6 +6,9 @@ from forgetful_factory.domain.models import FactoryError, Issue, Label, WorkSour
 
 
 class GitHubWorkTracking:
+    def __init__(self, command_timeout: float = 30):
+        self.command_timeout = command_timeout
+
     def source_from_remote(self, remote: str) -> WorkSource:
         match = re.fullmatch(
             r'(?:git@github\.com:|https://github\.com/)([A-Za-z0-9-]+/[A-Za-z0-9_.-]+)',
@@ -19,7 +22,8 @@ class GitHubWorkTracking:
     def _api(self, source: WorkSource, suffix: str = '', *arguments: str) -> object:
         try:
             output = run_command(['gh', 'api', f'repos/{source.reference}{suffix}',
-                                  '--hostname', 'github.com', *arguments])
+                                  '--hostname', 'github.com', *arguments],
+                                 timeout=self.command_timeout)
             return json.loads(output)
         except (FactoryError, ValueError) as error:
             raise FactoryError(

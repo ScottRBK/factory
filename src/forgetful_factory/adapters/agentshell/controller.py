@@ -3,6 +3,7 @@ import asyncio
 import contextlib
 import ctypes
 import json
+import math
 import os
 import select
 import signal
@@ -18,12 +19,14 @@ async def ready(session) -> None:
     raise RuntimeError('Pi exited before its session-ready event.')
 
 
-async def interact(session, reader, reply, name, *, persistent=False, startup_warning=None) -> None:
+async def interact(session, reader, reply, name, deadlines, *, persistent=False,
+                   startup_warning=None) -> None:
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(deadlines['controller_ready']):
             await ready(session)
     except TimeoutError as error:
-        raise RuntimeError(f'Pi did not become ready within 30 seconds ({name}). '
+        raise RuntimeError('Pi did not become ready within '
+                           f'{deadlines["controller_ready"]:g} seconds ({name}). '
                            'Watcher is stopping. Check any cleanup errors before retrying. '
                            'Restart watch, then promptly use the new tmux attach-session '
                            'command shown at startup to resolve any trust dialog.') from error
@@ -33,7 +36,7 @@ async def interact(session, reader, reply, name, *, persistent=False, startup_wa
             request = json.loads(line)
             if not isinstance(request, dict) or not isinstance(request.get('text'), str):
                 raise ValueError('Invalid Foreman send request; expected text in an object.')
-            async with asyncio.timeout(10):
+            async with asyncio.timeout(deadlines['controller_send']):
                 await session.terminal.send_text(request['text'], submit=True)
         except Exception as error:
             if persistent:
@@ -43,7 +46,8 @@ async def interact(session, reader, reply, name, *, persistent=False, startup_wa
                 continue
             if not isinstance(error, TimeoutError):
                 raise
-            raise RuntimeError('Pi send timed out after 10 seconds; '
+            raise RuntimeError('Pi send timed out after '
+                               f'{deadlines["controller_send"]:g} seconds; '
                                'submission is uncertain. Watcher stopped.') from error
         reply({'kind': 'sent'})
 
@@ -141,11 +145,20 @@ class SessionState:
 
 
 def validate_launch_config(config) -> None:
+    deadline_names = {
+        'controller_ready', 'controller_send', 'controller_close', 'parent_ready',
+        'owner_watcher_start', 'owner_watcher_stop', 'owner_ready',
+        'owner_controller_close', 'owner_pre_adoption_cleanup',
+    }
+    deadlines = config.get('deadlines') if isinstance(config, dict) else None
     if (not isinstance(config, dict)
             or any(not isinstance(config.get(key), str)
                    for key in ('cwd', 'model', 'effort', 'session_name'))
             or not isinstance(config.get('resources'), dict)
-            or not isinstance(config.get('prompt'), (str, type(None)))):
+            or not isinstance(config.get('prompt'), (str, type(None)))
+            or not isinstance(deadlines, dict) or set(deadlines) != deadline_names
+            or any(type(value) not in (int, float) or not math.isfinite(value) or value <= 0
+                   for value in deadlines.values())):
         raise ValueError('Invalid Foreman launch configuration.')
 
 
@@ -158,7 +171,7 @@ def build_shell(config):
 
 async def open_session(state, shell, resources_type, config, reply, opened) -> None:
     try:
-        async with asyncio.timeout(30):
+        async with asyncio.timeout(config['deadlines']['controller_ready']):
             resources = resources_type(**config['resources'])
             state.session = await shell.open_interactive(
                 config['cwd'], model=config['model'], effort=config['effort'],
@@ -168,7 +181,8 @@ async def open_session(state, shell, resources_type, config, reply, opened) -> N
                 await capture_worker(state, reply)
             opened.set()
     except TimeoutError as error:
-        raise RuntimeError('AgentShell launch timed out after 30 seconds; '
+        raise RuntimeError('AgentShell launch timed out after '
+                           f'{config["deadlines"]["controller_ready"]:g} seconds; '
                            'check Pi and tmux installations.') from error
 
 
@@ -212,7 +226,7 @@ async def supervise_session(state, reader, config, reply) -> None:
     tasks = []
     try:
         conversation = asyncio.create_task(interact(
-            session, reader, reply, config['session_name'],
+            session, reader, reply, config['session_name'], config['deadlines'],
             persistent=config.get('report_target', False),
             startup_warning=state.worker_error))
         tasks.append(conversation)
@@ -260,7 +274,7 @@ async def close_session(state, config, reply) -> None:
     if state.session is None:
         return
     try:
-        async with asyncio.timeout(8):
+        async with asyncio.timeout(config['deadlines']['controller_close']):
             await state.session.close()
         if config.get('report_target') and state.cleanup_known:
             reply({'kind': 'stopped'})
@@ -311,8 +325,9 @@ async def control(reply) -> None:
             # a chance to return its owned handle so cancellation can report confirmed cleanup.
             known_start = asyncio.create_task(opened.wait())
             tasks.append(known_start)
-            finished, _ = await asyncio.wait((serving, known_start), timeout=8,
-                                             return_when=asyncio.FIRST_COMPLETED)
+            finished, _ = await asyncio.wait(
+                (serving, known_start), timeout=config['deadlines']['controller_close'],
+                return_when=asyncio.FIRST_COMPLETED)
             if serving in finished:
                 await serving
     finally:

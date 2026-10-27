@@ -493,24 +493,56 @@ class RelocatedCompletionTests(InitFixture):
 
 class SavedSetupDiagnosticTests(InitFixture):
     def test_finalize_configuration_errors_name_explicit_validation_and_restart_routes(self):
+        def saved_tree(root):
+            state = {}
+            for path in root.rglob('*'):
+                relative = path.relative_to(root)
+                if path.is_symlink():
+                    state[relative] = ('symlink', path.readlink())
+                elif path.is_file():
+                    state[relative] = ('file', path.read_bytes())
+                else:
+                    state[relative] = ('directory', None)
+            return state
+
         cases = (('project', 'lacks forgetful.project_id'),
                  ('arguments', 'Arguments conflict with existing config'),
                  ('provider', 'Unsupported work-tracking provider'),
                  ('origin', 'Origin/source changed'))
+        initial_env = self.env.copy()
         for completed in (False, True):
+            # Arrange one public baseline for each saved setup state.
+            self.env.clear()
+            self.env.update(initial_env)
+            repo = self.repo(f'baseline-{completed}')
+            if not completed:
+                self.env['PROFILE_FAIL'] = 'forgetful'
+            setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+            self.env.pop('PROFILE_FAIL', None)
+            self.assertEqual(setup.returncode == 0, completed, setup.stderr)
+            factory = repo / '.factory'
+            receipt = factory / 'setup-complete.json'
+            self.assertEqual(receipt.exists(), completed)
+            baseline = self.workspace / f'factory-baseline-{completed}'
+            shutil.copytree(factory, baseline, symlinks=True)
+            baseline_origin = self.git(repo, 'remote', 'get-url', 'origin')
+            baseline_state = self.state.read_bytes()
+            baseline_env = self.env.copy()
+
             for case, reason in cases:
                 with self.subTest(case=case, completed=completed):
-                    # Arrange: public init saves config before the first access check can fail.
-                    repo = self.repo(f'{case}-{completed}')
-                    if not completed:
-                        self.env['PROFILE_FAIL'] = 'forgetful'
-                    setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-                    self.env.pop('PROFILE_FAIL', None)
-                    self.assertEqual(setup.returncode == 0, completed, setup.stderr)
-                    config = repo / '.factory/factory.toml'
-                    self.assertTrue(config.is_file())
-                    receipt = repo / '.factory/setup-complete.json'
-                    self.assertEqual(receipt.exists(), completed)
+                    # Restore every mutable boundary before selecting one invalid condition.
+                    shutil.rmtree(factory)
+                    shutil.copytree(baseline, factory, symlinks=True)
+                    self.git(repo, 'remote', 'set-url', 'origin', baseline_origin)
+                    self.state.write_bytes(baseline_state)
+                    self.env.clear()
+                    self.env.update(baseline_env)
+                    log = self.workspace / f'diagnostic-{completed}.jsonl'
+                    log.unlink(missing_ok=True)
+                    self.env['PROFILE_LOG'] = str(log)
+                    case_env = self.env.copy()
+                    config = factory / 'factory.toml'
                     if case == 'project':
                         config.write_text(config.read_text().replace('project_id = 12\n', ''))
                     elif case == 'provider':
@@ -520,11 +552,9 @@ class SavedSetupDiagnosticTests(InitFixture):
                         self.git(repo, 'remote', 'set-url', 'origin',
                                  'git@github.com:team/other.git')
                     flags = ('--label', 'different') if case == 'arguments' else ()
-                    before = {p: p.read_bytes() for p in (repo / '.factory').rglob('*')
-                              if p.is_file()}
+                    before = saved_tree(factory)
+                    origin = self.git(repo, 'remote', 'get-url', 'origin')
                     github = self.state.read_bytes()
-                    self.log = self.workspace / f'{case}-{completed}.jsonl'
-                    self.env['PROFILE_LOG'] = str(self.log)
 
                     # Act
                     result = self.run_cli(repo, '--finalize', *flags)
@@ -534,10 +564,14 @@ class SavedSetupDiagnosticTests(InitFixture):
                     self.assertIn(reason, result.stderr)
                     self.assertNotIn('Traceback', result.stderr)
                     self.assertNotIn('First setup validated', result.stdout)
-                    self.assertEqual({p: p.read_bytes() for p in before}, before)
+                    self.assertEqual(saved_tree(factory), before)
                     self.assertEqual(receipt.exists(), completed)
+                    self.assertEqual(self.git(repo, 'remote', 'get-url', 'origin'), origin)
                     self.assertEqual(self.state.read_bytes(), github)
-                    self.assertEqual(events(self.log), [])
+                    # Guard fixture helpers; subprocesses cannot mutate this Python dictionary.
+                    self.assertEqual(self.env, case_env)
+                    self.assertFalse(log.exists())
+                    self.assertEqual(events(log), [])
                     self.assertIn('init --finalize', result.stderr)
                     self.assertIn('restart watch or foreman', result.stderr)
                     self.assertNotIn('rerun init', result.stderr)

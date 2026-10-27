@@ -1,13 +1,17 @@
 # CI test runtime
 
-Status: safe changes implemented and locally validated; hosted CI remains unverified. Scott
-approved the planning-test boundary change, then limited this work to simple improvements.
-Clock redesign, broader test restructuring and new dependencies are outside this pass.
-No commit or push is authorized by this work record.
+Status: the approved public-boundary and explicit-deadline follow-up is implemented. Final local
+validation and independent review are complete; hosted CI remains unverified. Scott's later
+approval supersedes the earlier simple-improvements restriction for the changes described below.
+Production defaults, real safety evidence and dependencies are unchanged. No fake clocks, user
+runtime overrides, new commit or push are authorized by this work record.
 
 Back to [implementation plan](../plan.md) and [development checks](../adrs/development-checks.md).
 
-## Baseline
+## Earlier pass: baseline
+
+The sections through the earlier Evidence record describe the completed first pass, not the
+current follow-up. Their counts and scope limits remain historical evidence.
 
 Source: `0013a3704419751f630a78d8c4e6a8c9bc96d82b`.
 
@@ -54,7 +58,9 @@ claim a hosted speed improvement from a local result. The 15-minute CI limit sta
 
 ## Safety and scope
 
-- No production timeout changes, shortened safety waits, skipped tests or weakened assertions.
+- No production-default timeout changes, skipped tests or weakened safety assertions.
+  The earlier pass kept all real waits unchanged; the approved follow-up uses explicit short
+  deadlines while retaining real expiry, signals, cleanup and process-identity evidence.
 - Keep real process, signal, ownership, Git and cleanup tests at their existing boundaries.
 - The two watcher readiness timeouts are distinct: controller readiness after prompt launch,
   and the parent's outer deadline after slow launch. Neither is removed as a duplicate.
@@ -138,3 +144,146 @@ Current implementation/review evidence: `/tmp/factory-test-runtime-r1K5G2/`.
 
 [latest-ci]: https://github.com/ScottRBK/factory/actions/runs/40239921500
 [previous-ci]: https://github.com/ScottRBK/factory/actions/runs/40225651777
+
+## Approved follow-up: explicit deadlines and public matrices
+
+Baseline source: `688c92625cc866739a56530561adb8e934d6ee3c`.
+Investigate durations strictly greater than 3.000 seconds; this is not a mandatory test limit.
+The inventory contains 27 confirmed cases: 20 local and seven additional hosted cases. Another
+16 hosted timestamp gaps are candidates, not exact test durations. The local 503-test baseline
+passed without skips in 638.017 seconds on Python 3.12 and 619.997 seconds on Python 3.13.
+
+Hosted run [40567916170][followup-ci] was completed/cancelled: Python 3.12 succeeded and 3.13 was
+cancelled. Its logs report 503 tests in 819.849 and 879.308 seconds. The cancellation cause is not
+established. This is not a green workflow, and local improvements do not establish hosted success.
+
+### Implemented scope and retained coverage
+
+- Frozen, finite-positive policies compose command, TERM-grace and AgentShell lifecycle deadlines
+  through public `main(policy)`. Owned children receive lifecycle JSON and validate it before a
+  session opens. Ordinary CLI values remain unchanged; no flag, environment override, saved value
+  or global scaling is added. The detailed contract is in the development-checks ADR.
+- Eleven Factory-controlled expiry cases use short real deadlines. The native AgentShell 0.5.0
+  fixed-five-second timeout proof is unchanged. No private SDK patch or fabricated timeout is used.
+  The installed pinned official source established that this SDK timeout has no public input;
+  Context7 was unavailable. No dependency was installed or changed.
+- Numbered input matrices retain every invalid answer and both valid endpoints at the public parser.
+  All seven distinct worker prompts and both Foreman prompts retain real CLI rejection and exact
+  no-mutation proofs; positive CLI model/effort wiring remains.
+- All 25 invalid planning catalogs and both valid modes use the public connection adapter and a
+  controlled real executable. HTTP policy cases use real loopback requests, with absent credentials,
+  redirect refusal and retained CLI notice/access checks.
+- Cleanup matrices use the public marker validator and real Git/filesystem verification. Watcher
+  routes remain for absent/pending/invalid/removed markers, occupied paths and changed origin.
+  Canonical mixed-case acceptance, stale/relocated registrations and no mutation/recreation remain.
+- Saved diagnostic fixtures restore bytes, modes, symlinks, Git origin, environment, external state
+  and logs between every case. Invalid skills retain all three failures and the corrected retry on
+  the explicitly named partial review-skill case.
+- Native reload starts from a failed manual setup and retains real SDK reload/session/edit checks.
+  Its class is now named `NativeSetupReloadTests`; assisted owner gates have separate lifecycle
+  coverage. This opt-in probe ran locally, not as a live-model or hosted-speed claim.
+- Watcher alert tests use observable response gates, not race-avoidance sleeps. Later request
+  entries prove completion of a later sequential cycle. Production watcher polling is unchanged.
+  Clear the planning fault before waiting for the repaired source response: recovery can pause
+  reads.
+- Busy-owner first-setup repair and pane-loss replacement-refusal coverage remain unchanged.
+  Proposed reductions of those distinct safety scenarios were rejected.
+
+### Review fixes and validation
+
+The first integrated suites passed 510 tests without skips in 417.197 seconds (3.12) and
+406.561 seconds (3.13). Source/test hashes stayed unchanged during each run. These results precede
+review fixes; they do not validate the final source.
+
+Independent Claude review through AgentShell found one blocker: three short deadlines also bounded
+uncontrolled startup. The tests now give watcher startup two seconds, real tmux/controller readiness
+one second with a three-second owner deadline, and slow-launch parent/controller readiness one
+second each. Real expiry and all path assertions remain. Reliability takes priority over three
+seconds.
+
+Recommended fixes also add command-startup margin, preserve a below-default TERM-grace watchdog,
+acknowledge cleanup through a second FIFO, isolate catalog environment, and test malformed launch
+maps plus policy types and immutability. Adapter defaults still duplicate policy literals.
+CLI composition is tested, but separate changes to adapter defaults remain a maintenance risk.
+No production-default change is claimed.
+
+- Post-review focused selection: 16 passed, no skips, 22.832 seconds on Python 3.12.
+- The next 511-test suites passed in 415.741 seconds (3.12) and 410.501 seconds (3.13), with
+  no skips and unchanged source/test hashes. Those runs still predate the B2 coverage correction.
+- Closure review found B2: the acknowledged cleanup checked owner lifetime but not cancelled init
+  lifetime. The test now checks both before acknowledgement and keeps the default readiness limit,
+  so cancellation cannot be confused with a short readiness timeout. Optional cleanup upper bounds
+  were increased; production values remain unchanged. Three focused cases pass in 8.510 seconds.
+- Independent Claude review through AgentShell closes B2 with APPROVE and no remaining code-review
+  blocker. Its final evidence note confirms both full passes and current source/test hash equality.
+  The reviewer read the parent's logs and did not rerun tests. Hosted CI remains unverified.
+  Code approval is separate. The 0.3-second delay gives less time to detect an early-exit mutant
+  than the old 15-second wait. Review accepts this limit; correct-code ordering is gated.
+- Ruff and all three import contracts pass after B2. Final offline wheel/sdist verification passes:
+  75 wheel RECORD checksums, 72 source/resource files, 54 sdist test files and four extracted-wheel
+  help commands. No artifact is installed or copied into the delivery directory.
+- Mycelium 0.4.5: 77 boxes, 3,682 test calls and 56 type relationships filtered, no missing in-scope
+  call endpoints; repeated export is byte-identical. Twelve external-base warnings remain.
+  Mermaid is checked as text, not rendered.
+
+### Final local results
+
+Both final-source suites pass the same 511 tests, without skips or source/test hash changes:
+
+| Python | Baseline: 503 tests | Final: 511 tests | Reduction |
+| --- | ---: | ---: | ---: |
+| 3.12 | 638.017 s | 413.314 s | 224.703 s (35.2%) |
+| 3.13 | 619.997 s | 413.763 s | 206.234 s (33.3%) |
+
+The 20 baseline local slow cases total 280.741/279.015 seconds. Their mapped final cases total
+39.930/40.209 seconds. Mapping includes moved public checks, so attribution is approximate.
+These are individual local full runs, not statistical speed estimates or hosted measurements.
+All 27 confirmed cases and 16 hosted-gap candidates have per-case comparisons in
+`/tmp/factory-fast-tests-lbh9u1xh/final-comparison-3.json`. Hosted gaps remain candidates, not
+measured test durations. Rounded case times need not sum to full-suite elapsed time.
+
+Seven cases remain strictly above three seconds on both interpreters:
+
+| Case | 3.12 | 3.13 | Why retained |
+| --- | ---: | ---: | --- |
+| Native send timeout | 7.409 s | 7.503 s | SDK's fixed-five-second timeout proof |
+| Watcher prerequisite timeout | 4.135 s | 4.094 s | Real startup and frozen-watcher cleanup |
+| Readiness timeout with retry | 3.552 s | 3.591 s | Real tmux/controller startup and cleanup |
+| Approved busy-owner repair | 3.111 s | 3.085 s | Protected distinct ownership scenario |
+| Native named workers | 3.087 s | 3.108 s | Both harnesses, real tools and session contracts |
+| Native coordinator resources | 3.077 s | 3.246 s | Three independent native role loads |
+| Changed-pane preservation | 3.036 s | 3.011 s | Protected replacement-refusal scenario |
+
+The native worker and coordinator tests crossed the threshold in these final runs. Inspection of
+`tests/test_native_workers.py:131-169` shows public setup, real Git worktrees and native tool calls
+for both harnesses. `tests/test_native_roles.py:193-236` checks three roles through separate native
+loaders. Both files are unchanged. Their distinct cases are retained; no delay was added or removed,
+and the small timing change has not been attributed to a specific cause. No test is split or
+weakened to meet the investigation threshold.
+
+### Evidence accounting
+
+The final suite has eight more tests than the 503-test baseline. Five old IDs are replaced by
+thirteen IDs: four cleanup watcher cases move into two retained CLI routes and five public-boundary
+checks; native reload is renamed; three deadline checks and two numbered-parser checks are added.
+This is a coverage mapping, not a claim that the old and new test inventories are identical.
+Both supported interpreters ran the same final inventory without skips.
+
+Worker measurements are focused snapshot evidence, not final full-suite measurements. The deadline
+worker's 14-test selection included 12 expiry cases and two policy checks. Both policy durations
+rounded to 0.000 seconds; thus both the 14 displayed durations and the 12 expiry durations sum to
+21.492 seconds. This resolves the apparent count mismatch; it does not imply fourteen expiry cases.
+That selection predates the added startup margins. The 12-case local baseline was 229.329 seconds.
+
+The parent restored all seven worker CLI prompts after merging, so the worker's four-representative-
+CLI timing total is not the final coverage or timing. The early poll-pair measurement fell from
+8.269 to 3.824 seconds before worker integration; do not substitute it for final integrated timings.
+The first repaired-response gate run failed because it waited before clearing the planning fault;
+that failure and the corrected ordering are retained in the evidence.
+
+Current local evidence: `/tmp/factory-fast-tests-lbh9u1xh/`; inventory and hosted logs:
+`/tmp/factory-slow-tests-BOKbOz/`. Worker handoffs and earlier attempts remain available.
+No live account, model, watcher, memory enablement, dependency operation, commit or push occurred.
+The previously unexplained Python 3.13 shutdown remains a limitation, not a fixed issue.
+
+[followup-ci]: https://github.com/ScottRBK/factory/actions/runs/40567916170

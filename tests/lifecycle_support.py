@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 
+from deadline_support import programmatic_factory
 from profile_support import COMMAND
 from test_init import GH, ROOT, InitFixture
 
@@ -188,13 +189,17 @@ class LifecycleFixture(InitFixture):
             args = (*args, '--agentshell-python', str(self.interpreter))
         return super().run_cli(cwd, *args, **kwargs)
 
-    def watch(self, repo, *args, timeout=15):
-        return subprocess.run([sys.executable, '-m', 'forgetful_factory', 'watch',
+    def watch(self, repo, *args, timeout=15, deadlines=None):
+        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+                      else programmatic_factory(deadlines))
+        return subprocess.run([sys.executable, *entrypoint, 'watch',
                                '--workspace', str(repo), *args], cwd=ROOT, env=self.env,
                               capture_output=True, text=True, timeout=timeout)
 
-    def foreman(self, repo, *args, timeout=20):
-        return subprocess.run([sys.executable, '-m', 'forgetful_factory', 'foreman',
+    def foreman(self, repo, *args, timeout=20, deadlines=None):
+        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+                      else programmatic_factory(deadlines))
+        return subprocess.run([sys.executable, *entrypoint, 'foreman',
                                '--workspace', str(repo), '--agentshell-python',
                                str(self.interpreter), *args], cwd=ROOT, env=self.env,
                               capture_output=True, text=True, timeout=timeout)

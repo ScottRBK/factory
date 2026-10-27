@@ -32,9 +32,6 @@ class CleanupRecoveryTests(PlanningWatchFixture):
     def test_removed_mapping_restores_same_unfinished_plan_without_recreation_or_mutation(self):
         self.assert_removed_mapping_restores('https://github.com/team/app/pull/3')
 
-    def test_mixed_case_cleanup_repository_restores_without_normalizing_the_record(self):
-        self.assert_removed_mapping_restores('https://github.com/Team/App/pull/3')
-
     def assert_removed_mapping_restores(self, url):
         original, record = self.recorded_issue()
         mapping = record['worktrees'][0]
@@ -64,7 +61,7 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         before = self.planning_call('get_task', task_id=1)['description']
         self.terminal_log.unlink(missing_ok=True)
         restarted = self.start('--existing')
-        stderr = self.assert_paused(restarted)
+        stderr = self.assert_paused(restarted, synchronize_poll=True)
         self.assertEqual(self._messages(), [], 'Conflicting work reached the Foreman')
         self.assertIn(message, stderr)
         self.assertIn('reconcile', stderr)
@@ -72,35 +69,16 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         self.assertEqual(self.planning_call('get_task', task_id=1)['description'], before)
         self.assertEqual(self.planning_call('query_tasks', plan_id=1)['total_count'], 1)
 
-    def test_absent_unmarked_pending_and_malformed_cleanup_never_recreate_the_tree(self):
+    def test_absent_pending_and_invalid_cleanup_never_recreate_the_tree(self):
         _, record = self.recorded_issue()
         mapping = record['worktrees'][0]
         self.git(self.workspace, 'worktree', 'remove', mapping['path'])
         self.assert_recovery_pauses(record, 'worktree missing')
         mapping['cleanup'] = self.cleanup('pending')
         self.assert_recovery_pauses(record, 'cleanup is pending')
-        malformed = [None, [], 'removed', {}, self.cleanup('complete'),
-                     dict(self.cleanup(), state=['removed']),
-                     dict(self.cleanup(), merge_commit=123),
-                     dict(self.cleanup(), merge_commit='abcd'),
-                     dict(self.cleanup(), merge_commit='x' * 40),
-                     dict(self.cleanup(), pull_request_url=3)]
-        for url in ('https://github.com/other/repo/pull/3',
-                    'https://github.com/Team/Other/pull/3',
-                    'HTTPS://github.com/Team/App/pull/3',
-                    'https://GitHub.com/Team/App/pull/3',
-                    'https://github.com/Team/App/Pull/3',
-                    'https://github.com/Team/App/pull/3#fragment',
-                    'https://github.com/team/app/pull/0',
-                    'https://github.com/team/app/pull/03',
-                    'https://github.com/team/app/pull/3?unexpected=yes',
-                    'https://github.com/team/app/pull/3/'):
-            malformed.append(dict(self.cleanup(), pull_request_url=url))
-        for marker in malformed:
-            with self.subTest(marker=marker):
-                mapping['cleanup'] = marker
-                self.assert_recovery_pauses(record, 'cleanup')
-                self.assertFalse(Path(mapping['path']).exists())
+        mapping['cleanup'] = None
+        self.assert_recovery_pauses(record, 'cleanup')
+        self.assertFalse(Path(mapping['path']).exists())
 
     def test_pending_existing_tree_replays_intent_without_removal_or_record_mutation(self):
         _, record = self.recorded_issue()
@@ -117,58 +95,21 @@ class CleanupRecoveryTests(PlanningWatchFixture):
         self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), registry)
         self.assertEqual(self.planning_call('get_task', task_id=1)['description'], before)
 
-    def test_removed_marker_rejects_live_stale_and_relocated_registrations_without_mutation(self):
-        _, record = self.recorded_issue()
-        mapping = record['worktrees'][0]
-        mapping['cleanup'] = self.cleanup()
-        target = Path(mapping['path'])
-        registry = self.git(self.workspace, 'worktree', 'list', '--porcelain')
-        self.assert_recovery_pauses(record, 'cleanup conflicts')
-        self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), registry)
-        retained = target.with_name('retained')
-        target.rename(retained)
-        stale = self.git(self.workspace, 'worktree', 'list', '--porcelain')
-        self.assertIn('prunable', stale)
-        self.assert_recovery_pauses(record, 'cleanup conflicts')
-        self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), stale)
-        retained.rename(target)
-        self.git(self.workspace, 'worktree', 'move', str(target), str(retained))
-        moved = self.git(self.workspace, 'worktree', 'list', '--porcelain')
-        self.assert_recovery_pauses(record, 'cleanup conflicts')
-        self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), moved)
-        self.assertTrue((retained / '.git').is_file())
-        self.assertFalse(target.exists())
-
-    def test_removed_marker_rejects_occupied_paths_and_changed_origin_without_mutation(self):
+    def test_removed_marker_routes_occupied_path_and_changed_origin_without_mutation(self):
         _, record = self.recorded_issue()
         mapping = record['worktrees'][0]
         mapping['cleanup'] = self.cleanup()
         self.git(self.workspace, 'worktree', 'remove', mapping['path'])
         target = Path(mapping['path'])
-        for kind in ('file', 'directory', 'dangling-symlink', 'symlink-loop'):
-            with self.subTest(kind=kind):
-                if kind == 'file':
-                    target.write_text('Preserve this file.')
-                elif kind == 'directory':
-                    target.mkdir()
-                    (target / 'work.txt').write_text('Preserve this work.')
-                elif kind == 'dangling-symlink':
-                    target.symlink_to(self.workspace / 'absent-target')
-                else:
-                    target.symlink_to(target)
-                self.assert_recovery_pauses(record, 'cleanup conflicts')
-                if kind == 'directory':
-                    self.assertEqual((target / 'work.txt').read_text(), 'Preserve this work.')
-                    (target / 'work.txt').unlink()
-                    target.rmdir()
-                else:
-                    if kind == 'file':
-                        self.assertEqual(target.read_text(), 'Preserve this file.')
-                    elif kind == 'dangling-symlink':
-                        self.assertEqual(target.readlink(), self.workspace / 'absent-target')
-                    else:
-                        self.assertEqual(target.readlink(), target)
-                    target.unlink()
+        target.mkdir()
+        work = target / 'work.txt'
+        work.write_bytes(b'Preserve this work.\n')
+        registry = self.git(self.workspace, 'worktree', 'list', '--porcelain')
+        self.assert_recovery_pauses(record, 'cleanup conflicts')
+        self.assertEqual(work.read_bytes(), b'Preserve this work.\n')
+        self.assertEqual(self.git(self.workspace, 'worktree', 'list', '--porcelain'), registry)
+        work.unlink()
+        target.rmdir()
         self.git(self.workspace, 'remote', 'set-url', 'origin', 'git@github.com:other/repo.git')
         self.assert_recovery_pauses(record, 'origin changed')
         self.assertEqual(self.git(self.workspace, 'remote', 'get-url', 'origin'),

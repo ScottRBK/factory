@@ -3,7 +3,10 @@ import json
 import subprocess
 from pathlib import Path
 
+from poll_support import PollGate
 from test_planning_watch import PlanningWatchFixture
+
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 
 class WatcherAlertTests(PlanningWatchFixture):
@@ -37,19 +40,27 @@ class WatcherAlertTests(PlanningWatchFixture):
         plan = self.planning_call('get_plan', plan_id=1)
         changed = self.issue(1, updated_at='changed')
         old = self.issue(2, updated_at='old')
-        self.script({'team/app': ['HTTP 503 unavailable', [[changed, old]]]})
-        process = self.start('--new-only', '--interval', '0.5')
+        first_success = PollGate(self, 'first-success')
+        repaired = PollGate(self, 'repaired')
+        later = [[changed, old, self.issue(3, updated_at='new')]]
+        self.script({'team/app': ['HTTP 503 unavailable', first_success.reply([[changed, old]]),
+                                  repaired.reply(later), later]})
+        process = self.start('--new-only')
         self.wait_until(process, lambda: any(a['code'] == 'source_read_failed'
                                             for a in self.alerts()))
+        first_success.wait(process)
         self.fault(responses={'get_plan': dict(plan, id=999)})
+        first_success.release()
         self.wait_until(process, lambda: any(a['code'] == 'recovery_read_failed'
                                             for a in self.alerts()))
         self.assertEqual(len(self._messages()), 1)
         # Act: repair without editing either issue; #3 arrives after that first successful read.
         self.fault()
-        self.script({'team/app': [[[changed, old, self.issue(3, updated_at='new')]]]})
+        repaired.wait(process)
+        repaired.release()
         self.wait_until(process, lambda: len(self._messages()) >= 3)
-        self.wait_until(process, lambda: self.polls() >= 4)
+        # Counts no longer reset when the response changes: two old polls plus four repaired polls.
+        self.wait_until(process, lambda: self.polls() >= 6)
         code, _, errors = self.stop(process)
         # Assert: interrupted intake cannot turn old #2 into new work or swallow new #3.
         self.assertEqual(code, 130, errors)
@@ -71,22 +82,28 @@ class WatcherAlertTests(PlanningWatchFixture):
                          html_url='https://github.com/team/other/issues/1')
         new = self.issue(2, updated_at='new',
                          html_url='https://github.com/team/other/issues/2')
-        self.script({'team/app': ['HTTP 503 unavailable', [[changed]]],
-                     'team/other': ['HTTP 503 unavailable', [[old]]]})
-        process = self.start('--new-only', '--interval', '0.5')
+        first_success = PollGate(self, 'first-success')
+        repaired = PollGate(self, 'repaired')
+        self.script({'team/app': ['HTTP 503 unavailable', first_success.reply([[changed]]),
+                                  repaired.reply([[changed]]), [[changed]]],
+                     'team/other': ['HTTP 503 unavailable', [[old]], [[old, new]]]})
+        process = self.start('--new-only')
         self.wait_until(process, lambda: len([
             alert for alert in self.alerts() if alert['code'] == 'source_read_failed']) == 2)
+        first_success.wait(process)
         self.fault(responses={'get_plan': dict(plan, id=999)})
+        first_success.release()
         self.wait_until(process, lambda: any(
             alert['code'] == 'recovery_read_failed' for alert in self.alerts()))
         self.wait_until(process, lambda: json.loads(self.state_path.read_text()).get(
             'counts', {}).get('team/other', 0) >= 2)
         self.assertEqual(len(self._messages()), 1)
         # Act: a genuinely new issue follows the first successful read of the other source.
-        self.script({'team/app': [[[changed]]], 'team/other': [[[old, new]]]})
         self.fault()
+        repaired.wait(process)
+        repaired.release()
         self.wait_until(process, lambda: json.loads(self.state_path.read_text()).get(
-            'counts', {}).get('team/other', 0) >= 4)
+            'counts', {}).get('team/other', 0) >= 6)
         code, _, errors = self.stop(process)
         # Assert: only the old other-source issue was part of its first-success baseline.
         self.assertEqual(code, 130, errors)
@@ -525,13 +542,13 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assertTrue(all(m['ownership_task_id'] == 1 for m in self._messages()))
         self.assertEqual(self._messages()[-1]['worktrees'], record['worktrees'])
 
-    def assert_alert_delivery_is_fatal(self, mode):
+    def assert_alert_delivery_is_fatal(self, mode, deadlines=None):
         original, = self.seed((1,))
         target = Path(original['worktrees'][0]['path'])
         target.rename(target.with_name('saved-user-work'))
         self.env[mode] = '1'
-        process = self.start('--existing')
-        stdout, errors = process.communicate(timeout=15)
+        process = self.start('--existing', deadlines=deadlines)
+        stdout, errors = process.communicate(timeout=5 if deadlines else 15)
         self.assertEqual(process.returncode, 1, errors)
         self.assertIn('worktree mismatch', errors)
         self.assertNotIn('Submitted', stdout)
@@ -546,7 +563,10 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assertIn('delivery failed', errors)
 
     def test_alert_send_timeout_preserves_local_problem_without_retry(self):
-        errors = self.assert_alert_delivery_is_fatal('WATCH_SEND_HANG')
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            controller_send=0.2,
+        ))
+        errors = self.assert_alert_delivery_is_fatal('WATCH_SEND_HANG', deadlines)
         self.assertIn('timed out', errors)
 
     def test_alert_paths_are_json_escaped_and_external_content_is_excluded(self):

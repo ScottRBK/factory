@@ -64,13 +64,15 @@ that fix is included in these full passes and a separate actual Claude text-only
 it. Those results cover the configuration/guidance snapshot. Current runtime checks have separate
 evidence and do not establish live adoption or hosted CI.
 
-[CI runtime improvements](plans/ci-test-runtime.md) are implemented and locally validated. Scott
-approved testing malformed planning replies through the public adapter, then limited the pass to
-safe, simple improvements. All 67 malformed cases remain; the affected checks take about three
-seconds instead of 43 locally. Full suites pass 479 tests without skips on each supported Python,
-in about ten minutes. Lifecycle deadlines are unchanged. The two latest pushed revisions exceeded
-CI's 15-minute limit; these local passes are not hosted success. No new commit or push was made.
-The work record also covers the source-only diagnosis of Foreman's `/forgetful plan` command.
+[CI runtime improvements](plans/ci-test-runtime.md) now include Scott's approved public input
+matrices and explicit deadline composition. This supersedes the earlier simple-improvements limit.
+Production defaults and safety coverage remain unchanged; eleven expiry cases use short real waits,
+while the SDK's native fixed timeout stays intact. Final suites pass 511 tests per Python without
+skips: 413.314 seconds on 3.12 and 413.763 seconds on 3.13, down 35.2% and 33.3% from the baseline.
+Claude review through AgentShell approves the fixes; source/test hashes stayed unchanged.
+The latest inspected hosted workflow was cancelled, so hosted success remains unverified. No new
+commit, push, dependency change or CI timeout increase was made. The work record retains earlier
+479-test evidence and the source-only diagnosis of Foreman's `/forgetful plan` command.
 
 Watcher [problem isolation and Foreman alerts](plans/watcher-problems.md) and the approved follow-up
 are implemented: current issue eligibility, duplicate-owner reconciliation and startup/pre-create

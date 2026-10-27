@@ -5,6 +5,9 @@ from pathlib import Path
 from profile_support import events
 from test_init import INIT_SETTINGS, InitFixture
 
+from forgetful_factory.cli.numbered_selection import parse_numbered_selection
+from forgetful_factory.domain.models import FactoryError
+
 
 class SharedPiTests(InitFixture):
     def setUp(self):
@@ -88,26 +91,47 @@ class SharedPiTests(InitFixture):
             self.assertEqual(agent['model'], 'provider/model')
             self.assertEqual(agent['effort'], 'high')
 
+    def test_numbered_selection_preserves_all_foreman_answer_results(self):
+        # Arrange: preserve every answer from the former CLI matrix.
+        prompts = (('Foreman model', 1, '2', 'provider/model'),
+                   ('Foreman effort', 7, '8', 'high'))
+        for label, choice_count, upper, old_name in prompts:
+            invalid = (('', 'number'), ('not-a-number', 'number'), ('0', 'range'),
+                       ('-1', 'range'), (upper, 'range'), (old_name, 'number'))
+            for answer, failure in invalid:
+                with self.subTest(label=label, answer=answer):
+                    expected = (f'{label}: select a number from 1 to {choice_count}.'
+                                if failure == 'number' else
+                                f'{label} selection is out of range; '
+                                f'select a number from 1 to {choice_count}.')
+                    # Act / Assert
+                    with self.assertRaises(FactoryError) as raised:
+                        parse_numbered_selection(label, answer, choice_count)
+                    self.assertEqual(str(raised.exception), expected)
+        # Act / Assert: both valid endpoints retain their one-based menu positions.
+        self.assertEqual(parse_numbered_selection('Foreman model', '1', 1), 1)
+        self.assertEqual(parse_numbered_selection('Foreman effort', '1', 7), 1)
+        self.assertEqual(parse_numbered_selection('Foreman effort', '7', 7), 7)
+
     def test_invalid_foreman_numbers_stop_before_config_or_label_changes(self):
-        for field, prefix, upper, old_name in (
-                ('model', '', '2', 'provider/model'), ('effort', '1\n', '8', 'high')):
-            for index, answer in enumerate(('', 'not-a-number', '0', '-1', upper, old_name)):
-                with self.subTest(field=field, answer=answer):
-                    # Arrange
-                    repo = self.repo(f'{field}-{index}')
-                    self.state.write_text('{}')
-                    # Act
-                    result = self.run_cli(repo, '--repo', '.', '--label', 'factory',
-                                          input=prefix + answer + '\n')
-                    # Assert
-                    self.assertEqual(result.returncode, 1)
-                    self.assertIn(f'Foreman {field}', result.stderr)
-                    self.assertIn('select a number from 1 to', result.stderr)
-                    self.assertNotIn('Traceback', result.stderr)
-                    self.assertFalse((repo / '.factory/factory.toml').exists())
-                    receipt = repo / '.factory/setup-complete.json'
-                    self.assertFalse(receipt.exists())
-                    self.assertEqual(json.loads(self.state.read_text()), {})
+        # Keep one non-number model case and one out-of-range effort case at the real CLI.
+        for field, prefix, answer in (('model', '', 'provider/model'),
+                                      ('effort', '1\n', '8')):
+            with self.subTest(field=field):
+                # Arrange
+                repo = self.repo(field)
+                self.state.write_text('{}')
+                # Act
+                result = self.run_cli(repo, '--repo', '.', '--label', 'factory',
+                                      input=prefix + answer + '\n')
+                # Assert
+                self.assertEqual(result.returncode, 1)
+                self.assertIn(f'Foreman {field}', result.stderr)
+                self.assertIn('select a number from 1 to', result.stderr)
+                self.assertNotIn('Traceback', result.stderr)
+                self.assertFalse((repo / '.factory/factory.toml').exists())
+                self.assertFalse((repo / '.factory/setup-complete.json').exists())
+                self.assertEqual(json.loads(self.state.read_text()), {})
 
     def test_no_models_gives_native_login_in_chosen_home_and_allows_recheck(self):
         # Arrange

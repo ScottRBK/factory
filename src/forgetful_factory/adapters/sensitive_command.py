@@ -15,13 +15,13 @@ def _close_capture_streams(process: subprocess.Popen) -> None:
             stream.close()
 
 
-def _terminate_owned_process(process: subprocess.Popen) -> None:
+def _terminate_owned_process(process: subprocess.Popen, term_grace: float) -> None:
     with contextlib.suppress(ProcessLookupError):
         os.killpg(process.pid, signal.SIGTERM)
     try:
         # KeyboardInterrupt can leave communicate's pipe bookkeeping half-initialized.
         # Failed/cancelled output is discarded; do not re-enter communicate to drain it.
-        process.wait(timeout=3)
+        process.wait(timeout=term_grace)
     except subprocess.TimeoutExpired:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(process.pid, signal.SIGKILL)
@@ -31,7 +31,7 @@ def _terminate_owned_process(process: subprocess.Popen) -> None:
 
 
 def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = False,
-              timeout: float | None = None) -> str:
+              timeout: float | None = None, term_grace: float = 3) -> str:
     interactive = login and sys.stdin.isatty()
     try:
         process = subprocess.Popen(args, cwd=cwd, env=env, text=True,
@@ -44,7 +44,7 @@ def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = 
     try:
         stdout, _ = process.communicate(timeout=timeout or (300 if login else 45))
     except (subprocess.TimeoutExpired, KeyboardInterrupt) as error:
-        _terminate_owned_process(process)
+        _terminate_owned_process(process, term_grace)
         if isinstance(error, KeyboardInterrupt):
             raise
         raise FactoryError('Forgetful operation timed out; setup is incomplete. '

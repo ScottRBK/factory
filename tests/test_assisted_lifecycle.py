@@ -9,6 +9,8 @@ import sys
 from lifecycle_support import LifecycleFixture, pidfd_open
 from test_init import INIT_SETTINGS
 
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+
 
 class AssistedLifecycleTests(LifecycleFixture):
     def notification(self, name):
@@ -293,7 +295,12 @@ class AssistedLifecycleTests(LifecycleFixture):
         repo = self.repo()
         path, notification = self.notification('frozen.fifo')
         self.env['GH_FREEZE_NOTIFY'] = path
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--assisted', timeout=20)
+        deadlines = DeadlinePolicy(agentshell=AgentShellLifecycleDeadlines(
+            owner_watcher_stop=0.5,
+        ))
+        setup = self.run_cli(
+            repo, '--repo', '.', *INIT_SETTINGS, '--assisted', timeout=20,
+            deadlines=deadlines)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         final = self.run_cli(repo, '--finalize', '--delegated-work-stopped')
         self.assertEqual(final.returncode, 0, final.stderr)
@@ -303,7 +310,7 @@ class AssistedLifecycleTests(LifecycleFixture):
         original = self.status(repo)
 
         # Act
-        stopped = self.watch(repo, '--stop', timeout=15)
+        stopped = self.watch(repo, '--stop', timeout=5)
 
         # Assert
         self.assertEqual(stopped.returncode, 0, stopped.stderr)

@@ -16,6 +16,7 @@ from pathlib import Path
 from forgetful_factory.adapters.agentshell.owner_client import read_state
 from forgetful_factory.adapters.filesystem.foreman_runtime import runtime_directory
 from forgetful_factory.adapters.filesystem.resource_files import replace_generated_json
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
 from forgetful_factory.domain.models import FactoryError
 
 _CONTROLLER_KINDS = {
@@ -117,6 +118,7 @@ class ForemanOwner:
         self.sent = None
         self.delivery_error = None
         self.spawned = None
+        self.deadlines = AgentShellLifecycleDeadlines()
 
     def save(self):
         replace_generated_json(self.directory / 'owner.json', self.state)
@@ -287,7 +289,7 @@ class ForemanOwner:
             child.close()
             self.spawned.set_result(None)
         try:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(self.deadlines.owner_watcher_start):
                 await asyncio.shield(self.watcher_ready)
         except TimeoutError as error:
             await self.stop_watcher()
@@ -299,7 +301,7 @@ class ForemanOwner:
 
     async def stop_watcher(self):
         if self.spawned and not self.spawned.done():
-            async with asyncio.timeout(5):
+            async with asyncio.timeout(self.deadlines.owner_watcher_stop):
                 await asyncio.shield(self.spawned)
         if self.watcher is None or (self.watcher_done and self.watcher_done.done()):
             self.state['watcher'] = 'stopped'
@@ -308,12 +310,12 @@ class ForemanOwner:
         if self.watcher.returncode is None:
             self.watcher.terminate()
         try:
-            async with asyncio.timeout(5):
+            async with asyncio.timeout(self.deadlines.owner_watcher_stop):
                 await asyncio.shield(self.watcher_done)
         except TimeoutError:
             if self.watcher.returncode is None:
                 self.watcher.kill()
-            async with asyncio.timeout(5):
+            async with asyncio.timeout(self.deadlines.owner_watcher_stop):
                 await asyncio.shield(self.watcher_done)
             self.state['warning'] = ('Watcher forced to stop; delivery/external work uncertain. '
                                      'External helpers may need inspection; no PID scanning.')
@@ -351,6 +353,7 @@ class ForemanOwner:
     async def _start_controller(self, reader):
         async with asyncio.timeout(5):
             launch = json.loads(await reader.readline())
+        self.deadlines = AgentShellLifecycleDeadlines(**launch.get('deadlines', {}))
         launch['report_target'] = True
         self.controller = await asyncio.create_subprocess_exec(
             self.python, '-u', str(Path(__file__).with_name('controller.py')),
@@ -361,7 +364,7 @@ class ForemanOwner:
         return asyncio.create_task(self.observe()), asyncio.create_task(reader.readline())
 
     async def _await_readiness(self, disconnected) -> None:
-        async with asyncio.timeout(35):
+        async with asyncio.timeout(self.deadlines.owner_ready):
             done, _ = await asyncio.wait((self.ready, disconnected),
                                          return_when=asyncio.FIRST_COMPLETED)
             if disconnected in done:
@@ -384,7 +387,7 @@ class ForemanOwner:
         self.controller.stdin.close()
         try:
             # Controller EOF cleanup allows eight seconds for open and eight for close.
-            async with asyncio.timeout(20):
+            async with asyncio.timeout(self.deadlines.owner_controller_close):
                 await self.controller.wait()
         except TimeoutError:
             self.controller.terminate()

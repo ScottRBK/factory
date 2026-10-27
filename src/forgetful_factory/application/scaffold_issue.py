@@ -1,8 +1,11 @@
 import json
-import re
 from dataclasses import asdict
 from pathlib import Path
 
+from forgetful_factory.application.cleanup_marker import (
+    CleanupMarkerError,
+    validate_cleanup_marker,
+)
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.planning import Planning, PlanningReadError
@@ -20,28 +23,6 @@ from forgetful_factory.application.watcher_problems import (
     UncertainScaffold,
 )
 from forgetful_factory.domain.models import FactoryError, Issue, RepositoryReference, WorkSource
-
-
-def _cleanup_state(mapping: dict) -> str | None:
-    if 'cleanup' not in mapping:
-        return None
-    cleanup = mapping['cleanup']
-    if not isinstance(cleanup, dict):
-        raise ScaffoldProblem(
-            'cleanup_invalid',
-            'Invalid worktree cleanup record; reconcile it before continuing.')
-    state = cleanup.get('state')
-    url = cleanup.get('pull_request_url')
-    commit = cleanup.get('merge_commit')
-    repository = re.escape(mapping['repository'])
-    expected = rf'https://github\.com/(?ai:{repository})/pull/[1-9][0-9]*'
-    if (state not in ('pending', 'removed') or not isinstance(url, str)
-            or re.fullmatch(expected, url) is None or not isinstance(commit, str)
-            or re.fullmatch(r'(?:[0-9a-f]{40}|[0-9a-f]{64})', commit) is None):
-        raise ScaffoldProblem(
-            'cleanup_invalid', 'Invalid worktree cleanup state or merge evidence; reconcile the '
-            'matching canonical GitHub PR URL and full merge commit SHA.')
-    return state
 
 
 class ScaffoldIssue:
@@ -442,7 +423,10 @@ class ScaffoldIssue:
 
     def _ensure_mapping(self, repository, mapping: dict, *, recorded: bool) -> None:
         self._check_source(repository)
-        state = _cleanup_state(mapping)
+        try:
+            state = validate_cleanup_marker(mapping)
+        except CleanupMarkerError as error:
+            raise ScaffoldProblem('cleanup_invalid', str(error)) from error
         if state == 'removed':
             self.worktrees.verify_removed(repository.local_dir, mapping['branch'], mapping['path'],
                                           remote=repository.remote)

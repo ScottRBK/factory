@@ -11,6 +11,8 @@ import sys
 from lifecycle_support import pidfd_send_signal
 from test_watch import ROOT, WatchFixture
 
+from forgetful_factory.deadlines import DeadlinePolicy
+
 
 class WatcherCancellationTests(WatchFixture):
     def assert_cancelled_check_exits(self, *, stubborn):
@@ -45,7 +47,8 @@ class WatcherCancellationTests(WatchFixture):
             'pidfd_send_signal(parent, signal.SIGINT)\n'
             'os.close(parent)\n'
             'while True: signal.pause()\n')
-        process = self.start('--new-only')
+        deadlines = DeadlinePolicy(owned_process_term_grace=0.2) if stubborn else None
+        process = self.start('--new-only', deadlines=deadlines)
         connection, _ = listener.accept()
         with connection:
             connection.settimeout(5)
@@ -72,7 +75,7 @@ class WatcherCancellationTests(WatchFixture):
             self.addCleanup(self.close_owned_check, descriptor)
             # Act: release only this verified check to interrupt its original watcher parent.
             connection.sendall(b'K')
-        output, errors = process.communicate(timeout=12)
+        output, errors = process.communicate(timeout=2.5 if stubborn else 12)
         code = process.returncode
         # Assert: cancellation closes the owned Foreman and reaps this exact native check.
         self.assertEqual(code, 130, errors)

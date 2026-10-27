@@ -5,6 +5,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from test_init import INIT_SETTINGS, InitFixture
 
+from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
+from forgetful_factory.application.configuration import ForgetfulConnection
+
 
 class AuthNoticeTests(InitFixture):
     def setUp(self):
@@ -77,6 +80,7 @@ class AuthNoticeTests(InitFixture):
         self.assertNotIn('cookie', headers)
 
     def test_non_browser_modes_and_unknown_policy_do_not_suggest_login(self):
+        connection = ForgetfulConnection(instance='server', server=self.server + '/mcp')
         for index, (status, policy) in enumerate([
             (200, {'authEnabled': True, 'authMode': 'jwt'}),
             (200, {'authEnabled': True, 'authMode': 'introspection'}),
@@ -91,16 +95,22 @@ class AuthNoticeTests(InitFixture):
         ]):
             with self.subTest(status=status, policy_type=type(policy).__name__, index=index):
                 # Arrange
-                repo = self.repo(f'app-{index}')
                 self.status, self.policy = status, policy
                 self.requests.clear()
                 # Act
-                result = self.setup_server(repo)
+                result = uses_browser_login(connection)
                 # Assert
-                self.assertEqual(result.returncode, 0, result.stderr)
-                self.assertNotIn('If your browser opens', result.stdout)
+                self.assertFalse(result)
                 self.assertEqual([path for path, _ in self.requests], ['/api/v1/auth/info'])
-                self.assertTrue((repo / '.factory/setup-complete.json').exists())
+                headers = {key.lower(): value for key, value in self.requests[0][1].items()}
+                self.assertNotIn('authorization', headers)
+                self.assertNotIn('cookie', headers)
+        # Act / Assert: the valid browser-login endpoint remains accepted.
+        self.status = 200
+        self.policy = {'authEnabled': True, 'authMode': 'oauth'}
+        self.requests.clear()
+        self.assertTrue(uses_browser_login(connection))
+        self.assertEqual([path for path, _ in self.requests], ['/api/v1/auth/info'])
 
     def test_policy_timeout_does_not_skip_the_real_access_check(self):
         # Arrange

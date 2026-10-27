@@ -1,20 +1,103 @@
 import json
 import os
+import select
 import shutil
 import subprocess
 import sys
 import tempfile
 import tomllib
 import unittest
+from dataclasses import FrozenInstanceError, asdict
 from pathlib import Path
 
+from deadline_support import programmatic_factory
 from profile_support import install_commands, install_grill_skill
 
 from forgetful_factory.configuration import load_configuration
+from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 INIT_SETTINGS = ('--label', 'factory', '--foreman-model', 'provider/model',
                  '--foreman-effort', 'high')
+
+
+class DeadlinePolicyTests(unittest.TestCase):
+    def test_production_defaults_preserve_each_existing_deadline(self):
+        # Arrange
+        policy = DeadlinePolicy()
+
+        # Act
+        lifecycle = policy.agentshell
+
+        # Assert
+        self.assertEqual(policy.external_command, 30)
+        self.assertEqual(policy.owned_process_term_grace, 3)
+        self.assertEqual(lifecycle.controller_ready, 30)
+        self.assertEqual(lifecycle.controller_send, 10)
+        self.assertEqual(lifecycle.controller_close, 8)
+        self.assertEqual(lifecycle.parent_ready, 35)
+        self.assertEqual(lifecycle.owner_watcher_start, 30)
+        self.assertEqual(lifecycle.owner_watcher_stop, 5)
+        self.assertEqual(lifecycle.owner_ready, 35)
+        self.assertEqual(lifecycle.owner_controller_close, 20)
+        self.assertEqual(lifecycle.owner_pre_adoption_cleanup, 45)
+
+    def test_policy_is_immutable_and_rejects_non_positive_or_non_finite_values(self):
+        # Arrange
+        policy = DeadlinePolicy()
+
+        # Act / Assert
+        with self.assertRaises(FrozenInstanceError):
+            policy.external_command = 1
+        with self.assertRaises(FrozenInstanceError):
+            policy.agentshell.controller_ready = 1
+        for value in (None, {}, True, 1):
+            with self.subTest(agentshell=value), self.assertRaises(ValueError):
+                DeadlinePolicy(agentshell=value)
+        for value in (0, -1, float('nan'), float('inf'), True, False, '1', None):
+            for name in ('external_command', 'owned_process_term_grace'):
+                with self.subTest(value=value, name=name), self.assertRaises(ValueError):
+                    DeadlinePolicy(**{name: value})
+            for name in asdict(policy.agentshell):
+                with self.subTest(value=value, name=name), self.assertRaises(ValueError):
+                    AgentShellLifecycleDeadlines(**{name: value})
+
+    def test_controller_rejects_invalid_deadline_frames_before_opening_a_session(self):
+        # Arrange: exercise the owned child's stdin/stdout protocol, not its private helpers.
+        defaults = asdict(AgentShellLifecycleDeadlines())
+        cases = [None, {}, {**defaults, 'unexpected': 1}]
+        cases.extend({key: value for key, value in defaults.items() if key != name}
+                     for name in defaults)
+        cases.extend({**defaults, 'controller_ready': value}
+                     for value in (0, -1, float('nan'), float('inf'), True, '1'))
+        controller = ROOT / 'src/forgetful_factory/adapters/agentshell/controller.py'
+        for index, deadlines in enumerate(cases):
+            with self.subTest(case=index):
+                config = {'cwd': str(ROOT), 'model': 'fixture/model', 'effort': 'high',
+                          'session_name': 'invalid-deadlines', 'resources': {}, 'prompt': None}
+                if deadlines is not None:
+                    config['deadlines'] = deadlines
+                with subprocess.Popen(
+                    [sys.executable, '-u', str(controller)], stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                ) as process:
+                    try:
+                        # Act: keep stdin open until validation replies, avoiding an EOF race.
+                        process.stdin.write(json.dumps(config) + '\n')
+                        process.stdin.flush()
+                        self.assertTrue(select.select([process.stdout], [], [], 10)[0])
+                        reply = json.loads(process.stdout.readline())
+                        remaining, errors = process.communicate(timeout=10)
+                        # Assert: no ready/target reply or runtime launch follows invalid input.
+                        self.assertEqual(reply, {'kind': 'error',
+                                                'message': 'Invalid Foreman launch configuration.'})
+                        self.assertEqual(process.returncode, 1, errors)
+                        self.assertEqual(remaining, '')
+                        self.assertNotIn('Traceback', errors)
+                    finally:
+                        if process.poll() is None:
+                            process.kill()
+                            process.communicate()
 
 GH = '''#!/usr/bin/env python3
 import json
@@ -117,7 +200,7 @@ class InitFixture(unittest.TestCase):
         return path
 
     def run_cli(self, cwd, *args, input='', timeout=10, connection_defaults=True,
-                role_defaults=True, pi_defaults=True, worker_defaults=True):
+                role_defaults=True, pi_defaults=True, worker_defaults=True, deadlines=None):
         if worker_defaults and not any(
                 arg.startswith(('--implementation-', '--review-', '--tdd-', '--planning-only'))
                 for arg in args):
@@ -132,7 +215,9 @@ class InitFixture(unittest.TestCase):
             args = (*args, '--forgetful-instance', 'local')
         if role_defaults:
             args = (*args, '--install-role-runtime')
-        return subprocess.run([sys.executable, '-m', 'forgetful_factory', 'init', *args],
+        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+                      else programmatic_factory(deadlines))
+        return subprocess.run([sys.executable, *entrypoint, 'init', *args],
                               cwd=cwd, env=self.env, input=input, text=True,
                               capture_output=True, timeout=timeout)
 
@@ -628,11 +713,11 @@ foreman_agent_effort = "high"
         self.state.write_text(json.dumps({'timeout_create': 'slow'}))
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--label', 'slow',
-                              timeout=45)
+                              deadlines=DeadlinePolicy(external_command=1))
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertNotIn('Traceback', result.stderr)
-        self.assertIn('timed out after 30 seconds', result.stderr)
+        self.assertIn('timed out after 1 seconds', result.stderr)
         self.assertIn('Created team/app: factory', result.stderr)
         self.assertIn('rerun init', result.stderr)
         self.assertFalse((repo / '.factory' / 'factory.toml').exists())
