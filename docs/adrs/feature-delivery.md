@@ -18,7 +18,8 @@ may need only one implementation task; larger features need a useful breakdown a
 
 Scott agreed that clear requirements are sufficient to proceed. There is no separate mandatory
 plan-approval round unless the repository requires one. Unresolved decisions still go back to the
-user. This does not grant permission to bypass native tool approvals or repository protections.
+user. Implementation follows the explicit automatic-approval policy below; repository protections
+still apply.
 
 ## Role configuration
 
@@ -50,11 +51,16 @@ support them. Native profiles, settings, tools and permission controls remain re
 instructions are not a sandbox. No skill or package download is needed for role selection.
 Factory does not provision browser/computer-use tools for workers.
 
-Native permissions must allow worktree edits, access to the original repository's Git metadata,
-and the network/tool operations needed for push, CI and GitHub reviews. AgentShell 0.5's Codex
-`workspace-write` default may block the external Git directory or network; Claude's noninteractive
-permissions may block its tools. Setup checks do not establish these permissions. Agents report
-blocked work instead of silently switching approval or sandbox policy.
+Owner guidance directs implementation calls, including review fixes, to pass `auto_approve=true`.
+For Codex this disables approval prompts and the sandbox, not just network restrictions. Research
+and review retain `auto_approve=false` unless separately authorized. The parent supplies these
+controls; this is agent guidance, not Python enforcement or a native global-setting change.
+
+Workers need worktree edits, access to the original repository's Git metadata and network/tool
+operations for push, CI and GitHub review. Repository-required controls, CI, review and merge gates
+remain. Conflicts with this policy and unavailable native capabilities must be reported rather than
+overridden. No credential changes or native global configuration edits are authorized by the policy.
+Setup checks do not establish that a worker's effective permissions support the whole workflow.
 
 Older factories must not silently gain execution authority. Preserve existing configuration and
 edited guidance. Enabling workers requires an explicit `execution_enabled` change in TOML,
@@ -97,7 +103,7 @@ renew a fingerprint. Existing/DinoLand factories have no automatic migration.
 
 Independent agent review does not establish a second GitHub identity. If both agents use the same
 account, findings can be posted as comments; they do not satisfy a required external approval.
-Native approval restrictions and branch protections must be respected.
+Review retains its native approval restrictions; branch protections must be respected.
 
 The delivery contract assigns PR creation to implementation. The worker opens the PR before
 waiting for PR-triggered CI; it need not wait for checks that cannot start without a PR. Required

@@ -133,17 +133,25 @@ the configured native named entry:
 subagent(roster_entry="<configured implementation worker name>",
          task_name="Implement the assigned feature changes",
          cwd="<absolute assigned worktree>", prompt="<full briefing, skills and task context>",
-         interactive=false, stay_open=false)
+         auto_approve=true, interactive=false, stay_open=false)
 subagent(roster_entry="<configured independent reviewer name>",
          task_name="Review the feature PR independently",
          cwd="<absolute assigned worktree>", prompt="<full briefing, skills and PR context>",
          interactive=false, stay_open=false)
 ```
 
-Use repository-required approval and tool controls explicitly on every call, including resumes. Keep
-auto_approve false unless approval is explicitly authorized. Never escalate permissions merely to
-make a failing call pass. Unsupported tool controls are not enforcement; report a required control
-that the chosen harness cannot honor. Worker permission or access failures leave work waiting.
+Launch implementation workers with auto_approve=true for their assigned Factory tasks.
+For Codex, this disables approval prompts and the sandbox; it is not limited to GitHub or
+network access. Pass the flag explicitly on every supported implementation call, including
+review-fix work. Follow the Codex resume limitation below; the flag alone cannot change an
+existing session's effective policy.
+
+This policy does not extend to research or review workers; keep auto_approve=false for those
+workers unless separately authorized. Preserve repository rules, required CI checks, review
+and merge gates. Do not change credentials or native global settings. If repository-required
+controls conflict with this policy, report the conflict instead of overriding them.
+Unsupported tool controls are not enforcement; report any required control the harness cannot
+honor. Worker permission or access failures leave work waiting.
 
 Record dispatch intent, task IDs, parent Pi session/branch and assigned worktree before launch;
 transition todo -> doing with a fresh version, leaving assignment unset; inspect existing work and

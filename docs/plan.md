@@ -172,6 +172,10 @@ Required checks still must pass before implementation is complete; no draft-only
 
 - Set up the implementation and review agents' models, tools and skills.
 - Implementation agents make changes, run tests, open or reuse PRs and fix CI for their commits.
+  Owner guidance now uses `auto_approve=true` for implementation, including review fixes. Codex
+  bypasses its sandbox and approval prompts; research/review are unchanged. Repository gates and
+  Codex resume safeguards remain. See the
+  [policy follow-up](plans/slice-6.md#implementation-launch-policy).
 - The feature-owner verifies PRs and CI evidence, arranges one review per repository PR and sends
   findings back for fixes. It accepts implementation's fix report after required exact-final-commit
   CI passes, without another review pass. It updates Forgetful; workers do not.

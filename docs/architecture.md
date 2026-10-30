@@ -275,8 +275,12 @@ import or call graph.
   selected skill-file references. Normalized Codex/Claude calls additionally receive explicit
   read-before-work references, without unsupported native skill forwarding. Canonical selections
   remain intact for resume checks. Pi/OpenCode retain native skill support. Factory's execution
-  permission remains separate from agent names. Implementation
-  workers open or reuse PRs and own exact-commit CI; the owner verifies that evidence, arranges
+  permission remains separate from agent names. Owner guidance directs implementation calls to use
+  `auto_approve=true`; Codex then bypasses approvals and its sandbox. Research/review permissions
+  are unchanged. This is parent-supplied policy, not Python enforcement or a global settings change.
+  Repository gates remain; Codex resume limitations still require effective-policy checks.
+  Implementation workers open or reuse PRs and own exact-commit CI; the owner verifies the evidence,
+  arranges
   one independent review per repository PR and controls merge. After review, it accepts the
   implementation agent's reported fixes when required exact-final-commit CI passes, without another
   code-review pass.

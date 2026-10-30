@@ -104,6 +104,35 @@ A retry with `PYTHONPATH=src python3` reached all seven tests, but each failed d
 suite, live-agent trial or hosted CI result is claimed for this follow-up. Only instructions and
 documentation changed; no Python source, dependency or generated class-map changes were needed.
 
+## Implementation launch policy
+
+The DinoLand trial reached implementation, but its Codex worker could not access GitHub. Its native
+session recorded `workspace-write`, network access off and approval policy `never`; the parent had
+passed `auto_approve=false`. Owner-side GitHub access succeeded. This did not establish that the
+credentials were invalid.
+
+The approved policy now tells owners to pass `auto_approve=true` for implementation, including
+review fixes. For Codex this disables both approval prompts and the sandbox. Research and review
+retain their existing policy. Repository controls, CI, review and merge gates remain; conflicts
+must be reported. The policy does not authorize credential or native global-setting changes.
+Codex resume still omits this flag; an unsuitable stopped session needs a fresh worker launch,
+not an assumption that a resume adopted broader permissions. README documents the execution risk.
+This is agent guidance, not Python enforcement or proof of model compliance.
+
+The source and explicitly requested DinoLand owner skill were updated. Existing factories are not
+automatically rewritten. No Python, dependency, roster, credential or class-map changes were needed.
+No new prompt-phrase tests were added. Existing worker/owner profile checks passed all 16 tests:
+
+```bash
+PYTHONPATH=src:tests PATH="/tmp/factory-placeholder-venv/bin:$PATH" \
+  /tmp/factory-placeholder-venv/bin/python -m unittest \
+  test_worker_profiles test_owner_profiles -q
+```
+
+These checks validate provisioned guidance/wiring, not live permissions or feature completion.
+The user is handling the live-agent instruction separately; this update sends no duplicate prompt
+and does not restart, resume or replace a worker.
+
 ## Before the live trial
 
 - Agree the disposable GitHub repository with Scott; none has been created or modified for a trial.

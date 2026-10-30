@@ -153,12 +153,20 @@ accounts and permissions; a Pi login does not sign you into Codex or Claude. Lis
 verify inference or a model's supported effort. Bundled implementation guidance still requires TDD;
 you do not need to supply another skill file to complete setup.
 
-**Check native permissions before using workers.** They need access to the assigned worktree and
-its Git metadata, plus network/tool permission for push, CI and GitHub review. A linked worktree's
-Git metadata lives in the original repository, outside the worker's cwd. AgentShell 0.5 starts
-Codex with `workspace-write` when automatic approval is off; this may not permit the workflow.
-Claude's noninteractive tool permissions can also block edits, shell commands or review submission.
-Factory does not widen those permissions or enable bypass mode. The owner must report blocked work.
+**Execution-enabled factories use automatic approval for implementation.** Owner guidance directs
+implementation launches, including review fixes, to pass `auto_approve=true`. For Codex this
+disables both approval prompts and the sandbox, giving the worker the host user's available
+filesystem and network access. It is not limited to GitHub access. This is a prompt-directed launch
+policy, not a Python-enforced setting. Research and review keep automatic approval off unless
+separately authorized.
+
+Workers need access to their worktree and the original repository's Git metadata, plus network/tool
+access for push, CI and GitHub review. Required repository controls, CI, review and merge gates
+still apply. Conflicting controls or unavailable permissions must be reported, not silently
+overridden. No credentials or native global settings are changed by this policy. AgentShell 0.5
+Codex resume omits the approval/sandbox flag: do not assume `auto_approve=true` changes a resumed
+session's policy.
+If it is unsuitable, confirm the previous worker stopped before launching a fresh replacement.
 Browser/computer-use tools are not installed by Factory; only available native tools can be used.
 
 For example, add these options to a fresh `init`, replacing the model placeholders:
@@ -193,8 +201,9 @@ Implementation owns commits, pushes, opening or reusing the PR, and CI correctio
 PR before checks that need a PR, but required CI must pass before implementation is complete. The
 owner verifies the returned PR and exact-commit evidence, arranges independent review and merges
 only when repository gates pass. Draft status follows repository rules and owner guidance; Factory
-does not require it. Native tool permissions are not bypassed. Agent review using the author's
-account cannot supply a required approval from another GitHub user.
+does not require it. Implementation uses the automatic-approval policy above; review permissions
+are unchanged. Agent review using the author's account cannot supply a required approval from
+another GitHub user.
 
 The owner preserves uncertain or unfinished work, and reports merged revisions to the Foreman.
 It records worktree removal so watcher restart can distinguish cleanup from missing active work.
