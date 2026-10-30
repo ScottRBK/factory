@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 3691. Type relationships removed: 56.
+Calls removed by test filtering: 3714. Type relationships removed: 56.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -50,7 +50,7 @@ Calls removed by test filtering: 3691. Type relationships removed: 56.
 - `tests/test_pi_runtime_install.py`: 3 source occurrences (test-path).
 - `tests/test_planning_adapter.py`: 18 source occurrences (test-path).
 - `tests/test_planning_setup.py`: 12 source occurrences (test-path).
-- `tests/test_planning_watch.py`: 30 source occurrences (test-path).
+- `tests/test_planning_watch.py`: 31 source occurrences (test-path).
 - `tests/test_profile_recovery.py`: 32 source occurrences (test-path).
 - `tests/test_profiles.py`: 34 source occurrences (test-path).
 - `tests/test_project_onboarding.py`: 17 source occurrences (test-path).

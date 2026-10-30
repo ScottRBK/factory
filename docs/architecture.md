@@ -9,7 +9,12 @@ Implementation decisions and their rationale live in the [ADRs below](#decision-
 Factory sets up shared native Pi login, local role resources and native Forgetful CLI access.
 The watcher creates or reuses an issue plan, ownership task and ordinary-issue Git worktree before
 notifying the Foreman. The Foreman's selected roster launches a feature-owner for clarification,
-research and task planning. Optional implementation/review workers and owner-led merge guidance
+research and task planning. New plan recovery snapshots use a placeholder body, while live
+notifications retain the full issue. Owner guidance asks it to read the full provider issue before
+plan enrichment; Python does not enforce that read. Human planning belongs in goal/tasks, with
+brief context notes that preserve recovery JSON.
+See the [decision](adrs/issue-planning.md) and [checks](plans/issue-plan-placeholder.md).
+Optional implementation/review workers and owner-led merge guidance
 are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
 Deployment and final E2E verification remain planned.
 
@@ -333,7 +338,7 @@ Paths below are relative to `src/forgetful_factory/`:
   Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
   Problem types and formatting: `application/watcher_problems.py`, lines 80 and 112.
   Repository/pre-create checks: `application/scaffold_issue.py`, lines 42 and 100;
-  read-only lookup/recovery: lines 179 and 229.
+  read-only lookup/recovery: lines 179 and 235; placeholder creation: line 191.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 122;
@@ -403,10 +408,13 @@ Paths below are relative to `src/forgetful_factory/`:
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
 detail; tests were excluded using `--test-path tests`. Its 77 boxes include module containers.
-Test filtering removed 3,691 calls and 56 type relationships; signatures remain in full detail.
+Test filtering removed 3,714 calls and 56 type relationships; signatures remain in full detail.
 The readiness refresh reused version 0.4.5 in a disposable environment after wheel/component review;
 its audit retains native-library advisory limits for this local, trusted-source run. No project
-runtime dependency changed. A second export of the same map matched byte-for-byte. Bundled
+runtime dependency changed. The placeholder refresh reused the cached exporter without installation;
+its older CLI has no `--detail` flag, and its default was verified to retain full signatures and
+relationship lists.
+A second export of the same map matched byte-for-byte. Bundled
 third-party archives are not expanded by this map.
 
 - Find declarations in the source index, reading that index in chunks if needed.

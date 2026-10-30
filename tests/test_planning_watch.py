@@ -47,6 +47,52 @@ class PlanningWatchFixture(WatchFixture):
 
 
 class PlanningWatchTests(PlanningWatchFixture):
+    def test_long_issue_uses_placeholder_and_recovers_closed_work_with_stable_ids(self):
+        # Arrange: escaped Unicode titles must also fit after the ownership-intent update.
+        title = '🦕' * 240 + ' "habitat"\\\n'
+        body = 'Full requirements: 🦕 "habitat"\\\n' * 200
+        self.script({'team/app': [[[self.issue(title=title, body=body,
+                                              updated_at='revision-long')]]]})
+        # Act: public CLI intake, then restart with the issue absent from the open poll.
+        first = self.start('--existing')
+        self.wait_until(first, lambda: bool(self._messages() or self.alerts()))
+        self.stop(first)
+        # Assert: the external service enforces the real context limit, not a fixture bypass.
+        state = json.loads((self.workspace / '.factory/fixture-plans.json').read_text())
+        self.assertEqual(len(self._messages()), 1, state.get('rejections', self.alerts()))
+        original = self._messages()[0]
+        self.assertEqual(original['body'], body)
+        plan = self.planning_call('get_plan', plan_id=original['plan_id'])
+        context = json.loads(plan['context'])
+        placeholder = (f'This is a placeholder description for github issue #1: {title}. '
+                       'The feature owner will update it after reviewing the issue/plan.')
+        self.assertEqual(context['issue']['body'], placeholder)
+        self.assertEqual(context['workspace'], str(self.workspace))
+        self.assertTrue(context['ownership_create_started'])
+        self.assertEqual(context['issue']['source'],
+                         {'provider': 'github', 'reference': 'team/app'})
+        self.assertEqual(context['issue']['revision'], 'revision-long')
+        self.assertEqual(plan['external_ref'], 'github:team/app#1')
+        self.assertEqual(plan['source_url'], 'https://github.com/team/app/issues/1')
+        writes = [args['context'] for tool, args in state['calls']
+                  if tool in ('create_plan', 'update_plan') and 'context' in args]
+        self.assertEqual(len(writes), 2)
+        self.assertTrue(all(len(value) <= 2000 for value in writes))
+        self.assertNotIn('rejections', state)
+        self.terminal_log.unlink()
+        self.script({'team/app': [[[]]]})
+        restarted = self.start('--new-only')
+        self.wait_until(restarted, lambda: bool(self._messages() or self.alerts()))
+        self.stop(restarted)
+        recovered, = self._messages()
+        self.assertTrue(recovered['recovered'])
+        self.assertEqual(recovered['body'], placeholder)
+        for key in ('plan_id', 'ownership_task_id', 'worktrees', 'revision', 'title'):
+            self.assertEqual(recovered[key], original[key])
+        state = json.loads((self.workspace / '.factory/fixture-plans.json').read_text())
+        self.assertEqual(sum(tool == 'create_plan' for tool, _ in state['calls']), 1)
+        self.assertEqual(sum(tool == 'create_task' for tool, _ in state['calls']), 1)
+
     def test_repointed_worktree_pauses_delivery_and_preserves_existing_work(self):
         self.assert_worktree_identity_checked('branch')
 
@@ -311,13 +357,19 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertEqual(self._messages()[0]['plan_id'], 1)
         self.assertEqual(self._messages()[0]['ownership_task_id'], 1)
 
-    def test_restart_restores_unfinished_plan_even_without_open_issue(self):
+    def test_restart_restores_legacy_full_snapshot_even_without_open_issue(self):
         # Arrange
         self.script({'team/app': [[[self.issue()]]]})
         first = self.start('--existing')
         self.wait_until(first, lambda: len(self._messages()) == 1)
         self.stop(first)
         original = self._messages()[0]
+        # Older Factory versions saved the full body in the same recovery JSON shape.
+        plan = self.planning_call('get_plan', plan_id=original['plan_id'])
+        context = json.loads(plan['context'])
+        context['issue']['body'] = 'Legacy full issue requirements'
+        self.planning_call('update_plan', plan_id=original['plan_id'],
+                           context=json.dumps(context))
         self.terminal_log.unlink()
         self.script({'team/app': [[[]]]})
         # Act
@@ -328,6 +380,8 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertEqual(self._messages()[0]['plan_id'], original['plan_id'])
         self.assertEqual(self._messages()[0]['worktrees'], original['worktrees'])
         self.assertTrue(self._messages()[0]['recovered'])
+        self.assertEqual(self._messages()[0]['ownership_task_id'], original['ownership_task_id'])
+        self.assertEqual(self._messages()[0]['body'], 'Legacy full issue requirements')
 
     def test_changed_issue_reuses_plan_task_and_worktree(self):
         # Arrange
@@ -358,6 +412,14 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertEqual(payload['plan_id'], 1, stderr)
         self.assertEqual(payload['ownership_task_id'], 1)
         self.assertEqual(payload['body'], 'Build the feature')
+        plan = self.planning_call('get_plan', plan_id=payload['plan_id'])
+        context = json.loads(plan['context'])
+        self.assertEqual(context['issue']['body'],
+                         'This is a placeholder description for github issue #1: '
+                         'Implement feature. The feature owner will update it after '
+                         'reviewing the issue/plan.')
+        self.assertTrue(context['ownership_create_started'])
+        self.assertLessEqual(len(plan['context']), 2000)
         mapping = payload['worktrees'][0]
         self.assertEqual(mapping['repository'], 'team/app')
         branch = subprocess.check_output(

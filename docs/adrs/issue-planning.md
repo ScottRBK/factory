@@ -65,16 +65,36 @@ cannot coordinate them.
 Factory uses existing Forgetful text fields for a small JSON record:
 
 - Plan `source_url`: GitHub issue URL.
-- Plan `context`: absolute `workspace`, initial `issue` snapshot and `ownership_create_started`.
+- Plan `context`: absolute `workspace`, initial `issue` recovery snapshot and
+  `ownership_create_started`. New snapshots keep the issue identity, title, URL, revision and epic
+  flag, but replace the body with a provider/number/title placeholder. This applies to short and
+  long issues; no body prefix or other truncated text is stored.
 - Ownership task `description`: `kind="factory-ownership"`, `workspace`, `external_ref` and
   `worktrees`. Each mapping contains `repository`, `local_dir`, `branch` and absolute `path`.
   After verified merge, the owner can add per-mapping `cleanup` metadata; see below.
 - Ownership task `assigned_agent`: the owner's real native Pi session ID, set by `claim_task`.
 
-Agents preserve these fields while adding questions, notes, parent/session references and PR links.
-The snapshot supports recovery when an issue is no longer in the open-issue poll. It is not a
-complete copy of the issue history; agents reread current GitHub body and comments before acting.
-Full ownership tasks are fetched because `query_tasks` summaries omit descriptions.
+The placeholder says that the feature owner will update the description after reviewing the
+issue/plan. Owner guidance instructs it to read the full current provider issue and comments
+before enrichment, and to report failed reads as blockers. This is prompt guidance, not a
+Python-enforced read or a guarantee of model compliance. Live notifications still carry the full
+provider body. Recovery
+without an open issue uses the saved placeholder. Old full-body snapshots remain readable in the
+same JSON shape; no migration or recovery write is needed.
+
+Forgetful defaults plan `context` to 2000 characters, including serialized JSON. Both initial
+creation and the ownership-intent update use literal Unicode rather than ASCII escape expansion.
+This removes body-size dependence without truncating metadata or changing recovery contracts.
+Arbitrarily large workspace paths or other metadata can still exceed the server limit; this fix
+neither truncates them nor adds a different storage scheme.
+
+Agents preserve recovery fields while keeping added notes, session references and PR links brief.
+Plan goal and task descriptions hold human planning detail within their own limits. Never copy the
+full issue back into context or discard recovery fields to fit; a replacement description must
+remain brief enough for the complete JSON record. Full ownership tasks are fetched because
+`query_tasks` summaries omit descriptions. The snapshot supports recovery when an issue is no
+longer in the open-issue poll; it does not replace current provider requirements or issue history.
+See the [placeholder validation record](../plans/issue-plan-placeholder.md).
 
 ## Checks before fresh creation
 

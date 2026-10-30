@@ -75,7 +75,7 @@ config:
         foreman ->> fo: resumes returned Pi session with user input
         activate fo
     end
-    fo ->> forgetful: plans repo-specific tasks and cross-repository dependencies
+    fo ->> forgetful: enrich plan and add repo-specific tasks and cross-repository dependencies
     fo ->> host: creates/reuses dedicated branches and worktrees for affected repositories
     fo ->> forgetful: records repository-to-branch/worktree mappings in ownership task
     note over fo,ia: FO coordinates parallel tasks and a separate PR per repository

@@ -15,6 +15,12 @@ PLANNING = '''
         state = json.loads(state_path.read_text()) if state_path.exists() else {
             'plans': [], 'tasks': [], 'calls': []}
         state['calls'].append([tool, values])
+        if (tool in ('create_plan', 'update_plan')
+                and values.get('context') is not None and len(values['context']) > 2000):
+            error = 'plan.context exceeds 2000 characters'
+            state.setdefault('rejections', []).append(error)
+            save_planning_state()
+            sys.exit(error)
         if tool == 'list_plans':
             assert set(values) <= {'external_ref'}, values
             rows = [p for p in state['plans'] if not values or

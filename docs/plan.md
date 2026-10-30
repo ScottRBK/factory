@@ -132,6 +132,12 @@ No worktree extension is required.
 bundled-installer upgrade passed the dependency audit. Setup checks the selected local backend
 or remote server; updating the bundled CLI does not upgrade an existing server.
 
+The approved [placeholder fix](plans/issue-plan-placeholder.md) removes full issue bodies from
+new plan context without truncation. Live notifications retain the full body. Owner guidance now
+requires a full provider read before plan enrichment and keeps human planning in goal/tasks.
+Public watch regressions pass, including the real context limit, Unicode serialization,
+closed/new-only recovery and old full-snapshot compatibility. No live DinoLand repair was attempted.
+
 ### Slice 5: let a feature-owner plan the work
 
 The Foreman starts one feature-owner for an issue. That agent manages the feature's tasks.

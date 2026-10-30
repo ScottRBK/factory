@@ -156,7 +156,7 @@ class ScaffoldIssue:
     def _create_ownership(self, plan_id: int, external_ref: str, context: dict,
                           mappings: list[dict]) -> list[dict]:
         context['ownership_create_started'] = True
-        self.planning.update_plan(plan_id, context=json.dumps(context))
+        self.planning.update_plan(plan_id, context=json.dumps(context, ensure_ascii=False))
         try:
             self.planning.create_task(
                 plan_id=plan_id, title='Feature ownership',
@@ -189,11 +189,17 @@ class ScaffoldIssue:
         return plans[0]['id'] if plans else None
 
     def _create_plan(self, issue: Issue) -> dict:
+        snapshot = asdict(issue)
+        snapshot['body'] = (
+            f'This is a placeholder description for {issue.source.provider} '
+            f'issue #{issue.number}: {issue.title}. '
+            'The feature owner will update it after reviewing the issue/plan.')
         try:
             self.planning.create_plan(
                 title=issue.title, project_id=self.config.forgetful.project_id,
                 external_ref=issue.id, source_url=issue.url,
-                context=json.dumps({'workspace': str(self.workspace), 'issue': asdict(issue)}))
+                context=json.dumps({'workspace': str(self.workspace), 'issue': snapshot},
+                                   ensure_ascii=False))
         except FactoryError:
             # A failed response does not tell us whether the unique create committed.
             pass
