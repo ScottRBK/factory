@@ -82,12 +82,19 @@ projects or create a replacement project. Capture rejects a different destinatio
 explains unavailable configuration or access; managed settings commands cannot redirect the target
 or rewrite personal preferences. Standalone extension behavior keeps its original entrypoint.
 
-The managed installer pins audited Pi 1.4.0 with Undici 8.12.2 and disables the experimental Milo
-parser. A separate managed-entry guard checks the selected host before REST or memory work.
-Pi's reported version alone is insufficient: an ordinary Pi 1.4.0 install can still resolve
-vulnerable Undici 8.10.2. The guard rejects a supplied `PI_PACKAGE_DIR` so alternate metadata cannot
-stand in for the host. Unsupported or unverifiable hosts remain unavailable without a global
-upgrade. Existing managed runtimes are not repaired or upgraded by installing this Factory source.
+Factory follows Pi and the extension's supported dependency choices. Scott rejected the earlier
+Factory-specific Undici override and exact-runtime gate after standard Pi was refused during the
+DinoLand trial. The installer still locks Pi for reproducibility, but does not override its HTTP
+dependency. The managed entrypoint no longer inspects Pi/Undici version metadata or rejects
+`PI_PACKAGE_DIR`; Pi owns runtime selection. Configuration, authentication and selected-project
+checks remain. Existing environment defaults still disable the experimental Milo parser.
+
+Dependency audit findings remain visible and unresolved unless separately verified. Following
+upstream is not a security clearance, and Factory must not silently patch the user's runtime to
+satisfy a private compatibility rule. Existing installations are not repaired or upgraded by this
+source change. Regression tests check installation consent, safe installer options and actual
+extension/project access, not dependency version literals. The existing native project-access test
+reproduced the refusal and passes unchanged after removing the gate.
 
 Explicit automatic-memory opt-in refuses local instances and unmappable server paths before saving
 `factory.toml` or memory preferences. When Foreman's model is not supplied, earlier setup can still

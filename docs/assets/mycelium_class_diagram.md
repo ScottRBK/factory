@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 3682. Type relationships removed: 56.
+Calls removed by test filtering: 3691. Type relationships removed: 56.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -58,7 +58,7 @@ Calls removed by test filtering: 3682. Type relationships removed: 56.
 - `tests/test_review_regressions.py`: 56 source occurrences (test-path).
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 24 source occurrences (test-path).
-- `tests/test_watch.py`: 57 source occurrences (test-path).
+- `tests/test_watch.py`: 61 source occurrences (test-path).
 - `tests/test_watch_lock.py`: 6 source occurrences (test-path).
 - `tests/test_watcher_alerts.py`: 61 source occurrences (test-path).
 - `tests/test_watcher_cancellation.py`: 5 source occurrences (test-path).
@@ -403,6 +403,7 @@ classDiagram
         <<class>>
         -__init__(command_timeout: float) unknown
         +command_timeout: unknown
+        +check_cli() None
         +source_from_remote(remote: str) WorkSource
         -_api(source: WorkSource, suffix: str, #42;arguments: str) object
         +check_access(source: WorkSource) None
@@ -970,9 +971,9 @@ classDiagram
     c0027 ..> c0028 : 3 relationships (see list)
     c0027 ..> c0036 : type in __init__
     c0027 ..> c0046 : 4 relationships (see list)
-    c0029 ..> c0008 : _api() calls run_command()
+    c0029 ..> c0008 : 2 relationships (see list)
     c0029 ..> c0029 : 5 relationships (see list)
-    c0029 ..> c0071 : 7 relationships (see list)
+    c0029 ..> c0071 : 8 relationships (see list)
     c0029 ..> c0072 : 2 relationships (see list)
     c0029 ..> c0073 : 3 relationships (see list)
     c0029 ..> c0075 : 8 relationships (see list)
@@ -1089,7 +1090,7 @@ classDiagram
     c0063 ..> c0020 : build_initialiser() constructs TomlConfigurationStore
     c0063 ..> c0026 : prepare_foreman_launch() calls role_environment()
     c0063 ..> c0027 : build_watcher() constructs ForgetfulPlanning
-    c0063 ..> c0029 : 3 relationships (see list)
+    c0063 ..> c0029 : 4 relationships (see list)
     c0063 ..> c0035 : 2 relationships (see list)
     c0063 ..> c0040 : 2 relationships (see list)
     c0063 ..> c0052 : build_watcher() constructs ScaffoldIssue
@@ -1624,6 +1625,7 @@ classDiagram
 - c0027 ..> c0046: `_task() constructs PlanningReadError`
 - c0027 ..> c0046: `get_plan() constructs PlanningReadError`
 - c0029 ..> c0008: `_api() calls run_command()`
+- c0029 ..> c0008: `check_cli() calls run_command()`
 - c0029 ..> c0029: `check_access() calls _api()`
 - c0029 ..> c0029: `create_label() calls _api()`
 - c0029 ..> c0029: `list_issues() calls _api()`
@@ -1632,6 +1634,7 @@ classDiagram
 - c0029 ..> c0071: `_api() constructs FactoryError`
 - c0029 ..> c0071: `_validate_issue() constructs FactoryError`
 - c0029 ..> c0071: `check_access() constructs FactoryError`
+- c0029 ..> c0071: `check_cli() constructs FactoryError`
 - c0029 ..> c0071: `create_label() constructs FactoryError`
 - c0029 ..> c0071: `list_issues() constructs FactoryError`
 - c0029 ..> c0071: `list_labels() constructs FactoryError`
@@ -2077,6 +2080,7 @@ classDiagram
 - c0063 ..> c0026: `prepare_foreman_launch() calls role_environment()`
 - c0063 ..> c0027: `build_watcher() constructs ForgetfulPlanning`
 - c0063 ..> c0029: `build_initialiser() constructs GitHubWorkTracking`
+- c0063 ..> c0029: `build_watcher() calls check_cli()`
 - c0063 ..> c0029: `build_watcher() calls source_from_remote()`
 - c0063 ..> c0029: `build_watcher() constructs GitHubWorkTracking`
 - c0063 ..> c0035: `type in build_watcher`

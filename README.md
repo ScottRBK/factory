@@ -40,8 +40,11 @@ existing-resource upgrade or live automatic-memory enablement is implied.
 
 ## Run locally
 
-Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL. Foreman setup also
-needs Pi and tmux. Factory workflows use the native Forgetful CLI; Foreman's optional planning UI
+Requires Python 3.12+, `uv`, Git, and authenticated GitHub CLI on Linux/WSL. GitHub CLI must
+support `gh api --paginate --slurp`. Watch checks the local help output before connecting Foreman;
+if the option is missing, upgrade `gh` on `PATH` and restart watch. This check makes no API request
+and does not verify authentication. Foreman setup also needs Pi and tmux. Factory workflows use the
+native Forgetful CLI; Foreman's optional planning UI
 and memory extension use REST independently. Persistent Foreman sessions need Linux
 5.3+ process handles (`pidfd`); Python builds without `os.pidfd_open` also need glibc 2.36+. `uvx`
 installs the AgentShell dependency automatically.
@@ -520,10 +523,10 @@ with memory off, but the managed extension reports unavailable. Local SQLite/CLI
 supported; local automatic-memory opt-in is refused without starting a server or changing targets.
 Restart Foreman after target/project changes; `/reload` does not refresh launch-time environment.
 
-The selected host must have the reviewed Pi/Undici runtime before managed REST or memory work.
-A Pi 1.4.0 version string alone is insufficient. An unsupported host is reported unavailable rather
-than globally upgraded. Queue state stays in the workspace, while file inspection retains Pi's
-trusted cwd. Source files and HTTP responses are limited to 1 MiB.
+Managed REST and memory use the selected native Pi and the extension's supported runtime.
+Factory adds no separate exact-version gate or dependency override. Configuration and project access
+are still checked before memory work. Queue state stays in the workspace, while file inspection
+retains Pi's trusted cwd. Source files and HTTP responses are limited to 1 MiB.
 
 The panel's local visibility file uses owner-only creation permissions without changing them later.
 Additional protection against concurrent replacement of workspace paths was explicitly deferred;
@@ -537,8 +540,10 @@ resources are not automatically updated or activated by installing a newer Facto
 ### Managed runtime dependencies
 
 Missing executables require consent. Pi 1.4.0 can be installed into `.factory/runtime/pi` using
-existing Node 22.19+ and npm, with reviewed Undici 8.12.2 pinned and scripts disabled. The
-experimental `UNDICI_USE_MILO` switch is removed from Factory's Pi processes. Forgetful 0.5.5 can
+existing Node 22.19+ and npm, with Pi's normal dependencies locked and scripts disabled. Factory
+does not override Pi's dependency choices. Dependency audits report findings separately; following
+upstream does not mean those findings are resolved. The experimental `UNDICI_USE_MILO` switch is
+removed from Factory's Pi processes. Forgetful 0.5.5 can
 be installed as the **Forgetful CLI** into `.factory/runtime/forgetful`, using frozen hashes and
 wheels only. It does not start another server. The installer checks uv and selects an existing
 Python 3.12 before asking permission; Factory itself can run under Python 3.13 or later. Missing

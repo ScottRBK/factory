@@ -110,6 +110,9 @@ import signal
 state_path = Path(os.environ['GH_STATE'])
 state = json.loads(state_path.read_text())
 args = sys.argv[1:]
+if args == ['api', '--help']:
+    print('FLAGS:\\n  --paginate  Fetch all pages\\n  --slurp  Wrap pages in an array')
+    sys.exit(0)
 if args[:1] == ['api']:
     host = args[args.index('--hostname') + 1] if '--hostname' in args else \
         os.environ.get('GH_HOST', 'github.com')

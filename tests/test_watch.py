@@ -34,6 +34,15 @@ lock = path.with_suffix('.lock').open('a')
 fcntl.flock(lock, fcntl.LOCK_EX)
 state = json.loads(path.read_text())
 args = sys.argv[1:]
+if args == ['api', '--help']:
+    state.setdefault('help_calls', []).append(args)
+    path.write_text(json.dumps(state))
+    if os.environ.get('WATCH_GH_HELP_DELAY'):
+        import time
+        time.sleep(float(os.environ['WATCH_GH_HELP_DELAY']))
+    print(os.environ.get('WATCH_GH_HELP', 'FLAGS:\\n  --paginate  Fetch all pages\\n'
+                         '  --slurp     Wrap pages in an array'))
+    sys.exit(int(os.environ.get('WATCH_GH_HELP_EXIT', '0')))
 source = '/'.join(args[1].split('/')[1:3])
 count = state.setdefault('counts', {}).get(source, 0)
 state['counts'][source] = count + 1
@@ -481,6 +490,64 @@ class WatchFixture(unittest.TestCase):
 
 
 class WatchCliTests(WatchFixture):
+    def test_unsupported_github_cli_stops_before_foreman_or_polling(self):
+        # Arrange: model the old native help output; bound a regressed Foreman launch.
+        self.env.update(WATCH_GH_HELP='FLAGS:\n  --paginate  Fetch all pages',
+                        WATCH_EXIT_DELAY='0.1')
+        # Act
+        process = self.start('--new-only')
+        stdout, stderr = process.communicate(timeout=5)
+        # Assert: a host capability failure must not become a poll retry or start an agent.
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('GitHub CLI', stderr)
+        self.assertIn('--slurp', stderr)
+        self.assertIn('upgrade', stderr.lower())
+        self.assertNotIn('Check gh auth status', stderr)
+        self.assertEqual(self.events(), [])
+        state = json.loads(self.state_path.read_text())
+        self.assertEqual(state.get('calls', []), [])
+        self.assertNotIn('tmux attach-session', stdout)
+
+    def test_github_help_failure_stops_before_foreman_or_polling(self):
+        # Arrange: help advertises the flag but exits unsuccessfully.
+        self.env.update(WATCH_GH_HELP_EXIT='2', WATCH_EXIT_DELAY='0.1')
+        # Act
+        process = self.start('--new-only')
+        _, stderr = process.communicate(timeout=5)
+        # Assert
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('GitHub CLI readiness check failed', stderr)
+        self.assertEqual(self.events(), [])
+        self.assertEqual(json.loads(self.state_path.read_text()).get('calls', []), [])
+
+    def test_github_help_timeout_stops_before_foreman_or_polling(self):
+        # Arrange: use the existing command deadline seam with a real stalled executable.
+        self.env.update(WATCH_GH_HELP_DELAY='5', WATCH_EXIT_DELAY='0.1')
+        # Act
+        process = self.start('--new-only', deadlines=DeadlinePolicy(external_command=0.2))
+        _, stderr = process.communicate(timeout=5)
+        # Assert
+        self.assertNotEqual(process.returncode, 0)
+        self.assertIn('GitHub CLI readiness check failed', stderr)
+        self.assertIn('timed out', stderr)
+        self.assertEqual(self.events(), [])
+        self.assertEqual(json.loads(self.state_path.read_text()).get('calls', []), [])
+
+    def test_github_help_requires_the_exact_option_not_a_prose_mention(self):
+        for help_text in ('Example: gh api --slurp\nFLAGS:\n  --slurp-extra  Other',
+                          'FLAGS:\n\n--slurp is mentioned here, not advertised as an option'):
+            with self.subTest(help_text=help_text):
+                # Arrange: examples, similar names and unindented prose are not option lines.
+                self.env.update(WATCH_GH_HELP=help_text, WATCH_EXIT_DELAY='0.1')
+                # Act
+                process = self.start('--new-only')
+                _, stderr = process.communicate(timeout=5)
+                # Assert
+                self.assertNotEqual(process.returncode, 0)
+                self.assertIn('GitHub CLI must support', stderr)
+                self.assertEqual(self.events(), [])
+                self.assertEqual(json.loads(self.state_path.read_text()).get('calls', []), [])
+
     def test_missing_connection_does_not_fall_back_to_personal_pi(self):
         # Arrange
         path = self.workspace / '.factory/factory.toml'
@@ -537,7 +604,9 @@ class WatchCliTests(WatchFixture):
         self.assertIn('close', stdout.lower())
         self.assertIn('library stdout banner', stderr)
         self.assertNotIn('library stdout banner', stdout)
-        calls = json.loads(self.state_path.read_text())['calls']
+        state = json.loads(self.state_path.read_text())
+        self.assertEqual(state['help_calls'], [['api', '--help']])
+        calls = state['calls']
         self.assertEqual(calls[0], ['api', 'repos/team/app/issues?state=open&per_page=100',
                                     '--hostname', 'github.com', '--paginate', '--slurp'])
 

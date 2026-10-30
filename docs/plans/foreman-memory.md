@@ -244,3 +244,62 @@ The earlier nine-path test-runtime improvement remains preserved and uncommitted
 main-instance update or credential migration occurred. No live Foreman inference or delivery was
 validated; the separate Claude Code reviews did use the requested review model.
 Evidence: `/tmp/factory-foreman-forgetful-2ptedi1m/`.
+
+## Runtime alignment
+
+Scott rejected Factory's private runtime policy after the DinoLand trial found that the current
+standard Pi could load the normal extension but the managed wrapper refused it. Factory must follow
+Pi and the extension's supported dependencies. He also rejected regression assertions about exact
+dependency versions. These decisions supersede the earlier override and runtime-guard approval;
+they do not change Factory's server/project authority or authorize live installation.
+
+Implemented changes:
+
+- Removed the managed wrapper's Pi/Undici metadata gate, including its `PI_PACKAGE_DIR` refusal.
+  The other 54 resource files are byte-identical. Updated the member hash and complete local-patch
+  digest against the same immutable extension base.
+- Removed the npm root override. The installer retains reproducible Pi selection and restores the
+  HTTP dependency declared by upstream. Only the Undici lock entry changes; Python requirements
+  and other npm entries are unchanged. Existing environment defaults remain unchanged.
+- Removed version assertions from the existing init test. It still checks consent and installer
+  safety options. No version-specific regression test was added. The existing native test checks
+  actual extension loading and a request to the selected project, without calling a model.
+
+Supply-chain review before changing the lock:
+
+- Official registry metadata confirms Pi 1.4.0 declares Undici 8.10.2. The restored archive's
+  SHA-512 integrity and npm registry signature verify. Its MIT package has no runtime dependencies
+  or installation hooks. No package was installed or executed during archive inspection.
+- Fresh OSV queries report eight advisories for that dependency. They remain unresolved findings,
+  not proof of exposure through this integration. Upstream alignment is not a clean security audit.
+  The older clean result for the overridden dependency must not be reused for this lock.
+- Context7 tools and CLI were unavailable. Published package metadata and installed upstream source
+  were used directly; no documentation tool was downloaded.
+
+Validation:
+
+- The unchanged native project-access test failed before the fix: no HTTP request reached the
+  fixture project. It passes after removing the gate on standard Pi. The six focused installer and
+  native-resource checks pass, including real Pi loading with isolated homes and loopback REST.
+- Final selected suites on Python 3.12.16 and 3.13.18 each ran 467 tests: 464 passed and three
+  Ubuntu-24.04-only checks skipped. The runs took 258.431s and 262.066s. Another 48 native lifecycle
+  tests remain excluded because their fixture requires tmux in `/usr/bin` or `/bin`; this host
+  uses Nix. These are not complete-suite or hosted-CI passes.
+- The first selected runs had seven setup failures because their interpreter directories lacked
+  the `lint-imports` entry point. Disposable environments now point to existing dependencies and
+  the existing real checker. No fixture or production change was made for that problem. The final
+  runs include all seven architecture tests. The repository's old virtual environment also points
+  at system Python 3.14 after migration; it was not repaired or used for final validation.
+- Ruff and all three import contracts pass. The cached Mycelium 0.4.5 exporter regenerated the map;
+  its default retains full member detail. Explicit test filtering retains 77 production boxes in
+  one diagram, and the repeat export is byte-identical. Mermaid was checked as text, not rendered.
+  Bundled TypeScript inside the zip is not part of that Python map; native loading covers it here.
+- An offline build using the existing cached backend produced a wheel and source archive in the
+  evidence directory. All 75 wheel RECORD hashes, 72 wheel/source-resource comparisons and 128
+  source-archive file comparisons pass. All 55 bundled-resource hashes match the manifest.
+
+No live runtime, DinoLand resources, shared Pi settings, authentication or memory preferences were
+changed. No model inference, commit or push occurred. The earlier review and TypeScript scan apply
+to the earlier snapshot; no fresh independent review or TypeScript scan is claimed for this change.
+The existing files in `dist/` were not replaced. Evidence, archives and exact source/lock diffs are
+under `/tmp/factory-pi-alignment-YYrJLb/`.

@@ -9,6 +9,16 @@ class GitHubWorkTracking:
     def __init__(self, command_timeout: float = 30):
         self.command_timeout = command_timeout
 
+    def check_cli(self) -> None:
+        """Check local pagination support without authentication or an API request."""
+        try:
+            help_text = run_command(['gh', 'api', '--help'], timeout=self.command_timeout)
+        except FactoryError as error:
+            raise FactoryError(f'GitHub CLI readiness check failed: {error}') from error
+        if re.search(r'(?m)^[ \t]+--slurp(?:[ \t]|$)', help_text) is None:
+            raise FactoryError('GitHub CLI must support gh api --paginate --slurp. '
+                               'Install or upgrade gh on PATH, then restart watch.')
+
     def source_from_remote(self, remote: str) -> WorkSource:
         match = re.fullmatch(
             r'(?:git@github\.com:|https://github\.com/)([A-Za-z0-9-]+/[A-Za-z0-9_.-]+)',

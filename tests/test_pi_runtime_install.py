@@ -1,5 +1,4 @@
 """Audited managed Pi installation through public Factory init; installers are controlled."""
-import json
 import shutil
 import sys
 
@@ -8,8 +7,8 @@ from test_init import INIT_SETTINGS, InitFixture
 
 
 class PiRuntimeInstallTests(InitFixture):
-    def test_new_managed_pi_uses_reviewed_version_and_patched_http_dependency(self):
-        # Arrange: only the external installer is simulated; Factory writes its real bundled lock.
+    def test_consented_pi_installation_disables_scripts_and_checks_engine_requirements(self):
+        # Arrange: only the external installer is simulated.
         repo = self.repo()
         (self.bin / 'pi').unlink()
         for name, target in (('git', shutil.which('git')), ('python3', sys.executable)):
@@ -23,17 +22,9 @@ class PiRuntimeInstallTests(InitFixture):
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\n')
 
-        # Assert: this checks installed inputs, not a private lock-building helper.
+        # Assert: observe installation consent and safe installer options, not dependency versions.
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn('Install Pi 1.4.0', result.stdout)
-        runtime = repo / '.factory/runtime/pi'
-        package = json.loads((runtime / 'package.json').read_text())
-        lock = json.loads((runtime / 'package-lock.json').read_text())
-        self.assertEqual(package['dependencies']['@earendil-works/pi-coding-agent'], '1.4.0')
-        self.assertEqual(package['overrides']['undici'], '8.12.2')
-        self.assertEqual(lock['packages']['node_modules/undici']['version'], '8.12.2')
-        pi_package = lock['packages']['node_modules/@earendil-works/pi-coding-agent']
-        self.assertEqual(pi_package['version'], '1.4.0')
+        self.assertIn('Install Pi', result.stdout)
         calls = [event for event in events(log) if event['name'] == 'npm']
         self.assertEqual(len(calls), 1)
         self.assertIn('--ignore-scripts', calls[0]['args'])

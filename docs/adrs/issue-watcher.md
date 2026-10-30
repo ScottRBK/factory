@@ -34,6 +34,19 @@ an arbitrary pane. AgentShell 0.5.0 already supplies `attach_interactive()` and 
 for that later expansion; [#25][attachment-issue] remains open. Connecting a watcher does not change
 running resources or prove receipt. No custom notification queue is introduced.
 
+Watcher composition first asks the GitHub adapter to check local CLI pagination support through
+`gh api --help`, using the existing command deadline. The output must advertise the exact `--slurp`
+option; a prose mention or a similarly named option does not qualify. Missing support, a failed
+help command or a timeout stops startup before a new Foreman is launched or any issue API request.
+The diagnostic asks for a compatible `gh` on `PATH`, not a new login. No version number is guessed,
+no API request is made, and no package is automatically installed or upgraded. This host check
+stays in the adapter/composition boundary; the work-tracking domain contract does not change.
+The same composition check applies to a managed watcher child, preserving its existing Foreman.
+For `watch --start`, the owner reports a generic startup failure and directs the user to
+`.factory/runtime/foreman/owner.log`, which contains the specific GitHub CLI diagnostic.
+Standalone Foreman, init, and read-only watcher status do not acquire this watcher-specific check.
+See [readiness validation](../plans/github-cli-readiness.md) for test evidence and limits.
+
 After native launch prerequisites and the existing/new-only choice, watch connects Foreman before
 checking Forgetful project/planning access. Access or incomplete inventory reads pause planning and
 alert Foreman while read-only checks continue. Browser sign-in or refresh may occur for an attended

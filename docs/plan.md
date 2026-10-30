@@ -40,14 +40,24 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+[GitHub CLI readiness](plans/github-cli-readiness.md) now checks `gh api --help` before watcher
+connection to Foreman. The public CLI regression covers missing pagination support, failed help,
+real command expiry, misleading option text and compatible startup. Local validation passes all
+29 watcher tests; each broader Python run has 463 passes, three OS-specific skips and one native
+memory failure also reproduced on unchanged HEAD. The memory follow-up below now fixes that refusal.
+The device's tmux layout excludes 48 existing native lifecycle tests. No full-suite or hosted
+success is claimed; see the record for details.
+
 [Foreman memory integration](plans/foreman-memory.md) is implemented for internal server use.
 It connects scoped opt-in and exact model selection to the existing REST components, using
 Factory's fixed server/project and separate extension authentication. New starter roots select it;
 edited roots and ordinary native CLI targets remain supported without forced activation. Local
-automatic-memory opt-in is refused while SQLite/CLI planning remains available. The audited
-Pi/Undici installer lock is adopted internally, with no live runtime upgrade. The runtime-metadata
-override found in review is fixed and tested. The final TypeScript scan has zero new findings;
-exact-source approval and internal bundle adoption are complete. The redundant permission change
+automatic-memory opt-in is refused while SQLite/CLI planning remains available. Scott's later
+[runtime-alignment decision](plans/foreman-memory.md#runtime-alignment) removes Factory's Undici
+override and private runtime gate, retaining Pi's normal dependency choices. Tests check behaviour,
+not dependency versions. No live runtime upgrade occurred. The earlier final TypeScript scan had
+zero new findings; exact-source approval and internal bundle adoption covered that earlier snapshot.
+The redundant permission change
 was removed; Scott deferred additional protection against concurrent workspace-path replacement.
 Full extension and terminal checks pass. Aggregate suites pass 503 tests on each Python without
 skips; the final Python scan has zero findings. Actual Claude integration review through AgentShell

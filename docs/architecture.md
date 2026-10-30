@@ -13,6 +13,13 @@ research and task planning. Optional implementation/review workers and owner-led
 are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
 Deployment and final E2E verification remain planned.
 
+[GitHub CLI readiness](plans/github-cli-readiness.md) now checks local `--slurp` support before
+watcher connection to Foreman. It rejects incompatible executables without polling or launching
+an agent; this is separate from GitHub authentication. The validation record documents the current
+device's native-test exclusions. The Foreman-memory probe failure was later traced to the
+Factory-only runtime gate; the
+[memory alignment follow-up](plans/foreman-memory.md#runtime-alignment) records its removal.
+
 [Watcher problem alerts](adrs/watcher-problems.md) now pause affected work and notify Foreman rather
 than terminate on planning safety failures. Scott chose user-approved Foreman completion for
 interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
@@ -35,9 +42,11 @@ its exact model. Server extension planning remains available with automatic memo
 Factory supplies the target/project, while the CLI and extension keep separate authentication.
 The shared-login helper is withdrawn; no credential copying or Forgetful changes are required.
 Local setup retains SQLite/CLI planning and starts no HTTP server. CLI transport and local extension
-support remain deferred. The installer pins audited Pi 1.4.0 with Undici 8.12.2 and disables Milo;
-existing runtimes were not upgraded. Exact source approval and the internal bundle are complete;
-503 Factory tests pass on each supported Python, with actual AgentShell Claude review approved.
+support remain deferred. The installer locks Pi's normal dependencies without overrides; managed
+memory adds no private Pi/Undici version gate. Existing environment defaults disable Milo. The
+[alignment follow-up](plans/foreman-memory.md#runtime-alignment) records the decision and checks.
+Existing runtimes were not upgraded. Earlier source approval, 503-test runs per supported Python
+and AgentShell Claude review apply to the prior integration snapshot, not this follow-up.
 Live adoption is separate. The source-URL policy question applies before live memory enablement.
 The panel preference uses bounded reads and owner-only file creation;
 additional protection against concurrent workspace-path replacement was explicitly deferred.
@@ -167,9 +176,12 @@ import or call graph.
 - Setup mutation and watcher execution acquire a workspace lease at the CLI boundary before
   configuration reads or mutations. Existing `.factory` directory locks are also honored. Read-only
   owner status, terminal entry and watcher stop use separate control paths, not the watch lease.
-  Watch checks initial completion, consent, the selected root definition/guidance, audited resources
-  and native delegation depth. It does not traverse or fingerprint workers. It connects to Foreman,
-  checks Forgetful planning access, restores unfinished plans and polls GitHub. Access/inventory
+  Watch composition checks the GitHub CLI's local help for `--slurp` under the command deadline,
+  before connecting either owned or borrowed Foreman delivery. This adapter-owned prerequisite adds
+  no domain contract or version pin. Watch checks initial completion, consent, the selected root
+  definition/guidance, audited resources and native delegation depth. It does not traverse or
+  fingerprint workers. It connects to Foreman, checks Forgetful planning access, restores unfinished
+  plans and polls GitHub. Access/inventory
   failures pause planning and alert through the established connection while read-only checks retry.
   `ScaffoldIssue` coordinates the `Planning` and `Worktrees` ports before terminal submission.
   Known safety failures block their plan; unrelated plans continue. Saved/blocked recovery reads
@@ -307,7 +319,9 @@ Paths below are relative to `src/forgetful_factory/`:
   optional manual launch: line 670; standalone Foreman: line 349.
   New-setup orchestration: line 774; memory choices: line 548; REST eligibility: line 583.
   Public numbered parser: `cli/numbered_selection.py`, line 6.
-  Adapter wiring: `cli/bootstrap.py`, lines 21 and 29; selected root launch: line 63.
+  Adapter wiring: `cli/bootstrap.py`, lines 21 and 29; GitHub CLI preflight: line 46;
+  selected root launch: line 64. Local GitHub capability probe:
+  `adapters/github/work_tracking.py`, line 12.
   Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 18;
   `application/watch_factory.py`, line 60; private run state: line 39;
@@ -385,10 +399,11 @@ Paths below are relative to `src/forgetful_factory/`:
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
 detail; tests were excluded using `--test-path tests`. Its 77 boxes include module containers.
-Test filtering removed 3,682 calls and 56 type relationships; signatures remain in full detail.
-The previously audited cached executable was reused directly; no package installation was needed.
-A second export of the same map matched byte-for-byte. Bundled third-party archives are not expanded
-by this map.
+Test filtering removed 3,691 calls and 56 type relationships; signatures remain in full detail.
+The readiness refresh reused version 0.4.5 in a disposable environment after wheel/component review;
+its audit retains native-library advisory limits for this local, trusted-source run. No project
+runtime dependency changed. A second export of the same map matched byte-for-byte. Bundled
+third-party archives are not expanded by this map.
 
 - Find declarations in the source index, reading that index in chunks if needed.
 - Search diagram identifiers and read bounded ranges for relevant connections.

@@ -29,7 +29,7 @@
   "pi-forgetful": {
     "repository": "git@github.com:ScottRBK/pi-forgetful-extension.git",
     "revision": "e670a88e5aaedb45132bca05c2c4f1a827c44f3c",
-    "local_patch_sha256": "17994ef077ba5ac694cd0112c6038ec2dc11828257e2f85aa15395d0b3251d59",
+    "local_patch_sha256": "965ac4a729d4f9182d499542da8b8e49cc7c6f033b0a8e24a6e9ce0b80670055",
     "distribution": "Authorized internal use only; no upstream license grant",
     "files": {
       "index.ts": "2202bfe1be97b9d58f381d712bd7ddbeb21459a4b18280012aebe0fcf3a8acc0",
@@ -42,7 +42,7 @@
       "src/adapters/pi/planning.ts": "61d7c913b306b661ea778de49c4969e3757cf71b18adbeed1e1f395d9365e5fe",
       "src/application/planning.ts": "57946e4d6e20d89c8eedc1d13a57790e50d99ac99456311479bf77c4bf458f49",
       "src/application/ports/planning.ts": "eb5583730264dfa17d961155b7c831656f4faf8908fbd1b49fb2395d84e850a7",
-      "src/bootstrap/factory.ts": "8187b43b8902c8b11d214f371540e48de8caa1884ede6e925aab94ee7814fc22",
+      "src/bootstrap/factory.ts": "0d0fa89a9c93dc0495ddfef7f520b20689a9da2426c22f6ea79058d61d25de03",
       "src/bootstrap/planning.ts": "2b549f1c88672c4dca0cc66c3bd52f350fca1583a9e32b07f32d366836261f88",
       "src/capture-feedback.ts": "58e3cd62630656f385647f44caa0ea7ad53d8ad93f038adf21133bb3987424b0",
       "src/capture-links.ts": "27fe53c18d449d0741ba13862f31d3f550e40a263fc0daaeb6a3c4eff7817c3f",
