@@ -183,7 +183,9 @@ run-view exit status alone does not prove completed/success. Old green runs, ski
 jobs, queued checks and absent checks do not prove success. If CI is unavailable, uncertain or
 failing, record the reason and evidence, set the affected task waiting through supported
 transitions, and keep implementation unfinished. Escalate unresolved questions to Foreman.
-Retry/wait/review limits follow repository rules and otherwise your judgment.
+CI retry/wait limits follow repository rules and otherwise your judgment. Review is limited to
+one independent review per repository PR, including across resumed owner sessions. Read the saved
+review task and evidence before dispatch so a restart does not start another review.
 
 Only after verified implementation evidence and acceptance criteria mark its task done. Use
 `verify_criterion(criterion_id, met)` for each real criterion, then a fresh versioned transition;
@@ -199,10 +201,16 @@ assign it to implementation through the supported claim/transition sequence. Kee
 implementation tasks done; reopening them would invalidate completed prerequisites for review and
 merge. Claim or transition to doing only when all recorded dependencies are done. A fix task may
 depend on completed prerequisites, never on the pending review that awaits that fix. Keep review
-pending with a waiting reason until fixes and exact-final-commit CI are verified; then obtain
-independent review of the new head before completing review. Workers never write Forgetful. Each fix
-changes the SHA and requires fresh local tests and exact-commit CI evidence. Arrange further
-independent review as needed; no fixed factory-wide review rounds or severity scheme.
+pending with a waiting reason until the implementation fix report and exact-final-commit CI are
+verified. Accept the implementation agent's reported fixes once required checks pass for the exact
+final commit, and complete the review task. Do not launch or resume a reviewer for another pass,
+or perform another code-review pass yourself. Workers never write Forgetful. Each fix changes the
+SHA and requires fresh local tests and exact-commit CI evidence. CI correction attempts do not
+start another review cycle. If implementation reports an unresolved blocker, keep the affected
+task waiting and escalate to Foreman rather than repeating review or claiming success.
+Required external approvals and repository gates still apply. If they require another review,
+escalate the conflict to Foreman instead of bypassing the gate or silently exceeding this limit.
+There is no fixed factory-wide severity scheme.
 
 ## Final commit, merge and cleanup
 

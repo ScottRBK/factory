@@ -86,6 +86,24 @@ the PR-opening task; the owner still chooses PR content. Closed/merged PRs need 
 These tests check provisioned guidance, not model compliance. Existing editable role files remain
 create-only and need explicit reconciliation; setup does not silently replace user instructions.
 
+## Single-review guidance follow-up
+
+Scott requested one independent review per repository PR after a session reached 11 iterations.
+Bundled owner and reviewer instructions now require one pass, followed by acceptance of the
+implementation fix report once required exact-final-commit CI passes. The owner must not perform
+another code-review pass itself. Resuming an owner does not reset the limit. CI corrections remain
+allowed; unresolved blockers and conflicting repository review requirements go to Foreman.
+Required approvals, deployment and E2E gates remain unchanged. Existing editable role files are
+not automatically updated by this source change.
+
+No new phrase-presence tests were added: they cannot establish that an agent follows this policy.
+The existing worker-profile suite could not validate this checkout in the current environment:
+`uv run --no-sync` could not import the project from the incompatible local virtual environment.
+A retry with `PYTHONPATH=src python3` reached all seven tests, but each failed during setup with
+`pi model listing failed; native catalog unavailable`, before its guidance assertions. No passing
+suite, live-agent trial or hosted CI result is claimed for this follow-up. Only instructions and
+documentation changed; no Python source, dependency or generated class-map changes were needed.
+
 ## Before the live trial
 
 - Agree the disposable GitHub repository with Scott; none has been created or modified for a trial.

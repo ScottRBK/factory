@@ -166,8 +166,9 @@ Required checks still must pass before implementation is complete; no draft-only
 
 - Set up the implementation and review agents' models, tools and skills.
 - Implementation agents make changes, run tests, open or reuse PRs and fix CI for their commits.
-- The feature-owner verifies PRs and CI evidence, arranges review and sends findings back for fixes.
-  It updates Forgetful; implementation and review agents do not.
+- The feature-owner verifies PRs and CI evidence, arranges one review per repository PR and sends
+  findings back for fixes. It accepts implementation's fix report after required exact-final-commit
+  CI passes, without another review pass. It updates Forgetful; workers do not.
 - Include architecture decision records and check the final commit before merging.
 - For multiple repositories, merge in a compatible order. Clean up branches/worktrees only when
   safe, and keep the overall plan open for deployment checks.
@@ -458,7 +459,11 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
   - The reviewer assesses findings; the feature-owner decides the response using the agreed
     requirements and repository rules. No additional factory-wide severity scheme is needed.
 - [x] How many review rounds and review-fix passes should be allowed?
-  - The feature-owner uses discretion, respecting any explicit repository review limits.
+  - One independent review per repository PR. After findings return to implementation, accept its
+    reported fixes when required exact-final-commit CI passes; do not repeat reviewer or owner code
+    review. Resumed sessions retain this limit. CI corrections remain allowed. Escalate unresolved
+    blockers or conflicting repository review requirements to Foreman; do not bypass approvals,
+    repository gates, deployment or E2E checks.
 - [x] What limits should apply to CI correction attempts and waiting for checks?
   - The implementation agent uses discretion and reports unresolved blockers to the
     feature-owner; no fixed factory-wide attempt or timeout budget is imposed.

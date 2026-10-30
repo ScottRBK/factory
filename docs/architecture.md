@@ -272,8 +272,12 @@ import or call graph.
   remain intact for resume checks. Pi/OpenCode retain native skill support. Factory's execution
   permission remains separate from agent names. Implementation
   workers open or reuse PRs and own exact-commit CI; the owner verifies that evidence, arranges
-  independent review and controls merge. PR creation may precede PR-triggered CI, but implementation
-  completion still requires passing checks. These remain agent instructions, not Python enforcement.
+  one independent review per repository PR and controls merge. After review, it accepts the
+  implementation agent's reported fixes when required exact-final-commit CI passes, without another
+  code-review pass.
+  Required approvals and gates remain; unresolved blockers or conflicting review requirements go to
+  Foreman. PR creation may precede PR-triggered CI, but implementation completion still requires
+  passing checks. These remain agent instructions, not Python enforcement.
 - Session readiness proves startup. Terminal acknowledgement proves submission, not agent receipt
   or inference. In-memory revisions detect issue changes; unfinished Forgetful plans are replayed
   after restart. This deliberately permits repeat notifications without a custom queue. A cancelled

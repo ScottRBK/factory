@@ -75,11 +75,16 @@ renew a fingerprint. Existing/DinoLand factories have no automatic migration.
    the CI correction loop and reports task IDs, the PR URL, exact commit, tests and CI evidence.
    Failed or unavailable checks mean blocked, not complete.
 3. The owner verifies the returned PR and exact-commit evidence, records the PR in plan context and
-   launches a separate review worker on that PR. Review findings identify the reviewed commit. The
-   owner decides what needs fixing according to the requirements and repository rules;
-   implementation workers make and validate the fixes.
-   Create feature-specific fix tasks rather than reopening completed implementation prerequisites.
-   Review remains pending until fixes and current-commit CI evidence are verified.
+   launches a separate review worker for one review pass per repository PR. Review findings identify
+   the reviewed commit. The owner decides what needs fixing according to requirements and repository
+   rules; implementation workers make and validate the fixes. Create feature-specific fix tasks
+   rather than reopening completed implementation prerequisites. Review remains pending until the
+   implementation fix report and exact-final-commit CI evidence are verified. The owner then accepts
+   the reported fixes and completes review, without another reviewer or owner code-review pass.
+   Resuming the owner does not reset this limit; it checks saved review evidence before dispatch.
+   CI correction attempts remain allowed without restarting review. Unresolved blockers or
+   repository requirements for further review go to Foreman; required approvals and gates are never
+   bypassed.
 4. ADRs and other required documentation are included before final validation. The owner rechecks
    the final PR head, required checks, review findings and repository approvals before merging.
    Changed commits need current evidence; an earlier green commit is not sufficient.
