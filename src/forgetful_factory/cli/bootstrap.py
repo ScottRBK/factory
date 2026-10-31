@@ -10,6 +10,7 @@ from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigu
 from forgetful_factory.adapters.forgetful.connection import role_environment
 from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
 from forgetful_factory.adapters.github.work_tracking import GitHubWorkTracking
+from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
@@ -27,7 +28,8 @@ def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolic
 
 
 def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
-                  terminal=None, deadlines: DeadlinePolicy = DeadlinePolicy()) -> WatchFactory:
+                  terminal=None, deadlines: DeadlinePolicy = DeadlinePolicy(),
+                  observation=None) -> WatchFactory:
     github = GitHubWorkTracking(deadlines.external_command)
     for repository in config.repository:
         source = repository.work_source
@@ -49,10 +51,12 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     notice = profile.managed_memory_notice()
     if notice is not None:
         print(notice, flush=True)
+    terminal = terminal or AgentShellTerminal(
+        python, environment, **launch, deadlines=deadlines.agentshell)
+    if observation is not None:
+        terminal = ObservedTerminal(terminal, observation)
     return WatchFactory(
-        github,
-        terminal or AgentShellTerminal(
-            python, environment, **launch, deadlines=deadlines.agentshell),
+        github, terminal,
         ScaffoldIssue(ForgetfulPlanning(
                             workspace, config.forgetful,
                             execution_enabled=config.execution_enabled,

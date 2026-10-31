@@ -57,7 +57,9 @@ class AssistedReviewFixes(LifecycleFixture):
         self.assertIn('exit observation failed', state['warning'])
         self.assertNotEqual(self.watch(repo, '--start', '--new-only').returncode, 0)
         self.send_and_wait_for_exit(repo, original['target'])
-        self.assertEqual(self.status(repo)['foreman'], 'stopped')
+        stopped = self.status(repo)
+        self.assertEqual(stopped['foreman'], 'unknown')
+        self.assertEqual(stopped['recorded_foreman'], 'stopped')
 
     def test_unvalidated_worker_handle_cannot_authorize_owner_exit(self):
         repo = self.repo()
@@ -172,7 +174,8 @@ class AssistedReviewFixes(LifecycleFixture):
             self.assertEqual(process.returncode, 130, stdout + stderr)
             self.assertTrue(select.select([owner], [], [], 1)[0], 'Owner still running')
             state = self.status(repo)
-            self.assertEqual(state['foreman'], 'stopped')
+            self.assertEqual(state['foreman'], 'unknown')
+            self.assertEqual(state['recorded_foreman'], 'stopped')
             self.assertEqual(state['observation'], 'saved')
         finally:
             if process.poll() is None:
@@ -187,7 +190,8 @@ class AssistedReviewFixes(LifecycleFixture):
         self.send_and_wait_for_exit(repo, original['target'])
 
         state = self.status(repo)
-        self.assertEqual(state['foreman'], 'stopped')
+        self.assertEqual(state['foreman'], 'unknown')
+        self.assertEqual(state['recorded_foreman'], 'stopped')
         self.assertEqual(state['observation'], 'saved')
         self.assertEqual(state['target'], original['target'])
         self.assertNotIn('recovery', state)
@@ -417,7 +421,9 @@ class AssistedReviewFixes(LifecycleFixture):
         retry = self.watch(repo, '--start', '--new-only')
         self.assertNotEqual(retry.returncode, 0)
         self.send_and_wait_for_exit(repo, original['target'])
-        self.assertEqual(self.status(repo)['foreman'], 'stopped')
+        stopped = self.status(repo)
+        self.assertEqual(stopped['foreman'], 'unknown')
+        self.assertEqual(stopped['recorded_foreman'], 'stopped')
 
     def test_native_send_timeout_stops_watcher_but_preserves_conversation(self):
         # Arrange: block real AgentShell load-buffer past its native five-second deadline.
@@ -533,7 +539,8 @@ class AssistedReviewFixes(LifecycleFixture):
         # Assert: successful owned cleanup is distinct from a lost controller.
         self.assertNotEqual(failed.returncode, 0)
         state = self.status(repo)
-        self.assertEqual(state['foreman'], 'stopped')
+        self.assertEqual(state['foreman'], 'unknown')
+        self.assertEqual(state['recorded_foreman'], 'stopped')
         self.assertEqual(state['observation'], 'saved')
         self.env.pop('FAKE_PI_NO_READY')
         final = self.run_cli(repo, '--finalize')

@@ -72,9 +72,12 @@ diagnostics. See [watcher problems](watcher-problems.md) and its
 [validation record](../plans/watcher-problems.md). Terminal failures retain their lifecycle rules.
 
 Plain watch owns the new Pi process and closes it when stopped. For a persistent Foreman, `watch
---start` with `--existing` or `--new-only` asks its owner to start a watcher child; status/stop act
-on that owner's actual process handle. Stopping the child leaves Foreman alive. Foreman exit or
-owner loss stops delivery without replacement. Existing untrusted or missing ownership evidence
+--start` with `--existing` or `--new-only` asks its owner to start a watcher child.
+Managed stop acts on that owner's actual process handle. [Lifecycle status](watch-status.md)
+observes both launch
+modes, keeping live response, saved evidence and unchecked health distinct. Stopping the child
+leaves Foreman alive. Foreman exit or owner loss stops delivery without replacement.
+Existing untrusted or missing ownership evidence
 never authorizes a replacement or replay. Uncertain delivery blocks a new managed start; initial
 finalization cannot clear it. A pending send can finish, but a transport failure has no later
 acknowledgement; inspect the possible submission, then deliberately exit Foreman and relaunch before

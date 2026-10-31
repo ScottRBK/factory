@@ -33,11 +33,15 @@ Completion: the target workspace, affected roles and intended change are explici
 
 ## 2. Make maintenance safe
 
-Use `watch --status --workspace "$FACTORY_WORKSPACE"` to identify an init-owned setup Foreman.
-For an init-owned Foreman, `watch --stop --workspace "$FACTORY_WORKSPACE"` stops only the watcher;
+Use `watch --status --workspace "$FACTORY_WORKSPACE"` and check its evidence before maintenance.
+A live `source: managed_owner` with `process_role: foreman_owner` identifies the persistent owner;
+`foreman: ready` alone also occurs in plain watch and does not identify an assisted setup session.
+For a live managed owner, `watch --stop --workspace "$FACTORY_WORKSPACE"` stops only its watcher;
 you remain in the same conversation. Confirm delegated runs have stopped before changing setup.
-For a legacy watcher-owned Foreman, ask the user to stop it and apply changes from a separate
-session: stopping its watcher closes that Foreman. Unknown job status is not proof of exit.
+For `source: plain_watch`, ask the user to stop it and apply changes from a separate session:
+stopping its watcher closes that Foreman. Saved, combined, unavailable or unknown observations
+are not proof of current liveness or exit. Preserve both sources' recorded evidence and recovery
+guidance; do not replace an uncertain session. `health: not_checked` never establishes health.
 
 During incomplete setup, gather choices and edit only approved saved fields. Do not restore plans,
 scaffold issues, dispatch owners or call ad-hoc subagents. The selected roster does not enforce
@@ -137,8 +141,10 @@ Confirm whether to include existing matching issues or only new matches; do not 
 Run the appropriate command yourself using `FACTORY_COMMAND`:
 `watch --start --existing --workspace "$FACTORY_WORKSPACE"` or
 `watch --start --new-only --workspace "$FACTORY_WORKSPACE"` to watch with this same Foreman.
-`watch --status --workspace "$FACTORY_WORKSPACE"` checks liveness and saved setup without
-inspecting live model or resources.
+`watch --status --workspace "$FACTORY_WORKSPACE"` distinguishes live observation, recorded history
+and saved setup without inspecting live model or resources. Check `source`, `process_role`,
+`observation` and lifecycle evidence; process/observer responsiveness does not establish functional
+health. Historical values are not current state, and missing discovery does not prove absence.
 Stopping borrowed watch preserves Foreman; Foreman exit stops its watcher without replacement.
 
 Use the user's existing package invocation when different. First-setup finalization checks

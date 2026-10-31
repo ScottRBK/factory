@@ -106,8 +106,12 @@ class AssistedLifecycleTests(LifecycleFixture):
         # Assert: public init can take the released lease; no replacement appeared.
         again = self.run_cli(repo, '--finalize')
         self.assertEqual(again.returncode, 0, again.stderr)
-        self.assertEqual(self.status(repo)['foreman'], 'stopped')
-        self.assertEqual(self.status(repo)['watcher'], 'stopped')
+        stopped = self.status(repo)
+        self.assertEqual(stopped['foreman'], 'unknown')
+        self.assertEqual(stopped['recorded_foreman'], 'stopped')
+        self.assertEqual(stopped['observation'], 'saved')
+        self.assertEqual(stopped['watcher'], 'unknown')
+        self.assertEqual(stopped['recorded_watcher'], 'stopped')
         before = (repo / '.factory/factory.toml').read_bytes()
         instructions = repo / '.factory/agents/foreman/AGENTS.md'
         custom = instructions.read_text() + '\nPreserve the team review checklist.\n'

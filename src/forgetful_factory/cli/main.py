@@ -104,7 +104,7 @@ def _parse_arguments() -> argparse.Namespace:
     watch.add_argument('--workspace', type=Path, default=Path.cwd())
     action = watch.add_mutually_exclusive_group()
     action.add_argument('--status', action='store_true',
-                        help='Show setup Foreman and watcher state')
+                        help='Show Foreman and watcher lifecycle observations')
     action.add_argument('--start', action='store_true', help='Start watcher on the setup Foreman')
     action.add_argument('--stop', action='store_true',
                         help='Stop watcher, preserving setup Foreman')
@@ -298,33 +298,60 @@ def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
     return 0
 
 
+def _managed_watch_status(workspace: Path) -> dict | None:
+    from forgetful_factory.adapters.agentshell.owner_client import read_state, request
+    from forgetful_factory.adapters.watch_status import unknown_status
+
+    try:
+        state = read_state(workspace)
+    except FactoryError as error:
+        return {**unknown_status('managed_owner'), 'warning': str(error)}
+    if state is None:
+        return None
+    try:
+        state = {**request(workspace, 'status'), 'source': 'managed_owner',
+                 'observation': 'live', 'process': 'present', 'process_role': 'foreman_owner',
+                 'evidence': 'owner_report', 'health': 'not_checked'}
+        state['phase'] = 'watching' if state['watcher'] == 'running' else state['watcher']
+    except FactoryError as error:
+        state = {**state, **unknown_status('managed_owner', 'saved'),
+                 'target': state.get('target'), 'recorded_foreman': state.get('foreman'),
+                 'recorded_watcher': state.get('watcher'), 'evidence': 'saved_record'}
+        if state['recorded_foreman'] != 'stopped':
+            state['warning'] = str(error)
+            state['recovery'] = (
+                'Saved state is not a live observation. Inspect the recorded socket/pane '
+                'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
+                'Only after independently confirming the original Foreman and owner '
+                'have exited, archive owner.json and control.sock from '
+                '.factory/runtime/foreman, then retry foreman '
+                f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
+    return state
+
+
 def _watch_status(workspace: Path) -> int:
     import json
 
-    from forgetful_factory.adapters.agentshell.owner_client import read_state, request
     from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
+    from forgetful_factory.adapters.watch_status import plain_watch_status, unknown_status
     from forgetful_factory.configuration import load_configuration
 
-    state = read_state(workspace)
-    if state is None:
-        state = {'foreman': 'absent', 'watcher': 'stopped', 'target': None}
+    plain = plain_watch_status(workspace)
+    if plain and plain['observation'] == 'live':
+        state = plain
     else:
-        try:
-            state = {**request(workspace, 'status'), 'observation': 'live'}
-        except FactoryError as error:
-            state = {**state, 'observation': 'saved'}
-            if state.get('foreman') != 'stopped':
-                state['recorded_foreman'] = state.get('foreman')
-                state['foreman'] = 'unknown'
-                state['watcher'] = 'unknown'
-                state['warning'] = str(error)
-                state['recovery'] = (
-                    'Saved state is not a live observation. Inspect the recorded socket/pane '
-                    'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
-                    'Only after independently confirming the original Foreman and owner '
-                    'have exited, archive owner.json and control.sock from '
-                    '.factory/runtime/foreman, then retry foreman '
-                    f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
+        managed = _managed_watch_status(workspace)
+        if managed and managed['observation'] == 'live':
+            state = managed
+        elif plain and managed:
+            state = {**managed, 'source': 'combined', 'foreman': 'unknown', 'watcher': 'unknown',
+                     'phase': 'unknown', 'process': 'unknown', 'health': 'not_checked',
+                     'observation': ('saved' if 'saved' in (plain['observation'],
+                                                          managed['observation'])
+                                     else 'unavailable'),
+                     'evidence': 'multiple_records', 'plain_watch': plain}
+        else:
+            state = plain or managed or unknown_status()
     try:
         ForemanProfile(workspace).validate_completion(load_configuration(workspace))
         state['setup'] = 'complete'
@@ -384,8 +411,11 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
 
 
 def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
+    from contextlib import nullcontext
+
     from forgetful_factory.adapters.agentshell.borrowed_terminal import BorrowedForemanTerminal
     from forgetful_factory.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.adapters.watch_status import observe_plain_watch
     from forgetful_factory.configuration import load_configuration
 
     if not math.isfinite(args.interval) or args.interval <= 0:
@@ -400,20 +430,27 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
             raise FactoryError('Setup Foreman exists or is uncertain; use watch --start '
                                f'--workspace {shlex.quote(str(workspace))} after completing setup. '
                                'No second Foreman was launched.')
-    application = build_watcher(
-        args.agentshell_python, config, workspace, terminal, deadlines)
+    if terminal is None:
+        observer = observe_plain_watch(workspace, lambda error: print(
+            'Warning: watch observation unavailable: ' + _safe_diagnostic(error) +
+            '; watching continues without verified observation.', file=sys.stderr, flush=True))
+    else:
+        observer = nullcontext()
+    with observer as observation:
+        application = build_watcher(
+            args.agentshell_python, config, workspace, terminal, deadlines, observation)
 
-    def interrupted(signum, frame):
-        raise KeyboardInterrupt
+        def interrupted(signum, frame):
+            raise KeyboardInterrupt
 
-    previous = signal.signal(signal.SIGTERM, interrupted)
-    try:
-        application.run(config, workspace, args.interval, lambda: _choose_existing(args),
-                        lambda message: print(message, flush=True),
-                        lambda message: print(_safe_diagnostic(message),
-                                              file=sys.stderr, flush=True))
-    finally:
-        signal.signal(signal.SIGTERM, previous)
+        previous = signal.signal(signal.SIGTERM, interrupted)
+        try:
+            application.run(config, workspace, args.interval, lambda: _choose_existing(args),
+                            lambda message: print(message, flush=True),
+                            lambda message: print(_safe_diagnostic(message),
+                                                  file=sys.stderr, flush=True))
+        finally:
+            signal.signal(signal.SIGTERM, previous)
     return 0
 
 

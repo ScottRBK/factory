@@ -75,6 +75,19 @@ MCP/separate-profile evidence. Assisted init now has a persistent setup Foreman 
 watcher controls; validation is recorded in [agent onboarding](plans/agent-onboarding.md). Plain
 watch retains its owned-session cleanup. General terminal discovery remains [Slice 8](plan.md).
 
+[Watcher status](adrs/watch-status.md) now adds observation inside plain watch without changing
+session ownership. A private per-run discovery record locates a bounded read-only Unix endpoint;
+managed status retains its owner query. Source, live versus saved evidence, process presence and
+lifecycle phase remain separate; functional health is explicitly unchecked. Missing discovery does
+not prove older watchers absent. All nine approved review corrections pass 39 focused tests on each
+Python, including historical clean-stop reporting and optional observation startup. A private copy
+adapting only native tmux discovery passes all 48 lifecycle cases on each Python. Broader runs
+retain the known baseline guidance failure. An intermittent 3.13 shutdown timeout did not recur in
+five targeted repeats or the sequential full rerun; its cause remains unproved. Fresh parent SQ
+passes the assigned gate with zero unresolved issues on the frozen source. No full-suite GREEN
+or coverage claim is made; earlier SQ success covers its historical source only.
+See [the status work record](plans/watch-status.md) for exact evidence and validation limits.
+
 The factory uses hexagonal architecture: workflows depend on contracts, while adapters implement
 those contracts for external systems. GitHub is the current provider, not the domain model.
 
@@ -308,6 +321,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   repository discovery, configuration format, preflight, storage safety, and failure handling.
 - [Issue polling and Foreman connection](adrs/issue-watcher.md): polling, matching, startup choices,
   notification safety, AgentShell integration, locking, cleanup, and deferred capabilities.
+- [Watcher lifecycle observation](adrs/watch-status.md): both launch modes, per-run plain discovery,
+  bounded read-only responses, live versus historical evidence and explicitly unchecked health.
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
@@ -327,13 +342,13 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 854; init: line 645; project choice: line 430;
-  numbered choices: line 211; worker setup: line 590; completion/skill folders: line 605;
-  optional manual launch: line 670; standalone Foreman: line 349.
-  New-setup orchestration: line 774; memory choices: line 548; REST eligibility: line 583.
+- CLI entry: `cli/main.py`, line 891; init: line 682; project choice: line 467;
+  numbered choices: line 211; worker setup: line 627; completion/skill folders: line 642;
+  optional manual launch: line 707; standalone Foreman: line 376.
+  New-setup orchestration: line 811; memory choices: line 585; REST eligibility: line 620.
   Public numbered parser: `cli/numbered_selection.py`, line 6.
-  Adapter wiring: `cli/bootstrap.py`, lines 21 and 29; GitHub CLI preflight: line 46;
-  selected root launch: line 64. Local GitHub capability probe:
+  Adapter wiring: `cli/bootstrap.py`, lines 22 and 30; GitHub CLI preflight: line 48;
+  selected root launch: line 68. Local GitHub capability probe:
   `adapters/github/work_tracking.py`, line 12.
   Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 18;
@@ -372,11 +387,17 @@ Paths below are relative to `src/forgetful_factory/`:
   client: `adapters/agentshell/owner_client.py`, line 110;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 9;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
+- Lifecycle status: `cli/main.py`, lines 301, 332, 364 and 413;
+  `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
+  admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
   `application/configuration.py`, lines 11 and 82; public loader: `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
-  and `tests/test_watch.py`. `tests/test_planning_adapter.py` checks malformed and valid native
+  and `tests/test_watch.py`. `tests/test_watch_status.py` covers both lifecycle sources through
+  public CLI calls and external boundary doubles. `tests/test_watch_status_review.py` exercises
+  review corrections and socket peer identity through the same approved boundaries.
+  `tests/test_planning_adapter.py` checks native
   planning replies through public adapter reads, without full watcher setup per input.
   `tests/test_init_launch.py` exercises terminal-only launch, decline,
   cancellation, copied commands and assisted exclusions. `tests/test_project_onboarding.py` covers
@@ -411,15 +432,14 @@ Paths below are relative to `src/forgetful_factory/`:
 
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
 it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
-detail; tests were excluded using `--test-path tests`. Its 77 boxes include module containers.
-Test filtering removed 3,714 calls and 56 type relationships; signatures remain in full detail.
+detail; tests were excluded using `--test-path tests`. Its 80 boxes include module containers.
+Signatures remain in full detail; the map header records the current test-filtering counts.
 The readiness refresh reused version 0.4.5 in a disposable environment after wheel/component review;
 its audit retains native-library advisory limits for this local, trusted-source run. No project
 runtime dependency changed. The placeholder refresh reused the cached exporter without installation;
-its older CLI has no `--detail` flag, and its default was verified to retain full signatures and
-relationship lists.
-A second export of the same map matched byte-for-byte. Bundled
-third-party archives are not expanded by this map.
+the status refresh reused it too. This older CLI has no `--detail` flag; its default retains full
+signatures and relationship lists. A second export of the same map matched byte-for-byte.
+Bundled third-party archives are not expanded by this map.
 
 - Find declarations in the source index, reading that index in chunks if needed.
 - Search diagram identifiers and read bounded ranges for relevant connections.

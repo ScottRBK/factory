@@ -40,6 +40,16 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+The [lifecycle status correction](plans/watch-status.md) implements all nine approved findings;
+39 focused tests pass on each Python, with peer-guard mutation proof retained. All 48 native
+lifecycle cases pass on each Python in private copies adapting only the host tmux search path.
+Canonical broader runs retain one baseline guidance failure and three OS skips. An intermittent
+private 3.13 shutdown timeout did not recur in five repeats or a sequential full rerun; its cause
+remains unproved. Fresh parent SQ passes the assigned gate with zero unresolved issues on the
+frozen source; no full-suite GREEN or coverage is claimed. All nine findings are validated with
+these limits. Parent verified the source manifest and SQ result; no policy decisions remain held.
+Plain/managed ownership and stop scope are preserved. Deployment/live validation is outside scope.
+
 [GitHub CLI readiness](plans/github-cli-readiness.md) now checks `gh api --help` before watcher
 connection to Foreman. The public CLI regression covers missing pagination support, failed help,
 real command expiry, misleading option text and compatible startup. Local validation passes all

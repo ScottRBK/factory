@@ -167,9 +167,10 @@ The public routes are:
 - `init --finalize --delegated-work-stopped` completes or revalidates first setup. This confirmation
   is not process-exit evidence; do not finalize when delegated-work exit is uncertain. Finalization
   also works without a live setup owner and does not clear lost-send uncertainty.
-- `watch --start` starts the owner's watcher with `--existing` or `--new-only`; `watch --status` and
-  `watch --stop` query or stop that child. Plain watch owns a fresh Foreman and its cleanup, but
-  refuses a duplicate or uncertain owner. There is no public foreground `watch --attach`.
+- `watch --start` starts the owner's watcher with `--existing` or `--new-only`; `watch --stop` stops
+  that child. `watch --status` now [observes both launch modes](watch-status.md), keeping source,
+  lifecycle evidence and unverified health explicit. Plain watch owns a fresh Foreman and cleanup,
+  but refuses a duplicate or uncertain owner. There is no public foreground `watch --attach`.
 
 The persistent Foreman selects its canonical root `agent.json` at launch, including during assisted
 setup. There is no empty generated roster and no publication to a runtime copy on finalization.
