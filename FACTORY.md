@@ -138,7 +138,6 @@ config:
             fo ->> forgetful: records blocker, affected tasks remain unfinished
         end
     end
-    fo ->> host: cleans up worktrees and branch
     fo ->> foreman: reports merged, plan awaits deployment and E2E verification
     deactivate fo
 
@@ -150,6 +149,8 @@ config:
     deactivate gh
     alt deployment and E2E verification succeed
         foreman ->> forgetful: completes remaining tasks and marks plan completed
+        script ->> host: cleans up worktrees and branch
+        script ->> gh: clean up branch
     else deployment or E2E issues
         foreman ->> gh: raises new issue
         note over foreman,forgetful: Original plan remains open
