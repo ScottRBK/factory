@@ -367,7 +367,7 @@ class ProfileTests(InitFixture):
         # Arrange
         repo = self.repo()
         # Act
-        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='\n\n',
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='\n',
                               connection_defaults=False)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)

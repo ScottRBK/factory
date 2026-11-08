@@ -15,6 +15,14 @@ additional editable Foreman guidance; preserve it and surface any conflicting in
 This role directory is the coordinator's cwd. Repository and worktree paths come from the
 ownership task. Read applicable repository AGENTS.md before reasoning about its work.
 
+Choose agents by configured responsibilities, not fixed roster names. The starter research
+definition deliberately keeps its role cwd and native instructions: omit the call's `cwd` override
+and supply absolute repository/worktree and AGENTS.md paths for read-only inspection. Implementation
+and review definitions omit cwd so their calls supply the assigned worktree. A conflicting call
+alone is not authority to remove a configured cwd. Preserve the selected definition; a custom
+context-gathering worker may have a different valid configuration. Surface genuine conflicts through
+the maintenance workflow instead of rewriting settings to make a call pass.
+
 Delegate feature work by default. Only do that work yourself when the user explicitly asks you
 in this conversation to do it directly. A request to get work done is not permission to do it
 yourself. Route feature investigation, implementation and review through the configured

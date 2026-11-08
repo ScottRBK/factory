@@ -203,7 +203,8 @@ class InitFixture(unittest.TestCase):
         return path
 
     def run_cli(self, cwd, *args, input='', timeout=10, connection_defaults=True,
-                role_defaults=True, pi_defaults=True, worker_defaults=True, deadlines=None):
+                role_defaults=True, pi_defaults=True, worker_defaults=True, deadlines=None,
+                agreement_input='1\ny\n'):
         if worker_defaults and not any(
                 arg.startswith(('--implementation-', '--review-', '--tdd-', '--planning-only'))
                 for arg in args):
@@ -221,7 +222,7 @@ class InitFixture(unittest.TestCase):
         entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
                       else programmatic_factory(deadlines))
         return subprocess.run([sys.executable, *entrypoint, 'init', *args],
-                              cwd=cwd, env=self.env, input=input, text=True,
+                              cwd=cwd, env=self.env, input=input + agreement_input, text=True,
                               capture_output=True, timeout=timeout)
 
 

@@ -20,6 +20,16 @@ Inspired by [jovaneyck/software-factory-demo](https://github.com/jovaneyck/softw
 |Implementation Agent|Sub agent that is launched by the feature owner that is designated with implementing the changes|
 |Review Agent|Sub agent that is launched by the feature owner that is designated with reviewing the changes|
 
+## Definition of Done
+
+During the setup of the factory, a `Definition of Done` (DoD) needs to be established, this is effectively
+a contract that the foreman will use to determine whether or not a plan can be makred as completed.
+
+This will be written to a `definition_of_done.md`, a pointer to which will be added to the Foreman
+agent skill.
+
+It is important to note that definition of done is not acceptance criteria for a specific plan, it
+is a project/programme contract of what conditions must be met before a plan can be considered closed.
 
 ```mermaid
 ---
@@ -56,7 +66,7 @@ config:
     script ->> foreman: sends issue, plan, and worktree info via tmux text submission
     note over script,foreman: Foreman handles the message, validate idle and busy sessions
 
-    foreman ->> fo: send issue, scaffolded Forgetful plan, and repository context
+    foreman ->> fo: send issue, scaffolded Forgetful plan, DoD and repository context
     activate fo
     fo ->> fo: invoke grill me on issue
     alt feature owner decides to launch research agent
@@ -138,11 +148,12 @@ config:
             fo ->> forgetful: records blocker, affected tasks remain unfinished
         end
     end
-    fo ->> foreman: reports merged, plan awaits deployment and E2E verification
+    fo ->> foreman: reports merged, plan awaits other DoD activities such as deployment and E2E verification
     deactivate fo
 
+    foreman ->> host: reads DoD
     activate gh
-    note over gh,e2e: Post-merge CI/CD workflow: deployment stage, then E2E stage
+    note over gh,e2e: Example for DoD having e2e environment and test Post-merge CI/CD workflow: deployment stage, then E2E stage
     gh ->> e2e: deploys merged repository revisions
     gh ->> e2e: executes joined-up E2E regression tests after deployment
     foreman ->> gh: checks merge workflow runs, stage results, and tested repository revisions
@@ -158,6 +169,8 @@ config:
     deactivate foreman
     deactivate script
 ```
+
+
 
 ## Agent Setup
 

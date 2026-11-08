@@ -6,6 +6,7 @@ from pathlib import Path
 from forgetful_factory.adapters.host_dependencies import executable_path
 from forgetful_factory.adapters.sensitive_command import run_owned
 from forgetful_factory.application.configuration import ForgetfulConnection
+from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -75,6 +76,7 @@ class AgentForgetfulConnection:
                   ['--server', connection.server])
         args = [connection.executable, *arguments, *target, '--json']
         output = run_owned(args, self.role, env, term_grace=self.term_grace)
+        check_watch_stop()
         try:
             data = json.loads(output)
             if not isinstance(data, dict) or 'error' in data:

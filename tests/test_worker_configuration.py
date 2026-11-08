@@ -108,7 +108,8 @@ class WorkerConfigurationTests(InitFixture):
         # Arrange
         repo = self.repo()
         # Act: EOF is not consent to choose worker accounts or planning-only operation.
-        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False)
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False,
+                              agreement_input='')
         # Assert
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('How would you like to set up your factory?', result.stdout)
@@ -172,7 +173,7 @@ class WorkerConfigurationTests(InitFixture):
         from worker_support import worker_settings
         repo = self.repo()
         worker_settings(self)
-        answers = '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n'
+        answers = '1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n1\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
@@ -280,7 +281,7 @@ class WorkerConfigurationTests(InitFixture):
             'provider  model  context  max-out  thinking  images\n'
             'z-provider  special/model  128000  8192  yes  yes\n'
             'provider  model  128000  8192  yes  yes')
-        answers = '1\n1\n5\n1\n5\n1\n2\n1\n1\n1\n7\n'
+        answers = '1\n1\n5\n1\n5\n1\n2\n1\n1\n1\n7\n1\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
@@ -317,7 +318,7 @@ class WorkerConfigurationTests(InitFixture):
             '    stream.write(json.dumps({"harness": "codex", "cwd": os.getcwd()}) + "\\n")\n'
             'print(json.dumps({"models": [{"slug": value, "visibility": "list"}\n'
             '                             for value in catalogs[os.getcwd()]]}))\n')
-        answers = '1\n1\n5\n1\n5\n2\n2\n6\n2\n1\n3\n'
+        answers = '1\n1\n5\n1\n5\n2\n2\n6\n2\n1\n3\n1\n'
         # Act
         result = self.run_cli(repo, '--repo', '.', '--repo', str(other), *INIT_SETTINGS,
                               worker_defaults=False, input=answers)
@@ -368,9 +369,10 @@ class WorkerConfigurationTests(InitFixture):
         worker_settings(self)
         (self.workspace / 'tdd/SKILL.md').unlink()
         (self.workspace / 'standards/SKILL.md').unlink()
-        # Act: the last answer selects review effort; setup must not read further input.
+        # Act: finish worker choices, then decline automatic memory; fixture confirms the DoD.
+        # No skill-path question is permitted between those setup stages.
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, worker_defaults=False,
-                              input='1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n')
+                              input='1\n1\n5\n1\n5\n2\n1\n6\n3\n1\n3\n1\n')
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         config = load_configuration(repo)

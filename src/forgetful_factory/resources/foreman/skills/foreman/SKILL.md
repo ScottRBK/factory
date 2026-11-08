@@ -9,6 +9,30 @@ record.
 Problem alerts do not establish those checks passed. Submission is not proof that any agent received
 or acted on a message. You are the sole feature-owner dispatcher.
 
+## Definition of Done agreement
+
+Read `$FACTORY_WORKSPACE/.factory/definition_of_done.md` before planning feature work and again
+before completion, including after restart. This persistent Markdown file is the project/programme
+agreement. Conversation history and optional memory do not replace it. It is separate from each
+plan's feature acceptance criteria; both must be met. Python does not interpret this Markdown.
+
+If the file is missing, unclear or conflicts with repository requirements, ask the user. Setup
+conversation may continue, but do not hand off feature work until the agreement is clear. Never
+infer merge-only from missing tests or invent a policy from a preset. The three setup presets are
+starting points; discussion can agree other checks or different requirements per repository.
+Explain missing workflows, environments or usable evidence before asking the user to confirm and
+save the agreement. Preserve existing files; change this agreement only with the user's approval.
+
+For every owner handoff, supply the DoD text and absolute file path with the issue, plan and
+repository context. Record applicable shared requirements briefly in existing ownership/verification
+task descriptions, separate from feature acceptance criteria. Preserve recovery JSON fields and
+keep plan context within its 2000-character limit. No structured immutable policy snapshot is
+needed.
+When the agreement changes, ask explicitly whether it applies to existing open plans. Unless the
+user approves a change, keep their previous requirements. Record the decision and reason in those
+tasks before changing them. An approved removal retires an unneeded task; never report an unrun
+check as passed or cancel a still-required check to force completion. New plans use the saved file.
+
 ## Delegate by default
 
 Delegate feature work by default. Only do that work yourself when the user explicitly asks you
@@ -228,7 +252,8 @@ configured name and description responsible for feature ownership, then use the 
 ```text
 subagent(roster_entry="<configured feature owner name>", task_name="Plan issue OWNER/REPO#NUMBER",
          prompt="Issue and revision; plan/task IDs; absolute repository/worktree mappings;
-                 current clarification; owning parent Pi session and branch context.",
+                 current clarification; DoD text and absolute path; shared requirements;
+                 owning parent Pi session and branch context.",
          interactive=false, stay_open=false)
 ```
 
@@ -257,8 +282,9 @@ call; they are not restored. Keep headless `interactive=false, stay_open=false`.
 resume validates the saved roster/resources. Do not omit selection or alter resource files to evade
 that validation. An unrelated new Foreman cannot recover a selected session from its ID alone.
 
-After a restart, reload unfinished plans and full tasks, including closed issues awaiting deployment
-and E2E. The watcher restores durable scaffolds; it cannot restore unknown native launch histories.
+After a restart, reload unfinished plans and full tasks, including closed issues awaiting required
+completion checks. Re-read the DoD and the requirements recorded for those plans. The watcher
+restores durable scaffolds; it cannot restore unknown native launch histories.
 Only after confirming the old owner stopped and inspecting saved work may you relaunch from durable
 plan context. Freshly read the task, reset its claim through the supported versioned transition back
 to todo if needed. This retains the old assigned_agent: pass the confirmed-stopped recovery
@@ -269,26 +295,71 @@ transition/claim conflicts, stop and reread; never force ownership through a des
 Recorded cleanup mappings are historical context, not new worker destinations. Do not send workers
 into removed or pending trees and do not recreate them. A removed record carries the original
 mapping, canonical pull_request_url and full merge_commit; the watcher checks local absence and Git
-registration, not actual GitHub merge or CI evidence. Have the sole owner reconcile pending or
+registration, not actual GitHub merge or CI evidence. Have the sole owner reconcile historical
+pending or
 uncertain cleanup against actual Git/PR/task state, preserving completed implementation and pending
 deployment/E2E work. Cleanup metadata is per mapping; preserve other repositories and record fields.
 
-## Completion boundary
+## Completion evidence and Foreman handoff
 
-The owner creates a feature-specific plan and proceeds when requirements are clear, unless the
-repository requires plan approval. With execution_enabled and workers for implementation and
-independent review configured, the owner alone coordinates workers, verifies exact-commit CI,
-arranges independent review, records ADRs, merges with expected-head protection and reports safe
-cleanup or retained worktrees.
+The owner plans the actual feature, coordinates workers, verifies exact-final-commit CI, arranges
+one independent review per repository PR, records ADRs and merges with expected-head protection.
+Repository approvals and gates remain required for every preset. A research-only roster remains
+planning-only; explain missing worker setup. Implementation/review workers never update Forgetful.
 Implementation agents open or reuse PRs and own the CI correction loop; opening a PR does not mean
-implementation is complete or authorize worker approval/merge. Implementation/review workers never
-update Forgetful; the owner records their evidence and states. A research-only roster remains
-planning-only: explain missing worker setup without launching workers.
-After merge, preserve reported PRs/revisions and unfinished verification work. Ownership stays
-doing; plans stay draft/active. Deployment and E2E tasks remain unfinished for Slice 7; this slice
-does not orchestrate deployment or declare feature completion from merge alone. Do not depend on
-completion of long-lived ownership tasks. Later completion requires exact deployed revisions and
-joined-up E2E evidence across affected repositories. Shared resource selection is not a sandbox.
+implementation is complete or authorize worker approval/merge. The owner records their evidence
+and states.
+
+After merge, the owner hands back PR URLs, actual merge commits, target branches, workflow links
+and preserved ownership mappings. It finishes implementation/review/merge tasks, keeps ownership
+open for you and leaves only required post-merge checks unfinished. Merge-only work needs no
+placeholder deployment/E2E tasks or deployment environment. The owner does not complete the plan.
+
+You own the final completion decision, even for merge-only work. Read the current DoD, plan
+acceptance criteria and recorded shared requirements; resolve any unapproved difference. Verify
+live provider evidence and save it in the existing ownership/verification task, outside disposable
+worktrees: PR, actual merge commit, independent review, required final-revision checks, relevant
+workflow run/attempt/stage results, environment/artifact links, verification time and outcome.
+For required deployment, check the actual merged revision, not an earlier feature head or synthetic
+PR merge. For required deployed E2E, check that it ran after deployment against the agreed isolated
+environment and identify the actual deployed repository combination tested together. A workflow's
+source SHA alone cannot identify every deployed application. Factory is not a deployer; CI/CD
+provides the agreed stages. Excluded checks need no tasks and are not reported as having run.
+
+Missing, pending, failed, skipped required stages, stale revisions, an earlier successful attempt
+or inconclusive evidence block completion. Keep required verification and the original plan open.
+Raise or reuse a linked follow-up issue with the original issue/plan, repositories/revisions and
+failed run or missing prerequisite. After an uncertain issue-create response, inspect existing
+issues before retrying. Follow intake consent rules: do not automatically label or dispatch repair
+work. Keep monitoring unfinished verification through your existing coordination, without waiting
+for an issue edit. Notifications and restart recovery do not authorize duplicate owner dispatch or
+concurrent resume. Check ownership/liveness before continuing; you can verify an owner's completed
+merge handoff without launching implementation again.
+
+Before the final transition, save all delivery evidence and required artifacts outside worktrees.
+Finish verification and ownership tasks in the supported order, verify criteria, use fresh task
+versions, then re-read the plan. If it did not auto-complete, use native update_plan with status
+completed only after all required tasks and criteria are satisfied; read back to confirm completed.
+Forgetful can auto-complete an active plan
+when all tasks are done/cancelled and at least one is done. Never cancel a still-required check to
+trigger this. Record approved policy changes before any transition that can complete the plan.
+
+Neither you nor the owner deletes worktrees or branches. The watcher independently polls completed
+plans at startup and every cycle, then removes their recorded worktrees, local feature branches and
+same-named remote feature refs. It does not interpret the DoD or recheck delivery evidence.
+Historical
+pending/removed markers remain readable; never dispatch into or recreate a removed tree. Review each
+mapping's repository/local_dir/branch/path and actual target_branch before completion. Paths must be
+strictly beneath that repository's `.factory/worktrees/`; record the actual PR target, not a guess.
+
+All contents of completed-plan worktrees are disposable, including changed, untracked and ignored
+files; extra feature-branch commits are also deleted. Completion authorizes disposal without another
+prompt or recoverable trash. Save evidence elsewhere before completing; never continue working in,
+reopen or reuse completed-plan resources. Cleanup errors leave completion and evidence unchanged and
+are retried from observed Git state, not by dispatching an owner. Do not treat a historical removed
+marker as proof that remote deletion happened. Before enabling this version on an existing factory,
+review older completed mappings and preserved/edited role guidance with the user. Missing targets,
+foreign associations and conflicting ownership need explicit reconciliation, not silent adoption.
 
 Before planning mutations, call `get_current_user` and `get_project` for
 `FACTORY_FORGETFUL_PROJECT_ID` under the shared native CLI scope. The released user response has no

@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 from forgetful_factory.adapters.agentshell.terminal import AgentShellTerminal
+from forgetful_factory.adapters.filesystem.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
 from forgetful_factory.adapters.filesystem.git_repositories import GitRepositories
 from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
@@ -11,6 +12,7 @@ from forgetful_factory.adapters.forgetful.connection import role_environment
 from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
 from forgetful_factory.adapters.github.work_tracking import GitHubWorkTracking
 from forgetful_factory.adapters.watch_status import ObservedTerminal
+from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
@@ -55,14 +57,15 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
         python, environment, **launch, deadlines=deadlines.agentshell)
     if observation is not None:
         terminal = ObservedTerminal(terminal, observation)
-    return WatchFactory(
-        github, terminal,
-        ScaffoldIssue(ForgetfulPlanning(
-                            workspace, config.forgetful,
-                            execution_enabled=config.execution_enabled,
-                            term_grace=deadlines.owned_process_term_grace),
-                      GitWorktrees(deadlines.external_command), workspace, config,
-                      GitRepositories(deadlines.external_command), github))
+    planning = ForgetfulPlanning(workspace, config.forgetful,
+                                 execution_enabled=config.execution_enabled,
+                                 term_grace=deadlines.owned_process_term_grace)
+    worktrees = GitWorktrees(deadlines.external_command)
+    scaffold = ScaffoldIssue(planning, worktrees, workspace, config,
+                             GitRepositories(deadlines.external_command), github)
+    return WatchFactory(github, terminal, scaffold,
+                        CleanupCompleted(scaffold.records, scaffold.worktrees,
+                                         FileCleanupReceipts(workspace)))
 
 
 def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True,

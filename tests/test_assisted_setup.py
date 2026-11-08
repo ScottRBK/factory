@@ -106,7 +106,7 @@ class FinalizationTests(InitFixture):
             'provider  model  128000  8192  yes  yes\n'
             'provider  research  128000  8192  yes  yes')
         # Manual; owner model/effort; research model/effort; both workers app/model/effort.
-        answers = '1\n1\n5\n2\n3\n1\n1\n5\n1\n2\n4\n'
+        answers = '1\n1\n5\n2\n3\n1\n1\n5\n1\n2\n4\n1\n'
 
         # Act
         result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS,

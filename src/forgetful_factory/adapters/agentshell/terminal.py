@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict
 from pathlib import Path
 
+from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
 from forgetful_factory.domain.models import FactoryError
 
@@ -35,11 +36,13 @@ class AgentShellTerminal:
                 f'Attach during startup: tmux attach-session -t {self.session_name}')
 
     def _write(self, value: dict, timeout: float) -> None:
+        check_watch_stop()
         data = memoryview((json.dumps(value) + '\n').encode())
         deadline = time.monotonic() + timeout
         with selectors.DefaultSelector() as selector:
             selector.register(self.process.stdin, selectors.EVENT_WRITE)
             while data:
+                check_watch_stop()
                 if not selector.select(max(0, deadline - time.monotonic())):
                     raise FactoryError('AgentShell send timed out; delivery may be incomplete.')
                 try:
@@ -54,6 +57,7 @@ class AgentShellTerminal:
         with selectors.DefaultSelector() as selector:
             selector.register(self.process.stdout, selectors.EVENT_READ)
             while b'\n' not in self.buffer:
+                check_watch_stop()
                 if not selector.select(max(0, deadline - time.monotonic())):
                     if expected == 'ready':
                         raise FactoryError(
@@ -104,10 +108,12 @@ class AgentShellTerminal:
         self._read(20, 'sent')
 
     def wait(self, interval: float) -> None:
+        check_watch_stop()
         with selectors.DefaultSelector() as selector:
             selector.register(self.process.stdout, selectors.EVENT_READ)
             deadline = time.monotonic() + interval
             while (remaining := deadline - time.monotonic()) > 0:
+                check_watch_stop()
                 if selector.select(min(remaining, 60)):
                     self._read(1, 'error')
 

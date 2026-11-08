@@ -16,6 +16,9 @@ from pathlib import Path
 args = sys.argv[1:]
 name = Path(sys.argv[0]).name
 sid = os.environ['NATIVE_REVIEW_ID' if name == 'claude' else 'NATIVE_IMPLEMENTATION_ID']
+roster = os.environ.get('PI_AGENTSHELL_ROSTER_FILE')
+if roster and Path(roster).parent.name == 'research':
+    sid = os.environ['NATIVE_RESEARCH_ID']
 with open(os.environ['NATIVE_LOG'], 'a') as stream:
     stream.write(json.dumps({'name': name, 'args': args, 'cwd': os.getcwd(),
         'roster': os.environ.get('PI_AGENTSHELL_ROSTER_FILE'),
@@ -66,6 +69,28 @@ const roles = JSON.parse((await session.extensionRunner.getToolDefinition('subag
     .execute('roster', {}, undefined, undefined, ctx)).content[0].text);
 const results = [];
 const prompts = {};
+const researcher = roles.find(r => r.description === 'Gather facts and return context');
+// Starter research keeps its definition cwd; the call carries only absolute read-only context.
+const research = await tool.execute('research', {roster_entry: researcher.name,
+    task_name: 'Gather invoice retry context',
+    prompt: `Read ${process.env.PROBE_WORKTREE}/AGENTS.md before inspecting ` +
+        `${process.env.PROBE_WORKTREE} read-only. Return sources and limits.`,
+    interactive: false, stay_open: false}, undefined, undefined, ctx);
+const researchCall = JSON.parse(fs.readFileSync(process.env.NATIVE_LOG, 'utf8').trim());
+// Real SDK instruction loading at the observed child cwd, without a model request.
+const researchLoader = new DefaultResourceLoader({cwd: researchCall.cwd, agentDir,
+    settingsManager, noExtensions: true, noSkills: true, noPromptTemplates: true,
+    noThemes: true, disabledBuiltinExtensions: ['mcp'], noContextFiles: false,
+    systemPrompt: ''});
+await researchLoader.reload();
+const researchInstructions = researchLoader.getAgentsFiles().agentsFiles;
+let researchConflict;
+try {
+    await tool.execute('research-conflict', {roster_entry: researcher.name,
+        task_name: 'Conflicting research cwd', prompt: 'Must never launch',
+        cwd: process.env.PROBE_WORKTREE, interactive: false, stay_open: false},
+        undefined, undefined, ctx);
+} catch (error) { researchConflict = error.message; }
 function skillFiles(selected) {
     if (fs.statSync(selected).isFile()) return [selected];
     return fs.readdirSync(selected, {withFileTypes: true}).flatMap(entry => {
@@ -122,6 +147,7 @@ if (roles.find(r => r.name === 'implementation').agent_type === 'pi') {
 await session.extensionRunner.emit({type: 'session_shutdown'});
 session.dispose();
 console.log(JSON.stringify({roles, results, resumed, rejected, denied, instructions,
+    research, researchInstructions, researchConflict,
     history: sessionManager.getBranch().filter(e => e.type === 'custom')}));
 '''
 
@@ -149,6 +175,12 @@ class NativeWorkerTests(InitFixture):
                     executable.write_text(NATIVE)
                     executable.chmod(0o755)
                 owner = repo / '.factory/agents/feature-owner'
+                research_root = repo / '.factory/agents/research'
+                research_definition = research_root / 'agent.json'
+                selected = json.loads(research_definition.read_text())
+                selected['agent']['name'] = 'context-reader'
+                research_definition.write_text(json.dumps(selected))
+                research_before = research_definition.read_bytes()
                 log = self.workspace / f'{harness}-native.jsonl'
                 # Fresh native sessions need distinct IDs across both cases sharing SDK state.
                 implementation_id = f'{harness}-implementation-session'
@@ -161,6 +193,7 @@ class NativeWorkerTests(InitFixture):
                        'PI_AGENT_SHELL_MAX_DEPTH': '1',
                        'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
                        'NATIVE_LOG': str(log), 'NATIVE_IMPLEMENTATION_ID': implementation_id,
+                       'NATIVE_RESEARCH_ID': f'{harness}-research-session',
                        'NATIVE_REVIEW_ID': review_id, 'PROBE_OWNER': str(owner),
                        'PROBE_WORKTREE': str(worktree)}
                 # Act
@@ -171,7 +204,15 @@ class NativeWorkerTests(InitFixture):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 observed = json.loads(result.stdout)
                 self.assertEqual([r['name'] for r in observed['roles']],
-                                 ['research', 'implementation', 'review'])
+                                 ['context-reader', 'implementation', 'review'])
+                self.assertEqual(observed['research']['details']['sessionId'],
+                                 f'{harness}-research-session')
+                self.assertIn('cwd', observed['researchConflict'])
+                self.assertEqual(research_definition.read_bytes(), research_before)
+                role_instructions = next(f for f in observed['researchInstructions']
+                                         if f['path'] == str(research_root / 'AGENTS.md'))
+                self.assertEqual(role_instructions['content'],
+                                 (research_root / 'AGENTS.md').read_text())
                 self.assertEqual(observed['results'][0]['details']['sessionId'], implementation_id)
                 self.assertEqual(observed['results'][1]['details']['sessionId'], review_id)
                 self.assertEqual(observed['resumed']['details']['sessionId'], review_id)
@@ -181,7 +222,15 @@ class NativeWorkerTests(InitFixture):
                 if harness == 'pi':
                     self.assertIn(str(instruction), observed['instructions'])
                 calls = [json.loads(line) for line in log.read_text().splitlines()]
-                self.assertEqual(len(calls), 3)
+                self.assertEqual(len(calls), 4)
+                research_call, *calls = calls
+                self.assertEqual(research_call['cwd'], str(research_root))
+                self.assertEqual(research_call['roster'], str(research_definition))
+                self.assertEqual(research_call['depth'], '2')
+                self.assertIn(str(instruction), research_call['args'][-1])
+                self.assertIn('read-only', research_call['args'][-1])
+                self.assertNotIn('--no-context-files', research_call['args'])
+                self.assertNotIn('--dangerously-skip-permissions', research_call['args'])
                 self.assertTrue(all(c['cwd'] == str(worktree) for c in calls))
                 self.assertTrue(all(c['depth'] == '2' for c in calls))
                 self.assertEqual(instruction.read_bytes(), original)

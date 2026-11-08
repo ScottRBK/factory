@@ -21,6 +21,7 @@ from forgetful_factory.application.initial_agent_choices import (
 )
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
+from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.domain.models import FactoryError
@@ -416,6 +417,7 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
     from forgetful_factory.adapters.agentshell.borrowed_terminal import BorrowedForemanTerminal
     from forgetful_factory.adapters.agentshell.owner_client import read_state
     from forgetful_factory.adapters.watch_status import observe_plain_watch
+    from forgetful_factory.application.watch_stop import watch_stop_scope
     from forgetful_factory.configuration import load_configuration
 
     if not math.isfinite(args.interval) or args.interval <= 0:
@@ -436,21 +438,19 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
             '; watching continues without verified observation.', file=sys.stderr, flush=True))
     else:
         observer = nullcontext()
-    with observer as observation:
-        application = build_watcher(
-            args.agentshell_python, config, workspace, terminal, deadlines, observation)
-
-        def interrupted(signum, frame):
-            raise KeyboardInterrupt
-
-        previous = signal.signal(signal.SIGTERM, interrupted)
+    with observer as observation, watch_stop_scope() as stop:
+        previous_int = signal.signal(signal.SIGINT, stop.interrupt)
+        previous_term = signal.signal(signal.SIGTERM, stop.interrupt)
         try:
+            application = build_watcher(
+                args.agentshell_python, config, workspace, terminal, deadlines, observation)
             application.run(config, workspace, args.interval, lambda: _choose_existing(args),
                             lambda message: print(message, flush=True),
                             lambda message: print(_safe_diagnostic(message),
                                                   file=sys.stderr, flush=True))
         finally:
-            signal.signal(signal.SIGTERM, previous)
+            signal.signal(signal.SIGTERM, previous_term)
+            signal.signal(signal.SIGINT, previous_int)
     return 0
 
 
@@ -756,7 +756,10 @@ def _validate_setup_owner(args: argparse.Namespace, workspace: Path, state: dict
 
 
 def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfiguration,
-                           args: argparse.Namespace, workspace: Path) -> int:
+                           args: argparse.Namespace, workspace: Path,
+                           deadlines: DeadlinePolicy) -> int | dict:
+    from forgetful_factory.adapters.agentshell.owner_client import read_state
+
     _connection(args, workspace, config.forgetful)
     application.profile.choose_pi_home(args.pi_agent_dir,
                                        lambda home: _confirm_pi_home(home, args))
@@ -764,6 +767,13 @@ def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfig
     application.profile.selected_launch(config)
     for message in application.initialise(config, before_writes=lambda: None, save=False):
         print(message)
+    if agree_definition_of_done(workspace, config):
+        state = read_state(workspace)
+        if state and state.get('foreman') != 'stopped':
+            raise FactoryError('Use init --attach to discuss with the existing Foreman. '
+                               'Save the confirmed agreement before finalizing. '
+                               'The existing Foreman and setup receipt were preserved.')
+        return _launch_setup_foreman(application, config, workspace, args, deadlines)
     _complete_setup(application, config, workspace, login=args.login)
     print('First setup validated. Use /reload while idle in the same conversation. '
           'Finalization does not clear delivery uncertainty.')
@@ -842,6 +852,8 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
     if args.assisted:
         return _launch_setup_foreman(
             application, state.config, workspace, args, deadlines)
+    if agree_definition_of_done(workspace, state.config):
+        return _launch_setup_foreman(application, state.config, workspace, args, deadlines)
     _complete_setup(application, state.config, workspace, login=args.login, initial=True)
     print('\nFactory setup complete.')
     return 0
@@ -864,7 +876,7 @@ def _initialise_locked(args: argparse.Namespace, workspace: Path,
         raise FactoryError('Finalization requires saved configuration. '
                            'Run init in a terminal first.')
     if config is not None:
-        return _finish_existing_setup(application, config, args, workspace)
+        return _finish_existing_setup(application, config, args, workspace, deadlines)
     return _start_initial_setup(application, args, workspace, paths, deadlines)
 
 
@@ -902,14 +914,16 @@ def main(deadlines: DeadlinePolicy = DeadlinePolicy()) -> int:
     except EOFError:
         message = ('For noninteractive watch provide --existing or --new-only.'
                    if args.command == 'watch' else
-                   'For noninteractive init provide --repo, --label, '
+                   'Init settings include --repo, --label, '
                    '--foreman-model, --foreman-effort, --forgetful-instance, '
                    'and --share-pi-profile. '
                    'Choose --planning-only or provide complete worker settings. '
-                   'Run init in a terminal for required setup prompts or installation consent. '
+                   'The Definition of Done choice and confirmation require a terminal session; '
+                   'flags cannot supply that agreement. '
                    'Forgetful access is always checked; '
                    'server checks may open browser sign-in. '
-                   'Existing saved setup is kept; rerun init to retry.')
+                   'Saved incomplete setup is kept: use init --finalize in that terminal. '
+                   'If no configuration was saved, rerun init.')
         print(f'Error: Input ended. {message}', file=sys.stderr)
         return 1
     except KeyboardInterrupt as error:

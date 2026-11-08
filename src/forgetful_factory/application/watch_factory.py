@@ -4,9 +4,11 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 
+from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
+from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.application.watcher_problems import (
     IntakeProblem,
     RepositoryProblem,
@@ -59,10 +61,11 @@ class _WorkAction(Enum):
 
 class WatchFactory:
     def __init__(self, tracking: WorkTrackingService, terminal: ForemanTerminal,
-                 scaffold: ScaffoldIssue):
+                 scaffold: ScaffoldIssue, cleanup: CleanupCompleted):
         self.tracking = tracking
         self.terminal = terminal
         self.scaffold = scaffold
+        self.cleanup = cleanup
 
     def run(self, config: FactoryConfiguration, workspace: Path, interval: float,
             choose_existing: Callable[[], bool], report: Callable[[str], None],
@@ -72,6 +75,7 @@ class WatchFactory:
         report('Checking Forgetful planning access; waiting for native sign-in/refresh if '
                'needed. Browser OAuth may open; Ctrl-C cancels and preserves saved work.')
         existing = choose_existing()
+        check_watch_stop()
         report(self.terminal.startup_hint())
         self._watch(config, interval, existing, report, report_error)
 
@@ -94,26 +98,34 @@ class WatchFactory:
         )
         alerts = WatcherAlerts(self.terminal, report_error)
         try:
+            check_watch_stop()
             self.terminal.start()
+            check_watch_stop()
             report('Foreman session ready; model access unverified. '
                    'Resource loading unverified. Submission is not agent receipt.')
             while True:
+                check_watch_stop()
                 self._check_pending_repositories(state, alerts)
                 if not self._check_planning_access(state, alerts, report):
+                    check_watch_stop()
                     self.terminal.wait(interval)
                     continue
+                self.cleanup.poll(alerts, report)
                 if not self._load_inventory(state, alerts):
+                    check_watch_stop()
                     self.terminal.wait(interval)
                     continue
                 attempted, shared_read_failed = self._recover_blocked(
                     state, alerts, report)
                 if shared_read_failed:
+                    check_watch_stop()
                     self.terminal.wait(interval)
                     continue
                 shared_read_failed = self._poll_sources(
                     sources, config, existing, state, attempted, alerts, report)
                 if not shared_read_failed and not state.pending_lookup:
                     alerts.clear('recovery_read')
+                check_watch_stop()
                 self.terminal.wait(interval)
         finally:
             try:
@@ -500,6 +512,7 @@ class WatchFactory:
             'number': issue.number, 'title': issue.title, 'url': issue.url,
             'body': issue.body, 'revision': issue.revision, 'recovered': recovered, **scaffold,
         })
+        check_watch_stop()
         self.terminal.send(message)
         seen[issue.id] = issue.revision
         report(f'Submitted {issue.id} to Pi (submission only).')

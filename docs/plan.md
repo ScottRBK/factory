@@ -40,6 +40,13 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+The approved [research cwd guidance correction](plans/slice-7.md#research-cwd-guidance-correction)
+aligns starter instructions with existing definitions: research keeps its role cwd, while
+implementation/review calls supply assigned worktrees. Public setup RED/GREEN and 22 focused checks
+pass, including controlled native dispatch. The parent repeated all 22 checks and applied only the
+three approved guidance patches to DinoLand, preserving custom edits and all agent settings.
+No sessions restarted; fresh-session model compliance and broader Slice 7 adoption remain untested.
+
 The [lifecycle status correction](plans/watch-status.md) implements all nine approved findings;
 39 focused tests pass on each Python, with peer-guard mutation proof retained. All 48 native
 lifecycle cases pass on each Python in private copies adapting only the host tmux search path.
@@ -115,7 +122,9 @@ checks and independent review. Runtime repair policy remains open. See
 This supersedes earlier duplicate settings, skill synchronization and rerun-init guidance.
 
 Slices 4, 5 and 6 are implemented and locally validated; Slice 6 still needs a live delivery trial.
-Slice 7 remains planned. Slice 8's setup-owned Foreman connection is implemented, reviewed and
+Slice 7A/B and automated/local 7C are implemented locally; live 7C trials and adoption
+remain planned. Agent-following trials are deferred. Slice 8's setup-owned Foreman connection is
+implemented, reviewed and
 locally validated; general terminal discovery remains planned. [Slice 4/5
 checks](plans/slices-4-5.md) and
 [Slice 6 progress](plans/slice-6.md).
@@ -190,18 +199,41 @@ Required checks still must pass before implementation is complete; no draft-only
   findings back for fixes. It accepts implementation's fix report after required exact-final-commit
   CI passes, without another review pass. It updates Forgetful; workers do not.
 - Include architecture decision records and check the final commit before merging.
-- For multiple repositories, merge in a compatible order. Clean up branches/worktrees only when
-  safe, and keep the overall plan open for deployment checks.
+- For multiple repositories, merge in a compatible order. The earlier Slice 6 cleanup guidance is
+  historical: new 7A roles retain resources and hand back to Foreman. Keep required checks and
+  ownership open until Foreman verifies the agreement; excluded checks need no placeholder tasks.
 
-### Slice 7: check the deployed feature and finish the plan
+### Slice 7: agree completion, verify evidence, then clean up
 
-The Foreman checks deployment and end-to-end tests for the merged changes. For multiple
-repositories, it checks that the tests used the intended combination of deployed versions.
+The independent Opus review findings have implementation fixes and public regression evidence.
+The approved per-set receipts, one-set fair rotation and lost-stop correction are implemented.
+Parent verified the final source and passing SonarQube scan. Both Python suites retain one known
+baseline wording failure; no full-suite GREEN, hosted CI or live adoption is claimed.
+See the [final local validation](plans/slice-7.md#parent-final-local-validation).
 
-- Complete the plan only after those checks pass.
-- On failure, raise or reuse a linked follow-up issue and keep the original plan open.
-- After a restart, find unfinished work in Forgetful and continue, even if its GitHub issue closed
-  at merge. Check whether agents are still running before starting replacements.
+[Slice 7A](plans/slice-7.md#7a-local-implementation) implements first-setup selection/confirmation
+of
+plain Markdown at `.factory/definition_of_done.md`, or a real Foreman discussion. Existing files and
+one-time-init behaviour are preserved; there is no silent merge-only default or policy parser.
+
+- The DoD is a project/programme agreement, separate from plan acceptance criteria; both must be
+met.
+- Foreman guidance reads it before planning/completion, supplies it to owners and requires explicit
+  user decisions about changes to open plans. Presets are starting points, not an exhaustive enum.
+- The owner records merged revisions and handoff evidence. Foreman owns final completion, even for
+  merge-only work. Deployment/E2E are required only when agreed. Missing/stale required evidence
+  blocks completion; excluded checks create no unfinished placeholder tasks.
+- Existing closed-issue/restart recovery, owner-liveness and uncertain-delivery boundaries remain.
+- Watch independently discovers full completed plans and safely removes recorded worktrees and
+  local/remote feature refs, including dirty/ignored content and extra commits. Native state drives
+  partial retries/restart recovery; closed/new-only intake and GitHub failures do not hide cleanup.
+  Save evidence elsewhere first. Resource names remain reserved until durable cleanup confirmation.
+  Preserve cleanup receipts; confirmed sets are not deleted again. Live adoption is not done.
+- The [cleanup ADR](adrs/completed-plan-cleanup.md) records shared identity checks, target_branch,
+  conflict isolation and explicit review of older completed mappings before enabling this version.
+- Automated tests check setup/recovery, not model compliance. One independent review and the final
+  parent SonarQube scan are complete; implementation owns the fixes. Disposable live model,
+  adoption and deployment/E2E trials remain deferred.
 
 ### Slice 8: use a Foreman that is already running
 
@@ -501,6 +533,12 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
 
 ### 6. Safe cleanup
 
+Historical Slice 6 decisions below describe the previous owner-led cleanup. The approved
+[Slice 7 cleanup contract](plans/slice-7.md#cleanup-contract) replaces that authority at 7B rollout.
+New roles do not delete resources. Completed-plan watcher cleanup is now implemented locally;
+existing edited guidance and older mappings still need explicit adoption/reconciliation. No live
+rollout was performed. The historical decisions below do not override completion-driven disposal.
+
 - [x] How do we verify that no agent or process is still using a worktree before removing it?
   - The feature-owner chooses the checks, but must confirm the worktree is no longer in use.
 - [x] How do we verify that the worktree is clean and its changes are pushed and merged?
@@ -538,6 +576,12 @@ skills; do not invent factory-wide templates, retry budgets, or extra subsystems
     is not an MVP requirement.
 
 ### 8. Post-merge deployment and E2E completion
+
+The historical universal deployment/E2E answers below are superseded by the
+[agreed DoD](adrs/completion-agreement.md): both feature acceptance criteria and the user-confirmed
+project/programme agreement must be met. Required deployment/E2E retain the revision/evidence checks
+below; excluded checks need no tasks. Foreman owns completion for every agreement, including
+merge-only.
 
 - [x] Does feature completion mean merged, or deployed and E2E-verified?
   - Deployed and E2E-verified, not just merged; the Foreman owns this final verification.

@@ -206,9 +206,60 @@ are unchanged. Agent review using the author's account cannot supply a required 
 another GitHub user.
 
 The owner preserves uncertain or unfinished work, and reports merged revisions to the Foreman.
-It records worktree removal so watcher restart can distinguish cleanup from missing active work.
-Deployment/E2E tasks and the plan stay open. The [delivery ADR](docs/adrs/feature-delivery.md) and
+The owner leaves resources for watcher cleanup and hands delivery evidence back to Foreman.
+Only required completion checks stay open; Foreman checks merge-only work too. Historical removal
+records remain readable on restart. Completed-plan cleanup is implemented locally. The [delivery
+ADR](docs/adrs/feature-delivery.md) and
 [Slice 6 validation](docs/plans/slice-6.md) describe the implementation boundary and test limits.
+
+### Definition of Done agreement
+
+First manual setup offers three starting points: after merge; after merge and deployment; or after
+merge, deployment and deployed E2E. All retain independent review and required repository/PR checks.
+They are not an exhaustive list of completion policies. Select Discuss with Foreman to agree other
+checks or different requirements for repositories in a grouped workspace. Missing tests never select
+a weaker policy. Deployment presets ask for environment/workflow names and explain the evidence
+needed; decline if prerequisites are missing or unclear, then discuss them with Foreman.
+
+Init shows the proposed Markdown and asks before saving `.factory/definition_of_done.md`. This file
+is shared workspace configuration outside feature worktrees. It is distinct from feature acceptance
+criteria; both must be met. Assisted setup leaves this agreement to the conversation. Discussion
+does
+not save a placeholder policy or finish setup. Confirm and save the agreement before `init
+--finalize`.
+Interrupted manual selection also resumes through finalization, without provisioning agents again.
+Ordinary repeated init preserves files and never silently creates an agreement for an older factory.
+
+Foreman guidance reads the file before planning and completion and passes it to the feature-owner.
+Changes require user approval and an explicit decision about existing open plans; those plans keep
+their previous requirements unless changed with approval. No Markdown parser or policy engine
+enforces
+this: setup checks and instruction loading do not prove that a model follows the agreement. A
+missing,
+unclear or conflicting agreement needs clarification before feature handoff. Foreman verifies
+evidence
+and completes the plan after the owner handoff, even for merge-only work. Excluded deployment/E2E
+checks need no tasks. Missing or stale required evidence leaves the plan open.
+
+**Automatic disposal after completion:** the watcher independently discovers completed Factory
+plans at startup and each poll, including closed issues and `--new-only`. It deletes their recorded
+worktrees, including changed, untracked and ignored files, then their local and remote feature
+branches, even with extra commits. Completion permits disposal without another prompt or
+recoverable trash. Save required reports and artifacts elsewhere first. Do not continue using,
+reopen or reuse completed-plan resources. Cleanup reads plan status, not the DoD Markdown or PRs.
+
+Mappings must identify the configured repository/root, exact feature branch and absolute worktree
+path beneath that repository's `.factory/worktrees/`, plus its actual `target_branch`. The watcher
+protects default/merge-target branches, main checkouts, unrelated resources and conflicting claims.
+Locked or mismatched trees are not forced. Partial failures leave the plan completed and evidence
+unchanged; later cycles/restarts recheck actual Git state and finish remaining resources.
+
+This also discovers eligible older completed plans. **Before live adoption**, review those full
+ownership mappings and preserved/edited skills with Scott. Missing targets and old/outside paths
+need explicit reconciliation; no automatic migration or rollout is included. Historical `removed`
+markers do not prove that remote refs are absent. No live trial, DinoLand operation or deployment
+has been performed. See the [agreement ADR](docs/adrs/completion-agreement.md),
+[cleanup ADR](docs/adrs/completed-plan-cleanup.md) and [Slice 7 work](docs/plans/slice-7.md).
 
 ### Factory setup and maintenance help
 

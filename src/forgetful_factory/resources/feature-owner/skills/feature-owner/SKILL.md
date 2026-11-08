@@ -14,6 +14,16 @@ plan and explain the missing permission or worker responsibility.
 Do not infer permission from names.
 You alone coordinate workers and update Forgetful on their behalf. Foreman alone dispatches owners.
 
+## Definition of Done
+
+Read the DoD supplied by Foreman and `$FACTORY_WORKSPACE/.factory/definition_of_done.md` before
+planning. Ask Foreman about a missing, unclear or conflicting agreement before feature work. Keep
+shared completion requirements separate from the plan's feature acceptance criteria; both apply.
+Record the applicable requirements briefly in existing task descriptions, preserving recovery JSON.
+If the saved file changes, do not silently change open-plan requirements. Foreman must obtain the
+user's explicit decision on those plans and record the decision/reason before retiring any check.
+Never invent a policy or weaken it because deployment or tests are absent.
+
 ## Shared Forgetful access
 
 Every native CLI operation uses this scope, preserving the shared native login/refresh state:
@@ -55,6 +65,33 @@ native Pi session ID and task IDs. Return control so a later answer can resume t
 run a second owner or resume yourself concurrently. Keep ownership doing while waiting for
 clarification; record the question and issue URL in its description without losing mappings.
 
+## Dispatch research
+
+Select the context-gathering responsibility from `subagent_roster`, then follow your selected
+`$PI_AGENTSHELL_ROSTER_FILE` child reference to read that worker's agent.json and instructions.
+The starter research definition deliberately keeps its role cwd so native role instructions load.
+For that definition, omit the call's `cwd` override and supply absolute repository/worktree and
+AGENTS.md paths for read-only inspection. Read the applicable repository instructions before
+gathering facts; do not implement or review changes. For example:
+
+```text
+subagent(roster_entry="<configured context-gathering worker name>",
+         task_name="Gather context for the feature",
+         prompt="Read /absolute/repository/AGENTS.md and applicable instructions under
+                 /absolute/repository/.factory/worktrees/feature. Inspect those absolute paths
+                 read-only, answer the supplied research questions, and return sources and limits.",
+         interactive=false, stay_open=false)
+```
+
+Substitute the actual selected name, absolute paths and questions. Preserve the selected definition;
+a custom context-gathering worker may have a different valid configuration. A conflicting call alone
+is not authority to remove a configured cwd. Surface genuine configuration/task conflicts to Foreman
+for maintenance instead of rewriting settings to make a call pass. The implementation/review
+worktree rules below apply to those responsibilities, not every worker. Keep native permission
+defaults unless separately authorized. Establish that a previous run stopped before resuming or
+replacing it; unknown liveness is a blocker and never resume the same session concurrently. Retain
+the selected definition/resources and native parent launch record for any supported resume.
+
 ## Plan and working copies
 
 Use the existing plan; `external_ref` is the lowercase canonical `github:owner/repo#number`. The
@@ -71,7 +108,11 @@ concurrency locks.
 
 For an ordinary issue reuse the initial mapping. For an `epic` labelled umbrella issue, choose which
 configured repositories are affected. Prepare dedicated branches and worktrees using native Git,
-then save each repository/local_dir/branch/path mapping in the ownership description. Inspect `git
+then save each repository/local_dir/branch/path/target_branch mapping in the ownership description.
+Use absolute paths strictly beneath each repository's `.factory/worktrees/`. Keep these directories
+ignored by Git and preserve existing ignore files. `target_branch` is the
+actual merge-target branch name, without `refs/heads/`; record it before handoff and correct it if
+the PR was retargeted. Preserve the initial mapping and its target for ordinary issues. Inspect `git
 worktree list --porcelain -z`, actual branch and common Git directory before reuse. Record intent
 before creation; reconcile actual Git state after interruptions. Never force, reset, delete, or
 replace existing work. A missing or mismatched active tree needs explicit recovery. Recorded cleanup
@@ -80,11 +121,13 @@ lease cannot coordinate another factory.
 
 Build a feature-specific plan describing actual changes in each affected repository, acceptance
 criteria and required tests. Name concrete behavior and code areas, not just generic workflow
-stages. Create implementation, review, merge, deployment and E2E tasks for that feature with
-acceptance criteria. Use same-plan dependency IDs for real ordering, including cross-repository
-contracts. Do not depend on completion of the long-lived ownership task. Keep deployments and E2E
-unfinished; intermediate multi-repository deployments must stay compatible. A plan is not complete
-until Foreman verifies the deployed revisions and joined-up E2E evidence in the later slice.
+stages. Create implementation, review and merge tasks for that feature with acceptance
+criteria. Add post-merge verification tasks only for checks required by the agreed DoD. Use
+same-plan dependency IDs for real ordering, including cross-repository
+contracts. Do not depend on completion of the long-lived ownership task. Keep required post-merge
+checks unfinished; intermediate multi-repository deployments must stay compatible. Do not create
+placeholder deployment/E2E tasks when not required. Foreman verifies completion after your handoff,
+including merge-only work. You do not complete the overall plan.
 
 Task creates have no unique key or CAS. After an uncertain create inspect all full tasks, and stop
 if its outcome remains ambiguous; do not blindly retry. Explain uncertainty naturally to Foreman.
@@ -117,15 +160,17 @@ briefing, TDD for implementation, additional skills and the worker's configured 
 Never drop selected skills to make a native call pass. The extension carries selected skills into
 Codex/Claude prompts; those harnesses keep their native defaults. Pi and OpenCode support native
 selected skills. Do not pass Pi discovery flags, extensions or child rosters to Codex/Claude.
-Workers must read the assigned repository instructions; their cwd is the assigned worktree, never a
-role directory. Native instruction loading remains enabled. Resources are not a security sandbox.
+Implementation and review workers must read the assigned repository instructions; their cwd is the
+assigned worktree, never a role directory. Native instruction loading remains enabled. Resources are
+not a security sandbox.
 
 For each task include its real task IDs, feature requirements, acceptance criteria, required tests,
 repository/branch/worktree mapping and dependencies. Include relevant PR/head/review references for
 review or fixes. Coordinate concurrent edits and Git operations; parallelism is your judgment within
-repository rules and real dependencies. Before every dispatch, verify the assigned worktree exists,
-its actual branch/root/gitdir matches the recorded repository, and its cleanup state permits work;
-never omit cwd or fall back to the role directory. Do not dispatch workers into removed or pending
+repository rules and real dependencies. Before every implementation/review dispatch, verify the
+assigned worktree exists, its actual branch/root/gitdir matches the recorded repository, and its
+cleanup state permits work; never omit cwd or fall back to the role directory for these calls.
+Do not dispatch workers into removed or pending
 worktrees. Reconcile cleanup and actual PR/task state first; do not recreate a historical tree. Use
 the configured native named entry:
 
@@ -228,7 +273,7 @@ Required external approvals and repository gates still apply. If they require an
 escalate the conflict to Foreman instead of bypassing the gate or silently exceeding this limit.
 There is no fixed factory-wide severity scheme.
 
-## Final commit, merge and cleanup
+## Final commit, merge and handoff
 
 Document ADRs in each affected repository before final checks. Have implementation commit/push them
 and revalidate required CI for the final commit, even when only documentation changed. Verify final
@@ -242,39 +287,31 @@ admin merge. A merge request or queued auto-merge is not evidence of merge: read
 commit before recording it as merged. If the expected head changed or merge is uncertain, inspect
 GitHub state and retain work; do not blindly retry, reset branches or mark merge complete.
 
-Before cleanup, establish that every relevant process stopped, the worktree is clean, and all work
-is pushed and merged, including squash/rebase semantics under the repository's rules. Follow any
-required cleanup permission. If any check is uncertain, preserve it and report retained worktrees,
-paths and reasons to Foreman.
+After confirmed merge, record each repository's PR URL, actual merge commit, target branch and
+relevant workflow links in the existing tasks. Preserve each ownership mapping's repository,
+local_dir, branch, absolute path and actual target_branch. Keep plan context brief and preserve its
+recovery JSON and
+2000-character limit; detailed evidence belongs in tasks. Finish implementation, review and merge
+tasks. Leave ownership open and any required post-merge verification unfinished for Foreman.
+Do not add deployment or E2E tasks when the agreement excludes them. Report the handoff naturally
+with evidence, including blockers, and stop dispatching work against these resources before final
+completion. Foreman checks both acceptance criteria and DoD evidence, even for merge-only work.
 
-Record cleanup per ownership worktree mapping, preserving repository/local_dir/branch/path and all
-other mappings and record fields. Freshly read the ownership task, then use update_task description
-metadata to save cleanup state pending before native removal. The cleanup object contains state,
-pull_request_url and merge_commit. Use the canonical https://github.com/OWNER/REPO/pull/NUMBER for
-that mapping's repository and the actual full lowercase Git merge commit SHA from verified merge
-evidence. For example, the object shape is:
+Do not delete worktrees or local/remote branches, and do not complete the plan yourself. The watcher
+independently discovers completed plans and removes their recorded resources. Preserve historical
+per-mapping cleanup records and inspect actual Git/PR/task state on recovery. Historical cleanup has
+state, pull_request_url and merge_commit. A pending tree must still exist while the plan is open;
+a removed mapping is history, not a worker destination. Never recreate missing historical work.
+Old completed mappings without a reviewed target_branch need explicit reconciliation before
+adoption;
+never guess the target or use an old removed marker as proof that the remote ref is gone.
 
-```json
-{"state": "pending", "pull_request_url": "https://github.com/owner/repo/pull/123",
- "merge_commit": "<actual full merge commit SHA>"}
-```
-
-After the pending write is confirmed, remove only the mapped worktree/branch when safe, without
-force. Mark cleanup state removed only after the path is absent and its Git worktree registration is
-absent, including stale registrations or that branch registered at another path. Keep the original
-mapping and merge evidence as history. Metadata writes are not CAS: coordinate through the sole
-owner and reconcile uncertain writes/removal outcomes before changing state. Missing pending trees
-require explicit reconciliation; do not blindly retry, invent completion or recreate them.
-
-On restart, pending still requires the existing tree; removed permits an absent tree only after the
-watcher's read-only origin/path/registration checks. The watcher validates the reported evidence's
-shape, not the GitHub merge or CI itself. Inspect actual PR/task state before continuing. Preserve
-completed implementation and pending deployment/E2E tasks; historical removed mappings are not
-worker launch destinations. Partial multi-repository cleanup keeps a separate state per mapping.
-
-Report PRs, merged revisions and verified evidence naturally. Deployment and E2E tasks remain
-unfinished, ownership remains doing and the overall plan stays open for Slice 7. This slice neither
-orchestrates deployment/E2E nor claims that a merge proves deployed feature completion.
+Save required reports and artifacts outside disposable worktrees before handing back. Automatic
+cleanup treats completed-plan worktrees as disposable, including changed, untracked and ignored
+files. It deletes the recorded local/remote feature branches even with extra commits. Foreman's
+completion authorizes disposal without another prompt or recoverable trash. Never continue using,
+reopen or reuse a completed plan's worktrees/branches, or rely on saving evidence there after the
+last task transition. Cleanup failures do not reopen the plan or authorize an owner to delete work.
 
 ## Worker recovery
 

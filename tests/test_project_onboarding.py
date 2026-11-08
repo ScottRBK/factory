@@ -17,13 +17,13 @@ class ProjectOnboardingTests(InitFixture):
         self.log = self.workspace / 'commands.jsonl'
         self.env.update(PROFILE_PROJECTS_FILE=str(self.projects), PROFILE_LOG=str(self.log))
 
-    def init(self, repo, answers):
+    def init(self, repo, answers, agreement_input='1\ny\n'):
         return subprocess.run(
             [sys.executable, '-m', 'forgetful_factory', 'init', '--planning-only',
              '--repo', '.', *INIT_SETTINGS,
              '--forgetful-instance', 'local', '--share-pi-profile', '--install-role-runtime',
              '--grill-me-skill', str(self.grill_skill)], cwd=repo, env=self.env,
-            input=answers, capture_output=True, text=True, timeout=10)
+            input=answers + agreement_input, capture_output=True, text=True, timeout=10)
 
     def creates(self):
         return [event for event in events(self.log)
@@ -162,7 +162,7 @@ class ProjectOnboardingTests(InitFixture):
                 # Arrange
                 repo = self.repo(f'cancel-{len(list(self.workspace.glob("cancel-*")))}')
                 # Act
-                result = self.init(repo, answers)
+                result = self.init(repo, answers, agreement_input='')
                 # Assert
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(self.creates(), [])

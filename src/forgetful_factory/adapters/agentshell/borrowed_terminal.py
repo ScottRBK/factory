@@ -3,6 +3,7 @@ import json
 import selectors
 import socket
 
+from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -16,6 +17,7 @@ class BorrowedForemanTerminal:
         return 'Watcher borrows the setup Foreman; stopping watch leaves Foreman alive.'
 
     def _request(self, value: dict) -> None:
+        check_watch_stop()
         try:
             self.connection.sendall((json.dumps(value) + '\n').encode())
             line = self.reader.readline(65537)
@@ -35,10 +37,12 @@ class BorrowedForemanTerminal:
         self._request({'operation': 'send', 'text': message})
 
     def wait(self, interval: float) -> None:
+        check_watch_stop()
         with selectors.DefaultSelector() as selector:
             selector.register(self.connection, selectors.EVENT_READ)
             if selector.select(interval):
                 raise FactoryError('Foreman owner disconnected; watcher stopped.')
+        check_watch_stop()
 
     def close(self) -> None:
         self.reader.close()

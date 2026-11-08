@@ -149,11 +149,11 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assertEqual(sum(c[0] == 'update_plan' for c in state['calls']), 2)
 
     def test_duplicate_initial_intake_plans_report_candidates_without_primary(self):
-        # Arrange: completed plans are absent from the startup unfinished inventory.
+        # Arrange: archived plans are absent from the startup unfinished inventory.
         self.seed((1,))
         duplicate = self.duplicate_plan()
         for plan_id in (1, duplicate['id']):
-            self.planning_call('update_plan', plan_id=plan_id, status='completed')
+            self.planning_call('update_plan', plan_id=plan_id, status='archived')
         self.script({'team/app': [[[]]]})
         process = self.start('--existing')
         self.wait_until(process, lambda: self.polls() >= 1)
@@ -306,6 +306,12 @@ class WatcherAlertTests(PlanningWatchFixture):
         for marker in ('TOP_SECRET', 'HTTP 503', 'HTTP 401'):
             self.assertNotIn(marker, json.dumps(messages))
 
+    def assert_cleanup_read_notice(self, code):
+        notice = self.alerts()[0]
+        self.assertEqual(notice['scope'], 'cleanup')
+        self.assertEqual(notice['code'], code)
+        self.assertEqual(notice['retry'], 'next_poll')
+
     def assert_shared_read_pause(self, **fault):
         # Arrange: service access or a complete inventory cannot be established.
         self.seed((1,))
@@ -313,8 +319,9 @@ class WatcherAlertTests(PlanningWatchFixture):
         log = self.workspace / 'native-calls.jsonl'
         self.env['PROFILE_LOG'] = str(log)
         self.fault(**fault)
+        expected = 2 if 'list_plans' in fault.values() else 1
         process = self.start('--existing')
-        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: len(self.alerts()) == expected)
         tool = fault.get('fail', fault.get('incomplete'))
         self.wait_until(process, lambda: sum(
             json.loads(line)['args'][:2] == ['call', tool]
@@ -322,9 +329,11 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Assert: complete inventory is required before using any returned entries.
         self.assertIsNone(process.poll())
         self.assertEqual(self._messages(), [])
-        self.assertEqual(len(self.alerts()), 1)
-        self.assertEqual(self.alerts()[0]['scope'], 'factory')
-        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.assertEqual(len(self.alerts()), expected)
+        if expected == 2:
+            self.assert_cleanup_read_notice('cleanup_inventory_read_failed')
+        self.assertEqual(self.alerts()[-1]['scope'], 'factory')
+        self.assertEqual(self.alerts()[-1]['retry'], 'read_only')
         self.assertFalse(any(json.loads(line)['args'][:2] in (
             ['call', 'create_plan'], ['call', 'create_task'], ['call', 'update_plan'])
             for line in log.read_text().splitlines()))
@@ -376,14 +385,18 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.fault()
         # Act: a repaired service does not authorize replay of an uncertain write.
         log = self.workspace / '.factory/fixture-plans.json'
-        before = log.read_bytes()
+        before = json.loads(log.read_text())
         self.wait_until(process, lambda: self.polls() >= 4)
         code, _, errors = self.stop(process)
         # Assert
         self.assertEqual(code, 130, errors)
         self.assertEqual(self.alerts()[0]['scope'], 'factory')
         self.assertEqual(self.alerts()[0]['retry'], 'manual_reconciliation')
-        self.assertEqual(log.read_bytes(), before)
+        after = json.loads(log.read_text())
+        self.assertEqual(after['plans'], before['plans'])
+        self.assertEqual(after['tasks'], before['tasks'])
+        self.assertEqual([c for c in after['calls'] if c[0].startswith(('create_', 'update_'))],
+                         [c for c in before['calls'] if c[0].startswith(('create_', 'update_'))])
         self.assertEqual(self._messages(), [])
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
 
@@ -409,10 +422,11 @@ class WatcherAlertTests(PlanningWatchFixture):
         original, = self.seed((1,))
         self.fault(fail='get_plan')
         process = self.start('--existing')
-        self.wait_until(process, lambda: len(self.alerts()) == 1)
-        self.wait_until(process, lambda: self.alerts()[0]['retry'] == 'read_only')
-        self.assertEqual(self.alerts()[0]['scope'], 'factory')
-        self.assertEqual(self.alerts()[0]['code'], 'recovery_read_failed')
+        self.wait_until(process, lambda: len(self.alerts()) == 2)
+        self.wait_until(process, lambda: self.alerts()[1]['retry'] == 'read_only')
+        self.assert_cleanup_read_notice('cleanup_read_failed')
+        self.assertEqual(self.alerts()[1]['scope'], 'factory')
+        self.assertEqual(self.alerts()[1]['code'], 'recovery_read_failed')
         self.assertIsNone(process.poll())
         self.assertEqual(self._messages(), [])
         self.fault()
@@ -653,9 +667,10 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.planning_call('update_plan', plan_id=1, project_id=None)
         self.script({'team/app': [[[]]]})
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.alerts()) == 1)
-        self.assertEqual(self.alerts()[0]['scope'], 'factory')
-        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.wait_until(process, lambda: len(self.alerts()) == 2)
+        self.assert_cleanup_read_notice('cleanup_read_failed')
+        self.assertEqual(self.alerts()[1]['scope'], 'factory')
+        self.assertEqual(self.alerts()[1]['retry'], 'read_only')
         self.assertEqual(self._messages(), [])
         self.planning_call('update_plan', plan_id=1, project_id=12)
         self.wait_until(process, lambda: len(self._messages()) == 2)
@@ -682,7 +697,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         original, = self.seed((1,))
         task = self.planning_call('get_task', task_id=1)
         # Keep this out of startup recovery so the first failure is ordinary intake.
-        self.planning_call('update_plan', plan_id=1, status='completed')
+        self.planning_call('update_plan', plan_id=1, status='archived')
         self.planning_call('create_task', plan_id=1, title='Feature ownership',
                            description=task['description'])
         self.script({'team/app': [[[]]]})
@@ -701,18 +716,19 @@ class WatcherAlertTests(PlanningWatchFixture):
 
     def test_intake_invalid_full_plan_pauses_read_only_before_any_mutation(self):
         self.seed((1,))
-        plan = self.planning_call('update_plan', plan_id=1, status='completed')
+        plan = self.planning_call('update_plan', plan_id=1, status='archived')
         self.script({'team/app': [[[]]]})
         process = self.start('--existing')
         self.wait_until(process, lambda: self.polls() >= 1)
         self.planning_call('update_plan', plan_id=1, status='active')
         self.fault(responses={'get_plan': dict(plan, id=999, status='active')})
         self.script({'team/app': [[[self.issue(1, updated_at='revision-2')]]]})
-        self.wait_until(process, lambda: bool(self.alerts()))
-        self.assertEqual(self.alerts()[0]['scope'], 'factory')
-        self.assertEqual(self.alerts()[0]['code'], 'recovery_read_failed')
-        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
-        self.assertEqual(self.alerts()[0]['plan_id'], 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 2)
+        self.assert_cleanup_read_notice('cleanup_read_failed')
+        self.assertEqual(self.alerts()[1]['scope'], 'factory')
+        self.assertEqual(self.alerts()[1]['code'], 'recovery_read_failed')
+        self.assertEqual(self.alerts()[1]['retry'], 'read_only')
+        self.assertEqual(self.alerts()[1]['plan_id'], 1)
         self.assertEqual(self._messages(), [])
         self.fault()
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -734,6 +750,7 @@ class WatcherAlertTests(PlanningWatchFixture):
 
     def assert_invalid_full_record_pauses(self, tool, response):
         # Arrange: only the external reply is corrupted; saved records remain unchanged.
+        expected = 2 if tool in ('list_plans', 'get_plan') else 1
         before = self.planning_call('get_task', task_id=1)
         log = self.workspace / 'record-reads.jsonl'
         log.unlink(missing_ok=True)
@@ -743,16 +760,19 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Act: no open issue is needed to keep saved work pending.
         process = self.start('--new-only')
         try:
-            self.wait_until(process, lambda: bool(self.alerts()))
+            self.wait_until(process, lambda: len(self.alerts()) == expected)
             self.wait_until(process, lambda: sum(
                 json.loads(line)['args'][:2] == ['call', tool]
                 for line in log.read_text().splitlines()) >= 3)
             # Assert: malformed identities cannot enter a work notification or alert.
             self.assertIsNone(process.poll())
             self.assertEqual(self._messages(), [])
-            self.assertEqual(len(self.alerts()), 1)
-            self.assertEqual(self.alerts()[0]['scope'], 'factory')
-            self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+            self.assertEqual(len(self.alerts()), expected)
+            if expected == 2:
+                self.assert_cleanup_read_notice('cleanup_inventory_read_failed'
+                                                if tool == 'list_plans' else 'cleanup_read_failed')
+            self.assertEqual(self.alerts()[-1]['scope'], 'factory')
+            self.assertEqual(self.alerts()[-1]['retry'], 'read_only')
             self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
             self.fault()
             self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -888,13 +908,17 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assertEqual(parent.read_text(), 'TOP_SECRET existing user file')
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
         state = self.workspace / '.factory/fixture-plans.json'
-        before = state.read_bytes()
+        before = json.loads(state.read_text())
         # Act: repairing the path does not authorize replay of the creation path.
         parent.rename(parent.with_name('saved-parent-file'))
         target = self.polls() + 3
         self.wait_until(process, lambda: self.polls() >= target)
         self.assertIsNone(process.poll())
-        self.assertEqual(state.read_bytes(), before)
+        after = json.loads(state.read_text())
+        self.assertEqual(after['plans'], before['plans'])
+        self.assertEqual(after['tasks'], before['tasks'])
+        self.assertEqual([c for c in after['calls'] if c[0].startswith(('create_', 'update_'))],
+                         [c for c in before['calls'] if c[0].startswith(('create_', 'update_'))])
         self.assertEqual(self._messages(), [])
         code, _, errors = self.stop(process)
         self.assertEqual(code, 130, errors)
@@ -902,7 +926,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.assertEqual(subprocess.check_output(
             ['git', '-C', str(self.workspace), 'worktree', 'list', '--porcelain'], text=True),
             registry)
-        calls = json.loads(before)['calls']
+        calls = before['calls']
         self.assertEqual(sum(c[0] == 'create_plan' for c in calls), 1)
         self.assertFalse(any(c[0] == 'create_task' for c in calls))
 
@@ -948,14 +972,19 @@ class WatcherAlertTests(PlanningWatchFixture):
             'result': {'plans': [], 'total_count': 0}}])
         self.script({'team/app': [[[]]]})
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.alerts()) == 1 and len(self._messages()) == 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 2 and len(self._messages()) == 1)
         self.wait_until(process, lambda: self.polls() >= 3)
-        self.assertEqual(self.alerts()[0]['scope'], 'plan')
-        self.assertEqual(self.alerts()[0]['code'], 'plan_identity_changed')
+        self.assert_cleanup_read_notice('cleanup_read_failed')
+        self.assertEqual(self.alerts()[1]['scope'], 'plan')
+        self.assertEqual(self.alerts()[1]['code'], 'plan_identity_changed')
         self.assertEqual(self._messages()[0]['plan_id'], healthy['plan_id'])
         current = json.loads(state_path.read_text())
-        self.assertEqual(sum(c == ['get_plan', {'plan_id': 1}] for c in current['calls']),
-                         sum(c == ['get_plan', {'plan_id': 1}] for c in before['calls']))
+        # Independent completion discovery still reads full plans. The absent recovery lookup
+        # cannot use that failing detail read as authority or replay planning writes.
+        self.assertGreater(sum(c == ['get_plan', {'plan_id': 1}] for c in current['calls']),
+                           sum(c == ['get_plan', {'plan_id': 1}] for c in before['calls']))
+        self.assertEqual([c for c in current['calls'] if c[0].startswith(('create_', 'update_'))],
+                         [c for c in before['calls'] if c[0].startswith(('create_', 'update_'))])
         self.assertEqual(current['plans'], before['plans'])
         self.assertEqual(current['tasks'], before['tasks'])
         # Act: restoring the original record requires no issue edit or creation.
@@ -965,7 +994,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.wait_until(process, lambda: self.polls() >= target)
         code, _, errors = self.stop(process)
         self.assertEqual(code, 130, errors)
-        self.assertEqual(len(self.alerts()), 1)
+        self.assertEqual(len(self.alerts()), 2)
         self.assertEqual(len(self._messages()), 2)
         self.assertEqual(self._messages()[-1]['plan_id'], original['plan_id'])
         self.assertEqual(self._messages()[-1]['ownership_task_id'], original['ownership_task_id'])
@@ -989,7 +1018,7 @@ class WatcherAlertTests(PlanningWatchFixture):
     def test_intake_invalid_full_task_rechecks_known_plan_without_repeating_writes(self):
         self.seed((1,))
         task = self.planning_call('get_task', task_id=1)
-        self.planning_call('update_plan', plan_id=1, status='completed')
+        self.planning_call('update_plan', plan_id=1, status='archived')
         self.script({'team/app': [[[]]]})
         process = self.start('--existing')
         self.wait_until(process, lambda: self.polls() >= 1)
@@ -1038,7 +1067,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Arrange: force ordinary intake, with another source waiting to create new work.
         self.seed((1,))
         task = self.planning_call('get_task', task_id=1)
-        self.planning_call('update_plan', plan_id=1, status='completed')
+        self.planning_call('update_plan', plan_id=1, status='archived')
         self.configure(sources=('team/app', 'team/healthy'))
         self.script({'team/app': [[[]]], 'team/healthy': [[[]]]})
         log = self.workspace / 'native-calls.jsonl'

@@ -29,6 +29,8 @@ class ManualLaunchTests(LifecycleFixture):
         finally:
             os.close(slave)
         self.addCleanup(self.cleanup_init, process)
+        if not (repo / '.factory/definition_of_done.md').exists() and '--assisted' not in extra:
+            os.write(master, b'1\ny\n')
         return process, master, output
 
     def cleanup_init(self, process):
@@ -218,7 +220,8 @@ class ManualLaunchTests(LifecycleFixture):
         repo = self.repo()
 
         # Act
-        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='y\ne\n')
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, input='1\ny\ny\ne\n',
+                              agreement_input='')
 
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)

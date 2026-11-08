@@ -644,14 +644,17 @@ class MalformedPlanningReplyTests(PlanningWatchFixture):
 
         # Act
         process = self.start('--new-only', '--interval', '.5')
-        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 2)
         self.wait_until(process, lambda: sum(e['args'][:2] == ['call', 'list_plans']
                                            for e in events(log)) >= 3)
         time.sleep(.1)
         self.assertIsNone(process.poll())
-        self.assertEqual(len(self.alerts()), 1)
-        self.assertEqual(self.alerts()[0]['code'], 'inventory_read_failed')
-        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.assertEqual(len(self.alerts()), 2)
+        self.assertEqual(self.alerts()[0]['scope'], 'cleanup')
+        self.assertEqual(self.alerts()[0]['code'], 'cleanup_inventory_read_failed')
+        self.assertEqual(self.alerts()[0]['retry'], 'next_poll')
+        self.assertEqual(self.alerts()[1]['code'], 'inventory_read_failed')
+        self.assertEqual(self.alerts()[1]['retry'], 'read_only')
         self.assertEqual(self._messages(), [])
         self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 0)
         code, output, errors = self.stop(process)
@@ -665,7 +668,8 @@ class MalformedPlanningReplyTests(PlanningWatchFixture):
         self.assertEqual(state['plans'], [])
         self.assertEqual(state['tasks'], [])
         self.assertEqual(receipt.read_bytes(), completion)
-        self.assertEqual([e['kind'] for e in self.events()], ['launch', 'ready', 'send', 'close'])
+        self.assertEqual([e['kind'] for e in self.events()],
+                         ['launch', 'ready', 'send', 'send', 'close'])
         self.assertNotIn('TOP_SECRET', output + errors + json.dumps(self.events()))
         self.assertNotIn('Traceback', errors)
         self.assertIn('Inspect and reconcile', errors)
@@ -684,14 +688,18 @@ class MalformedPlanningReplyTests(PlanningWatchFixture):
         process = self.start('--existing')
         self.wait_until(process, lambda: len(self.alerts()) == 1)
         state_path = self.workspace / '.factory/fixture-plans.json'
-        before = state_path.read_bytes()
+        before = json.loads(state_path.read_text())
         self.wait_until(process, lambda: json.loads(self.state_path.read_text())
                         .get('counts', {}).get('team/app', 0) >= 3)
         self.assertIsNone(process.poll())
         self.assertEqual(len(self.alerts()), 1)
         self.assertEqual(self.alerts()[0]['retry'], 'manual_reconciliation')
         self.assertEqual(self._messages(), [])
-        self.assertEqual(state_path.read_bytes(), before)
+        after = json.loads(state_path.read_text())
+        self.assertEqual(after['plans'], before['plans'])
+        self.assertEqual(after['tasks'], before['tasks'])
+        self.assertEqual([c for c in after['calls'] if c[0].startswith(('create_', 'update_'))],
+                         [c for c in before['calls'] if c[0].startswith(('create_', 'update_'))])
         self.assertEqual(sum(e['kind'] == 'close' for e in self.events()), 0)
         code, output, errors = self.stop(process)
 

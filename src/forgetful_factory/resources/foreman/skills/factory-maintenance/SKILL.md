@@ -55,6 +55,40 @@ change shared Pi preferences or widen native permissions to bypass a failed chec
 Completion: either maintenance is safely possible, or the user has a precise stopped-session
 handoff. Do not report changes when only recommendations were made.
 
+## Definition of Done setup and changes
+
+Read `$FACTORY_WORKSPACE/.factory/definition_of_done.md`. This is the persistent project/programme
+completion agreement, separate from individual plan acceptance criteria. First manual setup offers
+merge, merge plus deployment, or merge plus deployment and deployed E2E as starting points, and a
+Discuss with Foreman route. Assisted setup leaves agreement to this conversation. Do not invent a
+default or infer merge-only because tests are absent. Do not write an unresolved placeholder policy.
+
+Inspect relevant repository instructions and existing workflows with the user. Explain missing
+prerequisites, clarify required environments and evidence, and agree what completion requires and
+what is not required. Every starting preset retains independent review and repository/PR gates.
+Discussion can agree different requirements, including package checks or per-repository/shared
+checks in a grouped workspace. It is not a fourth typed policy. Show the resulting plain Markdown
+and get user confirmation before saving `.factory/definition_of_done.md`. No TOML fields, mandatory
+front matter, parser or completion engine is needed. Do not rely on chat history or optional memory
+as the source of truth. Keep the file outside feature worktrees; preserve existing agreements.
+
+Change it only with user approval. Ask explicitly whether a change applies to existing open plans;
+keep their recorded requirements unless approved otherwise. Record the decision and reason in their
+existing tasks before task changes can complete a plan. Never call an unrun check passed. Foreman
+must read this file before planning and completion and pass it with each owner handoff. Python does
+not validate its meaning or enforce agent compliance. Missing/unclear agreement blocks feature
+handoff, not setup conversation. Ordinary repeated init does not create or migrate an agreement.
+
+Automatic cleanup deletes completed-plan worktrees including changed/untracked/ignored files, and
+the recorded local/remote feature branches including extra commits, without another prompt or
+recoverable trash. Save required evidence elsewhere before completion. Neither role deletes
+resources.
+Before enabling it on an existing factory, review all older completed Factory plans and edited
+skills with the user. Reconcile ownership, repository/root/origin, absolute path beneath the owning
+repository's `.factory/worktrees/`, feature branch and actual target_branch. Never invent missing
+mappings or targets. Historical pending/removed markers do not prove remote-ref absence. Do not
+silently install, restart or adopt this behaviour on an existing workspace.
+
 ## 3. Configure agents
 
 Discuss each affected role in plain language: Foreman coordinates, feature-owner plans and manages
@@ -80,8 +114,16 @@ features, research gathers context, implementation changes code, and review chec
   owner and extension. Keep native defaults; do not add unsupported Pi discovery options.
 
 Change only agreed fields in the selected agent.json. Resolve resources and cwd relative to that
-file. Omit worker cwd so the owner supplies the assigned worktree. Non-Pi agents have a disabled,
-empty roster. Do not duplicate child choices in parents or create resource/roster sidecars.
+file. Starter Foreman, feature-owner and research definitions deliberately keep their role cwd and
+native instructions. For starter research, omit the call's `cwd` override; supply absolute
+repository/worktree and AGENTS.md paths for read-only inspection. Only implementation and review
+starter definitions omit cwd so the owner supplies the assigned worktree on those calls. Use
+configured responsibilities, not fixed roster names. Preserve the selected definition;
+a custom context-gathering worker may have a different valid configuration. A conflicting call alone
+is not authority to remove a configured cwd. Surface genuine configuration/task conflicts and agree
+any change through this maintenance workflow; do not rewrite settings just to make a call pass.
+Non-Pi agents have a disabled, empty roster. Do not duplicate child choices in parents or create
+resource/roster sidecars.
 Changing models or selections requires reload/restart as appropriate, not init or a fingerprint
 refresh. Do not silently retarget a selected resumed session. Preserve native permissions.
 

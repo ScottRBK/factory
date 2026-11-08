@@ -9,6 +9,51 @@ from worker_support import worker_settings
 
 
 class FactoryMaintenanceTests(InitFixture):
+    def test_setup_delivers_cwd_guidance_consistent_with_starter_definitions(self):
+        # Arrange: check delivered instructions/config, not whether a model follows the prose.
+        repo = self.repo()
+        settings = worker_settings(self)
+
+        # Act
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *settings)
+
+        # Assert
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        agents = repo / '.factory/agents'
+        for role in ('foreman', 'feature-owner', 'research'):
+            definition = json.loads((agents / role / 'agent.json').read_text())
+            self.assertEqual(definition['agent']['cwd'], '.')
+            self.assertTrue(definition['agent']['resources']['include_instruction_files'])
+        for role in ('implementation', 'review'):
+            definition = json.loads((agents / role / 'agent.json').read_text())
+            self.assertNotIn('cwd', definition['agent'])
+
+        for relative in ('foreman/AGENTS.md',
+                         'foreman/skills/factory-maintenance/SKILL.md',
+                         'feature-owner/skills/feature-owner/SKILL.md'):
+            with self.subTest(guidance=relative):
+                guidance = ' '.join((agents / relative).read_text().split())
+                for required in ('starter research', "omit the call's `cwd` override",
+                                 'absolute repository/worktree and AGENTS.md paths',
+                                 'read-only', 'conflicting call alone is not authority',
+                                 'different valid configuration'):
+                    self.assertIn(required, guidance)
+                self.assertNotIn('Omit worker cwd so the owner supplies', guidance)
+                self.assertNotIn('Workers must read the assigned repository instructions; '
+                                 'their cwd is the assigned worktree', guidance)
+
+        owner = (agents / 'feature-owner/skills/feature-owner/SKILL.md').read_text()
+        self.assertIn('## Dispatch research\n', owner)
+        research = owner.split('## Dispatch research\n', 1)[1].split('\n## ', 1)[0]
+        self.assertIn('```text\n', research)
+        example = research.split('```text\n', 1)[1].split('```', 1)[0]
+        self.assertIn('roster_entry="<configured context-gathering worker name>"', example)
+        self.assertIn('/absolute/repository/.factory/worktrees/feature', example)
+        self.assertIn('/absolute/repository/AGENTS.md', example)
+        self.assertIn('interactive=false, stay_open=false', example)
+        self.assertNotIn('cwd=', example)
+        self.assertNotIn('auto_approve=true', example)
+
     def test_completion_explains_direct_skill_selection_and_reload_without_registration(self):
         # Arrange / Act
         repo = self.repo("team's app")

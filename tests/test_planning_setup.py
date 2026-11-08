@@ -22,7 +22,7 @@ class PlanningSetupTests(InitFixture):
              '--repo', '.', *INIT_SETTINGS,
              '--forgetful-instance', 'local', '--share-pi-profile', '--install-role-runtime',
              '--grill-me-skill', str(self.grill_skill)], cwd=repo, env=self.env,
-            input='12\n', capture_output=True, text=True, timeout=10)
+            input='12\n1\ny\n', capture_output=True, text=True, timeout=10)
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Select Forgetful project ID or c to create:', result.stdout)

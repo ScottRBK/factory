@@ -228,6 +228,7 @@ class WatchFixture(unittest.TestCase):
                         PI_CODING_AGENT_DIR=str(self.workspace / 'native pi'),
                         XDG_STATE_HOME=str(self.workspace / 'state'),
                         GH_HOST='wrong.example', WATCH_GH_STATE=str(self.state_path),
+                        GIT_SSH_COMMAND='false', GIT_TERMINAL_PROMPT='0',
                         WATCH_TERMINAL_LOG=str(self.terminal_log),
                         WATCH_CONTROLLER_HANDLES=str(controller_handle_path))
         # The external program fixture models a standalone root, not this test runner's ancestry.
@@ -259,7 +260,8 @@ class WatchFixture(unittest.TestCase):
              '--install-role-runtime', '--share-pi-profile', '--check-connection',
              '--forgetful-project', '12', '--grill-me-skill', str(self.grill_skill)],
             cwd=self.workspace,
-            env=dict(self.env, GH_STATE=str(state)), input='', capture_output=True, text=True)
+            env=dict(self.env, GH_STATE=str(state)), input='1\ny\n',
+            capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         (self.bin / 'gh').write_text(GH)
 

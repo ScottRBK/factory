@@ -71,7 +71,7 @@ class WorkerProfileTests(InitFixture):
                          'configured names and descriptions', 'absolute SKILL.md',
                          'cwd=', 'full role briefing', 'native session ID',
                          'claim_task', 'transition_task', '--match-head-commit',
-                         'ADRs', 'merged', 'retained worktrees', 'waiting'):
+                         'ADRs', 'merged', 'waiting'):
             self.assertIn(required, owner)
         for required in ('TDD', 'commit', 'push', 'exact commit', 'CI run', 'task IDs',
                          'Do not use Forgetful', 'waiting', 'repository instructions'):
@@ -81,7 +81,6 @@ class WorkerProfileTests(InitFixture):
             self.assertIn(required, reviewer)
         for content in (owner, foreman):
             self.assertIn('get_current_user', content)
-            self.assertIn('Deployment and E2E', content)
         self.assertNotIn('This slice stops at a reviewable plan.', owner)
         self.assertNotIn('Implementation/review execution, commits, PR creation', foreman)
 
@@ -167,7 +166,6 @@ class WorkerProfileTests(InitFixture):
                             'never omit cwd', 'native-valid metadata',
                             'does not provision browser or computer-use tools',
                             'pull_request_url', 'merge_commit', 'pending', 'removed',
-                            'update_task', 'before native removal', 'registration is absent',
                             'Do not dispatch workers into removed or pending worktrees'):
             self.assertIn(requirement, owner)
         self.assertIn('temporary directory outside the assigned worktree', reviewer)

@@ -6,10 +6,23 @@ extension 1.5.0. Native SDK/fake-worker checks pass; live delivery is still unve
 repair policy and final checks remain open. Back to [architecture](../architecture.md).
 [Progress and checks](../plans/slice-6.md).
 
+## Slice 7A completion handoff
+
+[The DoD agreement](completion-agreement.md) now controls required completion evidence, separately
+from feature acceptance criteria. Owner implementation/review/merge duties remain. New role guidance
+hands back actual merge commits, PRs, target branches, workflow links and mappings to Foreman, keeps
+ownership open, and adds only required post-merge checks. Foreman owns final completion, including
+merge-only delivery. This is agent guidance; autonomous delivery is not yet observed.
+
+Roles leave worktrees/branches for [completed-plan watcher cleanup](completed-plan-cleanup.md).
+Existing edited guidance is preserved, not silently migrated. The earlier Slice 6
+cleanup description below explains historical records and read-only restart compatibility; it is
+not current deletion authority for new roles. Live adoption requires explicit reconciliation.
+
 ## Responsibilities
 
-The feature-owner coordinates implementation, independent review and merge. The watcher still
-only scaffolds and notifies; the Foreman remains the sole dispatcher of feature-owners.
+The feature-owner coordinates implementation, independent review and merge. The watcher scaffolds,
+notifies and disposes of validated completed-plan resources; Foreman alone dispatches owners.
 Implementation and review workers report to their owner and do not update Forgetful.
 
 The owner plans the actual feature changes, affected repositories, acceptance criteria and tests.
@@ -26,8 +39,20 @@ still apply.
 The Foreman dispatches owners; each owner launches workers through the AgentShell extension. There
 is no Python worker controller. Each worker's `agent.json` owns its name, harness (`agent_type`),
 model, effort and resource selections. The owner's roster contains only child file references.
-Starter names are templates; later names are arbitrary. Worker definitions omit cwd so the owner's
-call supplies the assigned worktree. Every non-Pi child has a disabled, empty roster.
+Starter names are templates; later names are arbitrary. Implementation/review starter definitions
+omit cwd so the owner's call supplies the assigned worktree. Every non-Pi child has a disabled,
+empty roster.
+
+Starter Foreman, owner and research definitions deliberately select their role cwd and native
+instructions. Research calls omit the cwd override and carry absolute repository/worktree and
+AGENTS.md paths for read-only inspection. Select by configured responsibilities, not fixed names.
+Preserve the selected definition: a custom context-gathering worker may have a different valid
+configuration. A conflicting call alone does not authorize removing configured cwd; surface genuine
+configuration/task conflicts through maintenance. This clarifies guidance only, without changing
+research agent.json, native permissions or liveness/no-concurrent-resume safeguards. Public setup
+tests check delivered guidance/config consistency; native probes check launch and instruction
+loading with controlled children. Neither proves model compliance. Existing copied guidance requires
+deliberate reconciliation; this source change does not update live factories.
 
 Init provisions the configured starter team once. Its worker menu offers Pi, Codex and Claude Code;
 that menu does not define the full set of native app capabilities. The wizard does not ask for skill
@@ -97,9 +122,10 @@ renew a fingerprint. Existing/DinoLand factories have no automatic migration.
 5. Merge uses the expected head commit and the repository's merge policy, without bypassing
    protections. A queued or scheduled merge is not a completed merge. Multiple repositories merge
    in a compatible order; partial progress is recorded rather than treated as an atomic operation.
-6. After confirmed merge, the owner removes only worktrees and branches proven safe to remove.
-   Active processes, uncommitted changes, uncertain merge status or unpushed work mean preserve
-   and report. It reports the merged revisions and PRs to the Foreman.
+6. After confirmed merge, the owner records the actual merge commits, target branches, PRs,
+   workflow links and preserved mappings, then reports the handoff to Foreman. It retains resources,
+   leaves ownership open and keeps only required completion checks unfinished. It does not complete
+   the plan. See the [7A contract](completion-agreement.md#delivery-and-completion).
 
 Independent agent review does not establish a second GitHub identity. If both agents use the same
 account, findings can be posted as comments; they do not satisfy a required external approval.
@@ -139,6 +165,9 @@ after confirming the previous one stopped. Do not silently enable bypass permiss
 
 ## Worktree cleanup and restart
 
+Historical Slice 6 removal flow; 7A retains its read-only compatibility but removes owner deletion
+authority from new guidance. Slice 7B now adds separate completed-plan disposal, described above.
+
 The plan remains active after merge, so watcher restart must still recover it after safe worktree
 removal. Each ownership mapping can carry a `cleanup` object with `state`, `pull_request_url` and
 `merge_commit`. The original repository, local directory, branch and path remain as history.
@@ -164,9 +193,10 @@ post-merge deployment monitoring.
 
 ## Completion boundary
 
-Slice 6 ends at verified merge and safe cleanup. Deployment, end-to-end verification and final
-plan completion remain Slice 7. Keep that work and the long-lived ownership task unfinished so
-Forgetful cannot automatically complete the plan at merge.
+Slice 6 historically ended at verified merge and safe cleanup. Slice 7A now supplies the plain
+Markdown agreement and agent-guided completion contract. Required checks and ownership remain open
+until Foreman verifies them; excluded deployment/E2E checks need no tasks. The owner never completes
+the plan at merge, even with a merge-only agreement. Actual agent-following trials remain deferred.
 
 Python validates setup and resource selection; agent guidance describes delivery and recovery.
 Automated wiring tests cannot establish that a model follows the whole workflow. The agreed live

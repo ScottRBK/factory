@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.domain.models import FactoryError
 
 
@@ -32,6 +33,7 @@ def _terminate_owned_process(process: subprocess.Popen, term_grace: float) -> No
 
 def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = False,
               timeout: float | None = None, term_grace: float = 3) -> str:
+    check_watch_stop()
     interactive = login and sys.stdin.isatty()
     try:
         process = subprocess.Popen(args, cwd=cwd, env=env, text=True,
@@ -50,6 +52,7 @@ def run_owned(args: list[str], cwd: Path, env: dict[str, str], *, login: bool = 
         raise FactoryError('Forgetful operation timed out; setup is incomplete. '
                            'Check the role in Pi/CLI, then retry the failed command. '
                            'Incomplete saved setup needs init --finalize.') from error
+    check_watch_stop()
     if process.returncode:
         raise FactoryError('Forgetful sign-in/check failed or was cancelled; setup is incomplete. '
                            'Inspect the role using Pi/CLI, then retry the failed command. '

@@ -16,7 +16,12 @@ brief context notes that preserve recovery JSON.
 See the [decision](adrs/issue-planning.md) and [checks](plans/issue-plan-placeholder.md).
 Optional implementation/review workers and owner-led merge guidance
 are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
-Deployment and final E2E verification remain planned.
+[Slice 7A](adrs/completion-agreement.md) adds confirmed setup agreements at
+`.factory/definition_of_done.md` and agent-guided handoff/completion. The CLI does not interpret
+Markdown or verify delivery evidence. [Completed-plan cleanup](adrs/completed-plan-cleanup.md) now
+runs independently through watch/native Git. Approved durable per-set receipts, fair one-set
+attempts and watch-local stop checkpoints are implemented. Parent SQ/review disposition and live
+adoption remain pending; model-following and deployment/E2E trials remain deferred.
 
 [GitHub CLI readiness](plans/github-cli-readiness.md) now checks local `--slurp` support before
 watcher connection to Foreman. It rejects incompatible executables without polling or launching
@@ -99,7 +104,6 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
 | `deadlines.py` | Define immutable, finite-positive command and AgentShell deadline policies. |
-
 ## Main classes and contracts
 
 ```mermaid
@@ -131,6 +135,11 @@ classDiagram
     WatchFactory --> WorkTrackingService
     WatchFactory --> ForemanTerminal
     WatchFactory --> ScaffoldIssue
+    WatchFactory --> CleanupCompleted
+    CleanupCompleted --> FactoryRecords
+    CleanupCompleted --> Worktrees
+    ScaffoldIssue --> FactoryRecords
+    FactoryRecords --> Planning
     ScaffoldIssue --> Planning
     ScaffoldIssue --> Worktrees
     ScaffoldIssue --> LocalRepositories
@@ -152,7 +161,6 @@ it does not import or call the owner's class directly.
 Solid arrows show workflow dependencies. Dashed arrows show source-verified structural matches to
 Python protocols, not declared class inheritance. The diagram is a selective summary, not the full
 import or call graph.
-
 ## Boundaries and execution
 
 - Domain code stays independent of application, adapters, CLI, and integration details.
@@ -176,6 +184,12 @@ import or call graph.
   separate issue-scope choice and owned cleanup. Assisted setup/finalization has no CLI launch
   offer.
   Ordinary repeated init preserves files without prompts, catalog/backend calls or synchronization.
+  First manual completion also offers DoD starting presets or a real Foreman discussion. Confirmed
+  Markdown is saved outside feature worktrees, not in TOML. Discussion leaves first setup incomplete
+  without inventing a policy; finalization can confirm it or start/return to the setup conversation.
+  Existing agreements and ordinary repeated init are preserved without migration. Foreman guidance
+  reads this file before planning/completion, passes it to owners and seeks approval for changes to
+  open plans. These are agent instructions, not Python enforcement of completion policy.
   First completion and explicit finalization check Forgetful access and planning permissions before
   recording a simple completion receipt. There is no model/resource fingerprint. Server checks may
   start native browser sign-in. A bounded public-policy request controls the browser notice without
@@ -215,6 +229,21 @@ import or call graph.
   intake. One run-scoped record keeps the distinct maps and flags; a local enum communicates
   continue/read-pause/manual-pause outcomes. Submission stays outside recoverable-operation
   exception handlers, so failed delivery still terminates rather than entering a retry loop.
+- Every cycle, including startup, `CleanupCompleted` reads full plans from the complete native
+  inventory independently of issue polling, unfinished recovery and manual intake pauses. Only
+  selected completed Factory plans with full valid ownership/mappings authorize disposal. Shared
+  `FactoryRecords` checks keep identity validation out of Git adapters and avoid a second copy in
+  scaffolding. Path, shared Git-directory and canonical remote-source claims protect other plans
+  and targets; unreadable/invalid claims or namespaces block all disposal, not safe intake. Mappings
+  need `target_branch` and a path strictly beneath their repository's Factory directory. Native Git
+  protects configured main roots, validates origin, registration/common gitdir and protected refs,
+  then removes worktree, local branch and remote ref in order. Dirty/ignored content and extra
+  commits are disposable until durable per-set confirmation ends authority across restarts.
+  A cleanup receipt port persists terminal identities; one pending set gets a fair turn per cycle.
+  Default reads cache per root/cycle; cleanup networking is noninteractive. No policy parser is
+  added.
+  The [cleanup ADR](adrs/completed-plan-cleanup.md) covers receipt scope/storage, partial failure,
+  explicit old-plan review, operator repair and the limits of the one-set work bound.
 - Startup checks each configured local repository against its saved origin and provider/source
   mapping after Foreman is ready. Known repository problems pause only affected work and retry
   reads. Fresh intake repeats those checks and inspects its derived path/branch before creating
@@ -224,8 +253,8 @@ import or call graph.
   provider adapter. `Worktrees.inspect` is separate from creation-capable `ensure`, which still
   rechecks at the write boundary. Candidate ownership IDs remain separate from a confirmed pin;
   approved duplicate reconciliation can leave either valid survivor when no sole owner was pinned.
-- The Git adapter uses native worktree registration, branch/common-directory and origin checks.
-  It never resets or deletes existing work. An `epic` label defers worktree selection to the owner.
+- For unfinished plans, the Git adapter checks registration, branch/common directory and origin
+  without resetting or deleting work. An `epic` label defers worktree selection to the owner.
   Valid owner-recorded cleanup permits an absent merged tree only after read-only origin/path and
   registration checks. Missing unmarked or pending trees still require reconciliation.
 - Starter Pi definitions select local skills/extensions and disable automatic personal/project
@@ -270,9 +299,12 @@ import or call graph.
   Worker-only exit remains uncertain; SDK exit observation can confirm Pi stopped. No live
   model/effort/resource inspection is added. Unknown state never authorizes replacement. Native tmux
   client commands only enter/switch the user's UI; AgentShell handles notification delivery.
-- Starter Foreman, owner and research definitions explicitly select their role cwd and native
-  instructions. Omitted root cwd inherits the CLI process directory; omitted worker cwd retains
-  the assigned worktree. Foreman's preserved `APPEND_SYSTEM.md` is read through guidance, not sent
+- Starter Foreman, owner and research definitions select their role cwd and native instructions.
+  Research calls omit cwd overrides and pass absolute repository/worktree and AGENTS.md paths for
+  read-only inspection. Implementation/review definitions omit cwd for assigned-worktree calls.
+  These are responsibilities, not fixed names; preserve custom valid definitions and surface genuine
+  conflicts. A conflicting call alone never authorizes removing configured cwd. Omitted root cwd
+  inherits the CLI cwd. Foreman's preserved `APPEND_SYSTEM.md` is read through guidance, not sent
   as an opening prompt. The extension reads child-owned definitions one level at a time. A roster
   selector does not configure the running parent's model/resources; Factory launches the actual
   root settings. The worker independently pins AgentShell 0.5. Native `max_sub_agent_depth` must be
@@ -308,7 +340,6 @@ import or call graph.
 The [initialization ADR](adrs/initialization.md) explains provider separation and storage.
 The [watcher ADR](adrs/issue-watcher.md) explains notification flow and session ownership.
 The [development-checks ADR](adrs/development-checks.md) explains enforced import rules and limits.
-
 ## Decision records
 
 - [Normalized agent definitions](adrs/agent-definitions.md): approved single-definition direction,
@@ -333,40 +364,48 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   installation, child rosters and shared-credential limits.
 - [Issue planning and feature ownership](adrs/issue-planning.md): plan identity, partial-create
   recovery, native worktrees, revision notifications and owner continuation.
+- [DoD agreement and completion handoff](adrs/completion-agreement.md): plain Markdown setup,
+  confirmation/discussion, unchanged one-time init and agent-guided completion.
+- [Completed-plan cleanup](adrs/completed-plan-cleanup.md): independent polling, shared identity,
+  disposable contents, targeted native Git retry and explicit review before old-plan adoption.
 - [Implementation, review and merge](adrs/feature-delivery.md): Slice 6 worker setup, native harness
-  limits, exact-commit evidence, owner coordination and safe cleanup; live validation pending.
+  limits, exact-commit evidence, owner coordination and historical cleanup; live validation pending.
 - [Agent onboarding and maintenance](adrs/agent-onboarding.md): numbered choices, selected Foreman
   maintenance guidance and the boundary between implemented setup and the Foreman-first proposal.
-
 ## Source navigation
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 891; init: line 682; project choice: line 467;
-  numbered choices: line 211; worker setup: line 627; completion/skill folders: line 642;
-  optional manual launch: line 707; standalone Foreman: line 376.
-  New-setup orchestration: line 811; memory choices: line 585; REST eligibility: line 620.
-  Public numbered parser: `cli/numbered_selection.py`, line 6.
-  Adapter wiring: `cli/bootstrap.py`, lines 22 and 30; GitHub CLI preflight: line 48;
-  selected root launch: line 68. Local GitHub capability probe:
+- CLI entry: `cli/main.py`, line 903; init: line 682; project choice: line 467;
+  numbered choices: line 212; worker setup: line 627; completion/skill folders: line 642;
+  optional manual launch: line 707; standalone Foreman: line 377.
+  New-setup orchestration: line 821; memory choices: line 585; REST eligibility: line 620.
+  DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
+  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 758 in main.
+  Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
+  selected root launch: line 71. Local GitHub capability probe:
   `adapters/github/work_tracking.py`, line 12.
   Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 18;
-  `application/watch_factory.py`, line 60; private run state: line 39;
+  `application/watch_factory.py`, line 62; private run state: line 40;
   `application/scaffold_issue.py`, line 28.
   Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
-  Problem types and formatting: `application/watcher_problems.py`, lines 80 and 112.
-  Repository/pre-create checks: `application/scaffold_issue.py`, lines 42 and 100;
-  read-only lookup/recovery: lines 179 and 235; placeholder creation: line 191.
+  Problem types and formatting: `application/watcher_problems.py`, lines 119 and 151;
+  Shared identity/repository checks: `application/factory_records.py`, lines 13–113;
+  pre-create checks: `application/scaffold_issue.py`, line 78; read-only lookup/recovery:
+  lines 166 and 222; placeholder creation: line 178. Cleanup: `application/cleanup_completed.py`,
+  lines 45–98, 268–364; receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27;
+  durable storage: `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
-  shared scope/checks: `adapters/forgetful/connection.py`, lines 12 and 122;
-  project listing/creation: lines 95 and 105.
+  shared scope/checks: `adapters/forgetful/connection.py`, lines 13 and 124;
+  project listing/creation: lines 97 and 107.
 - Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
-  `adapters/filesystem/git_worktrees.py`, line 25; inspection: line 35; write boundary: line 75.
-  Removed-tree verification: line 52.
+  `adapters/filesystem/git_worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
+  Common identity: line 41; target: line 54; absence: line 83; disposal/checks: lines 200–359.
   Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 19.
-  Owned native-command cancellation: `adapters/sensitive_command.py`, lines 18 and 33.
+  Watch-local cancellation: `application/watch_stop.py`; native, delivery and wait checkpoints
+  preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
 - Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 316;
   consent persistence: line 194; unselected-memory notice: line 344.
@@ -385,9 +424,9 @@ Paths below are relative to `src/forgetful_factory/`:
 - Setup lifecycle: `adapters/agentshell/owner.py`, line 103;
   synchronous lock/startup: lines 62 and 79; process entrypoint: line 463;
   client: `adapters/agentshell/owner_client.py`, line 110;
-  borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 9;
+  borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 10;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
-- Lifecycle status: `cli/main.py`, lines 301, 332, 364 and 413;
+- Lifecycle status: `cli/main.py`, lines 302, 333, 365 and 414;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
@@ -402,6 +441,14 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_init_launch.py` exercises terminal-only launch, decline,
   cancellation, copied commands and assisted exclusions. `tests/test_project_onboarding.py` covers
   project selection/creation.
+  `tests/test_definition_of_done.py` checks public setup persistence, confirmation and preservation;
+  `tests/test_definition_of_done_lifecycle.py` checks discussion with isolated native tmux/fake Pi;
+  `tests/test_definition_of_done_watch.py` checks unchanged unfinished verification recovery.
+  `tests/test_completed_cleanup.py` and `tests/test_completed_cleanup_recovery.py` check completed
+  disposal/isolation/retry through public watch, real Git, shared namespaces and bare remotes.
+  `tests/test_cleanup_review.py` checks claims/auth; `test_cleanup_receipts.py` and
+  `test_cleanup_scheduling.py` check durable reuse/fairness; `test_watch_stop.py` checks one-signal
+  stop.
   `tests/test_foreman_memory_setup.py` checks opt-in, model choices and preference preservation.
   `tests/test_foreman_issue_intake.py` checks delivered label/consent guidance and preservation.
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
@@ -427,19 +474,15 @@ Paths below are relative to `src/forgetful_factory/`:
   These use real tmux with fake agents. Optional SDK probes: `tests/test_native_roles.py`,
   `tests/test_native_workers.py`, `tests/test_native_assisted_reload.py`.
   See validation records for which native and autonomous-agent behaviors were actually tested.
-
 ## Using the detailed map
-
 The generated [Mycelium map](assets/mycelium_class_diagram.md) is supporting detail. Do not load
-it in full by default. Mycelium 0.4.5 refreshed the staged runtime source map with full member
-detail; tests were excluded using `--test-path tests`. Its 80 boxes include module containers.
-Signatures remain in full detail; the map header records the current test-filtering counts.
-The readiness refresh reused version 0.4.5 in a disposable environment after wheel/component review;
-its audit retains native-library advisory limits for this local, trusted-source run. No project
-runtime dependency changed. The placeholder refresh reused the cached exporter without installation;
-the status refresh reused it too. This older CLI has no `--detail` flag; its default retains full
-signatures and relationship lists. A second export of the same map matched byte-for-byte.
-Bundled third-party archives are not expanded by this map.
+it in full by default. Mycelium 0.4.5 refreshed the current source map with full member detail;
+tests are excluded with `--test-path tests`. Boxes include modules; the map header records
+test-filtering counts. This refresh reuses the cached, previously audited exporter without installs.
+Its wheel/component audit retains native-library advisory limits for this local, trusted-source run;
+no runtime dependency changed. This CLI has no `--detail` flag; its default retains full
+signatures and relationship lists. Same-map repeat exports match byte-for-byte. Bundled third-party
+archives are not expanded by this map.
 
 - Find declarations in the source index, reading that index in chunks if needed.
 - Search diagram identifiers and read bounded ranges for relevant connections.
@@ -447,7 +490,7 @@ Bundled third-party archives are not expanded by this map.
 - Check filtering notices and warnings. Missing edges do not establish independence.
 - Verify important relationships against source; static call matching is heuristic.
 
-The map reports twelve unresolved external-base warnings (`Protocol`, `Exception`, `ValueError`
+The map reports thirteen unresolved external-base warnings (`Protocol`, `Exception`, `ValueError`
 and `Enum`). Some
 same-name call edges are incorrect: command execution's `run` is associated with `ForemanOwner.run`,
 and external session/file `close` calls with `BorrowedForemanTerminal.close`. Use source and import

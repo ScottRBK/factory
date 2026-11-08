@@ -10,7 +10,10 @@ those references to the Foreman. It never launches a feature-owner itself.
 
 The Foreman is the sole dispatcher. Its selected roster launches a Pi feature-owner, which claims
 ownership, conducts grill-me, asks for clarification and plans the work. It may delegate research.
-Implementation, PR review, merge and deployment execution belong to later slices.
+Implementation, PR review and merge guidance now belongs to Slice 6; Slice 7A adds the
+[DoD agreement and Foreman completion handoff](completion-agreement.md). Python does not interpret
+that Markdown or dispatch owners. Roles leave resources for
+[completed-plan watcher cleanup](completed-plan-cleanup.md).
 
 Python code implements setup, issue intake and recovery of saved records. Agent instructions
 implement the planning conversation and owner coordination. Tests of those instructions and launch
@@ -70,8 +73,10 @@ Factory uses existing Forgetful text fields for a small JSON record:
   flag, but replace the body with a provider/number/title placeholder. This applies to short and
   long issues; no body prefix or other truncated text is stored.
 - Ownership task `description`: `kind="factory-ownership"`, `workspace`, `external_ref` and
-  `worktrees`. Each mapping contains `repository`, `local_dir`, `branch` and absolute `path`.
-  After verified merge, the owner can add per-mapping `cleanup` metadata; see below.
+  `worktrees`. Each mapping contains `repository`, `local_dir`, `branch` and absolute `path`. New
+  mappings
+  also record `target_branch`; completed-plan disposal requires this reviewed target.
+  Historical owner cleanup can carry per-mapping `cleanup` metadata; see below.
 - Ownership task `assigned_agent`: the owner's real native Pi session ID, set by `claim_task`.
 
 The placeholder says that the feature owner will update the description after reviewing the
@@ -144,17 +149,22 @@ extension is required.
 The Git adapter checks origin, registered path, branch and common Git directory. Initial intake can
 reuse an existing matching registration; saved incomplete plans require approved Foreman completion.
 A missing or mismatched recorded worktree blocks its plan and alerts Foreman, without stopping
-unrelated plans or the watcher. It is never silently recreated. Generated worktrees live under
+unrelated plans or the watcher. It is never silently recreated. New generated worktrees live under
+each repository's
 `.factory/worktrees/`, ignored by Git. Uncommitted changes in the original working copy are not
 copied into a new tree.
 
-Slice 6 adds an optional cleanup record for safely removed, merged worktrees. The owner saves the
+Slice 6 added an optional cleanup record for safely removed, merged worktrees. This remains a
+historical recovery contract; new 7A roles retain resources and do not perform those removals. The
+owner saves the
 canonical matching GitHub PR URL, full merge SHA and `pending` intent before removal; it records
 `removed` only after confirming path and registration absence. On restart, only a valid `removed`
 record permits absence. The adapter checks the origin and refuses occupied paths, symlinks or
 remaining registrations. Missing unmarked or pending work remains blocked for reconciliation.
 
-The watcher does not delete worktrees or verify GitHub merge evidence. It preserves the reported
+This open-plan recovery path does not delete worktrees or verify GitHub merge evidence.
+The separate completed-plan workflow removes validated resources only after native completion. It
+preserves the reported
 cleanup metadata in the notification so the Foreman can inspect unfinished post-merge work without
 launching into a removed tree. The
 [cleanup record](feature-delivery.md#worktree-cleanup-and-restart) describes these checks.
@@ -194,5 +204,8 @@ own ID and version. There is no `release_task` operation. Automatic recovery acr
 Foreman histories is not implemented.
 
 The ownership task stays `doing` through planning, and the plan remains open. Implementation tasks
-must not depend on completion of that long-lived task. Deployment/E2E work stays unfinished so
-Forgetful cannot complete the plan before the later verification stage.
+must not depend on completion of that long-lived task. Under 7A, required completion checks stay
+unfinished until Foreman verifies them, even when the issue closes at merge. Excluded checks need
+no placeholder tasks. Foreman also checks the merge-only handoff before finishing ownership.
+Applicable shared requirements are brief task text, distinct from feature acceptance criteria;
+changes to open-plan requirements need an explicit user decision. No policy parser is introduced.

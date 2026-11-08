@@ -7,6 +7,7 @@ from forgetful_factory.application.cleanup_marker import (
     validate_cleanup_marker,
 )
 from forgetful_factory.application.configuration import FactoryConfiguration
+from forgetful_factory.application.factory_records import FactoryRecords
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.planning import Planning, PlanningReadError
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
@@ -17,7 +18,6 @@ from forgetful_factory.application.ports.worktrees import (
 )
 from forgetful_factory.application.watcher_problems import (
     IntakeProblem,
-    RepositoryProblem,
     ScaffoldProblem,
     ScaffoldReadProblem,
     UncertainScaffold,
@@ -33,46 +33,23 @@ class ScaffoldIssue:
         self.worktrees = worktrees
         self.workspace = workspace
         self.config = config
-        self.repositories = repositories
-        self.sources = sources
+        self.records = FactoryRecords(planning, workspace, config, repositories, sources)
 
     def check(self) -> None:
         self.planning.check()
 
     def check_repository(self, repository: RepositoryReference) -> None:
-        try:
-            remote = self.repositories.origin(Path(repository.local_dir))
-        except FactoryError as error:
-            raise RepositoryProblem('repository_read_failed', str(error),
-                                    paths=(repository.local_dir,)) from error
-        if remote != repository.remote:
-            raise RepositoryProblem('repository_origin_changed',
-                                    f'Repository origin changed for {repository.local_dir}; '
-                                    'reconcile Git and saved configuration.',
-                                    paths=(repository.local_dir,))
-        self._check_source(repository)
-
-    def _check_source(self, repository: RepositoryReference) -> None:
-        try:
-            source = self.sources.source_from_remote(repository.remote)
-        except FactoryError as error:
-            raise RepositoryProblem('repository_source_mismatch', str(error),
-                                    paths=(repository.local_dir,)) from error
-        expected = repository.work_source
-        if source != WorkSource(expected.provider, expected.reference.casefold()):
-            raise RepositoryProblem('repository_source_mismatch',
-                                    f'Origin/source mapping differs for {repository.local_dir}.',
-                                    paths=(repository.local_dir,))
+        self.records.check_repository(repository)
 
     def prepare(self, issue: Issue) -> dict | None:
         plan_id = self.lookup(issue)
         if plan_id is not None:
             result = self.recover(plan_id, issue.id, issue=issue)
             return result[1] if result is not None else None
-        self.preflight(issue)
+        mappings = self.preflight(issue)
         plan = self._create_plan(issue)
         try:
-            return self._prepare_plan(issue, plan)
+            return self._prepare_plan(issue, plan, mappings)
         except ScaffoldProblem as error:
             error.plan_id = plan['id']
             raise
@@ -95,11 +72,17 @@ class ScaffoldIssue:
         name = issue.source.reference.replace('/', '-') + f'-{issue.number}'
         return [{'repository': issue.source.reference, 'local_dir': repository.local_dir,
                  'branch': f'factory/{name}',
-                 'path': str(self.workspace / '.factory/worktrees' / name)}]
+                 'path': str(Path(repository.local_dir) / '.factory/worktrees' / name),
+                 'target_branch': self.worktrees.target_branch(repository.local_dir)}]
 
-    def preflight(self, issue: Issue) -> None:
-        self.check_repository(self._repository(issue.source))
-        for mapping in self._initial_mappings(issue):
+    def preflight(self, issue: Issue) -> list[dict]:
+        self.records.check_repository(self._repository(issue.source))
+        try:
+            mappings = self._initial_mappings(issue)
+        except WorktreeReadError as error:
+            raise IntakeProblem('worktree_read_failed', str(error),
+                                paths=(self._repository(issue.source).local_dir,)) from error
+        for mapping in mappings:
             try:
                 self.worktrees.inspect(mapping['local_dir'], mapping['branch'], mapping['path'],
                                        remote=self._repository(issue.source).remote)
@@ -109,11 +92,14 @@ class ScaffoldIssue:
                 raise IntakeProblem('worktree_read_failed', str(error),
                                     paths=(mapping['path'],)) from error
 
-    def _prepare_plan(self, issue: Issue, plan: dict) -> dict | None:
-        context = self._context(plan)
-        if not self._active(plan):
+        return mappings
+
+    def _prepare_plan(self, issue: Issue, plan: dict,
+                      initial_mappings: list[dict]) -> dict | None:
+        context = self.records.context(plan)
+        if not self.records.active(plan):
             return None
-        tasks, mappings = self._setup_ownership(plan['id'], issue, context)
+        tasks, mappings = self._setup_ownership(plan['id'], issue, context, initial_mappings)
         self._ensure_setup_worktrees(mappings, tasks)
         if not tasks:
             tasks = self._create_ownership(plan['id'], issue.id, context, mappings)
@@ -122,8 +108,9 @@ class ScaffoldIssue:
                 'epic': issue.epic, 'repositories': [asdict(r) for r in self.config.repository]}
 
     def _setup_ownership(self, plan_id: int, issue: Issue,
-                         context: dict) -> tuple[list[dict], list[dict]]:
-        tasks = self._ownership(plan_id, issue.id)
+                         context: dict, initial_mappings: list[dict]
+                         ) -> tuple[list[dict], list[dict]]:
+        tasks = self.records.ownership(plan_id, issue.id)
         if len(tasks) > 1:
             raise ScaffoldProblem(
                 'ownership_ambiguous',
@@ -136,7 +123,7 @@ class ScaffoldIssue:
                 'the earlier request stopped before explicitly reconciling '
                 'ownership_create_started in the plan context. No retry was made.')
         mappings = (json.loads(tasks[0]['description'])['worktrees'] if tasks
-                    else self._initial_mappings(issue))
+                    else initial_mappings)
         return tasks, mappings
 
     def _ensure_setup_worktrees(self, mappings: list[dict], tasks: list[dict]) -> None:
@@ -166,7 +153,7 @@ class ScaffoldIssue:
         except FactoryError:
             pass
         try:
-            tasks = self._ownership(plan_id, external_ref)
+            tasks = self.records.ownership(plan_id, external_ref)
         except FactoryError as error:
             raise UncertainScaffold('ownership_create_uncertain', str(error)) from error
         if len(tasks) != 1:
@@ -237,12 +224,12 @@ class ScaffoldIssue:
         """Read known identities only. Missing records never fall back to scaffolding."""
         try:
             plan = self._recovery_plan(plan_id, external_ref)
-            context = self._context(plan)
-            if not self._active(plan):
+            context = self.records.context(plan)
+            if not self.records.active(plan):
                 return None
-            snapshot = self._snapshot(context, external_ref)
-            self.check_repository(self._repository(snapshot.source))
-            owners = self._ownership(plan_id, external_ref)
+            snapshot = self.records.snapshot(context, external_ref)
+            self.records.check_repository(self._repository(snapshot.source))
+            owners = self.records.ownership(plan_id, external_ref)
             current_ids = tuple(sorted(task['id'] for task in owners))
             self._validate_recovery_candidates(owners, current_ids, task_ids)
             task_ids = current_ids
@@ -307,22 +294,6 @@ class ScaffoldIssue:
         raise ScaffoldProblem('setup_incomplete',
                               'Saved ownership is missing or ambiguous; reconcile it.')
 
-    def _snapshot(self, context: dict, external_ref: str) -> Issue:
-        try:
-            snapshot = dict(context['issue'])
-            source = WorkSource(**snapshot.pop('source'))
-            issue = Issue(source, **snapshot)
-            if (not isinstance(source.provider, str) or not isinstance(source.reference, str)
-                    or type(issue.number) is not int or issue.number < 1
-                    or any(not isinstance(field, str) for field in (
-                        issue.title, issue.url, issue.body, issue.revision))
-                    or type(issue.epic) is not bool or issue.id != external_ref):
-                raise ValueError('Invalid saved issue or changed association')
-            return issue
-        except (KeyError, TypeError, ValueError) as error:
-            raise ScaffoldProblem('plan_recovery_invalid',
-                                  'Cannot restore factory plan; reconcile its context.') from error
-
     def _is_unfinished_factory_plan(self, summary: dict, sources: set[str]) -> bool:
         project_id = summary.get('project_id')
         status = summary.get('status')
@@ -335,86 +306,11 @@ class ScaffoldIssue:
             raise FactoryError('Factory plan inventory has invalid references; reconcile it.')
         return any(reference.startswith(f'github:{source}#') for source in sources)
 
-    @staticmethod
-    def _active(plan: dict) -> bool:
-        status = plan.get('status')
-        if (not isinstance(status, str)
-                or status not in ('draft', 'active', 'completed', 'archived')):
-            raise ScaffoldProblem('plan_status_invalid',
-                                  'Saved plan status is invalid; reconcile it before continuing.')
-        return status in ('draft', 'active')
-
-    def _context(self, plan: dict) -> dict:
-        try:
-            context = json.loads(plan.get('context') or '{}')
-            if not isinstance(context, dict) or 'workspace' not in context:
-                raise ValueError('Missing association')
-        except (TypeError, ValueError) as error:
-            raise ScaffoldProblem(
-                'plan_context_invalid', 'Factory plan has invalid context; reconcile its workspace '
-                'association without creating another plan.') from error
-        if context['workspace'] != str(self.workspace):
-            raise ScaffoldProblem(
-                'plan_workspace_mismatch', 'Plan belongs to another workspace. One workspace per '
-                'plan is supported; its lease cannot coordinate other factories. '
-                'Stop the other factory and explicitly reconcile the association.')
-        return context
-
-    def _ownership(self, plan_id: int, external_ref: str) -> list[dict]:
-        candidates = []
-        for task in self.planning.tasks(plan_id):
-            try:
-                record = json.loads(task.get('description') or '{}')
-            except (TypeError, ValueError):
-                record = {}
-            marked = isinstance(record, dict) and record.get('kind') == 'factory-ownership'
-            if not marked and task.get('title') != 'Feature ownership':
-                continue
-            candidates.append((task, record, marked))
-        owners = []
-        task_ids = tuple(task['id'] for task, _, _ in candidates)
-        for task, record, marked in candidates:
-            if (not marked or record.get('workspace') != str(self.workspace)
-                    or record.get('external_ref') != external_ref
-                    or not isinstance(record.get('worktrees'), list)
-                    or task.get('plan_id') != plan_id):
-                raise ScaffoldProblem(
-                    'ownership_invalid',
-                    'Ownership record is invalid or belongs to another workspace; '
-                    'reconcile the full task description before continuing.', task_ids=task_ids)
-            owners.append(task)
-        return owners
-
     def _ensure_worktrees(self, mappings: list[dict], *, recorded: bool) -> None:
         seen = set()
         for mapping in mappings:
-            repository = self._mapping_repository(mapping, seen)
+            repository = self.records.mapping_repository(mapping, seen)
             self._ensure_validated_mapping(repository, mapping, recorded=recorded)
-
-    def _mapping_repository(self, mapping: dict, seen: set[str]) -> RepositoryReference:
-        try:
-            if not isinstance(mapping, dict):
-                raise ValueError('Mapping is not an object')
-            repository_name = mapping.get('repository')
-            local_dir = mapping.get('local_dir')
-            branch = mapping.get('branch')
-            path = mapping.get('path')
-            if (not isinstance(repository_name, str) or not repository_name
-                    or not isinstance(local_dir, str) or not local_dir
-                    or not isinstance(branch, str) or not branch
-                    or not isinstance(path, str) or not path):
-                raise ValueError('Incomplete mapping')
-            if not Path(path).is_absolute() or path in seen:
-                raise ValueError('Invalid or duplicate path')
-            repository = next(r for r in self.config.repository
-                              if r.local_dir == local_dir and
-                              r.work_source.reference.casefold() == repository_name)
-        except (ValueError, StopIteration) as error:
-            raise ScaffoldProblem(
-                'mapping_invalid', 'Invalid ownership worktree mapping; reconcile it with the '
-                'configured repositories; work is preserved.') from error
-        seen.add(path)
-        return repository
 
     def _ensure_validated_mapping(self, repository: RepositoryReference, mapping: dict, *,
                                   recorded: bool) -> None:
@@ -428,7 +324,7 @@ class ScaffoldIssue:
                                   paths=error.paths or (mapping['path'],)) from error
 
     def _ensure_mapping(self, repository, mapping: dict, *, recorded: bool) -> None:
-        self._check_source(repository)
+        self.records.check_source(repository)
         try:
             state = validate_cleanup_marker(mapping)
         except CleanupMarkerError as error:

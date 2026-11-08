@@ -26,6 +26,21 @@ SUMMARIES = {
         'First-time setup is incomplete and needs user-approved Foreman completion.'),
     'ownership_identity_changed': 'The recorded ownership task is missing or replaced.',
     'mapping_invalid': 'A saved worktree mapping does not match the configured repositories.',
+    'cleanup_inventory_read_failed': 'The cleanup plan inventory could not be read completely.',
+    'cleanup_read_failed': 'A plan or its full ownership tasks could not authorize cleanup.',
+    'cleanup_target_missing': 'An old mapping needs an explicitly reviewed merge-target branch.',
+    'cleanup_ownership_conflict': 'Competing plan, path, branch or target claims block cleanup.',
+    'cleanup_path_invalid': 'The cleanup path or repository identity is unsafe.',
+    'cleanup_locked': 'The recorded worktree is locked and will not be forcibly unlocked.',
+    'cleanup_protected_branch': 'Cleanup cannot establish an unprotected feature branch.',
+    'cleanup_worktree_remaining': 'Worktree absence is unconfirmed.',
+    'cleanup_branch_in_use': 'The feature branch is still registered in another checkout.',
+    'cleanup_local_remaining': 'Local feature-ref absence is unconfirmed.',
+    'cleanup_remote_remaining': 'Remote feature-ref absence is unconfirmed.',
+    'cleanup_network_read_failed': 'A noninteractive cleanup network read failed; recheck facts.',
+    'cleanup_receipt_failed': 'Cleanup completion storage is unconfirmed; names remain reserved.',
+    'cleanup_receipt_conflict': 'A completed plan changed a durably confirmed resource set.',
+    'cleanup_operation_uncertain': 'A cleanup operation failed or has an uncertain result.',
     'cleanup_invalid': 'Worktree cleanup metadata or its PR/merge evidence is invalid.',
     'cleanup_pending': 'Worktree cleanup is pending and the recorded tree cannot be verified.',
     'repository_origin_changed': 'The repository origin differs from the configured remote.',
@@ -54,7 +69,9 @@ SETUP_REPAIR = (
     'Never replace a previously established ownership task. Its description '
     'JSON requires kind="factory-ownership", workspace from the plan context, '
     'external_ref matching this issue, and worktrees with repository, local_dir, '
-    'branch and absolute path for each verified mapping. Preserve all records and '
+    "branch, reviewed target_branch and absolute path strictly beneath the owning repository's "
+    '".factory/worktrees/" for each verified mapping. Never guess or backfill a target. '
+    'Preserve all records and '
     'create-intent markers; do not reset, prune, discard or dispatch an owner. '
     'The watcher only rechecks reads; clearing a conflict cannot complete setup. '
     'It can observe an approved first owner without an issue edit. Recheck ownership '
@@ -75,6 +92,28 @@ OWNERSHIP_RECONCILIATION = (
     'after updating. Python observes native facts, not human approval. Read-only checks can accept '
     'either valid survivor only when no single owner was previously confirmed. A pinned owner '
     'cannot be replaced. Recheck ownership and liveness before any later dispatch.')
+
+
+def _cleanup_recovery(code: str) -> str:
+    if code in ('worktree_mismatch', 'worktree_repository_mismatch'):
+        return ('Cleanup stays blocked. After explicit user approval, inspect the exact'
+                ' recorded path, native registration, branch, expected common Git '
+                'directory and gitdir backlink, and preserve remaining contents. A '
+                'partial removal can lose the .git link and need operator repair; '
+                'retries cannot always finish autonomously. Only after validating that '
+                'administrative entry, use git worktree repair with the exact recorded '
+                'path if Git can repair it. Reread branch/root/common gitdir and '
+                'backlink before allowing cleanup to retry. If repair fails, agree a '
+                'targeted per-resource recovery with the user. Never blanket-prune, rm,'
+                ' force-bypass or guess another registration. This does not reopen the '
+                'completed plan.')
+    return ('Discuss the cleanup problem with the user. Inspect the selected plan, full'
+            ' ownership mappings and actual Git state. Only completed status authorizes'
+            ' disposal; do not reopen, recreate resources or dispatch an owner to clean'
+            ' them. Missing/conflicting identity needs explicit reconciliation. Unknown'
+            ' claims or namespaces pause all disposal, not intake. Subsequent polls '
+            'reread state before targeted worktree, local-ref and remote-ref removal. '
+            'No rollback or process termination is authorized.')
 
 
 class ScaffoldProblem(FactoryError):
@@ -133,6 +172,8 @@ class WatcherAlerts:
                         'Never repeat an uncertain write.')
         elif code == 'ownership_ambiguous':
             recovery = OWNERSHIP_RECONCILIATION
+        elif scope == 'cleanup':
+            recovery = _cleanup_recovery(code)
         elif scope == 'repository':
             recovery = ('Discuss the repository problem with the user. Inspect its local Git '
                         'origin, saved remote and mapped provider/repository. Do not change origin '
