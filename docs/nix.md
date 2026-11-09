@@ -189,6 +189,32 @@ nix-build .      # same store path as `nix build .#default`
 nix-shell .      # delegates to the flake's own dev shell
 ```
 
+## Known build-backend divergence (documented, not fixed)
+
+`pyproject.toml` pins `requires = ["uv_build==0.13.5"]`, but the wheel this flake
+builds reports `Generator: uv 0.13.6`. Cause: `uv.lock` carries no build-backend
+entry, and the shared `pyproject-build-systems` input resolves build systems from
+**its own** lock, which pins `uv-build` 0.13.6. Our pin is therefore ignored by the
+Nix build.
+
+Impact and status:
+
+- Deterministic: the version is frozen in `flake.lock`, so builds do not drift
+  between runs. It is simply frozen to a version we did not choose.
+- The Nix-built wheel is **not byte-comparable** with the CI wheel, which resolves
+  the backend from PyPI and does honour `==0.13.5`.
+- A bump of the `pyproject-build-systems` input silently changes our build backend.
+- Not an estate-vs-unstable difference: reproduced identically on both channels, and
+  on `nixos-26.05` via `follows`.
+- `agent-shell` and `forgetful` use the same overlay but declare unversioned
+  `requires = ["hatchling", "hatch-vcs"]`, so nothing conflicts there; this repo is
+  the first to pin a backend.
+
+A proper fix would be a project-local build-systems lock so the backend is 0.13.5
+because this repo declared it. Accepted as-is for now; raising it so the divergence
+is a known quantity rather than a surprise for whoever diffs a Nix wheel against a
+CI wheel.
+
 ## Deferred
 
 - Cachix wiring (`nixConfig` + push workflow) — separate PR.
