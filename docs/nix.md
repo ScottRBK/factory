@@ -215,10 +215,25 @@ because this repo declared it. Accepted as-is for now; raising it so the diverge
 is a known quantity rather than a surprise for whoever diffs a Nix wheel against a
 CI wheel.
 
+## Dependency updates
+
+`.github/dependabot.yml` covers two ecosystems, weekly, mirroring the `forgetful`
+setup: `nix` (flake inputs, grouped into one PR per week) and `github-actions`.
+
+Python is deliberately excluded from *version* updates. Every requirement in
+`pyproject.toml` is exactly pinned and CI installs with `uv sync --locked`, so
+scheduled bumps would break the lock and undo the audit trail behind those pins.
+Python still receives Dependabot **security** updates, which only fire on versions
+with a known advisory.
+
+Known trap: a PR opened with a `GITHUB_TOKEN` does not trigger workflows. Automated
+bump PRs therefore arrive with no checks unless the repo is wired to a GitHub App or
+a Dependabot PAT, so a green-looking bump PR means nothing on its own — run
+`nix flake check` locally before merging.
+
 ## Deferred
 
 - Cachix wiring (`nixConfig` + push workflow) — separate PR.
-- Dependabot for `nix` and `github-actions` — separate PR.
 - Promoting `ruff-format` to the default stage — needs a formatting-only commit
   first, since 96 files would change.
 - The three known-red tests above — raise with the repo owner at PR time.
