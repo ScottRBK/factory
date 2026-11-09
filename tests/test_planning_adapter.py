@@ -1,5 +1,6 @@
 """Forgetful planning reads through the real adapter and controlled CLI boundary."""
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -30,12 +31,16 @@ INVENTORY_IDENTIFIERS = (
     {},
 )
 INVALID_COUNTS = (False, True, -1, 1.0, '1', None)
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
-FORGETFUL = '''#!/usr/bin/env python3
-import json
+
+FORGETFUL = SHEBANG + '''import json
 import os
 from pathlib import Path
 import sys
+
 
 root = Path(sys.argv[0]).resolve().parent.parent
 args = sys.argv[1:]

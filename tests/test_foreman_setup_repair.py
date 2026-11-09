@@ -1,6 +1,8 @@
 """Approved native repair observed through the watch CLI; no model compliance claim."""
 import json
+import shutil
 import subprocess
+import sys
 
 from test_planning_watch import PlanningWatchFixture
 
@@ -266,8 +268,11 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
         control = self.workspace / 'git-control.json'
         control.write_text(json.dumps(dict(command=command, after=after, after_plan=after_plan)))
         wrapper = self.bin / 'git'
+        # Portability: /usr/bin/python3 and /usr/bin/git are FHS paths that do not
+        # exist on NixOS/Nix, so resolve both at runtime instead of hardcoding them.
+        git = shutil.which('git')
         wrapper.write_text(
-            '#!/usr/bin/python3\nimport json, os, subprocess, sys\nfrom pathlib import Path\n'
+            f'#!{sys.executable}\nimport json, os, subprocess, sys\nfrom pathlib import Path\n'
             f'control = json.loads(Path({str(control)!r}).read_text())\n'
             f'state_path = Path({str(self.workspace / ".factory/fixture-plans.json")!r})\n'
             'plans = json.loads(state_path.read_text())["plans"] if state_path.exists() else []\n'
@@ -275,9 +280,9 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
             'if (pattern and args[2:2 + len(pattern)] == pattern\n'
             '        and (not control.get("after_plan") or plans)):\n'
             '    if control.get("after"):\n'
-            '        subprocess.run(["/usr/bin/git", *args], check=True)\n'
+            f'        subprocess.run([{git!r}, *args], check=True)\n'
             '    sys.exit("TOP_SECRET controlled Git operation failure")\n'
-            'os.execv("/usr/bin/git", ["git", *args])\n')
+            f'os.execv({git!r}, ["git", *args])\n')
         wrapper.chmod(0o755)
         return control
 

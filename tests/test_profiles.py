@@ -417,7 +417,12 @@ class ProfileTests(InitFixture):
         import platform
         import shutil
         import sys
-        release = platform.freedesktop_os_release()
+        try:
+            release = platform.freedesktop_os_release()
+        except OSError:
+            # No readable os-release (for example a Nix build sandbox): the reviewed
+            # distro recipe cannot be evaluated here, which is a skip, not a failure.
+            self.skipTest('No readable os-release; reviewed distro recipe not evaluable')
         if release.get('ID') != 'ubuntu' or release.get('VERSION_ID') != '24.04':
             self.skipTest('Automatic tmux recipe is audited for Ubuntu 24.04 only')
         repo = self.repo()
@@ -442,7 +447,12 @@ class ProfileTests(InitFixture):
         import platform
         import shutil
         import sys
-        release = platform.freedesktop_os_release()
+        try:
+            release = platform.freedesktop_os_release()
+        except OSError:
+            # No readable os-release (for example a Nix build sandbox): the reviewed
+            # distro recipe cannot be evaluated here, which is a skip, not a failure.
+            self.skipTest('No readable os-release; reviewed distro recipe not evaluable')
         if release.get('ID') != 'ubuntu' or release.get('VERSION_ID') != '24.04':
             self.skipTest('Automatic tmux recipe is audited for Ubuntu 24.04 only')
         repo = self.repo()
