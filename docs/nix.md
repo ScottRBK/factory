@@ -215,10 +215,35 @@ because this repo declared it. Accepted as-is for now; raising it so the diverge
 is a known quantity rather than a surprise for whoever diffs a Nix wheel against a
 CI wheel.
 
+## Build cache
+
+Intended cache: <https://factory.cachix.org>, published by
+`.github/workflows/nix-cache.yml` on pushes to `main` and manual dispatch only.
+
+**Not live yet, and deliberately incomplete.** The cache does not exist, so this
+branch ships the workflow only. The `nixConfig` block that makes consumers
+substitute lands in the same PR once the cache exists and its real public key is
+known — a placeholder or misplaced `nixConfig` evaluates fine and looks like a pass
+while doing nothing, which is exactly how the equivalent change was inert in
+`forgetful` until review caught it.
+
+Before merging: create the cache, add the top-level `nixConfig` with its real
+public key, and set the `CACHIX_AUTH_TOKEN` repository secret. The workflow exits
+with a named error rather than silently no-op'ing when the token is missing.
+
+Design notes inherited from the `forgetful` implementation:
+
+- The action that holds the write token is pinned by commit SHA, not tag.
+- `cachix` itself is resolved from the nixpkgs revision in `flake.lock` instead of
+  the mutable `cachix.org` installer endpoint, so the binary handling the token is
+  content-addressed and reviewable.
+- `nix flake check` is published, not just the package: the check closures are the
+  expensive half of the cache.
+- PRs never publish. Forks have no token and unmerged artifacts do not belong in a
+  shared cache.
+
 ## Deferred
 
-- Cachix wiring (`nixConfig` + push workflow) — separate PR.
-- Dependabot for `nix` and `github-actions` — separate PR.
 - Promoting `ruff-format` to the default stage — needs a formatting-only commit
   first, since 96 files would change.
 - The three known-red tests above — raise with the repo owner at PR time.
