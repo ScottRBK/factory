@@ -40,6 +40,10 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+The [maintenance clarification](plans/agent-onboarding.md#reload-and-restart-guidance-clarification)
+separates intake stops, user-triggered roster reloads and user-led Foreman restarts. No seamless
+self-restart is promised. This changes instructions only, not runtime lifecycle behaviour.
+
 The approved [research cwd guidance correction](plans/slice-7.md#research-cwd-guidance-correction)
 aligns starter instructions with existing definitions: research keeps its role cwd, while
 implementation/review calls supply assigned worktrees. Public setup RED/GREEN and 22 focused checks

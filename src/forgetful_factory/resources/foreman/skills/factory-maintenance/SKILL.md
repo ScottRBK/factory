@@ -153,13 +153,35 @@ and executable extensions need separate consent and the repository's dependency 
 Completion: the owning agent document selects the intended files. Report whether a new launch or
 reload is needed; do not run init to synchronize selections.
 
-## 5. Validate and restart
+## 5. Validate, reload or hand off a restart
 
 For a completed factory, edit the selected definitions with watching and delegated work stopped.
-Reload the roster for new child launches; restart Foreman deliberately for changes to its own
-model, effort, cwd or resource selection. `foreman` starts a standalone coordinator and
-`foreman --attach` enters its existing terminal. Neither starts the watcher. Plain watch owns its
-Foreman and closes it when stopped; managed watch borrows the standalone Foreman.
+Stopping watching is an intake precaution, not how roster changes take effect. Explain these
+operations separately; do not describe every roster edit as requiring a watcher or Foreman restart.
+
+For child-agent roster changes, ask the user to run native `/reload` while Pi is idle and delegated
+work is confirmed stopped. Reload keeps this Foreman conversation open, but can cancel extension
+jobs. New child launches use the updated selections; existing children are not reconfigured.
+Do not restart Foreman for child-agent roster changes. Use the same reload route for content edits
+at already-selected Foreman skill paths. After validation and the user's reload, resume managed
+watching only with the user's agreed issue scope.
+
+Changes to Foreman's saved launch model, effort, cwd, environment or top-level resource selection
+need a deliberate new launch to take effect. There is no supported seamless Foreman self-restart.
+Tmux does not keep Pi alive after Pi stops. The pane may close or the user may be detached from
+tmux. Before any Foreman shutdown, explain the interruption and give the user a copyable,
+workspace-specific stop/start/attach handoff using their existing Factory invocation. Save the
+maintenance status and unfinished-work references outside disposable worktrees. Obtain explicit
+approval for the interruption and confirm delegated work has stopped. Do not stop your own Pi
+process or launch a replacement from this conversation. The user performs the Foreman restart from
+a separate terminal.
+Do not promise automatic reconnection or restoration of this conversation.
+
+`foreman` starts a standalone coordinator and `foreman --attach` enters its existing terminal;
+attachment does not launch a replacement. Neither starts the watcher. Plain watch owns its Foreman
+and closes it when stopped; managed watch borrows the standalone Foreman. Stopping a managed watcher
+leaves this conversation open, but Foreman exit stops its watcher without replacement.
+Unknown liveness never authorizes a replacement; preserve the recovery checks above.
 
 Only incomplete FIRST setup needs finalization. An independent Foreman can finish it without
 exiting. After stopping watching and confirming delegated work stopped, run:
@@ -195,12 +217,10 @@ resources, runtime readiness and Forgetful project/planning access before record
 It may contact native services or open the configured browser login. Let the user handle login;
 never copy tokens. Report the named failing check and preserve existing work on failure.
 
-Use `/reload` for the selected roster and content edits at already-selected Foreman skill paths.
-Restart deliberately for changed Foreman environment or newly selected top-level resource paths;
-attachment never changes launch arguments. Saved model/effort choices apply to future launches;
-the watcher neither changes nor inspects the current model. Do not reuse an old child session
-with changed selections or concurrent
-work. Readiness is not evidence of successful inference or feature delivery.
+Use the reload or user-led restart route above; attachment never changes launch arguments.
+Saved model/effort choices apply to future launches; the watcher neither changes nor inspects
+the current model. Do not reuse an old child session with changed selections or concurrent work.
+Readiness is not evidence of successful inference or feature delivery.
 
 Completion: report which files changed, the actual validation result, and whether a fresh session
 is still needed. Incomplete setup must be finished through `init --finalize`;

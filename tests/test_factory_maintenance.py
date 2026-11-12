@@ -9,6 +9,31 @@ from worker_support import worker_settings
 
 
 class FactoryMaintenanceTests(InitFixture):
+    def test_setup_delivers_reload_and_user_led_restart_guidance(self):
+        # Arrange: the public setup seam checks delivered guidance, not model compliance.
+        repo = self.repo()
+
+        # Act
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+
+        # Assert
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        skill = repo / '.factory/agents/foreman/skills/factory-maintenance/SKILL.md'
+        guidance = ' '.join(skill.read_text().split())
+        for required in (
+            'Stopping watching is an intake precaution, not how roster changes take effect.',
+            'For child-agent roster changes, ask the user to run native `/reload`',
+            'Do not restart Foreman for child-agent roster changes.',
+            'There is no supported seamless Foreman self-restart.',
+            'The pane may close or the user may be detached from tmux.',
+            'Before any Foreman shutdown, explain the interruption and give the user',
+            'explicit approval for the interruption',
+            'Do not stop your own Pi process or launch a replacement from this conversation.',
+            'Do not promise automatic reconnection or restoration of this conversation.',
+        ):
+            with self.subTest(instruction=required):
+                self.assertIn(required, guidance)
+
     def test_setup_delivers_cwd_guidance_consistent_with_starter_definitions(self):
         # Arrange: check delivered instructions/config, not whether a model follows the prose.
         repo = self.repo()

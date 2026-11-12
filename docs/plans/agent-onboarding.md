@@ -346,3 +346,31 @@ A live assisted-setup or delivery trial remains separate. Agree its repository a
 permissions before use, including idle/busy delivery and agent use of explicit reload. Attachment
 does not inspect current model/effort/resources. Broader downstream app integration still needs
 its own exact-selector, effort and native-resource tests; it is not part of this completed phase.
+
+### Reload and restart guidance clarification
+
+The maintenance instructions now separate stopping intake from applying roster edits. Child roster
+changes use a user-triggered `/reload` while idle and after delegated work stops; they do not need
+Foreman to restart. Changed Foreman launch settings need a user-led restart from another terminal.
+Before shutdown, guidance requires an interruption warning, saved work references, copyable
+workspace-specific steps and explicit approval. It forbids self-shutdown/replacement and promises
+neither automatic reconnection nor restoration of the conversation. Ownership and uncertain-liveness
+checks remain unchanged. No lifecycle implementation changed.
+
+The existing public setup-output seam now checks these instructions in the generated maintenance
+skill. Its nine new checks failed before the guidance edit, then passed. Earlier tests checked
+selection/reload wording but did not distinguish a reload from a user-led restart or require the
+connection-loss warning. These checks prove delivery of the text, not that a live model follows it.
+
+Validation: all 23 maintenance, worker-setup, native-role and native-worker tests passed without
+skips using the already-installed Pi 1.5.0 SDK. The first broader attempt used the historical 1.4.0
+SDK path, which no longer exists, and failed with two failures and five errors; correcting only the
+SDK path made the suite pass. No dependency was installed or upgraded. Ruff and whitespace checks
+passed. Mycelium 0.4.5 regenerated the 92-box map with explicit test filtering; a repeat export
+matched. Only test-filter counts changed; static call edges remain heuristic and no rendering ran.
+
+The same two guidance edits were applied to DinoLand's existing maintenance skill, with a backup
+outside the repository and custom content preserved. No agent definitions or runtime settings were
+changed, and no live reload, restart, watcher control or model trial ran. An existing conversation
+may retain the earlier text until the agent rereads the skill. Full-suite, hosted CI and independent
+review results are not claimed for this narrow instruction change.

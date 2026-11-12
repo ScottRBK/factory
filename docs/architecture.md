@@ -288,7 +288,7 @@ import or call graph.
   Explicit finalization validates first setup and writes the receipt last, without rewriting agent
   definitions or clearing uncertainty. Newly approved missing home consent is saved separately,
   without recreating templates. Native `/reload` refreshes child selections in the same
-  conversation. Root launch settings require a deliberate restart.
+  conversation. Root launch changes need a user-led restart; no seamless self-restart is provided.
 - `foreman` starts the configured root without a watcher; `foreman --attach` enters its existing
   owned terminal. These use the same lease, owner protocol, consent and uncertainty protections as
   assisted setup. They neither discover arbitrary terminals nor replace an uncertain session.

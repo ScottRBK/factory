@@ -114,6 +114,19 @@ stop its managed watcher and help edit definitions in the same conversation. Fir
 finalization can also run there. The lease guards CLI setup/watch, not arbitrary agent file edits or
 every native child process. Editing a definition does not update a running agent's selections.
 
+Stopping watching is an intake precaution, not the mechanism that applies roster edits. For child
+roster changes, guidance asks the user to run native `/reload` while idle after delegated work has
+stopped. This keeps the Foreman conversation open but can cancel extension jobs; it applies updated
+selections to new child launches. No Foreman restart is needed for that change.
+
+Foreman's saved launch-setting changes need a user-led restart. There is no seamless self-restart
+or automatic reconnection/conversation-restoration guarantee. The pane may close or detach the user.
+Before shutdown, Foreman must explain the interruption, save maintenance/work references, supply
+workspace-specific stop/start/attach steps using the existing invocation, and obtain approval.
+The user performs the restart from a separate terminal; Foreman must not stop its own Pi process or
+launch a replacement from its conversation. Unknown liveness still blocks replacement.
+These are instruction changes, not a new lifecycle API or proof of live model compliance.
+
 ## Assisted setup and persistent Foreman
 
 Assisted first init saves the whole starter team and opens a dedicated tmux Foreman without a

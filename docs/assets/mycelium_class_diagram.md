@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 4873. Type relationships removed: 76.
+Calls removed by test filtering: 4875. Type relationships removed: 76.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -40,7 +40,7 @@ Calls removed by test filtering: 4873. Type relationships removed: 76.
 - `tests/test_definition_of_done.py`: 12 source occurrences (test-path).
 - `tests/test_definition_of_done_lifecycle.py`: 3 source occurrences (test-path).
 - `tests/test_definition_of_done_watch.py`: 2 source occurrences (test-path).
-- `tests/test_factory_maintenance.py`: 9 source occurrences (test-path).
+- `tests/test_factory_maintenance.py`: 10 source occurrences (test-path).
 - `tests/test_foreman_issue_intake.py`: 4 source occurrences (test-path).
 - `tests/test_foreman_memory_setup.py`: 20 source occurrences (test-path).
 - `tests/test_foreman_setup_repair.py`: 31 source occurrences (test-path).
