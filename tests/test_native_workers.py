@@ -2,14 +2,19 @@
 import json
 import os
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 from test_init import INIT_SETTINGS, InitFixture
 from worker_support import worker_settings
 
-NATIVE = r'''#!/usr/bin/env python3
-import json
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
+
+
+NATIVE = SHEBANG + r'''import json
 import os
 import sys
 from pathlib import Path
@@ -44,6 +49,7 @@ PROBE = r'''
 import fs from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
+
 globalThis.fetch = async () => { throw new Error('Network forbidden in native worker probe'); };
 const {DefaultResourceLoader, SettingsManager, SessionManager, createAgentSession} =
     await import(pathToFileURL(process.env.NATIVE_PI_SDK).href);

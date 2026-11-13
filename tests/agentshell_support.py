@@ -2,6 +2,7 @@
 import contextlib
 import os
 import signal
+import sys
 import time
 
 
@@ -17,10 +18,13 @@ def stop_terminal_fixture(root):
         if time.monotonic() >= deadline:
             raise AssertionError('External test PTY did not finish cleanup')
         time.sleep(0.02)
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
 
-TMUX = r'''#!/usr/bin/env python3
-import json
+
+TMUX = SHEBANG + r'''import json
 import os
 from pathlib import Path
 import pty
@@ -29,6 +33,7 @@ import shlex
 import subprocess
 import sys
 import time
+
 
 root = Path(os.environ['TERMINAL_FIXTURE'])
 root.mkdir(exist_ok=True)
