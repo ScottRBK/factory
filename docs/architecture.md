@@ -332,8 +332,8 @@ import or call graph.
   Required approvals and gates remain; unresolved blockers or conflicting review requirements go to
   Foreman. PR creation may precede PR-triggered CI, but implementation completion still requires
   passing checks. These remain agent instructions, not Python enforcement.
-- Session readiness proves startup. Terminal acknowledgement proves submission, not agent receipt
-  or inference. In-memory revisions detect issue changes; unfinished Forgetful plans are replayed
+- Readiness proves startup; terminal acknowledgement proves submission, not receipt or inference.
+  [GitHub revisions](adrs/issue-watcher.md) cover issue fields and comments; unfinished plans replay
   after restart. This deliberately permits repeat notifications without a custom queue. A cancelled
   job does not prove all detached tool processes stopped; AgentShell issue #28 remains deferred.
 

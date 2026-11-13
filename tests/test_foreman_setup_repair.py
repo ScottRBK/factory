@@ -159,22 +159,22 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
         self.wait_until(process, lambda: self.polls() >= observed + 3)
         self.assertEqual(len(self.alerts()), 1, 'Unchanged read failure is one alert episode')
         # Act: service repair permits fresh intake; it must not consume the pending revision.
-        self.script({'team/app': [[[self.issue(1, updated_at='new-revision'),
+        self.script({'team/app': [[[self.issue(1, body='Updated pending',
+                                              updated_at='new-revision'),
                                     self.issue(2, updated_at='new2')]]],
                      'team/healthy': [[[self.issue(3, updated_at='healthy')]]]})
         self.fault()
         self.wait_until(process, lambda: {m['id'] for m in self._messages()} == {
             'github:team/app#1', 'github:team/app#2', 'github:team/healthy#3'}
-            and any(m['id'] == 'github:team/app#1' and m['revision'] == 'new-revision'
+            and any(m['id'] == 'github:team/app#1' and m['body'] == 'Updated pending'
                     for m in self._messages()))
         code, _, errors = self.stop(process)
         # Assert: no manual latch, fabricated ID, forgotten work or duplicate create.
         self.assertEqual(code, 130, errors)
         revisions = [(m['id'], m['revision']) for m in self._messages()]
-        self.assertEqual(len(revisions), len(set(revisions)))
-        self.assertIn(('github:team/app#1', 'new-revision'), revisions)
-        self.assertIn(('github:team/app#2', 'new2'), revisions)
-        self.assertIn(('github:team/healthy#3', 'healthy'), revisions)
+        self.assertEqual(len(revisions), len(set(revisions)), self._messages())
+        self.assertEqual({issue_id for issue_id, _ in revisions}, {
+            'github:team/app#1', 'github:team/app#2', 'github:team/healthy#3'})
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
         state = json.loads((self.workspace / '.factory/fixture-plans.json').read_text())
         self.assertEqual(sum(c[0] == 'create_plan' for c in state['calls']), 3)
@@ -209,7 +209,8 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
         self.assertEqual(code, 130, errors)
         self.assertEqual(self._messages()[-1]['plan_id'], plan_id)
         self.assertEqual(self._messages()[-1]['ownership_task_id'], owner['id'])
-        self.assertEqual(self._messages()[-1]['revision'], 'unchanged')
+        self.assertEqual(self._messages()[-1]['revision'],
+                         json.loads(before['context'])['issue']['revision'])
         self.assertEqual(self.planning_call('get_plan', plan_id=plan_id), before)
         self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
 
@@ -505,7 +506,7 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
         process = self.start('--new-only')
         self.wait_until(process, lambda: len(self._messages()) == 1)
         self.fault(fail='list_plans', fail_arguments={'external_ref': 'github:team/app#1'})
-        self.script({'team/app': [[[self.issue(1, updated_at='changed')]]]})
+        self.script({'team/app': [[[self.issue(1, body='Changed', updated_at='changed')]]]})
         self.wait_until(process, lambda: bool(self.alerts()))
         self.assertEqual(self.alerts()[0].get('plan_id'), plan['id'])
         self.assertEqual(self.alerts()[0].get('ownership_task_id'), owner['id'])
@@ -523,7 +524,7 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
         self.assertEqual(self.stop(process)[0], 130)
         self.assertEqual(self._messages()[-1]['plan_id'], plan['id'])
         self.assertEqual(self._messages()[-1]['ownership_task_id'], owner['id'])
-        self.assertEqual(self._messages()[-1]['revision'], 'changed')
+        self.assertEqual(self._messages()[-1]['body'], 'Changed')
 
     def test_cleared_intent_never_authorizes_completion_in_watch_or_after_restart(self):
         # Arrange: a saved create-intent with no known owner requires manual reconciliation.

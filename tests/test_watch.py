@@ -44,6 +44,15 @@ if args == ['api', '--help']:
                          '  --slurp     Wrap pages in an array'))
     sys.exit(int(os.environ.get('WATCH_GH_HELP_EXIT', '0')))
 source = '/'.join(args[1].split('/')[1:3])
+if '/comments?' in args[1]:
+    state.setdefault('comment_calls', []).append(args)
+    path.write_text(json.dumps(state))
+    result = state.get('comments', {}).get(source, [[]])
+    fcntl.flock(lock, fcntl.LOCK_UN)
+    if isinstance(result, str):
+        sys.exit(result)
+    print(json.dumps(result))
+    sys.exit()
 count = state.setdefault('counts', {}).get(source, 0)
 state['counts'][source] = count + 1
 state.setdefault('calls', []).append(args)
@@ -293,11 +302,11 @@ class WatchFixture(unittest.TestCase):
                 'html_url': f'https://github.com/team/app/issues/{number}',
                 'state': 'open', 'body': 'Issue requirements', **extra}
 
-    def script(self, sources):
+    def script(self, sources, comments=None):
         with self.state_path.with_suffix('.lock').open('a') as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             replacement = self.state_path.with_suffix('.next')
-            replacement.write_text(json.dumps({'sources': sources}))
+            replacement.write_text(json.dumps({'sources': sources, 'comments': comments or {}}))
             replacement.replace(self.state_path)
 
     def events(self):
@@ -662,10 +671,10 @@ class WatchCliTests(WatchFixture):
         self.assertEqual(code, 130, stderr)
         events = self.events()
         sent = [e['text'] for e in events if e['kind'] == 'send']
-        self.assertEqual(len(sent), 4)
-        for text, expected in zip(sent, ('#1', '#2', '#5', '#7')):
+        self.assertEqual(len(sent), 5)
+        for text, expected in zip(sent, ('#1', '#2', '#5', '#1', '#7')):
             self.assertIn('github:team/app' + expected, text)
-        self.assertNotIn('Edited title', ' '.join(sent))
+        self.assertIn('Edited title', ' '.join(sent))
         self.assertEqual(sum(e['kind'] == 'launch' for e in events), 1)
         self.assertEqual(sum(e['kind'] == 'close' for e in events), 1)
         self.assertTrue(all('repos/team/app/issues?' in call[1]
@@ -703,9 +712,9 @@ class WatchCliTests(WatchFixture):
                 # Assert
                 self.assertEqual(code, 130, stderr)
                 sent = [e['text'] for e in self.events() if e['kind'] == 'send']
-                self.assertEqual(len(sent), 2 if answer == 'e\n' else 1)
+                self.assertEqual(len(sent), 3 if answer == 'e\n' else 2)
                 self.assertIn('github:team/app#2', sent[-1])
-                self.assertNotIn('Edited', ' '.join(sent))
+                self.assertIn('Edited', ' '.join(sent))
                 if not arguments:
                     self.assertIn('existing', stdout.lower())
                     self.assertIn('new', stdout.lower())

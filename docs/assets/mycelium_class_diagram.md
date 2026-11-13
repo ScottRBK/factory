@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 4875. Type relationships removed: 76.
+Calls removed by test filtering: 4936. Type relationships removed: 77.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -44,6 +44,7 @@ Calls removed by test filtering: 4875. Type relationships removed: 76.
 - `tests/test_foreman_issue_intake.py`: 4 source occurrences (test-path).
 - `tests/test_foreman_memory_setup.py`: 20 source occurrences (test-path).
 - `tests/test_foreman_setup_repair.py`: 31 source occurrences (test-path).
+- `tests/test_github_issue_changes.py`: 4 source occurrences (test-path).
 - `tests/test_init.py`: 47 source occurrences (test-path).
 - `tests/test_init_launch.py`: 13 source occurrences (test-path).
 - `tests/test_installer_onboarding.py`: 20 source occurrences (test-path).
@@ -67,6 +68,7 @@ Calls removed by test filtering: 4875. Type relationships removed: 76.
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 24 source occurrences (test-path).
 - `tests/test_watch.py`: 61 source occurrences (test-path).
+- `tests/test_watch_issue_changes.py`: 3 source occurrences (test-path).
 - `tests/test_watch_lock.py`: 6 source occurrences (test-path).
 - `tests/test_watch_status.py`: 22 source occurrences (test-path).
 - `tests/test_watch_status_review.py`: 35 source occurrences (test-path).
@@ -450,6 +452,8 @@ classDiagram
         +list_labels(source: WorkSource) Type19
         +create_label(source: WorkSource, label: Label) None
         +list_issues(source: WorkSource, labels: Type21) Type20
+        -_comments(source: WorkSource, number: int) Type22
+        -_milestone(item: object) object
         -_validate_issue(source: WorkSource, item: dict) None
     }
     class c0032["HostDependencies"] {
@@ -472,8 +476,8 @@ classDiagram
     class c0033["src/forgetful_factory/adapters/host_dependencies.py"] {
         <<module>>
         +executable_path(workspace: Path) str
-        +sync_fingerprint(inputs: Type22) str
-        +runtime_ready(runtime: Path, inputs: Type22, probe: str, term_grace: float) bool
+        +sync_fingerprint(inputs: Type23) str
+        +runtime_ready(runtime: Path, inputs: Type23, probe: str, term_grace: float) bool
     }
     class c0034["src/forgetful_factory/adapters/sensitive_command.py"] {
         <<module>>
@@ -515,25 +519,25 @@ classDiagram
         -_discovery_path(workspace: Path) Path
         -_endpoint(run_id: str) str
         -_frame(connection: socket.socket) dict
-        -_peer(connection: socket.socket) Type24
+        -_peer(connection: socket.socket) Type25
         -_read_discovery(workspace: Path) dict
         +unknown_status(source: str, observation: str) dict
         +plain_watch_status(workspace: Path) Type5
-        +observe_plain_watch(workspace: Path, report_unavailable: Type26) Type25
+        +observe_plain_watch(workspace: Path, report_unavailable: Type27) Type26
     }
     class c0038["CleanupCompleted"] {
         <<class>>
         -__init__(Signature17)
         +records: unknown
         +worktrees: unknown
-        +owners: Type27
+        +owners: Type28
         +receipts: unknown
         +confirmed: set[CleanupSet]
-        +cursor: Type28
+        +cursor: Type29
         +poll(alerts: WatcherAlerts, report: unknown) None
         +cursor#44; work#44; mapping: unknown
-        -_read_plans(inventory: list[dict], alerts: WatcherAlerts) Type29
-        -_candidates(plans: list[dict], alerts: WatcherAlerts) Type30
+        -_read_plans(inventory: list[dict], alerts: WatcherAlerts) Type30
+        -_candidates(plans: list[dict], alerts: WatcherAlerts) Type31
         -_candidate(plan: dict, identities: Type18) CompletedWork
         -_read_problem(plan_id: int, error: FactoryError, alerts: WatcherAlerts) None
         -_in_scope(plan: dict) bool
@@ -566,14 +570,14 @@ classDiagram
     }
     class c0042["src/forgetful_factory/application/cleanup_marker.py"] {
         <<module>>
-        +validate_cleanup_marker(mapping: dict) Type31
+        +validate_cleanup_marker(mapping: dict) Type32
     }
     class c0043["FactoryConfiguration"] {
         <<class>>
         +watcher_label: Type21
         +foreman_agent_file: str
-        +repository: Type32
-        +forgetful: Type33
+        +repository: Type33
+        +forgetful: Type34
         +execution_enabled: bool
     }
     class c0044["ForgetfulConnection"] {
@@ -590,7 +594,7 @@ classDiagram
     class c0045["src/forgetful_factory/application/configuration.py"] {
         <<module>>
         +loopback_host(host: str) bool
-        +connection_from_mapping(data: object) Type33
+        +connection_from_mapping(data: object) Type34
         +nonblank(value: object, field: str) str
         +validate(configuration: FactoryConfiguration) None
         +from_mapping(data: dict) FactoryConfiguration
@@ -652,15 +656,15 @@ classDiagram
         +repositories: unknown
         +sources: unknown
         +profile: unknown
-        +prepare_foreman(connection: ForgetfulConnection, install: Type34, confirm: Type35) None
+        +prepare_foreman(connection: ForgetfulConnection, install: Type35, confirm: Type36) None
         +check_foreman(config: FactoryConfiguration, login: bool) str
-        +load_existing(paths: Type36, labels: Type37) Type17
+        +load_existing(paths: Type37, labels: Type38) Type17
         +discover(workspace: Path) list[Path]
-        +inspect(paths: list[Path]) Type38
+        +inspect(paths: list[Path]) Type39
         +configure(paths: list[Path], labels: list[str], agent_file: str) FactoryConfiguration
-        -_preflight(config: FactoryConfiguration) Type39
+        -_preflight(config: FactoryConfiguration) Type40
         -_ensure_label(source: WorkSource, name: str, existing: set[str]) str
-        +initialise(config: FactoryConfiguration, before_writes: Type40, save: bool) list[str]
+        +initialise(config: FactoryConfiguration, before_writes: Type41, save: bool) list[str]
     }
     class c0050["CleanupReceipts"] {
         <<class>>
@@ -677,7 +681,7 @@ classDiagram
         +local_dir: str
         +branch: str
         +path: str
-        +overlaps(other: Type41) bool
+        +overlaps(other: Type42) bool
     }
     class c0052["ConfigurationStore"] {
         <<class>>
@@ -779,7 +783,7 @@ classDiagram
         +lookup(issue: Issue) Type2
         -_create_plan(issue: Issue) dict
         +unfinished() list[dict]
-        +recover(plan_id: int, external_ref: str, issue: Type44, task_ids: Type45) Type43
+        +recover(plan_id: int, external_ref: str, issue: Type45, task_ids: Type46) Type44
         -_recovery_plan(plan_id: int, external_ref: str) dict
         -_validate_recovery_candidates(Signature25)
         -_sole_recovery_owner(owners: list[dict], context: dict) dict
@@ -792,8 +796,8 @@ classDiagram
         <<class>>
         +reference: str
         +plan_id: Type2
-        +issue: Type44
-        +task_ids: Type45
+        +issue: Type45
+        +task_ids: Type46
         +recovered: bool
         +setup_paths: Type21
         +setup_cause: Type3
@@ -808,14 +812,14 @@ classDiagram
         +run(Signature28)
         -_watch(Signature29)
         -_check_pending_repositories(state: _WatchState, alerts: WatcherAlerts) None
-        -_check_planning_access(state: _WatchState, alerts: WatcherAlerts, report: Type26) bool
+        -_check_planning_access(state: _WatchState, alerts: WatcherAlerts, report: Type27) bool
         -_load_inventory(state: _WatchState, alerts: WatcherAlerts) bool
         -_remember_inventory_candidate(Signature30)
-        -_recover_blocked(state: _WatchState, alerts: WatcherAlerts, report: Type26) Type48
+        -_recover_blocked(state: _WatchState, alerts: WatcherAlerts, report: Type27) Type49
         -_recover_work(Signature31)
         -_handle_recovery_repository_problem(Signature32)
         -_handle_recovery_read_problem(Signature33)
-        -_remember_task_ids(work: BlockedWork, task_ids: Type45) None
+        -_remember_task_ids(work: BlockedWork, task_ids: Type46) None
         -_complete_recovery(Signature34)
         -_poll_sources(Signature35)
         -_process_source(Signature36)
@@ -829,21 +833,21 @@ classDiagram
         -_handle_intake_read_problem(Signature43)
         -_handle_intake_scaffold_problem(Signature44)
         -_complete_intake(Signature45)
-        -_sole_task_id(task_ids: Type45) Type2
+        -_sole_task_id(task_ids: Type46) Type2
         -_alert_plan(alerts: WatcherAlerts, work: BlockedWork, error: ScaffoldProblem) None
         -_submit(Signature46)
-        -_read_issues(source: WorkSource, labels: Type21, alerts: WatcherAlerts) Type52
+        -_read_issues(source: WorkSource, labels: Type21, alerts: WatcherAlerts) Type53
     }
     class c0066["_WatchState"] {
         <<class>>
         +seen: Type18
         +baseline: Type18
         +baselined: set[WorkSource]
-        +blocked: Type53
-        +pending_lookup: Type50
-        +known: Type53
+        +blocked: Type54
+        +pending_lookup: Type51
+        +known: Type54
         +recovered: set[str]
-        +pending_repositories: Type38
+        +pending_repositories: Type39
         +checked: bool
         +inventoried: bool
         +manual_pause: bool
@@ -930,7 +934,7 @@ classDiagram
         -_connection(Signature53)
         -_prepare_foreman(Signature54)
         -_print_models(models: list[str]) None
-        -_select_numbered(label: str, choices: Type55, show_choices: bool, prompt: Type3) str
+        -_select_numbered(label: str, choices: Type56, show_choices: bool, prompt: Type3) str
         -_select_model(Signature55)
         -_confirm_pi_home(home: str, args: argparse.Namespace) bool
         -_install_missing(commands: list[str]) None
@@ -972,7 +976,7 @@ classDiagram
     }
     class c0082["src/forgetful_factory/configuration.py"] {
         <<module>>
-        +load_configuration(workspace: Type58) FactoryConfiguration
+        +load_configuration(workspace: Type59) FactoryConfiguration
     }
     class c0083["AgentShellLifecycleDeadlines"] {
         <<class>>
@@ -1162,11 +1166,11 @@ classDiagram
     c0029 ..> c0044 : type in __init__
     c0029 ..> c0057 : 4 relationships (see list)
     c0031 ..> c0008 : 2 relationships (see list)
-    c0031 ..> c0031 : 5 relationships (see list)
-    c0031 ..> c0086 : 8 relationships (see list)
+    c0031 ..> c0031 : 8 relationships (see list)
+    c0031 ..> c0086 : 9 relationships (see list)
     c0031 ..> c0087 : 2 relationships (see list)
     c0031 ..> c0088 : 3 relationships (see list)
-    c0031 ..> c0090 : 8 relationships (see list)
+    c0031 ..> c0090 : 9 relationships (see list)
     c0032 ..> c0020 : install() calls write_new()
     c0032 ..> c0032 : 15 relationships (see list)
     c0032 ..> c0033 : 3 relationships (see list)
@@ -1436,7 +1440,7 @@ classDiagram
 - c0029: `ForgetfulPlanning` — `src/forgetful_factory/adapters/forgetful/planning.py`:13
 - c0030: `src/forgetful_factory/adapters/forgetful/planning.py` —
   `src/forgetful_factory/adapters/forgetful/planning.py`:1
-- c0031: `GitHubWorkTracking` — `src/forgetful_factory/adapters/github/work_tracking.py`:8
+- c0031: `GitHubWorkTracking` — `src/forgetful_factory/adapters/github/work_tracking.py`:9
 - c0032: `HostDependencies` — `src/forgetful_factory/adapters/host_dependencies.py`:53
 - c0033: `src/forgetful_factory/adapters/host_dependencies.py` —
   `src/forgetful_factory/adapters/host_dependencies.py`:1
@@ -1958,12 +1962,16 @@ classDiagram
 - c0029 ..> c0057: `get_plan() constructs PlanningReadError`
 - c0031 ..> c0008: `_api() calls run_command()`
 - c0031 ..> c0008: `check_cli() calls run_command()`
+- c0031 ..> c0031: `_comments() calls _api()`
 - c0031 ..> c0031: `check_access() calls _api()`
 - c0031 ..> c0031: `create_label() calls _api()`
 - c0031 ..> c0031: `list_issues() calls _api()`
+- c0031 ..> c0031: `list_issues() calls _comments()`
+- c0031 ..> c0031: `list_issues() calls _milestone()`
 - c0031 ..> c0031: `list_issues() calls _validate_issue()`
 - c0031 ..> c0031: `list_labels() calls _api()`
 - c0031 ..> c0086: `_api() constructs FactoryError`
+- c0031 ..> c0086: `_comments() constructs FactoryError`
 - c0031 ..> c0086: `_validate_issue() constructs FactoryError`
 - c0031 ..> c0086: `check_access() constructs FactoryError`
 - c0031 ..> c0086: `check_cli() constructs FactoryError`
@@ -1978,6 +1986,7 @@ classDiagram
 - c0031 ..> c0088: `type in list_labels`
 - c0031 ..> c0090: `source_from_remote() constructs WorkSource`
 - c0031 ..> c0090: `type in _api`
+- c0031 ..> c0090: `type in _comments`
 - c0031 ..> c0090: `type in _validate_issue`
 - c0031 ..> c0090: `type in check_access`
 - c0031 ..> c0090: `type in create_label`
@@ -2818,43 +2827,44 @@ classDiagram
 - Type19: `tuple[Label, ...]`
 - Type20: `tuple[Issue, ...]`
 - Type21: `tuple[str, ...]`
-- Type22: `tuple[Path, ...]`
-- Type23: `float | None`
-- Type24: `tuple[int, int]`
-- Type25: `Iterator[PlainWatchObservation | None]`
-- Type26: `Callable[[str], None]`
-- Type27: `dict[int, int]`
-- Type28: `tuple | None`
-- Type29: `list[dict] | None`
-- Type30: `list[CompletedWork] | None`
-- Type31: `CleanupState | None`
-- Type32: `tuple[RepositoryReference, ...]`
-- Type33: `ForgetfulConnection | None`
-- Type34: `Callable[[list[str]], None]`
-- Type35: `Callable[[str, str], bool]`
-- Type36: `list[Path] | None`
-- Type37: `list[str] | None`
-- Type38: `dict[str, RepositoryReference]`
-- Type39: `dict[WorkSource, tuple[Label, ...]]`
-- Type40: `Callable[[], FactoryConfiguration | None]`
-- Type41: `'CleanupSet'`
-- Type42: `tuple[list[dict], list[dict]]`
-- Type43: `tuple[Issue, dict] | None`
-- Type44: `Issue | None`
-- Type45: `tuple[int, ...] | None`
-- Type46: `tuple[int, ...]`
-- Type47: `Callable[[], bool]`
-- Type48: `tuple[set[str], bool]`
-- Type49: `tuple[WorkSource, ...]`
-- Type50: `dict[str, Issue]`
-- Type51: `BlockedWork | None`
-- Type52: `tuple[Issue, ...] | None`
-- Type53: `dict[str, BlockedWork]`
-- Type54: `tuple[FactoryConfiguration, InitialAgentChoices]`
-- Type55: `list[str] | tuple[str, ...]`
-- Type56: `int | dict`
-- Type57: `int | dict | str`
-- Type58: `str | Path`
+- Type22: `list[tuple[int, str, str]]`
+- Type23: `tuple[Path, ...]`
+- Type24: `float | None`
+- Type25: `tuple[int, int]`
+- Type26: `Iterator[PlainWatchObservation | None]`
+- Type27: `Callable[[str], None]`
+- Type28: `dict[int, int]`
+- Type29: `tuple | None`
+- Type30: `list[dict] | None`
+- Type31: `list[CompletedWork] | None`
+- Type32: `CleanupState | None`
+- Type33: `tuple[RepositoryReference, ...]`
+- Type34: `ForgetfulConnection | None`
+- Type35: `Callable[[list[str]], None]`
+- Type36: `Callable[[str, str], bool]`
+- Type37: `list[Path] | None`
+- Type38: `list[str] | None`
+- Type39: `dict[str, RepositoryReference]`
+- Type40: `dict[WorkSource, tuple[Label, ...]]`
+- Type41: `Callable[[], FactoryConfiguration | None]`
+- Type42: `'CleanupSet'`
+- Type43: `tuple[list[dict], list[dict]]`
+- Type44: `tuple[Issue, dict] | None`
+- Type45: `Issue | None`
+- Type46: `tuple[int, ...] | None`
+- Type47: `tuple[int, ...]`
+- Type48: `Callable[[], bool]`
+- Type49: `tuple[set[str], bool]`
+- Type50: `tuple[WorkSource, ...]`
+- Type51: `dict[str, Issue]`
+- Type52: `BlockedWork | None`
+- Type53: `tuple[Issue, ...] | None`
+- Type54: `dict[str, BlockedWork]`
+- Type55: `tuple[FactoryConfiguration, InitialAgentChoices]`
+- Type56: `list[str] | tuple[str, ...]`
+- Type57: `int | dict`
+- Type58: `int | dict | str`
+- Type59: `str | Path`
 
 ## Signature key
 

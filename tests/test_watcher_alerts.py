@@ -38,7 +38,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Arrange: #1 is recovered work; #2 already exists at the first successful source read.
         self.seed((1,))
         plan = self.planning_call('get_plan', plan_id=1)
-        changed = self.issue(1, updated_at='changed')
+        changed = self.issue(1, body='Changed requirements', updated_at='changed')
         old = self.issue(2, updated_at='old')
         first_success = PollGate(self, 'first-success')
         repaired = PollGate(self, 'repaired')
@@ -64,9 +64,9 @@ class WatcherAlertTests(PlanningWatchFixture):
         code, _, errors = self.stop(process)
         # Assert: interrupted intake cannot turn old #2 into new work or swallow new #3.
         self.assertEqual(code, 130, errors)
-        self.assertEqual([(m['id'], m['revision']) for m in self._messages()], [
-            ('github:team/app#1', 'same-revision'), ('github:team/app#1', 'changed'),
-            ('github:team/app#3', 'new')])
+        self.assertEqual([m['id'] for m in self._messages()], [
+            'github:team/app#1', 'github:team/app#1', 'github:team/app#3'])
+        self.assertNotEqual(self._messages()[0]['revision'], self._messages()[1]['revision'])
         state = self.planning_call('list_plans')
         self.assertEqual([p['external_ref'] for p in state['plans']],
                          ['github:team/app#1', 'github:team/app#3'])
@@ -77,7 +77,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.seed((1,))
         self.configure(sources=('team/app', 'team/other'))
         plan = self.planning_call('get_plan', plan_id=1)
-        changed = self.issue(1, updated_at='changed')
+        changed = self.issue(1, body='Changed requirements', updated_at='changed')
         old = self.issue(1, updated_at='old',
                          html_url='https://github.com/team/other/issues/1')
         new = self.issue(2, updated_at='new',
@@ -543,7 +543,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Act: same defect after successful notification is a new episode.
         cleanup['pull_request_url'] = 'https://GitHub.com/team/app/pull/3'
         self.planning_call('update_task', task_id=1, description=json.dumps(record))
-        self.script({'team/app': [[[self.issue(1, updated_at='revision-2')]]]})
+        self.script({'team/app': [[[self.issue(1, body='Changed', updated_at='revision-2')]]]})
         self.wait_until(process, lambda: len(self.alerts()) == 3)
         self.wait_until(process, lambda: self.polls() >= 4)
         self.assertEqual(len(self.alerts()), 3)
@@ -874,7 +874,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         code, _, errors = self.stop(process)
         self.assertEqual(code, 130, errors)
         self.assertEqual(self._messages()[0]['plan_id'], original['plan_id'])
-        self.assertEqual(self._messages()[0]['revision'], 'same-revision')
+        self.assertEqual(self._messages()[0]['revision'], original['revision'])
 
     def test_worktree_parent_user_file_pauses_supervision_without_repeating_creation(self):
         # Arrange: initial preflight passes; a file appears after the last write-time Git read.

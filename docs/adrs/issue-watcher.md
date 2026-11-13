@@ -64,6 +64,17 @@ while unrelated work continues. Shared read failures pause planning for safe rec
 that may have written latches a manual-reconciliation pause, without repeating it. Failed GitHub
 reads alert once per episode and retry on the next poll while healthy sources continue.
 
+GitHub revisions identify the planning fields and all issue comments, rather than issue
+`updated_at`. The adapter reads each eligible issue's paginated comments on every source poll.
+It compares comment identity, body and edit timestamp in stable order,
+including every author. It also normalizes label and assignee order. Timestamp-only issue updates
+therefore remain silent. Comment reads are validated before any issue from that source is returned;
+failed or malformed reads follow the existing source error/retry path. No comment cache or
+timestamp watermark can overwrite a newer snapshot during a retry. This adds one paginated comment
+read per eligible issue per poll; unrelated issues and pull requests are not read.
+GitHub's issue timestamp is not assumed to advance for comment edits. Snapshots are not atomic
+across GitHub's issue and comment requests; a later successful poll observes subsequent changes.
+
 Alert suppression, blocked records and issue revisions remain separate. A corrected record can
 recover without an issue edit. No work is deleted on failure. Ordinary notifications carry
 body/revision and saved plan/task/worktree IDs as escaped external data; agents must reread current

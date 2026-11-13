@@ -71,7 +71,7 @@ class PlanningWatchTests(PlanningWatchFixture):
         self.assertTrue(context['ownership_create_started'])
         self.assertEqual(context['issue']['source'],
                          {'provider': 'github', 'reference': 'team/app'})
-        self.assertEqual(context['issue']['revision'], 'revision-long')
+        self.assertEqual(context['issue']['revision'], original['revision'])
         self.assertEqual(plan['external_ref'], 'github:team/app#1')
         self.assertEqual(plan['source_url'], 'https://github.com/team/app/issues/1')
         writes = [args['context'] for tool, args in state['calls']
@@ -429,4 +429,4 @@ class PlanningWatchTests(PlanningWatchFixture):
                                   'check-ignore', mapping['path']],
                                  capture_output=True)
         self.assertEqual(ignored.returncode, 0, 'Factory worktrees must not enter the origin index')
-        self.assertEqual(payload['revision'], '2026-10-17T10:00:00Z')
+        self.assertEqual(payload['revision'], context['issue']['revision'])

@@ -7,6 +7,9 @@ autonomous agent planning has not been tested with a live model.
 This document covers the work order. The [architecture overview](architecture.md) explains the
 code structure. The [design decisions below](#design-questions) record the agreed behaviour.
 
+The approved issue-change correction and local evidence are tracked in
+[issue change notifications](plans/issue-change-notifications.md).
+
 ## Completed slices
 
 ### Slice 1: set up a factory

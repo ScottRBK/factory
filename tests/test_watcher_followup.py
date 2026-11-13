@@ -48,12 +48,14 @@ class PendingEligibilityTests(FollowupFixture):
         self.assertEqual(self._state()['tasks'], [])
         self.assertEqual(self._messages(), [])
         # Act: eligible work may return with a new revision, alongside genuinely new work.
-        self.script({'team/app': [[[self.issue(1, updated_at='eligible-again'), self.issue(2)]]]})
+        self.script({'team/app': [[[self.issue(1, body='Eligible again',
+                                              updated_at='eligible-again'), self.issue(2)]]]})
         self.wait_until(process, lambda: len(self._messages()) == 2)
         code, _, errors = self.stop(process)
         self.assertEqual(code, 130, errors)
-        self.assertEqual([(m['id'], m['revision']) for m in self._messages()], [
-            ('github:team/app#1', 'eligible-again'), ('github:team/app#2', '')])
+        self.assertEqual([m['id'] for m in self._messages()],
+                         ['github:team/app#1', 'github:team/app#2'])
+        self.assertEqual(self._messages()[0]['body'], 'Eligible again')
         self.assertEqual(sum(c[0] == 'create_plan' for c in self._state()['calls']), 2)
 
     def test_closed_pending_lookup_drops_without_create_and_reopen_keeps_latest_revision(self):

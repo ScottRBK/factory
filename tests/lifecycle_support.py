@@ -133,6 +133,8 @@ class LifecycleFixture(InitFixture):
             INTERACTIVE + "\nelif name == 'pi' and args == ['mcp', 'list', '--json']:"))
         (self.bin / 'gh').write_text(GH.replace(
             "    if endpoint.endswith('/labels'):",
+            "    if endpoint.endswith('/comments') and '/issues/' in endpoint:\n"
+            "        print(json.dumps([state.get('comments', [])]))\n        sys.exit(0)\n"
             "    if endpoint.endswith('/issues'):\n"
             "        if os.environ.get('GH_FREEZE_NOTIFY'):\n"
             "            os.kill(os.getppid(), signal.SIGSTOP)\n"
