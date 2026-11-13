@@ -1,0 +1,39 @@
+# Dependabot version updates for the flake inputs and pinned Actions.
+#
+# Python dependencies are deliberately NOT listed here. Every requirement in
+# pyproject.toml is exactly pinned (`agent-shell-py==0.5.0`, `uv_build==0.13.5`,
+# and the audited dev group: `ruff==0.17.0`, `import-linter==2.15`), and CI
+# installs with `uv sync --locked`. Recurring automatic bumps would undo that
+# audit trail, so Python moves only through Dependabot *security* updates, which
+# touch versions with a known advisory, rather than scheduled version updates.
+#
+# Note on CI: PRs opened with a GITHUB_TOKEN do not trigger workflows, so
+# Dependabot PRs arrive without checks unless the repo uses a GitHub App or the
+# Dependabot PAT. See docs/nix.md for the checks that would otherwise run.
+#
+# Docs: https://docs.github.com/en/dependabot
+version: 2
+updates:
+  # nix flake inputs: flake.nix and flake.lock
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Group all input bumps into one PR per week so a routine refresh costs one
+    # review rather than one per input.
+    groups:
+      flake-inputs:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions, including the version-tagged actions used by CI.
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"

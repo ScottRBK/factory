@@ -4,11 +4,16 @@ import sys
 
 from planning_support import PLANNING
 
-COMMAND = '''#!/usr/bin/env python3
-import json
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
+
+
+COMMAND = SHEBANG + '''import json
 import os
 import sys
 from pathlib import Path
+
 name = Path(sys.argv[0]).name
 args = sys.argv[1:]
 if os.environ.get('PROFILE_LOG'):
@@ -151,8 +156,7 @@ def install_commands(directory):
 def events(path):
     return [json.loads(line) for line in path.read_text().splitlines()] if path.exists() else []
 
-RUNTIME_PYTHON = '''#!/usr/bin/env python3
-import os
+RUNTIME_PYTHON = SHEBANG + '''import os
 import sys
 from pathlib import Path
 if '-c' in sys.argv:
@@ -160,8 +164,7 @@ if '-c' in sys.argv:
 os.execv(%r, [%r, *sys.argv[1:]])
 '''
 
-INSTALLED_PYTHON = '''#!/usr/bin/env python3
-import json
+INSTALLED_PYTHON = SHEBANG + '''import json
 import os
 import sys
 if os.environ.get('PROFILE_PREFLIGHT_LOG'):
@@ -172,8 +175,7 @@ if os.environ.get('PROFILE_PYTHON_PROBE_FAIL'):
 print(os.environ.get('PROFILE_PYTHON_PROBE_OUTPUT', 'cpython 3 12'))
 '''
 
-INSTALLER = '''#!/usr/bin/env python3
-import json
+INSTALLER = SHEBANG + '''import json
 import os
 import sys
 from pathlib import Path

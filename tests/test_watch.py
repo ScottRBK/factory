@@ -21,13 +21,17 @@ from test_init import INIT_SETTINGS
 from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
-GH = '''#!/usr/bin/env python3
-import fcntl
+
+GH = SHEBANG + '''import fcntl
 import json
 import os
 from pathlib import Path
 import sys
+
 
 path = Path(os.environ['WATCH_GH_STATE'])
 lock = path.with_suffix('.lock').open('a')

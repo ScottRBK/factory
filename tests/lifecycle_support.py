@@ -94,13 +94,21 @@ class LifecycleFixture(InitFixture):
     def setUp(self):
         super().setUp()
         self.owner_descriptors = {}
-        self.tmux = shutil.which('tmux', path='/usr/bin:/bin')
+        # Prefer a system tmux, but fall back to PATH: on NixOS/Nix the binary lives
+        # in the store, so a /usr/bin:/bin-only search silently excludes every native
+        # lifecycle test even when a working tmux is present.
+        self.tmux = (shutil.which('tmux', path='/usr/bin:/bin')
+                     or shutil.which('tmux'))
         self.assertIsNotNone(self.tmux, 'Native lifecycle tests need existing tmux')
         self.socket = self.workspace / 'tmux.sock'
         self.env = {key: value for key, value in self.env.items()
                     if key in ('PYTHONPATH', 'GH_STATE', 'PI_CODING_AGENT_DIR')}
         self.env.update(HOME=str(self.workspace), XDG_CONFIG_HOME=str(self.workspace / 'config'),
-                        PATH=f'{self.bin}:{os.path.dirname(sys.executable)}:/usr/bin:/bin',
+                        # Isolated PATH, but it must actually contain git: /usr/bin:/bin
+                        # is an FHS assumption, and on NixOS/Nix git lives in the store,
+                        # which made every native lifecycle test report 'git is missing'.
+                        PATH=(f'{self.bin}:{os.path.dirname(sys.executable)}'
+                              f':{os.path.dirname(shutil.which("git") or "/usr/bin")}'),
                         TMPDIR=str(self.workspace), PI_OFFLINE='1',
                         FAKE_PI_LOG=str(self.workspace / 'pi.jsonl'),
                         PLANNING_STATE=str(self.workspace / 'plans.json'))
