@@ -1,11 +1,17 @@
 """Worker setup through public configuration and init/watch boundaries."""
 import json
+import sys
 
 from test_init import INIT_SETTINGS, InitFixture
 
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.configuration import load_configuration
 from forgetful_factory.domain.models import FactoryError
+
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
+
 
 
 class WorkerConfigurationTests(InitFixture):
@@ -309,7 +315,7 @@ class WorkerConfigurationTests(InitFixture):
         catalogs = {str(repo): ['z/special/model', 'catalog-choice', 'only-first-repo'],
                     str(other): ['only-other-repo', 'catalog-choice', 'z/special/model']}
         (self.bin / 'codex').write_text(
-            '#!/usr/bin/env python3\n'
+            SHEBANG +
             'import json, os, sys\n'
             'from pathlib import Path\n'
             'assert sys.argv[1:] == ["debug", "models"]\n'
