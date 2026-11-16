@@ -86,26 +86,23 @@ class GitHubWorkTracking:
                                             for label in item['labels'])
             if item['state'] == 'open' and matches:
                 eligible.append(item)
-        if not eligible:
-            return ()
-        issues = []
-        for item in eligible:
-            fields = {
-                'title': item['title'], 'body': item.get('body') or '',
-                'state': item['state'], 'state_reason': item.get('state_reason'),
-                'labels': sorted(label['name'] for label in item['labels']),
-                'assignees': sorted(assignee['login'] for assignee in item.get('assignees', [])),
-                'milestone': self._milestone(item.get('milestone')),
-                'type': (item.get('type') or {}).get('name'),
-                'comments': self._comments(source, item['number']),
-            }
-            data = json.dumps(fields, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
-            revision = hashlib.sha256(data.encode()).hexdigest()
-            issues.append(Issue(source, item['number'], item['title'], item['html_url'],
-                                item.get('body') or '', revision,
-                                any(label['name'].casefold() == 'epic'
-                                    for label in item['labels'])))
-        return tuple(issues)
+        return tuple(self._issue(source, item) for item in eligible)
+
+    def _issue(self, source: WorkSource, item: dict) -> Issue:
+        fields = {
+            'title': item['title'], 'body': item.get('body') or '',
+            'state': item['state'], 'state_reason': item.get('state_reason'),
+            'labels': sorted(label['name'] for label in item['labels']),
+            'assignees': sorted(assignee['login'] for assignee in item.get('assignees', [])),
+            'milestone': self._milestone(item.get('milestone')),
+            'type': (item.get('type') or {}).get('name'),
+            'comments': self._comments(source, item['number']),
+        }
+        data = json.dumps(fields, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
+        revision = hashlib.sha256(data.encode()).hexdigest()
+        return Issue(source, item['number'], item['title'], item['html_url'],
+                     item.get('body') or '', revision,
+                     any(label['name'].casefold() == 'epic' for label in item['labels']))
 
     def _comments(self, source: WorkSource, number: int) -> list[tuple[int, str, str]]:
         pages = self._api(source, f'/issues/{number}/comments?per_page=100',

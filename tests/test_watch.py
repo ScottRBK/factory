@@ -33,10 +33,16 @@ path = Path(os.environ['WATCH_GH_STATE'])
 lock = path.with_suffix('.lock').open('a')
 fcntl.flock(lock, fcntl.LOCK_EX)
 state = json.loads(path.read_text())
+
+def save_state():
+    pending = path.with_suffix('.next')
+    pending.write_text(json.dumps(state))
+    pending.replace(path)
+
 args = sys.argv[1:]
 if args == ['api', '--help']:
     state.setdefault('help_calls', []).append(args)
-    path.write_text(json.dumps(state))
+    save_state()
     if os.environ.get('WATCH_GH_HELP_DELAY'):
         import time
         time.sleep(float(os.environ['WATCH_GH_HELP_DELAY']))
@@ -46,7 +52,7 @@ if args == ['api', '--help']:
 source = '/'.join(args[1].split('/')[1:3])
 if '/comments?' in args[1]:
     state.setdefault('comment_calls', []).append(args)
-    path.write_text(json.dumps(state))
+    save_state()
     result = state.get('comments', {}).get(source, [[]])
     fcntl.flock(lock, fcntl.LOCK_UN)
     if isinstance(result, str):

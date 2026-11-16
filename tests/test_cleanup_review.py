@@ -319,7 +319,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         self.assertFalse(any(a['code'] == 'cleanup_operation_uncertain' for a in self.alerts()))
 
     def test_claim_read_failure_during_final_recheck_stops_other_plan_disposal_this_cycle(self):
-        # Arrange: two independent native mappings; task 1 fails only after the initial claim read.
+        # Arrange: discovery supplies claims; task 1 fails on the second, fresh disposal read.
         message, record, mapping = self.prepared()
         other_mapping = dict(mapping, branch='factory/second',
                              path=str(self.workspace / '.factory/worktrees/second'))
@@ -337,11 +337,11 @@ class CleanupReviewTests(CompletedCleanupFixture):
         source = source.replace(point, point + '\n'
             '        reads = sum(t == "get_task" and v.get("task_id") == 1\n'
             '                    for t, v in state["calls"])\n'
-            '        if tool == "get_task" and values.get("task_id") == 1 and reads >= 3:\n'
+            '        if tool == "get_task" and values.get("task_id") == 1 and reads >= 2:\n'
             '            save_planning_state()\n'
             '            sys.exit("fixture final claim recheck unavailable")')
         # Ignore arrangement's native get_task reads when counting this watch invocation.
-        source = source.replace('reads >= 3', 'reads >= ' + str(3 + sum(
+        source = source.replace('reads >= 2', 'reads >= ' + str(2 + sum(
             tool == 'get_task' and values.get('task_id') == 1
             for tool, values in json.loads((self.workspace / '.factory/fixture-plans.json')
                                            .read_text())['calls'])))

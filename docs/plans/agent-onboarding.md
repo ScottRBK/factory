@@ -374,3 +374,48 @@ outside the repository and custom content preserved. No agent definitions or run
 changed, and no live reload, restart, watcher control or model trial ran. An existing conversation
 may retain the earlier text until the agent rereads the skill. Full-suite, hosted CI and independent
 review results are not claimed for this narrow instruction change.
+
+### Plain-language guidance
+
+The user approved a communication section for the Foreman skill. It asks for direct language,
+short routine updates, explanations of necessary technical terms and fewer internal process
+details. Complete restrictions remain in handoffs and durable task records. User-facing brevity
+must not hide scope changes, failures, uncertainty, important limits or permission needs.
+
+The exact approved text was inserted near the start of the source skill and DinoLand's existing
+copy. Removing that section reproduces each original file byte-for-byte, preserving custom
+instructions. No agent definitions, model choices, DoD, runtime settings or lifecycle code changed.
+This is a prose-only instruction update; the architecture and generated code map are unchanged.
+
+All 16 existing owner-profile and maintenance tests passed, including public setup and preservation
+checks. The exact insertion and new line widths were also checked. No new tests or model-compliance
+claims were added. Evidence and backups are under `/tmp/foreman-plain-language.4aaGLQ/`.
+
+No live reload, restart, message submission, package installation, commit or push was performed.
+The current Foreman may retain earlier instructions until it rereads the skill; do not force a
+reload while delegated work is active.
+
+### Reviewer requirements and code quality
+
+The reviewer already checked requirements, acceptance criteria, tests and architecture in general.
+The user requested explicit checks for drift from the original requirements, code cleanliness and
+duplicated methods that could reuse existing code.
+
+The source and DinoLand reviewer skills now require comparison with the original request, approved
+clarifications and acceptance criteria. Reviewers trace material requirements to behaviour and
+evidence, and flag missing behaviour, unapproved scope changes or tests that repeat implementation
+assumptions. Missing or conflicting requirements are reported rather than guessed.
+
+The added guidance covers names, control flow, function cohesion, error handling, dead code and
+unnecessary complexity. Reviewers search relevant existing code before recommending reuse, check
+behavioural differences and preserve architectural boundaries. It does not require unrelated
+refactors, speculative abstractions or a second review pass. Existing instructions remain unchanged.
+
+All 18 existing worker-profile and worker-setup tests passed. Exact insertion checks confirmed that
+removing the added section reproduces each original skill; added lines stay within 100 columns.
+This prose-only change adds no automated model-behaviour evaluation or new regression test.
+Backups and test output are under `/tmp/factory-review-guidance.862CER/`.
+
+No reviewer was launched or resumed, and no agent was reloaded or restarted. Existing sessions may
+retain earlier instructions until they reread the selected skill. No watcher, cleanup, dependency,
+agent-definition or permission changes were made.

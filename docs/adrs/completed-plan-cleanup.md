@@ -1,9 +1,12 @@
 # Completed-plan discovery and disposal
 
 Status: Slice 7B and automated/local 7C implemented locally. Live adoption, model-following and
-actual deployment/E2E trials are deferred. The approved per-set receipts, one-set rotation and
-watch-stop correction are implemented locally. Parent SQ and review disposition remain pending;
-see the [correction record](../plans/slice-7.md#approved-receipts-scheduling-and-watch-stop).
+actual deployment/E2E trials are deferred. Per-set receipts, three-set rotation, cycle-local
+discovery snapshots and watch-stop checkpoints are implemented locally. Performance validation is in
+[the work record](../plans/cleanup-performance.md). The sole review's corrections are implemented.
+Final SQ has zero findings; the isolated real-CLI trial and final checks pass with recorded limits.
+Earlier receipt/stop evidence is in
+the [correction record](../plans/slice-7.md#approved-receipts-scheduling-and-watch-stop).
 Back to [architecture](../architecture.md), [agreement](completion-agreement.md) and
 [work record](../plans/slice-7.md#7b-and-automatedlocal-7c-implementation).
 
@@ -65,6 +68,24 @@ withholds all disposal, rather than being discarded from the index. No ownership
 issue/branch naming. Immediately before each mapping, reread its full owner/mappings and plan
 status/association. A changed record waits for a fresh cycle; a non-completed plan is not disposed.
 
+Discovery keeps full plans and task inventories only within the current cleanup poll. Candidate
+validation and the cross-plan claim index share those full tasks; foreign/unfinished plans still
+receive complete full-task reads before any disposal. The cross-plan ownership-claim inventory is
+a discovery snapshot shared across the batch. Failed/incomplete snapshots never become partial
+claims. Each set's fresh pre-disposal read bypasses discovery snapshots for the selected plan's
+task inventory, owner/mappings and plan status/association. Foreign claims remain the discovery
+snapshot during those checks. Nothing is cached across polls or shared with intake; ordinary
+planning semantics and the existing Forgetful CLI transport are unchanged.
+
+The workflow builds complete resource-claim and duplicate-reference indexes in `_claim_indexes`.
+A failed required read returns no indexes, preserving the cycle-wide disposal block and alert.
+This extraction leaves the serial read order, snapshot lifetime and fresh disposal checks intact.
+
+Full-task CLI reads remain serial. `run_owned` handles one process group on the watch main thread;
+signals and its stop context do not automatically propagate to worker threads. Parallel reads would
+need coordinated cancellation and reaping of multiple owned groups, so that lifecycle expansion was
+not adopted for this improvement. No direct HTTP/MCP transport, API option or dependency is added.
+
 ## Mapping and Git identity
 
 Ownership mappings keep `repository`, `local_dir`, `branch` and absolute `path`, and now require
@@ -83,14 +104,17 @@ Check configured root, origin and provider/source before disposal. Both effectiv
 URL lists must equal the single configured origin: a separate push URL must not delete a different
 repository's ref. Git checks exact ref syntax, the root's current branch and the remote's advertised
 symbolic default. Default, main-checkout and recorded merge-target branches are protected. An
-unknown remote default blocks cleanup rather than guessing `main` or `master`. Cache each root's
-successful or failed default read once per cleanup cycle. Read facts fresh next cycle. Cleanup-only
+unknown remote default blocks cleanup rather than guessing `main` or `master`. The first default
+lookup for a repository in each cycle caches its successful or failed read; later sets for that
+repository share the result. This lookup is lazy during disposal. Each new cycle clears the cache,
+so its first required lookup reads again. Fresh selected-owner/plan checks do not refresh defaults
+or foreign ownership claims per disposal. The non-atomic race limits below still apply. Cleanup-only
 `ls-remote` and `push` close stdin, disable Git/askpass/credential-manager prompts and put the
 effective
 SSH command in batch mode, with a forced false askpass to prevent TTY fallback. Native configuration
 and interactive OAuth are unchanged. A failed
-network read is not an uncertain write. At most one pending resource set is attempted per cycle.
-Round-robin ordering advances even when that attempt fails; a failed first set cannot starve its
+network read is not an uncertain write. At most three distinct sets are attempted per cycle.
+Round-robin ordering advances even when an attempt fails; a failed first set cannot starve its
 siblings or later plans. This bounds disposal attempts, not inventory or claim-index cost, and
 not the elapsed time of the several bounded native calls within one set.
 
@@ -156,12 +180,17 @@ from legacy records. It is not a tamper-proof audit log. Never delete it to forc
 ### Fair bounded attempts
 
 Sort pending sets by plan ID, root, branch and path; choose the first key after the run-local
-cursor, wrapping at the end. Advance before the selected attempt, including failed attempts.
+cursor, wrapping at the end. Select up to three distinct sets from that rotation; the bound is fixed
+with no configuration. Advance before each selected attempt, including failed attempts. A set gets
+at most one attempt in a cycle, even when fewer than three remain. Return to issue intake after
+each batch; a batch is bounded by attempts, not elapsed time.
 Restarting starts a new rotation but does not erase terminal confirmations. Full claims and
 required namespaces must be readable before any attempt. A final owner/status read failure spends
-that cycle without disposal. No second set is attempted as a fallback within the cycle. Remote
-default caching and per-command timeouts remain. This does not bound user-wide inventory size,
-claim-index reads or total time spent in a single attempt.
+its turn and stops the remaining batch. A receipt persistence failure also stops the batch: further
+disposal needs readable durable authority next cycle. Earlier confirmed sets retain their receipts.
+Ordinary per-set Git failures spend a turn and allow siblings to proceed. Remote default caching
+and per-command timeouts remain. This does not bound user-wide inventory size, claim-index reads or
+total time spent in a single attempt.
 
 These are targeted checks, not an atomic transaction or a process-use lock. No safety claim is made
 for concurrent repository/path/ownership replacement between checks and native writes. The agreed
@@ -204,4 +233,5 @@ registered worktrees, bare remotes and a disposable SSH transport that runs nati
 pack. They establish deterministic cleanup, failure isolation and recovery. Native lifecycle suites
 cover plain/managed/status and owned/borrowed boundaries. These checks do not prove Foreman/owner
 compliance, live deployment, deployed revision combinations or E2E evidence interpretation. Those
-trials, live adoption, parent SonarQube and independent review remain separate gates.
+trials and live adoption remain separate. Pre-review SQ and the sole completed review do not prove
+the final optimized result; final parent validation/SQ and the disposable backend trial are pending.

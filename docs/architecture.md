@@ -19,9 +19,9 @@ are implemented and locally validated in [Slice 6](plans/slice-6.md); live deliv
 [Slice 7A](adrs/completion-agreement.md) adds confirmed setup agreements at
 `.factory/definition_of_done.md` and agent-guided handoff/completion. The CLI does not interpret
 Markdown or verify delivery evidence. [Completed-plan cleanup](adrs/completed-plan-cleanup.md) now
-runs independently through watch/native Git. Approved durable per-set receipts, fair one-set
-attempts and watch-local stop checkpoints are implemented. Parent SQ/review disposition and live
-adoption remain pending; model-following and deployment/E2E trials remain deferred.
+runs independently through watch/native Git. Durable per-set receipts, cycle-local full-task reuse,
+fair three-set batches and stop checkpoints are implemented. Review fixes, final SQ and the
+isolated real-CLI cleanup trial are validated; live adoption/model-following/E2E remain deferred.
 
 [GitHub CLI readiness](plans/github-cli-readiness.md) now checks local `--slurp` support before
 watcher connection to Foreman. It rejects incompatible executables without polling or launching
@@ -239,11 +239,11 @@ import or call graph.
   protects configured main roots, validates origin, registration/common gitdir and protected refs,
   then removes worktree, local branch and remote ref in order. Dirty/ignored content and extra
   commits are disposable until durable per-set confirmation ends authority across restarts.
-  A cleanup receipt port persists terminal identities; one pending set gets a fair turn per cycle.
-  Default reads cache per root/cycle; cleanup networking is noninteractive. No policy parser is
-  added.
-  The [cleanup ADR](adrs/completed-plan-cleanup.md) covers receipt scope/storage, partial failure,
-  explicit old-plan review, operator repair and the limits of the one-set work bound.
+  A cleanup receipt port persists terminal identities; up to three distinct sets get fair turns.
+  Discovery shares foreign claims across the batch; disposal rereads selected owner/tasks/plan.
+  Defaults cache per root at first use each cycle, shared across sets; CLI reads stay serial.
+  The [cleanup ADR](adrs/completed-plan-cleanup.md) covers authority, failures, repairs and bounds;
+  the [performance record](plans/cleanup-performance.md) separates local checks from pending trials.
 - Startup checks each configured local repository against its saved origin and provider/source
   mapping after Foreman is ready. Known repository problems pause only affected work and retry
   reads. Fresh intake repeats those checks and inspects its derived path/branch before creating
@@ -384,17 +384,17 @@ Paths below are relative to `src/forgetful_factory/`:
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 758 in main.
   Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
   selected root launch: line 71. Local GitHub capability probe:
-  `adapters/github/work_tracking.py`, line 12.
+  `adapters/github/work_tracking.py`, lines 13, 72, 91 and 107.
   Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 18;
   `application/watch_factory.py`, line 62; private run state: line 40;
   `application/scaffold_issue.py`, line 28.
   Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
   Problem types and formatting: `application/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `application/factory_records.py`, lines 13–113;
+  Shared identity/repository checks: `application/factory_records.py`, lines 13–117;
   pre-create checks: `application/scaffold_issue.py`, line 78; read-only lookup/recovery:
   lines 166 and 222; placeholder creation: line 178. Cleanup: `application/cleanup_completed.py`,
-  lines 45–98, 268–364; receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27;
+  lines 46–115, 287–383; receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27;
   durable storage: `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
@@ -446,9 +446,9 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_definition_of_done_watch.py` checks unchanged unfinished verification recovery.
   `tests/test_completed_cleanup.py` and `tests/test_completed_cleanup_recovery.py` check completed
   disposal/isolation/retry through public watch, real Git, shared namespaces and bare remotes.
-  `tests/test_cleanup_review.py` checks claims/auth; `test_cleanup_receipts.py` and
-  `test_cleanup_scheduling.py` check durable reuse/fairness; `test_watch_stop.py` checks one-signal
-  stop.
+  `tests/test_cleanup_review.py` checks claims/auth; receipts/scheduling cover durable fairness.
+  `tests/test_cleanup_performance.py` checks read reuse, batches, fresh checks and cancellation;
+  `tests/test_watch_stop.py` checks one-signal stop.
   `tests/test_foreman_memory_setup.py` checks opt-in, model choices and preference preservation.
   `tests/test_foreman_issue_intake.py` checks delivered label/consent guidance and preservation.
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.

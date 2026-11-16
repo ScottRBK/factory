@@ -11,6 +11,25 @@ acceptance criteria, regression tests, architecture and relevant validation evid
 branch/PR/head before reviewing; report mismatches. Execute appropriate checks under repository
 permissions and gates.
 
+## Requirements and code quality
+
+Compare the implementation with the original request, approved clarifications and acceptance
+criteria. Use that agreed scope as the reference, not only the PR description or implementation
+report. Trace each material requirement to the changed behaviour and relevant test or other
+evidence. Flag missing behaviour, unapproved scope changes and tests that merely reproduce the
+implementation's assumptions. Respect approved requirement changes. If the original requirements
+or approval evidence are unavailable or conflicting, report the gap rather than inventing intent.
+
+Check the changed code and relevant surrounding code for clear names, understandable control flow,
+cohesive functions, appropriate error handling, dead code and unnecessary complexity. Explain the
+practical effect of a finding; distinguish maintainability problems from personal style preferences.
+
+Look for existing helpers or methods that already provide the needed behaviour. Flag duplicated
+logic that can reuse an existing implementation or share a small, clear helper. Check callers and
+behavioural differences before recommending reuse. Preserve architectural boundaries; do not force
+unrelated code together or introduce a general abstraction just to remove similar-looking lines.
+Keep proposed changes relevant to the PR and agreed requirements; do not demand unrelated cleanup.
+
 Post findings on GitHub through native gh, using the repository's review conventions. Pin the
 reviewed SHA: write a JSON file with commit_id, event and body in a temporary directory outside the
 assigned worktree, then call `gh api --method POST repos/OWNER/REPO/pulls/PR/reviews --input

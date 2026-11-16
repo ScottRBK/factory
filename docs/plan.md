@@ -43,6 +43,22 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+The approved [cleanup performance improvement](plans/cleanup-performance.md) reuses complete
+discovery tasks for candidate/claim checks and attempts at most three distinct resource sets per
+cycle. Every disposal retains fresh owner/tasks and plan checks; CLI reads stay serial to preserve
+the existing lifecycle. The sole Opus review's fixes are implemented; final SQ has zero findings.
+The isolated real-CLI trial cleared three sets in 50.455 seconds versus 112.445 seconds before.
+Final checks include 594 passing tests, three skips and one known baseline wording failure; 50
+host-adapted native cases and 115 Python 3.13 focused cases pass. Live adoption remains pending.
+
+The [reviewer guidance](plans/agent-onboarding.md#reviewer-requirements-and-code-quality)
+makes requirement drift, code clarity and appropriate reuse checks explicit. Source and DinoLand
+skills were updated; 18 existing setup/profile tests passed. No live review was started.
+
+The approved [Foreman communication guidance](plans/agent-onboarding.md#plain-language-guidance)
+now asks for concise, direct updates while preserving permission limits and uncertainty. The exact
+wording was added to the source skill and DinoLand's copy; running agents were not reloaded.
+
 The [maintenance clarification](plans/agent-onboarding.md#reload-and-restart-guidance-clarification)
 separates intake stops, user-triggered roster reloads and user-led Foreman restarts. No seamless
 self-restart is promised. This changes instructions only, not runtime lifecycle behaviour.

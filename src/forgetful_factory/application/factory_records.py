@@ -86,8 +86,12 @@ class FactoryRecords:
         return context
 
     def ownership(self, plan_id: int, external_ref: str) -> list[dict]:
+        return self.ownership_records(plan_id, external_ref, self.planning.tasks(plan_id))
+
+    def ownership_records(self, plan_id: int, external_ref: str,
+                          tasks: list[dict]) -> list[dict]:
         candidates = []
-        for task in self.planning.tasks(plan_id):
+        for task in tasks:
             try:
                 record = json.loads(task.get('description') or '{}')
             except (TypeError, ValueError):

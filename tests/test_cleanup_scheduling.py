@@ -6,9 +6,16 @@ from pathlib import Path
 from test_completed_cleanup import CompletedCleanupFixture
 
 
+def completed_attempts(log):
+    if not log.exists():
+        return []
+    return [json.loads(line) for line in log.read_text().splitlines(keepends=True)
+            if line.endswith('\n')]
+
+
 class CleanupSchedulingTests(CompletedCleanupFixture):
-    def test_one_set_per_cycle_and_failed_first_set_cannot_starve_its_sibling(self):
-        # Arrange: one plan has two sets; the first remote always rejects deletion.
+    def test_failed_set_allows_healthy_sibling_in_the_same_batch(self):
+        # Arrange: two sets fit in one batch; the first remote always rejects deletion.
         self.configure(sources=('team/app', 'team/library'))
         second = self.workspace / 'repository-1'
         self.add_remote(second, 'team/library')
@@ -33,7 +40,8 @@ class CleanupSchedulingTests(CompletedCleanupFixture):
         wrapper = self.bin / 'git'
         wrapper.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
                            'from pathlib import Path\n'
-                           'if "--symref" in sys.argv:\n'
+                           'if "push" in sys.argv and any(a.startswith(":refs/heads/") '
+                           'for a in sys.argv):\n'
                            f'    state = json.loads(Path({str(self.state_path)!r}).read_text())\n'
                            f'    with open({str(log)!r}, "a") as stream:\n'
                            '        stream.write(json.dumps([state.get("counts", {}).get('
@@ -42,21 +50,23 @@ class CleanupSchedulingTests(CompletedCleanupFixture):
         wrapper.chmod(0o755)
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: self.polls() >= 4 and
-                        not self.branch_exists(healthy, remote=True))
+        self.wait_until(process, lambda: len(completed_attempts(log)) >= 3 and
+                        not self.branch_exists(healthy, remote=True), timeout=15)
         self.stop(process)
-        attempts = [json.loads(line) for line in log.read_text().splitlines()]
-        # Assert: native work from two sets must not occur between the same provider polls.
+        attempts = completed_attempts(log)
+        # Assert: both sets share a batch; the failed set retries in the next cycle.
         polls = [poll for poll, _ in attempts]
-        self.assertEqual(len(polls), len(set(polls)), attempts)
+        self.assertEqual(polls[:3], [0, 0, 1], attempts)
         self.assertGreaterEqual(len(attempts), 3, attempts)
         roots = [args[args.index('-C') + 1] for _, args in attempts]
         self.assertEqual(roots[:3], [denied['local_dir'], healthy['local_dir'],
                                      denied['local_dir']])
+        self.assertEqual(len(attempts), len({(p, r) for (p, _), r in zip(attempts, roots)}))
+        self.assertTrue(all(polls.count(poll) <= 3 for poll in set(polls)), attempts)
         self.assert_disposed(healthy)
         self.assertTrue(self.branch_exists(denied, remote=True))
 
-    def test_failed_plan_cannot_starve_a_later_completed_plan(self):
+    def test_failed_plan_allows_later_plan_in_the_same_batch(self):
         # Arrange: two completed ordinary plans share a repository, not their feature refs.
         self.script({'team/app': [[[self.issue(1), self.issue(2)]]]})
         setup = self.start('--existing')
@@ -92,13 +102,16 @@ class CleanupSchedulingTests(CompletedCleanupFixture):
         wrapper.chmod(0o755)
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: self.polls() >= 4)
+        self.wait_until(process, lambda: len(completed_attempts(log)) >= 3 and
+                        not self.branch_exists(healthy, remote=True), timeout=15)
         self.stop(process)
-        attempts = [json.loads(line) for line in log.read_text().splitlines()]
-        # Assert: a failed plan spends its turn, not the entire cycle or later plans' turns.
+        attempts = completed_attempts(log)
+        # Assert: both plans share a batch; the failed plan retries in the next cycle.
         self.assertEqual([ref for _, ref in attempts[:3]],
                          [':refs/heads/' + m['branch'] for m in (denied, healthy, denied)])
         polls = [poll for poll, _ in attempts]
-        self.assertEqual(len(polls), len(set(polls)), attempts)
+        self.assertEqual(polls[:3], [0, 0, 1], attempts)
+        self.assertEqual(len(attempts), len({tuple(item) for item in attempts}), attempts)
+        self.assertTrue(all(polls.count(poll) <= 3 for poll in set(polls)), attempts)
         self.assert_disposed(healthy)
         self.assertTrue(self.branch_exists(denied, remote=True))

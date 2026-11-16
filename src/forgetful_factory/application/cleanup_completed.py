@@ -15,6 +15,7 @@ from forgetful_factory.domain.models import FactoryError
 
 _TARGET_KEYS = ('target', 'common-target', 'remote-target')
 _RECEIPTS_ALERT_SUBJECT = 'cleanup:receipts'
+_SETS_PER_CYCLE = 3
 
 
 @dataclass
@@ -60,7 +61,8 @@ class CleanupCompleted:
         plans = self._read_plans(inventory, alerts)
         if plans is None or not any(self._in_scope(plan) for plan in plans):
             return
-        candidates = self._candidates(plans, alerts)
+        tasks: dict[int, list[dict]] = {}
+        candidates = self._candidates(plans, tasks, alerts)
         if candidates is None:
             return
         try:
@@ -72,6 +74,29 @@ class CleanupCompleted:
             return
         if not candidates:
             return
+        identities = self._repository_identities(alerts)
+        if identities is None:
+            return
+        indexes = self._claim_indexes(inventory, plans, tasks, identities, alerts)
+        if indexes is None:
+            return
+        claims, references = indexes
+        self.worktrees.begin_cleanup_cycle()
+        pending = sorted((self._order(w, m), w, m) for w in candidates for m in w.mappings
+                         if not self._is_confirmed(w.plan_id, w.reference, m))
+        start = next((i for i, item in enumerate(pending)
+                      if self.cursor is None or item[0] > self.cursor), 0)
+        # Rotate a fixed snapshot once: failures spend a turn, never a second try this cycle.
+        selected = (pending[start:] + pending[:start])[:_SETS_PER_CYCLE]
+        for key, work, mapping in selected:
+            self.cursor = key
+            if not self._dispose(work, mapping, claims, references, identities, alerts, report):
+                # Unknown fresh ownership/status withholds the rest of this cycle's authority.
+                break
+
+    def _claim_indexes(self, inventory: list[dict], plans: list[dict],
+                       tasks: dict[int, list[dict]], identities: dict[str, str],
+                       alerts: WatcherAlerts) -> tuple[dict, dict] | None:
         claims = defaultdict(set)
         references = defaultdict(set)
         # Summary conflicts can withhold authority, never grant it. An unreadable duplicate
@@ -79,23 +104,15 @@ class CleanupCompleted:
         for summary in [*inventory, *plans]:
             if isinstance(summary.get('external_ref'), str):
                 references[summary['external_ref']].add(summary['id'])
-        identities = self._repository_identities(alerts)
-        if identities is None:
-            return
         for plan in plans:
             try:
-                self._claims(self.records.planning.tasks(plan['id']), plan['id'],
-                             claims, identities)
+                if plan['id'] not in tasks:
+                    tasks[plan['id']] = self.records.planning.tasks(plan['id'])
+                self._claims(tasks[plan['id']], plan['id'], claims, identities)
             except FactoryError as error:
                 self._read_problem(plan['id'], error, alerts)
-                return
-        self.worktrees.begin_cleanup_cycle()
-        pending = sorted((self._order(w, m), w, m) for w in candidates for m in w.mappings
-                         if not self._is_confirmed(w.plan_id, w.reference, m))
-        selected = next((item for item in pending if self.cursor is None or item[0] > self.cursor),
-                        pending[0])
-        self.cursor, work, mapping = selected
-        self._dispose(work, mapping, claims, references, identities, alerts, report)
+                return None
+        return claims, references
 
     def _read_plans(self, inventory: list[dict], alerts: WatcherAlerts) -> list[dict] | None:
         plans = []
@@ -108,13 +125,15 @@ class CleanupCompleted:
             plans.append(plan)
         return plans
 
-    def _candidates(self, plans: list[dict], alerts: WatcherAlerts) -> list[CompletedWork] | None:
+    def _candidates(self, plans: list[dict], tasks: dict[int, list[dict]],
+                    alerts: WatcherAlerts) -> list[CompletedWork] | None:
         candidates = []
         for plan in plans:
             if not self._in_scope(plan):
                 continue
             try:
-                candidates.append(self._candidate(plan, {}))
+                tasks[plan['id']] = self.records.planning.tasks(plan['id'])
+                candidates.append(self._candidate(plan, tasks[plan['id']]))
             except FactoryError as error:
                 alerts.send(f'cleanup:{plan["id"]}', error, scope='cleanup',
                             code=getattr(error, 'code', 'cleanup_read_failed'), retry='next_poll',
@@ -124,10 +143,10 @@ class CleanupCompleted:
                     return None
         return candidates
 
-    def _candidate(self, plan: dict, identities: dict[str, str]) -> CompletedWork:
+    def _candidate(self, plan: dict, tasks: list[dict]) -> CompletedWork:
         reference = plan['external_ref']
         self.records.snapshot(self.records.context(plan), reference)
-        owners = self.records.ownership(plan['id'], reference)
+        owners = self.records.ownership_records(plan['id'], reference, tasks)
         if len(owners) != 1:
             raise ScaffoldProblem('ownership_ambiguous' if owners else 'ownership_missing',
                                   'Completed-plan cleanup needs one ownership task; '
@@ -148,7 +167,7 @@ class CleanupCompleted:
                 raise ScaffoldProblem('cleanup_path_invalid',
                                       'Cleanup path contains a configured repository root; '
                                       'preserve that checkout.', paths=(mapping['path'],))
-            keys = {key for key in self._keys(mapping, identities)
+            keys = {key for key in self._keys(mapping, {})
                     if key[0] in ('path', 'branch', 'common-branch')}
             if keys & resources:
                 raise ScaffoldProblem('cleanup_ownership_conflict',
@@ -308,7 +327,7 @@ class CleanupCompleted:
                         code=getattr(error, 'code', 'cleanup_operation_uncertain'),
                         retry='next_poll', plan_id=work.plan_id,
                         ownership_task_id=work.task_id, paths=(mapping['path'],))
-            return True
+            return getattr(error, 'code', '') != 'cleanup_receipt_failed'
         alerts.clear(subject)
         self.confirmed.add(identity)
         report(f'Cleanup confirmed for completed plan {work.plan_id}: '

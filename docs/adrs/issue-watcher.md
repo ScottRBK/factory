@@ -75,6 +75,11 @@ read per eligible issue per poll; unrelated issues and pull requests are not rea
 GitHub's issue timestamp is not assumed to advance for comment edits. Snapshots are not atomic
 across GitHub's issue and comment requests; a later successful poll observes subsequent changes.
 
+`list_issues` validates issue pages and selects eligible issues before `_issue` builds each domain
+record and its revision. That conversion retains the same normalization, per-issue paginated comment
+reads and full comment validation. The tuple is returned only after every eligible conversion
+succeeds; extracting conversion does not add a cache, change transport or expose partial results.
+
 Alert suppression, blocked records and issue revisions remain separate. A corrected record can
 recover without an issue edit. No work is deleted on failure. Ordinary notifications carry
 body/revision and saved plan/task/worktree IDs as escaped external data; agents must reread current
