@@ -392,7 +392,7 @@ class GeneratedGuidanceTests(InitFixture):
         self.assertNotIn('research-only roster means planning-only', instructions)
         for phrase in ('full role', 'TDD for implementation', 'additional skills',
                        'absolute SKILL.md', 'before work', 'configured responsibilities',
-                       'independent review', 'acceptance criteria', 'auto_approve false'):
+                       'independent review', 'acceptance criteria', 'auto_approve=false'):
             self.assertIn(phrase, workflow)
 
     def test_maintenance_guidance_accepts_local_relative_or_absolute_child_references(self):

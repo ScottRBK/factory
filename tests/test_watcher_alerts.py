@@ -1,6 +1,8 @@
 """Watcher alerts at the CLI, real Git and external program boundaries."""
 import json
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from poll_support import PollGate
@@ -499,12 +501,13 @@ class WatcherAlertTests(PlanningWatchFixture):
         # Arrange: external Git read fails operationally, without a known safety mismatch.
         git = self.bin / 'git'
         marker = self.workspace / 'recorded-git-read-failed'
-        git.write_text('#!/usr/bin/python3\nimport os, sys\n'
+        git_binary = shutil.which('git')
+        git.write_text(f'#!{sys.executable}\nimport os, sys\n'
                        'from pathlib import Path\n'
                        'if "--git-common-dir" in sys.argv:\n'
                        f'    Path({str(marker)!r}).write_text("recorded common-dir read")\n'
                        '    sys.exit("TOP_SECRET unknown Git failure")\n'
-                       'os.execv("/usr/bin/git", ["git", *sys.argv[1:]])\n')
+                       f'os.execv({git_binary!r}, ["git", *sys.argv[1:]])\n')
         git.chmod(0o755)
         process = self.start('--existing')
         self.wait_until(process, lambda: len(self.alerts()) == 1)
@@ -881,12 +884,13 @@ class WatcherAlertTests(PlanningWatchFixture):
         parent = self.workspace / '.factory/worktrees'
         marker = self.workspace / 'late-parent-conflict'
         git = self.bin / 'git'
-        git.write_text('#!/usr/bin/python3\nimport json, subprocess, sys\n'
+        git_binary = shutil.which('git')
+        git.write_text(f'#!{sys.executable}\nimport json, subprocess, sys\n'
                        'from pathlib import Path\n'
                        f'state = Path({str(self.workspace / ".factory/fixture-plans.json")!r})\n'
                        f'parent = Path({str(parent)!r})\nmarker = Path({str(marker)!r})\n'
                        'args = sys.argv[1:]\n'
-                       'result = subprocess.run(["/usr/bin/git", *args], capture_output=True)\n'
+                       f'result = subprocess.run([{git_binary!r}, *args], capture_output=True)\n'
                        'if (args[2:3] == ["for-each-ref"] and state.exists()\n'
                        '        and json.loads(state.read_text())["plans"]\n'
                        '        and not marker.exists()):\n'
