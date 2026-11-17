@@ -1,0 +1,52 @@
+# Dependabot version updates for the flake inputs and pinned Actions.
+#
+# Python dependencies are deliberately NOT listed here. Every requirement in
+# pyproject.toml is exactly pinned (`agent-shell-py==0.5.0`, `uv_build==0.13.5`,
+# and the audited dev group: `ruff==0.17.0`, `import-linter==2.15`), and CI
+# installs with `uv sync --locked`. Recurring automatic bumps would undo that
+# audit trail, so Python moves only through Dependabot *security* updates, which
+# touch versions with a known advisory, rather than scheduled version updates.
+#
+# Two limits of the `nix` ecosystem, so a future reader does not rediscover
+# them: it updates flake.lock only and never a ref pinned in flake.nix, and it
+# does not run on private repositories.
+#
+# The `github-actions` ecosystem rewrites a pinned action's SHA but leaves any
+# trailing version comment alone, so `# v1.2.3` annotations in the workflows
+# drift out of date on a bump. They are annotations, not inputs.
+#
+# Note on CI: Dependabot opens these PRs with its own token, so the
+# `pull_request` workflows do run - with a read-only token and no repository
+# secrets. A bump PR parked in `action_required` means the repository requires
+# approval for a first-time contributor, not that the automation is broken.
+# Separate mechanism, worth not confusing with the first: a push made with
+# `GITHUB_TOKEN` from inside a running workflow does not trigger further
+# workflows, so anything that commits from CI needs its own token to wake the
+# next one.
+#
+# Docs: https://docs.github.com/en/dependabot
+version: 2
+updates:
+  # nix flake inputs: flake.nix and flake.lock
+  - package-ecosystem: "nix"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Group all input bumps into one PR per week so a routine refresh costs one
+    # review rather than one per input.
+    groups:
+      flake-inputs:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions, including the version-tagged actions used by CI.
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"

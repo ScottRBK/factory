@@ -1,4 +1,5 @@
 """Local worker setup choices; controlled native processes only."""
+import sys
 
 
 def worker_settings(fixture, *, harness='codex', model='gpt-5.4', effort='xhigh'):
@@ -20,11 +21,14 @@ def worker_settings(fixture, *, harness='codex', model='gpt-5.4', effort='xhigh'
             '--review-skill', str(standard))
 
 
-CATALOG = r'''#!/usr/bin/env python3
-import json
+SHEBANG = f'#!{sys.executable}\n'
+CATALOG = SHEBANG + r'''import json
 import os
 import sys
 from pathlib import Path
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+
 if os.environ.get('WORKER_CATALOG_LOG'):
     with open(os.environ['WORKER_CATALOG_LOG'], 'a') as stream:
         stream.write(json.dumps({'harness': Path(sys.argv[0]).name, 'cwd': os.getcwd()}) + '\n')
