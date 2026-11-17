@@ -237,10 +237,35 @@ Two changes would move the `Generator` line, and both are worth watching:
 Only the `Generator` line was compared with the CI wheel; byte-for-byte equality
 was not tested.
 
+## Dependency updates
+
+`.github/dependabot.yml` covers two ecosystems, weekly: `nix` (flake inputs,
+grouped into one PR per week) and `github-actions`.
+
+Python is deliberately excluded from *version* updates. Every requirement in
+`pyproject.toml` is exactly pinned and CI installs with `uv sync --locked`, so
+scheduled bumps would break the lock and undo the audit trail behind those pins.
+Python still receives Dependabot **security** updates, which only fire on versions
+with a known advisory.
+
+Two limits of the `nix` ecosystem are worth stating: it updates `flake.lock`
+only, never a ref pinned in `flake.nix`, and it does not run on private
+repositories. The `github-actions` ecosystem rewrites a pinned action's SHA but
+leaves trailing version comments untouched, so those annotations drift and are
+not a reliable record of what will run.
+
+One trap, and one non-trap that is easy to confuse with it. The trap: a push
+made with `GITHUB_TOKEN` from inside a running workflow does not trigger
+further workflows, so a commit that CI makes needs its own token to wake the
+next workflow. Not a trap: Dependabot opens its PRs with its own token, so
+`pull_request` workflows do run on them, with a read-only token and no
+repository secrets. A bump PR sitting in `action_required` means the repository
+requires approval for a first-time contributor. Closing and reopening does not
+help.
+
 ## Deferred
 
 - Cachix wiring (`nixConfig` + push workflow) — separate PR.
-- Dependabot for `nix` and `github-actions` — separate PR.
 - Promoting `ruff-format` to the default stage — needs a formatting-only commit
   first, since 96 files would change.
 - The three known-red tests above — raise with the repo owner at PR time.
