@@ -98,9 +98,12 @@ class DeadlinePolicyTests(unittest.TestCase):
                         if process.poll() is None:
                             process.kill()
                             process.communicate()
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
-GH = '''#!/usr/bin/env python3
-import json
+
+GH = SHEBANG + '''import json
 import os
 from pathlib import Path
 import sys

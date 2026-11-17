@@ -37,3 +37,10 @@ Markdown and code lines must stay within 100 columns.
 Use the [Mycelium architecture skill][mycelium-skill] for the overview/map workflow.
 
 [mycelium-skill]: https://github.com/ScottRBK/mycelium/tree/master/skills/mycelium-architecture
+
+## Nix
+
+This repository builds with Nix (flake-parts + uv2nix). The Python development
+loop via `uv` is unchanged and still supported. `docs/nix.md` records the Nix
+practice decisions, the check inventory and the currently known-red tests; read it
+before changing `flake.nix`, hooks or test-support portability assumptions.
