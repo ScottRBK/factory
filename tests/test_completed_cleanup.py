@@ -1,12 +1,16 @@
 """Completed-plan disposal through public watch, native CLI fixtures and real Git remotes."""
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from test_planning_watch import PlanningWatchFixture
 
-SSH = '''#!/usr/bin/env python3
-import json
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
+
+SSH = SHEBANG + '''import json
 import os
 import shlex
 import sys

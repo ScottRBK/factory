@@ -1,11 +1,16 @@
 """Partial disposal and historical-marker recovery at the public watch/native Git boundary."""
 import json
 import shutil
+import sys
 from pathlib import Path
 
 from test_completed_cleanup import CompletedCleanupFixture
 
 from forgetful_factory.deadlines import DeadlinePolicy
+
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
 
 class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
@@ -154,7 +159,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         native_git = shutil.which('git')
         log = self.workspace / 'git-write-log.jsonl'
         git = self.bin / 'git'
-        git.write_text('#!/usr/bin/env python3\nimport json, subprocess, sys, time\n'
+        git.write_text(SHEBANG + 'import json, subprocess, sys, time\n'
                        f'result = subprocess.run([{native_git!r}, *sys.argv[1:]])\n'
                        'if "remove" in sys.argv and "worktree" in sys.argv:\n'
                        f'    with open({str(log)!r}, "a") as log:\n'
@@ -228,7 +233,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.save(message, record)
         native_git = shutil.which('git')
         git = self.bin / 'git'
-        git.write_text('#!/usr/bin/env python3\nimport subprocess, sys\n'
+        git.write_text(SHEBANG + 'import subprocess, sys\n'
                        f'result = subprocess.run([{native_git!r}, *sys.argv[1:]])\n'
                        'if "branch" in sys.argv and "-D" in sys.argv:\n'
                        f'    subprocess.run([{native_git!r}, "-C", {str(self.workspace)!r},\n'
@@ -460,7 +465,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         native_git = shutil.which('git')
         log = self.workspace / 'remote-delete-log.jsonl'
         git = self.bin / 'git'
-        git.write_text('#!/usr/bin/env python3\nimport json, subprocess, sys\n'
+        git.write_text(SHEBANG + 'import json, subprocess, sys\n'
                        f'result = subprocess.run([{native_git!r}, *sys.argv[1:]])\n'
                        f'if "push" in sys.argv and {":refs/heads/" + mapping["branch"]!r}'
                        ' in sys.argv:\n'
