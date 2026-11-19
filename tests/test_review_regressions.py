@@ -392,8 +392,14 @@ class GeneratedGuidanceTests(InitFixture):
         self.assertNotIn('research-only roster means planning-only', instructions)
         for phrase in ('full role', 'TDD for implementation', 'additional skills',
                        'absolute SKILL.md', 'before work', 'configured responsibilities',
-                       'independent review', 'acceptance criteria', 'auto_approve false'):
+                       'independent review', 'acceptance criteria'):
             self.assertIn(phrase, workflow)
+        permission_guidance = ' '.join(workflow.split())
+        self.assertIn('Launch implementation workers with auto_approve=true for their '
+                      'assigned Factory tasks.', permission_guidance)
+        self.assertIn('This policy does not extend to research or review workers; keep '
+                      'auto_approve=false for those workers unless separately authorized.',
+                      permission_guidance)
 
     def test_maintenance_guidance_accepts_local_relative_or_absolute_child_references(self):
         repo = self.repo()

@@ -43,6 +43,15 @@ includes earlier MCP and separate-login choices that no longer apply.
 
 ## Current and next slices
 
+[Push CI for `337d02c`](https://github.com/ScottRBK/factory/actions/runs/43947350994) failed
+on both Python versions because a generated-guidance test expected `auto_approve false` instead of
+`auto_approve=false`. The correction checks implementation approval and the research/review exception
+separately, without changing runtime policy. The failure was reproduced before editing; 35 related
+tests now pass on each of Python 3.12 and 3.13. Ruff and repeat Mycelium exports pass; the map is
+unchanged. An initial local 3.13 run lacked AgentShell in child processes; the successful rerun used
+an isolated environment with the same audited 0.5.0 dependency. These local results do not establish
+hosted CI success; both matrix jobs must pass for the correction's committed revision.
+
 The approved [cleanup performance improvement](plans/cleanup-performance.md) reuses complete
 discovery tasks for candidate/claim checks and attempts at most three distinct resource sets per
 cycle. Every disposal retains fresh owner/tasks and plan checks; CLI reads stay serial to preserve
