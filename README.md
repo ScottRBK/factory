@@ -16,7 +16,6 @@ validation remain pending. See the [implementation plan](docs/plan.md) for resul
 
 Existing factories are not automatically migrated or upgraded. Review their configuration,
 agent instructions and completed-plan worktree mappings before using a newer build.
-The bundled Forgetful extension is for authorized internal use, not public redistribution.
 
 ## Before running
 
