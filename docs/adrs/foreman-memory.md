@@ -163,9 +163,8 @@ remain. The source-reader change preserves URL inspection rather than removing t
 
 Scott has not answered whether managed capture should inspect only exact URLs supplied by the user.
 Neither that narrower policy nor a blanket URL ban is approved. This choice remains open before
-live memory enablement. It does not alone prevent audited inert internal bundle inclusion and
-controlled testing. The unlicensed extension is authorized for internal use only; no public
-redistribution is approved.
+live memory enablement. It does not alone prevent audited inert bundle inclusion and controlled
+testing. These validation limits do not impose an internal-use-only license.
 
 ## Later slice: shared CLI transport and local support
 

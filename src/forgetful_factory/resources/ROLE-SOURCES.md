@@ -25,7 +25,8 @@ Reviewed sources:
   Its new patch hash covers the complete local diff against the same upstream revision. Its managed
   entrypoint is `pi-forgetful/factory.ts`; `index.ts` retains standalone behavior. New starter
   Foreman definitions select the managed entry, while child and edited legacy selections remain
-  unchanged. No upstream license grant exists: internal use only, no public redistribution.
+  unchanged. Internal testing describes the audit scope, not a redistribution restriction.
+  Retain applicable copyright and license notices when distributing bundled code.
   The unused post-close permission change was removed. Scott accepted the remaining concurrent
   workspace-path replacement limitation rather than adding containment work. Existing checks
   remain; source approval does not claim sandboxing, live enablement or backend/model access.
@@ -61,7 +62,7 @@ The experimental Milo parser remains disabled. Evidence and exact diffs are unde
 The earlier independent audit of the overridden lock verified 119 archives and 15,012 installed
 files. Its clean advisory result does not apply to this restored upstream dependency. Historical
 evidence: `implementation/AUDIT.md` under `/tmp/factory-foreman-forgetful-2ptedi1m/`.
-Installer audit and memory-source approval remain separate; neither grants public redistribution.
+Installer audit and memory-source approval remain separate from licensing and release readiness.
 Pi installs with `npm ci --ignore-scripts` into `.factory/runtime/pi`. The hash-bearing Python
 requirements are unchanged; Forgetful 0.5.5 uses wheel-only, hash-checked `uv pip sync` in its own
 `.factory/runtime/forgetful` environment. The reviewed Python resolution targets Python 3.12.

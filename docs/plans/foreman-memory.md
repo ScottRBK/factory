@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented for authorized internal use: Factory's configured server/project, Foreman-only loading,
+Implemented: Factory's configured server/project, Foreman-only loading,
 automatic-memory opt-in/model controls, and planning with memory off. Full source checks, SonarQube
 scans and actual Claude Code review through AgentShell are complete. The CLI and extension keep
 their own authentication for now. See the [decision record](../adrs/foreman-memory.md).
@@ -201,8 +201,17 @@ Repeated exports are byte-identical. Known external-base warnings remain; this i
 not a rendered Mermaid proof. The overview remains under 500 lines; changed lines stay within 100.
 
 The historical Python 3.13 shutdown timeout remains unexplained; these successful runs do not
-establish a fix. Hosted CI, live adoption and capture-URL policy remain separate. No installation,
-watcher launch or public redistribution is authorized by the internal build.
+establish a fix. Hosted CI, live adoption and capture-URL policy remain separate. The internal
+build does not authorize installation or watcher launch. These are operational limits, not license
+restrictions.
+
+## Licensing wording correction
+
+Scott confirmed that Forgetful is MIT-licensed; its `LICENCE.md` contains the MIT grant and
+copyright notice. The earlier internal-use-only wording incorrectly presented the scope of the
+integration audit as a redistribution restriction. That wording is removed from this record,
+the integration ADR and bundled-source notes. Retain applicable license notices when distributing
+code. This documentation change does not alter bundle bytes, validate a release or enable memory.
 
 ## Server-only acceptance contract
 
