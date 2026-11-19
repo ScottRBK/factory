@@ -101,6 +101,17 @@ the architecture proof tests additionally invoke the development-only Import Lin
 Independently validate the installed package through local `uvx`.
 Live GitHub label validation in Dark Business requires separate confirmation of target repositories.
 
+Lifecycle tests need installed tmux. They run real AgentShell with fake Pi in a private tmux
+server and isolated homes, without service or model calls. To include optional native SDK probes:
+
+```bash
+NATIVE_PI_SDK=/absolute/pi-coding-agent/dist/index.js \
+  uv run --locked python -m unittest discover -s tests -v --durations 25
+```
+
+Use an isolated SDK environment, never a personal Pi profile. These probes test native loading
+without inference; they do not prove provider access, OAuth refresh or autonomous planning.
+
 ## Explicit deadline composition
 
 `deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each

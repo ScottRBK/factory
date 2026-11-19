@@ -4,7 +4,7 @@ Status: one-time starter provisioning and standalone Foreman use
 [normalized agent definitions](agent-definitions.md) and audited extension 1.5.0. Both supported
 Python runs pass 373 tests, including native SDK probes, without inference or skips. Runtime repair
 policy and final checks remain open. Earlier onboarding results below describe the preceding design.
-See [release limits](../../README.md#current-source-and-release-boundary).
+See [release limits](../../README.md#status).
 
 Back to [architecture](../architecture.md).
 
@@ -32,6 +32,12 @@ their parent unless explicitly supplied. The initial research menu supports Pi; 
 Codex and Claude Code. This menu is narrower than native AgentShell capabilities. Model listing
 uses native accounts/settings and proves selectability, not inference or model-specific effort.
 Catalog caching and shared-Pi-profile consent remain part of first setup.
+
+For command-line setup, use `--feature-owner-model` and `--feature-owner-effort` to override
+Foreman's defaults. Research inherits the owner's choices; set `--research-harness pi`,
+`--research-model` and `--research-effort` to choose independently during first setup.
+`--grill-me-skill /absolute/path/SKILL.md` selects an existing, unchanged skill; its default is
+`~/.agents/skills/grill-me/SKILL.md`. Factory does not download it.
 
 The setup menu offers manual choices or Foreman's help. Neither route asks for skill paths. Initial
 skill flags remain optional; selections are saved in `agent.resources.skills`. Bundled
@@ -80,6 +86,7 @@ file or cwd; moving JSON does not move resources. Keep required selections when 
 maintenance skill preserves accounts, plans, worktrees and custom instructions, and distinguishes
 setup validation from inference. Native guidance points to it; Pi owns skill advertisement, YAML,
 metadata and name-clash validation. Factory checks paths and audited runtime integrity.
+Ask Foreman for maintenance help or invoke `/skill:factory-maintenance`.
 
 Agent choices live only in `agent.json`; `factory.toml` retains Factory settings and
 `foreman_agent_file`. Shared consent/home is `.factory/pi-profile.json`, and first-setup completion
@@ -133,7 +140,8 @@ Assisted first init saves the whole starter team and opens a dedicated tmux Fore
 completion receipt. Review and finalize the choices in that conversation. The watcher cannot poll,
 restore issue work or dispatch while first setup is incomplete. Both setup routes validate the same
 saved format; agents must not manufacture receipts or bypass readiness checks. No automatic
-migration is provided for older testing factories or DinoLand.
+migration is provided for older testing factories or DinoLand. Factory sends no opening prompt;
+ask Foreman to review the team and finish setup.
 
 ### Setup Foreman and watcher attachment
 
@@ -157,6 +165,39 @@ still require restart. Recorded launch settings are not live-state proof.
 The implementation design below supplies launcher and lifecycle support as well as instructions.
 The plain watcher closes its owned session when its caller disconnects. Connecting another
 watcher cannot alter Foreman's settings or prove that it processed a submitted notification.
+
+### Operator commands
+
+Use the Factory invocation printed during setup. In a Foreman shell, `FACTORY_COMMAND` identifies
+that invocation and `FACTORY_WORKSPACE` identifies the workspace. Do not substitute a different
+installed version. The examples below assume `forgetful-factory` resolves to that installation;
+for a local wheel, use the `uvx --refresh --from "$wheel" forgetful-factory` prefix from the README.
+
+After completed setup, start Foreman or enter its existing terminal:
+
+```bash
+forgetful-factory foreman --workspace /absolute/path/to/workspace
+forgetful-factory foreman --attach --workspace /absolute/path/to/workspace
+```
+
+For assisted or interrupted first setup, confirm delegated work has stopped, then finalize:
+
+```bash
+forgetful-factory init --finalize --delegated-work-stopped --workspace /absolute/path/to/workspace
+```
+
+After successful finalization, the user runs `/reload` in the idle Foreman to load child
+definitions. Confirm whether to include existing issues before starting its managed watcher:
+
+```bash
+forgetful-factory watch --start --new-only --workspace /absolute/path/to/workspace
+forgetful-factory watch --status --workspace /absolute/path/to/workspace
+forgetful-factory watch --stop --workspace /absolute/path/to/workspace
+```
+
+Use `--existing` instead of `--new-only` to include existing matches. Status can observe either
+launch mode; `--stop` controls only the managed watcher. A forced stop reports uncertain delivery
+or external work; it does not prove delegated agents have stopped.
 
 ### Lifecycle implementation design
 
@@ -241,6 +282,9 @@ state or signals through it. Worker exit allows the controller to release owners
 an unrelated replacement, but does not establish Pi's exit result: saved state remains unknown.
 Actual SDK exit or confirmed owned cleanup can record stopped. Offline status explains manual
 reconciliation before replacement; normal stopped status does not demand that extra recovery.
+For unknown saved ownership, independently confirm that both the original Foreman and owner have
+exited. Only then archive `owner.json` and `control.sock` under `.factory/runtime/foreman` before
+relaunching. Do not clear other runtime files or use a saved PID as proof of process identity.
 
 A failed SDK wait alone is not proof of exit: closing its ownership channel can stop a live Pi.
 Keep ownership and resume the public exit wait after a one-second pause, while the pinned worker
@@ -286,7 +330,8 @@ context plus absolute skill references and read-before-work instructions. For no
 Codex/Claude children, extension 1.5 source also supplies deterministic selected-skill references.
 It strips only outbound native `skills`; canonical saved selections stay complete. All other
 resource options retain their native validation and errors. There is no native registration or
-model-compliance guarantee. Factory has not yet adopted a released normalized extension bundle.
+model-compliance guarantee. Factory has adopted the audited extension 1.5.0 bundle; its isolated
+native checks are recorded in the [release work record](../plans/agent-definitions.md).
 
 Pi accepts native selected skills/extensions; OpenCode accepts native skills/plugins. Claude Code,
 Copilot CLI and Cursor have native plugin-directory mechanisms. Codex and Grok reject nondefault

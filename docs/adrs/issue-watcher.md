@@ -4,7 +4,7 @@ Status: owned-Pi watching and managed watcher controls remain. Current Factory s
 [normalized agent definitions](agent-definitions.md) through audited extension 1.5.0. Native SDK
 probes and both full Python suites pass without inference. Runtime repair policy and final checks
 remain open. Slice 4 planning/recovery and earlier lifecycle evidence remain historical; see
-[current release limits](../../README.md#current-source-and-release-boundary).
+[current release limits](../../README.md#status).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 2](../plans/slice-2.md).
 

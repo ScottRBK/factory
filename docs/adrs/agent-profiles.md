@@ -3,7 +3,7 @@
 Status: Factory uses [normalized agent definitions](agent-definitions.md) and audited extension
 1.5.0. Native SDK loading and controlled worker probes pass without inference. Shared Pi consent,
 resource checks and native Forgetful access remain; runtime repair policy and final checks are open.
-See [current release limits](../../README.md#current-source-and-release-boundary).
+See [current release limits](../../README.md#status).
 
 [CLI onboarding](../plans/cli-onboarding.md), [Slice 4/5](../plans/slices-4-5.md) and
 [Slice 6](../plans/slice-6.md) retain historical validation. They do not establish normalized native
@@ -53,13 +53,22 @@ ordinary instruction files can participate. The starter root definition excludes
 not complete instruction isolation. Login/logout, OAuth refresh, trust decisions and native session
 storage remain Pi-owned. The selected upstream extensions also use native home state: hide-tools
 preferences and AgentShell extension configuration are shared. AgentShell writes resource-selection
-records in its normal state directory. Resource selection is not a host sandbox or an account
-boundary.
+digests under `$XDG_STATE_HOME/agent-shell/resources`, defaulting to
+`~/.local/state/agent-shell/resources`. They can remain after session exit and contain a digest,
+not resource contents or credential values. Resource selection is not a host sandbox or an account
+boundary. `/hide-tools` changes the terminal display, not tool execution.
 
 No credentials are copied, symlinked, printed, or written into Factory configuration. Factory
 never asks for a token value. Missing model login is handled through native interactive Pi
 `/login` in the chosen home, followed by rechecking setup. This is distinct from Forgetful login.
 The Factory does not invent a standalone `pi auth login` command.
+
+An explicit `--pi-agent-dir` must already exist. If the default home is missing, consented
+executable installation can finish but setup remains incomplete. Initialize the normal Pi home
+and use `/login` in another terminal. Before configuration is saved, retry the original init
+arguments; afterward, use `init --finalize`. For a wrong saved home, review
+`.factory/pi-profile.json` and explicitly approve the corrected home through setup. Do not delete
+native login state.
 
 Model discovery uses AgentShell's public `list_models` and preserves its exact selectors.
 CLI groups Foreman models by provider and uses numbered model/effort choices. Implementation and
@@ -124,7 +133,8 @@ Watch starts Foreman without an opening model prompt. The native role instructio
 when the first notification or user input starts a turn. Handling work can incur provider usage;
 readiness alone still does not prove a model response.
 
-The shared Pi setting `max_sub_agent_depth` must be at least 1 to allow owner research delegation.
+The shared Pi setting `max_sub_agent_depth`, in `<shared Pi home>/extensions/agentshell.json`,
+must be at least 1 to allow owner research delegation.
 Factory checks it without modifying personal preferences or resetting inherited ancestry. Launch
 from inside a Pi subagent is rejected. No roster field can override the native depth policy.
 
@@ -139,7 +149,19 @@ research. This menu is narrower than AgentShell's native capabilities. Later nam
 are editable; execution still requires explicit `execution_enabled` permission and suitable agents.
 Skill paths are not requested in the wizard. Explicit TDD/implementation/review paths remain
 optional initial choices and are saved in each worker's `agent.resources.skills`. Bundled guidance
-requires TDD even without an additional TDD file.
+requires TDD even without an additional TDD file. The initial flags are `--tdd-skill`,
+`--implementation-skill` and `--review-skill`; the latter two accept repeated selections.
+
+For example, add these options to a fresh `init`, replacing the native model placeholders:
+
+```bash
+--implementation-harness codex --implementation-model NATIVE_CODEX_MODEL \
+--implementation-effort high \
+--review-harness claude_code --review-model NATIVE_CLAUDE_MODEL --review-effort high
+```
+
+Each harness uses its own native account and permissions. A Pi login does not sign you into
+Codex or Claude Code.
 
 Workers omit cwd so the owner's call supplies the assigned worktree and its repository instructions.
 The owner reads each selected definition and supplies the full role, task, worktree and review
@@ -161,11 +183,12 @@ do not list models. Later edits do not renew a settings or skill-byte fingerprin
 
 ### Superseded selection synchronization
 
-Earlier slices saved `resources.json` and inline `roster.json` beside role instructions. Completion
-bound settings and skill bytes; init registered local skills and used a recovery receipt for partial
-updates. This kept duplicated parent/child selections consistent, but made ordinary edits depend
-on rerunning setup. [Normalized definitions](agent-definitions.md) replace that design with
-child-owned settings and reference-only parent entries. The earlier validation records describe
+Earlier slices saved `resources.json`, inline `roster.json` and `model-selection.json` beside
+role instructions. Completion bound settings and skill bytes; init registered local skills and
+used a recovery receipt for partial updates. This kept duplicated parent/child selections
+consistent, but made ordinary edits depend on rerunning setup.
+[Normalized definitions](agent-definitions.md) replace that design with child-owned settings and
+reference-only parent entries. The earlier validation records describe
 that previous design; they are not instructions to regenerate those files.
 
 ## Provisioning and editable files
@@ -189,7 +212,8 @@ Missing Pi, tmux, Forgetful and the extension worker require installation consen
 executables are not upgraded. Supported recipes retain frozen dependency metadata, wheel-only
 Python installation and the reviewed distro transaction. Worker setup uses a real virtual
 environment and verified temporary uv project, not a Python-path stub. Setup requires existing
-reviewed uv >=0.13.1 and never upgrades it implicitly. Forgetful's reviewed lock still targets
+reviewed uv >=0.13.5 and never upgrades it implicitly. Managed Pi installation also requires
+existing Node 22.19+ and npm. Forgetful's reviewed lock still targets
 Python 3.12, but its installer selects a compatible existing interpreter independently of the Python
 running Factory. Read-only prerequisite checks precede installation consent. Discovery and setup
 forbid Python downloads; package hashes and binary-only installation remain enforced.
@@ -262,8 +286,15 @@ proves startup, and terminal submission proves only delivery to the terminal. Ne
 a model authenticated or acted on a notification. Pending plans survive; a restart sends them again.
 
 Pi management/catalog downloads default offline; local Forgetful models use cache-only operation.
-This does not prohibit intentional inference, OAuth or extension commands. Live authentication,
-concurrent refresh and autonomous owner planning require separate evidence.
+Provision reviewed embedding models separately and set `FASTEMBED_CACHE_DIR` to an existing cache
+if needed. A cold cache leaves the connection check incomplete.
+
+`PI_OFFLINE` also suppresses model-catalog/provider-list refresh, update checks and telemetry.
+For a missing model, refresh the shared native catalog outside the watcher with `pi update --models`
+and `PI_OFFLINE` unset, or configure the shared home's `models.json`. In Pi 1.4.0, setting
+`PI_OFFLINE=0` is not a reliable opt-out. Factory removes `UNDICI_USE_MILO` from Pi processes.
+These defaults do not prohibit intentional inference, OAuth or extension commands. Live
+authentication, concurrent refresh and autonomous owner planning require separate evidence.
 
 [mcp-gap]: https://github.com/ScottRBK/agent-shell/issues/27
 

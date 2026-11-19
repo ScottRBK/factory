@@ -4,7 +4,7 @@ Status: provider separation remains implemented. Current initialization uses the
 [normalized agent definition contract](agent-definitions.md). Slice 1 evidence below is historical.
 Factory now bundles audited extension 1.5.0; both supported Python runs pass 373 tests, including
 native SDK probes without inference. Runtime repair policy and final checks remain open.
-See [release limits](../../README.md#current-source-and-release-boundary).
+See [release limits](../../README.md#status).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 1](../plans/slice-1.md).
 
@@ -157,6 +157,35 @@ existing labels. Do not report success when required access, label setup, or con
 failed. A timeout, interruption, or malformed response can leave the last remote operation
 uncertain; report that uncertainty and advise checking GitHub and configuration before retrying.
 External commands time out after 30 seconds.
+
+## Command-line setup example
+
+For first-time planning-only setup, replace the paths, model selector and project ID:
+
+```bash
+forgetful-factory init --repo /path/to/repo --label factory \
+  --foreman-model provider/model --foreman-effort high --share-pi-profile --planning-only \
+  --forgetful-instance local --forgetful-project 12 --install-role-runtime \
+  --grill-me-skill /path/to/grill-me/SKILL.md
+```
+
+Use the wheel invocation from the README if Factory is not installed on PATH. The model must be
+an exact native catalog selector; project `12` must be visible to the selected Forgetful login.
+`--install-role-runtime` consents to installing the bundled AgentShell extension's Python worker.
+These flags still leave the first-run Definition of Done agreement to confirm.
+
+For an existing server, replace `--forgetful-instance local` with:
+
+```bash
+--forgetful-instance server --forgetful-server https://memory.example/mcp
+```
+
+Remote checks may open the server's OAuth flow. Local mode defaults to the absolute workspace
+`.factory/data/forgetful.db`; use `--forgetful-database /absolute/path/memory.db` to override it.
+`--forgetful-executable "/path with spaces/forgetful"` selects an existing native executable.
+Omit `--forgetful-project` to list projects and choose `c` to create one. If no projects exist,
+setup offers creation directly; a project is required. Check for an already-created project after
+an interrupted or failed creation before trying again. See [project setup](issue-planning.md).
 
 ## Configuration and platform scope
 

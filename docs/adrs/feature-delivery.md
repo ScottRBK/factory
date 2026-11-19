@@ -68,7 +68,7 @@ It strips only outbound native `skills`, retaining the complete canonical saved 
 other resource options. Unsupported other options still fail through native checks. This is prompt
 skill delivery, not native skill registration or proof of model compliance. Pi and OpenCode retain
 native selected-skill support. Factory now bundles the audited published runtime; see
-[validation limits](../../README.md#current-source-and-release-boundary).
+[validation limits](../../README.md#status).
 
 Worker instructions and selected local skills must reach the native harness without replacing
 repository instructions. Pi-specific resource options cannot be passed to a harness that does not

@@ -307,6 +307,9 @@ selected database/project, or the same configured server/project when in server 
 
 ## Other follow-ups
 
+- README cleanup keeps setup, commands and safety warnings in the introduction. Detailed contracts
+  and validation history stay in the ADRs and work records; missing operator details are retained
+  there. This changes documentation only, not runtime behaviour or release status.
 - Foreman delegation guidance now defaults to handing feature work to owners/workers. Direct work
   requires explicit user instruction in Foreman's conversation; blocked delegation is not permission
   to take over. Public setup and native loading checks pass without claiming model compliance.
