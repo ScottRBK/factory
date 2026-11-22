@@ -47,9 +47,9 @@ agent_shell_py-0.5.0.tar.gz
   stores path identity, not a content snapshot, and executes selected extension code.
 - Native model authentication remains in the chosen shared Pi home. This also retains native
   configuration and state; it is not selected-provider credential isolation or a host sandbox.
-- Keep the bundled extension's own reviewed 0.4.0 lock unchanged for this discussion-only Foreman.
-  Upgrading the outer launcher does not add role selection to that extension's child-agent worker.
-  Revisit the worker with its own audit and tests when feature-owner dispatch is implemented.
+- This audit kept the discussion-only Foreman's bundled extension on its reviewed 0.4.0 lock.
+  Upgrading the outer launcher alone did not add role selection to its child-agent worker.
+  [Slices 4 and 5](slices-4-5.md#dependency-checks) record the later worker audit and adoption.
 
 The older `slice-3-supply-chain.md` path referenced by existing documents is absent in this working
 copy. This audit does not reconstruct or replace the earlier Pi/Forgetful installer audits.

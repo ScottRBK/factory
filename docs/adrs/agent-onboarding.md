@@ -1,10 +1,9 @@
 # Agent setup and factory maintenance
 
-Status: one-time starter provisioning and standalone Foreman use
-[normalized agent definitions](agent-definitions.md) and audited extension 1.5.0. Both supported
-Python runs pass 373 tests, including native SDK probes, without inference or skips. Runtime repair
-policy and final checks remain open. Earlier onboarding results below describe the preceding design.
-See [release limits](../../README.md#status).
+First init provisions the starter team. Setup and standalone Foreman launches use
+[normalized agent definitions](agent-definitions.md) and the audited AgentShell extension 1.5.0.
+Whether explicit finalization should offer runtime repair remains open.
+See [current validation](../plan.md#current-status).
 
 Back to [architecture](../architecture.md).
 
@@ -152,7 +151,8 @@ arbitrary-terminal discovery remains outside this integration.
 
 Keep one watcher per workspace. Before attachment, verify the intended Foreman's terminal identity
 and readiness; monitor its liveness while watching. A saved Pi conversation ID alone does not
-identify a running terminal. Terminal attachment and notification delivery use AgentShell.
+identify a running terminal. The owner supplies the captured target. Native tmux attach or switch
+enters the user's terminal, and AgentShell delivers notifications through the owner's session.
 Stopping an attached watcher leaves Foreman running. Foreman exit stops the watcher without
 launching a replacement. Keep the existing watcher-owned launch option and its cleanup behavior.
 
@@ -200,10 +200,6 @@ launch mode; `--stop` controls only the managed watcher. A forced stop reports u
 or external work; it does not prove delegated agents have stopped.
 
 ### Lifecycle implementation design
-
-The persistent-owner lifecycle was implemented and reviewed before normalization. Its earlier
-corrections and suite evidence remain in the progress record. Normalized source and native SDK
-validation now pass as stated above; final checks and runtime repair policy remain open.
 
 Keep one small owner process for the persistent Foreman. It retains the actual AgentShell session
 and observes startup and process exit. The watcher borrows that owner's delivery connection rather
@@ -267,8 +263,7 @@ background thread or changing replacement authority. Startup failures report thr
 handover connection. One error-reporting detail changes: an unsafe runtime directory now produces a
 controlled handover error and owner-process exit 0, rather than a traceback, exit 1 and no reply.
 The client rejects the error packet before adoption; exit 0 is not readiness or launch success.
-Combined suites and source checks pass. Claude Code accepted the code with the documented,
-unexplained shutdown-timeout limitation; the changes are integrated locally.
+Claude Code accepted the owner changes with the historical shutdown timeout still unexplained.
 
 A persistent-session send failure stops the watcher and preserves Foreman, but delivery remains
 uncertain. It cannot acquire a later acknowledgement once the send failed. Inspect the possible
@@ -368,8 +363,7 @@ upgrade was made. These are version-specific contracts, not general claims about
   loading still needs native validation. All seven apps list models, but none exposes a public
   per-model effort catalog. That check added no app choices or native-delivery fallback.
 
-Upstream changes require audited adoption. The earlier lifecycle findings do not remove the
-normalized extension release and native-validation gates.
+The subsequent 1.5.0 adoption went through a separate release audit and native SDK checks.
 
 Official references used by that historical check:
 
@@ -390,9 +384,8 @@ Official references used by that historical check:
 Earlier init/watch checks used temporary repositories and controlled commands for numbered choices,
 provisioning, selections and edit preservation. The earlier isolated native Pi loader checked the
 maintenance skill without inference. These results do not prove normalized native loading or that an
-agent follows maintenance guidance. Historical evidence is in the [onboarding
-record](../plans/agent-onboarding.md); normalized work is tracked in the [agent-definition
-plan](../plans/agent-definitions.md). Current native-enabled results and remaining gates are
-stated at the top of this ADR.
+agent follows maintenance guidance. The [onboarding record](../plans/agent-onboarding.md) covers
+the earlier checks. The [agent-definition record](../plans/agent-definitions.md) covers native
+loading after normalization.
 
 [cancellation]: https://github.com/ScottRBK/agent-shell/issues/28

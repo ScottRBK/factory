@@ -1,11 +1,12 @@
 # Slice 2: watch issues and notify Pi
 
-Back to the [implementation plan](../plan.md).
+Slice 2 launched a new Pi session for matching issues. Opus reviewed the implementation, and the
+user-message fixes passed local regressions. Later work added
+[issue updates](issue-change-notifications.md) and a
+[watcher connection to the setup-owned Foreman](agent-onboarding.md). Arbitrary terminal
+discovery remains future work. See the [current status](../plan.md#current-status).
 
-Status: implemented, locally validated, and independently reviewed by Opus. Review advisories
-about user messages were fixed and regression-checked; operational follow-ups are deferred.
-
-## Scope
+## Original scope
 
 - Load the repositories and watched labels from `.factory/factory.toml`.
 - Poll GitHub for matching issues; honour `*` as watch-all and exclude pull requests.
@@ -171,8 +172,8 @@ Scott approved TDD through the public watcher command, using temporary configura
 - All 54 tests passed on Python 3.12 in 124.7 seconds and Python 3.13 in 124.6 seconds.
 - SonarQube's `Sonar way sans code coverage` gate passed, with zero open findings, zero new
   violations, and 0.0% new duplicated lines. The local scanner now targets Python 3.12/3.13.
-- README now shows plain `watch`; the interpreter override remains optional. This follow-up has
-  not been committed, pushed, or verified on hosted CI. No further live Pi/model calls were made.
+- The README showed plain `watch` with an optional interpreter override. The follow-up ended
+  without a commit, push, hosted CI run or further live Pi/model calls.
 
 ## Operational follow-ups
 
@@ -187,8 +188,7 @@ Scott approved TDD through the public watcher command, using temporary configura
 
 ## Deferred agent-profile work
 
-The profile proposal uses `.factory/agents/foreman/` and `.factory/agents/feature-owner/`, selected
-with `PI_CODING_AGENT_DIR`. Scott specified standard Pi tools plus the role
-capabilities in `FACTORY.md`. Resource isolation, credential reuse, and profile-aware AgentShell
-launches belong to a later slice. Forgetful's extension and CLI/skills or MCP arrangement is being
-worked through separately; do not assume a transport switch or build a competing integration here.
+The Slice 2 proposal selected `.factory/agents/foreman/` and `.factory/agents/feature-owner/`
+with `PI_CODING_AGENT_DIR`. Scott specified standard Pi tools plus the role capabilities in
+`FACTORY.md`. Slice 2 deferred resource isolation, credential reuse, profile-aware AgentShell
+launches and the choice of Forgetful transport.

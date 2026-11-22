@@ -55,11 +55,11 @@ The inspected Pi extension uses HTTP and cannot open that database directly. Poi
 same database path is therefore insufficient. A server on the same computer still counts as a
 server connection when configured that way.
 
-## Server runtime (internal)
+## Server runtime
 
-The managed entrypoint is included in the internal bundle after exact-source approval. Aggregate
-Factory suites, package checks and independent integration review are recorded in the work record.
-Source approval is not live enablement: no existing Factory or runtime was updated automatically.
+Factory bundles the managed entrypoint. The [integration record](../plans/foreman-memory.md)
+documents the reviewed source, package checks and independent review. Existing factories keep
+their selected resources. See [current evidence](../plan.md#current-status).
 
 New starter Foreman definitions select `.factory/resources/pi-forgetful/factory.ts`. Select that
 file for managed behavior, not the package directory or standalone `index.ts`. Child roles do not
@@ -147,9 +147,8 @@ The planning panel saves only `planning_panel` as a boolean in
 files and changed content. Saves refuse unsafe existing state rather than merging arbitrary fields.
 New files request owner-only permissions and honor the process mask; no later permission change
 occurs. Replacement is atomic, but concurrent replacement of parent directories or temporary names
-is not fully contained. Scott explicitly deferred additional workspace protection for this internal
-slice. Existing checks remain; this limitation is accepted, not fixed. Standalone settings retain
-their existing merge behavior.
+is not fully contained. Scott explicitly deferred additional workspace protection.
+Standalone settings retain their existing merge behavior.
 
 Durable queues are stored under the Factory workspace and separated by endpoint, credential-derived
 identity and project. Tokens are not stored in queue paths. Existing uncertain-write receipts and
@@ -163,8 +162,11 @@ remain. The source-reader change preserves URL inspection rather than removing t
 
 Scott has not answered whether managed capture should inspect only exact URLs supplied by the user.
 Neither that narrower policy nor a blanket URL ban is approved. This choice remains open before
-live memory enablement. It does not alone prevent audited inert bundle inclusion and controlled
-testing. These validation limits do not impose an internal-use-only license.
+live memory enablement. The bundle audit covered inclusion and controlled testing. These validation
+limits do not impose an internal-use-only license. Retain applicable notices when distributing code.
+
+DinoLand reported a warning about an earlier save. Its outcome remains unresolved in the
+[installation record](../plans/cleanup-performance.md#dinoland-installation-and-restart).
 
 ## Later slice: shared CLI transport and local support
 

@@ -1,12 +1,62 @@
 # CI test runtime
 
-Status: the approved public-boundary and explicit-deadline follow-up is implemented. Final local
-validation and independent review are complete; hosted CI remains unverified. Scott's later
-approval supersedes the earlier simple-improvements restriction for the changes described below.
-Production defaults, real safety evidence and dependencies are unchanged. No fake clocks, user
-runtime overrides, new commit or push are authorized by this work record.
+Status: the earlier runtime refactor is implemented. Hosted push CI now passes on `454c210`, but
+suite runtime remains a concern. Further optimization is paused at Scott's request; the job limit
+remains 15 minutes. No experimental test change from the investigation below was adopted.
 
-Back to [implementation plan](../plan.md) and [development checks](../adrs/development-checks.md).
+Back to [current status](../plan.md#current-status) and
+[development checks](../adrs/development-checks.md).
+
+## Current hosted results
+
+[Run 44640083122](https://github.com/ScottRBK/factory/actions/runs/44640083122) checked
+`454c210fe5f04d8b5614b96520971d027fbc02df` on push. Both Python jobs passed package
+build/verification, Ruff, import contracts and tests. Each discovered 648 tests: 639 passed and
+nine skipped.
+Python 3.12 tests took 798.740 seconds; Python 3.13 took 782.815 seconds. Six skips require the
+optional native Pi SDK; three require Ubuntu 24.04. This run does not prove deployment/E2E or
+PR-event behaviour.
+
+The earlier [run for `337d02c`](https://github.com/ScottRBK/factory/actions/runs/43947350994)
+failed on an obsolete `auto_approve false` assertion in both versions. Commit `b7e5f33` corrected
+that test to check implementation approval and the research/review exception separately. It changed
+no runtime permission policy. The failure was reproduced before editing; 35 related tests passed
+on each Python afterward. An initial local 3.13 attempt lacked AgentShell in child processes; the
+successful rerun used an isolated environment with the same audited 0.5.0 dependency.
+
+[Run 44631435181](https://github.com/ScottRBK/factory/actions/runs/44631435181) for `b7e5f33`
+passed 3.12 with 639 passes/nine skips, but 3.13 hit the job limit after 575 passes/nine skips.
+Tests were still completing regularly at cancellation. The later successful run does not establish
+that the suite will always finish within the limit or explain older shutdown timeouts.
+
+## Paused runtime investigation
+
+The current inventory has 648 unique IDs; 282 tests inherit the watcher fixture. In four sampled
+watcher cases, public-init preparation took 0.21–0.32 seconds locally. This is not a measured
+whole-suite setup total. Hosted completed-test timestamps suggest about 94 seconds for watcher
+alerts on the earlier `b7e5f33` Python 3.12 run, including fixture and runner overhead.
+
+A trace of the 12-case native cleanup identity test recorded 700 executable process IDs including
+the runner: first executable per PID included 345 Git and 241 Forgetful fixture commands.
+Interpreter replacement in the same PID was not counted as another process. Trace overhead was
+excluded from the speed comparison.
+
+A disposable source copy changed only that test's wait from two polls to one. Three before/after
+pairs per Python all passed. Median case time fell from 8.712 to 6.821 seconds on 3.12, and from
+9.522 to 6.847 seconds on 3.13. This saves about 2–3 seconds for one test, not minutes for the
+suite.
+It does not prove second-cycle coverage is redundant; no change was adopted. The next investigation
+would need to preserve repeat-cycle checks, mutable-state isolation and public Git/process tests.
+
+Temporary scripts and raw evidence were stored in `/tmp/factory-ci-b7e5f33/`. No live DinoLand
+operation, dependency upgrade or workflow-timeout change was part of this investigation.
+
+## Historical refactor scope
+
+The records below describe earlier source snapshots, including their failed runs, measurements
+and operational limits. Statements about unverified hosted CI or absent commit/push permission
+apply to those phases, not the current result above. The approved public-boundary and explicit-
+deadline refactor retained production defaults, real safety evidence and dependencies.
 
 ## Earlier pass: baseline
 

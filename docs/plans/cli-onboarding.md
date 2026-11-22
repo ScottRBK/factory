@@ -4,7 +4,7 @@ Status: closed with Slice 3 on 2026-10-16 at Scott's request after his DinoLand 
 Implemented and locally validated; final trial-feedback evidence below supersedes earlier runs.
 Opus recheck found no blockers; the final SonarQube gate passes with zero open issues.
 
-Back to [plan](../plan.md) and [agent profiles](../adrs/agent-profiles.md).
+See the [current status](../plan.md#current-status) and [agent profiles](../adrs/agent-profiles.md).
 This follow-up supersedes Slice 3's MCP-default and separate model-login choices for new setup.
 Historical Slice 3 evidence does not validate this change.
 
@@ -31,7 +31,7 @@ requirement. See [AgentShell #27][mcp-gap] and the [0.5.0 resource capabilities]
 - Keep the Foreman discussion-only. Feature-owner dispatch, its bundled worker upgrade, durable
   issue delivery, Docker, and custom Factory extensions are outside this change.
 
-## Limits that must remain visible
+## Limits at Slice 3 close-out
 
 Shared Pi home means shared native settings, model configuration and login/logout state, not
 selected-provider credential isolation. Personal `SYSTEM.md` is now excluded from Foreman launch;
@@ -265,12 +265,11 @@ Scott confirmed the onboarding trial was sufficient to move on and requested Sli
 This is acceptance of the discussion-only Foreman/setup scope, not evidence of automatic planning,
 feature-owner dispatch, live model access or all supported installation/authentication paths.
 
-Two later trial observations remain recorded in the [main plan](../plan.md): interactive remote
-setup still requires a separate consent flag/check, and role-directory `AGENTS.md`/`SYSTEM.md`
-are not automatically loaded. Role `APPEND_SYSTEM.md` is an opening user message, not a system
-prompt. No implementation changes were made during close-out; these limits were not silently fixed.
+At close-out, interactive remote setup required a separate consent flag/check. The launcher did
+not automatically load role-directory `AGENTS.md` or `SYSTEM.md`. It sent role `APPEND_SYSTEM.md`
+as the opening user message. No implementation changes were made during close-out.
 
-The plan review also verified that AgentShell 0.5.0 already ships existing-terminal attachment,
-while Factory has not integrated it. Forgetful's unique plan-reference enhancement is upstream but
-absent from the published 0.5.4 installer target. Future slices must verify backend capabilities
-rather than infer them from closed issues. See the main plan for evidence and proposed sequencing.
+AgentShell 0.5.0 supported existing-terminal attachment. Factory had yet to integrate it.
+[Assisted setup](agent-onboarding.md) later connected the watcher to its setup-owned Foreman.
+The published Forgetful 0.5.4 installer target also lacked the upstream unique plan-reference
+enhancement. [Slices 4 and 5](slices-4-5.md) record the subsequent backend capability checks.

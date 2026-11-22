@@ -1,10 +1,9 @@
 # Implementation, review and merge
 
-Status: Slice 6's delivery responsibilities remain; its earlier validation predates normalized
-agent definitions. Factory now uses [child-owned agent files](agent-definitions.md) and audited
-extension 1.5.0. Native SDK/fake-worker checks pass; live delivery is still unverified. Runtime
-repair policy and final checks remain open. Back to [architecture](../architecture.md).
-[Progress and checks](../plans/slice-6.md).
+Factory uses [child-owned agent files](agent-definitions.md) and the audited AgentShell extension
+1.5.0. DinoLand has delivered features through the factory. The full controlled trial of DoD
+verification across deployment, deployed E2E, failure and restart remains unverified.
+See [current evidence](../plan.md#current-status) and the [Slice 6 checks](../plans/slice-6.md).
 
 ## Slice 7A completion handoff
 
@@ -12,12 +11,12 @@ repair policy and final checks remain open. Back to [architecture](../architectu
 from feature acceptance criteria. Owner implementation/review/merge duties remain. New role guidance
 hands back actual merge commits, PRs, target branches, workflow links and mappings to Foreman, keeps
 ownership open, and adds only required post-merge checks. Foreman owns final completion, including
-merge-only delivery. This is agent guidance; autonomous delivery is not yet observed.
+merge-only delivery. The owner and Foreman carry out these steps through their role guidance.
 
 Roles leave worktrees/branches for [completed-plan watcher cleanup](completed-plan-cleanup.md).
 Existing edited guidance is preserved, not silently migrated. The earlier Slice 6
 cleanup description below explains historical records and read-only restart compatibility; it is
-not current deletion authority for new roles. Live adoption requires explicit reconciliation.
+not current deletion authority for new roles. Old mappings require review before disposal.
 
 ## Responsibilities
 
@@ -52,7 +51,8 @@ configuration/task conflicts through maintenance. This clarifies guidance only, 
 research agent.json, native permissions or liveness/no-concurrent-resume safeguards. Public setup
 tests check delivered guidance/config consistency; native probes check launch and instruction
 loading with controlled children. Neither proves model compliance. Existing copied guidance requires
-deliberate reconciliation; this source change does not update live factories.
+deliberate reconciliation. Scott approved the specific DinoLand guidance edits recorded in the
+[research cwd follow-up](../plans/slice-7.md#research-cwd-guidance-correction).
 
 Init provisions the configured starter team once. Its worker menu offers Pi, Codex and Claude Code;
 that menu does not define the full set of native app capabilities. The wizard does not ask for skill
@@ -67,8 +67,8 @@ Normalized extension 1.5 source also supplies deterministic references for Codex
 It strips only outbound native `skills`, retaining the complete canonical saved selection and all
 other resource options. Unsupported other options still fail through native checks. This is prompt
 skill delivery, not native skill registration or proof of model compliance. Pi and OpenCode retain
-native selected-skill support. Factory now bundles the audited published runtime; see
-[validation limits](../../README.md#status).
+native selected-skill support. The [release record](../plans/agent-definitions.md) covers the
+audited bundle and controlled native checks.
 
 Worker instructions and selected local skills must reach the native harness without replacing
 repository instructions. Pi-specific resource options cannot be passed to a harness that does not
@@ -165,18 +165,16 @@ after confirming the previous one stopped. Do not silently enable bypass permiss
 
 ## Worktree cleanup and restart
 
-Historical Slice 6 removal flow; 7A retains its read-only compatibility but removes owner deletion
-authority from new guidance. Slice 7B now adds separate completed-plan disposal, described above.
-
-The plan remains active after merge, so watcher restart must still recover it after safe worktree
-removal. Each ownership mapping can carry a `cleanup` object with `state`, `pull_request_url` and
-`merge_commit`. The original repository, local directory, branch and path remain as history.
+Under Slice 6, a plan could remain active after the owner removed a merged worktree. The watcher
+can still recover that plan after restart. Each ownership mapping can carry a `cleanup` object
+with `state`, `pull_request_url` and `merge_commit`. The mapping retains the original repository,
+local directory, branch and path.
 Use the canonical GitHub PR URL and the actual full lowercase Git commit SHA from verified merge
 evidence. Repository matching is case-insensitive, as on GitHub; the recorded URL is preserved.
 
-The owner saves `pending` before removal, then `removed` only after verifying absence of the path
-and its worktree registration. It coordinates updates and preserves every other mapping/field;
-Forgetful description updates are not compare-and-swap operations.
+The earlier owner guidance called for saving `pending` before removal and `removed` only after
+checking that the path and its registration were absent. The owner had to coordinate updates to
+preserve other mappings because Forgetful description updates lack compare-and-swap protection.
 
 The watcher validates the marker's shape; it does not verify the GitHub merge or CI evidence.
 Its `Worktrees` port delegates read-only origin/path/registration checks to the Git adapter:
@@ -196,7 +194,7 @@ post-merge deployment monitoring.
 Slice 6 historically ended at verified merge and safe cleanup. Slice 7A now supplies the plain
 Markdown agreement and agent-guided completion contract. Required checks and ownership remain open
 until Foreman verifies them; excluded deployment/E2E checks need no tasks. The owner never completes
-the plan at merge, even with a merge-only agreement. Actual agent-following trials remain deferred.
+the plan at merge, even with a merge-only agreement.
 
 Python validates setup and resource selection; agent guidance describes delivery and recovery.
 Automated wiring tests cannot establish that a model follows the whole workflow. The agreed live

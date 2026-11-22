@@ -1,8 +1,8 @@
 # Implementation plan
 
-The first five slices are implemented. Factory prepares issue plans and worktrees, and configures
-Foreman, feature-owner and research roles for clarification and planning. Local checks passed;
-autonomous agent planning has not been tested with a live model.
+Factory implements setup, issue planning, owner/worker coordination, agreed completion checks and
+automatic cleanup. The [current status](#current-status) separates implementation, verified results
+and remaining work. Earlier slice records retain the evidence for their original revisions.
 
 This document covers the work order. The [architecture overview](architecture.md) explains the
 code structure. The [design decisions below](#design-questions) record the agreed behaviour.
@@ -34,132 +34,76 @@ Closed on 2026-10-16 after Scott's DinoLand trial.
 - Reuse the user's Pi login with permission, and choose the Foreman's model.
 - Set up editable Foreman skills/extensions and native Forgetful CLI access, locally or to a server.
 - Ask before installing missing tools. Block the watcher if setup is incomplete.
-- Let the Foreman discuss incoming issues. Automatic planning and feature-owner work come later.
+- Let the Foreman discuss incoming issues. Later slices added automatic planning and feature-owners.
 
 Tests, packaging, local smoke checks, SonarQube and independent review passed.
-Live logins, token refresh, model calls and fresh host installs remain unverified.
+Those checks did not establish live token refresh or fresh-host installation. Later installation
+evidence is recorded under [current status](#current-status).
 [Current results and limits][trial-feedback]. The [original record](plans/slice-3.md)
 includes earlier MCP and separate-login choices that no longer apply.
 
+## Current status
+
+Core setup, issue planning, owner/worker coordination, DoD agreements and completed-plan cleanup
+are implemented. Agent guidance governs delivery and completion; Python does not interpret the
+DoD or prove that a model followed it. Existing factories are not automatically migrated.
+
+### Confirmed results
+
+- **Hosted CI:** [push run 44640083122][current-ci] passed for `454c210` on Python 3.12 and 3.13.
+  Both jobs passed package verification, lint, import contracts and tests: 648 tests each,
+  639 passes and nine skips. Test times were 798.740 and 782.815 seconds respectively.
+  This proves that revision's push checks, not PR-event behaviour, deployment or E2E.
+- **CI correction:** `b7e5f33` fixed the obsolete permission-guidance assertion. Its own 3.13 job
+  timed out; the later run above passed. The suite is still slow. Runtime optimization is paused,
+  and the 15-minute job limit is unchanged.
+  [Details](plans/ci-test-runtime.md#current-hosted-results).
+- **DinoLand installation:** cleanup revision `337d02c` was installed and its watcher/owned
+  Foreman restarted with approval. Package bytes, 17 installed-package tests, preserved settings
+  and live startup were checked. This establishes installation and readiness, not a complete
+  deployment/E2E trial.
+  [Rollout record](plans/cleanup-performance.md#dinoland-installation-and-restart).
+- **Cleanup:** fair three-set batches, cycle-local discovery reuse, fresh selected-plan checks and
+  durable receipts are implemented. The isolated unchanged-CLI trial took 50.455 seconds versus
+  112.445 seconds for three sets. This is one local measurement, not a latency guarantee.
+  [Validation](plans/cleanup-performance.md#final-parent-validation-and-cleanup).
+
+### Remaining work
+
+- Verify the full live DoD workflow, including required deployment/deployed E2E evidence,
+  failure handling and restart recovery. Installation or a successful merge alone is not this proof.
+- Reduce CI runtime without dropping safety coverage. Scott paused the investigation.
+- Add general selection of an already-running Foreman. The setup-owned connection already works.
+- Revisit CLI-backed Foreman extension calls and local SQLite extension support. Local Factory
+  planning already works through the native CLI; the extension currently needs a server.
+- Settle the documented memory capture/source-URL policy and explicit runtime-repair behaviour.
+  One approved installation does not introduce an automatic upgrade or repair mechanism.
+- Prepare a package release. No release is recorded. The corrected licensing wording does not
+  impose an internal-use-only restriction; retain applicable notices when distributing code.
+
+### Recent delivered changes
+
+- [Issue and comment notifications](plans/issue-change-notifications.md) ignore timestamp-only
+  changes while retaining planning-relevant content and paginated comments.
+- [Watcher observation](plans/watch-status.md) distinguishes live process state, lifecycle phase
+  and readiness. Its historical baseline wording failure was corrected by `b7e5f33`; an older
+  intermittent shutdown timeout still has no proven cause or fix.
+- [Reviewer and Foreman guidance](plans/agent-onboarding.md) covers original requirements,
+  maintainable code, concise updates and the difference between reload and restart.
+- [Research working directories](plans/slice-7.md#research-cwd-guidance-correction) preserve role
+  instructions; implementation/review still run in their assigned worktrees.
+- [Issue context bounds](plans/issue-plan-placeholder.md),
+  [GitHub CLI readiness](plans/github-cli-readiness.md),
+  [problem isolation](plans/watcher-problems.md) and
+  [watched-label consent](plans/foreman-issue-intake.md) are implemented. The linked records retain
+  their original validation scope and failures.
+- [Normalized definitions](plans/agent-definitions.md), [onboarding](plans/agent-onboarding.md) and
+  [server memory integration](plans/foreman-memory.md) are implemented. Settings and edited local
+  resources require deliberate maintenance; installing a wheel does not update running agents.
+
+[current-ci]: https://github.com/ScottRBK/factory/actions/runs/44640083122
+
 ## Current and next slices
-
-[Push CI for `337d02c`](https://github.com/ScottRBK/factory/actions/runs/43947350994) failed
-on both Python versions because a generated-guidance test expected `auto_approve false` instead of
-`auto_approve=false`. The correction checks implementation approval and the research/review exception
-separately, without changing runtime policy. The failure was reproduced before editing; 35 related
-tests now pass on each of Python 3.12 and 3.13. Ruff and repeat Mycelium exports pass; the map is
-unchanged. An initial local 3.13 run lacked AgentShell in child processes; the successful rerun used
-an isolated environment with the same audited 0.5.0 dependency. These local results do not establish
-hosted CI success; both matrix jobs must pass for the correction's committed revision.
-
-The approved [cleanup performance improvement](plans/cleanup-performance.md) reuses complete
-discovery tasks for candidate/claim checks and attempts at most three distinct resource sets per
-cycle. Every disposal retains fresh owner/tasks and plan checks; CLI reads stay serial to preserve
-the existing lifecycle. The sole Opus review's fixes are implemented; final SQ has zero findings.
-The isolated real-CLI trial cleared three sets in 50.455 seconds versus 112.445 seconds before.
-Final checks include 594 passing tests, three skips and one known baseline wording failure; 50
-host-adapted native cases and 115 Python 3.13 focused cases pass. Live adoption remains pending.
-
-The [reviewer guidance](plans/agent-onboarding.md#reviewer-requirements-and-code-quality)
-makes requirement drift, code clarity and appropriate reuse checks explicit. Source and DinoLand
-skills were updated; 18 existing setup/profile tests passed. No live review was started.
-
-The approved [Foreman communication guidance](plans/agent-onboarding.md#plain-language-guidance)
-now asks for concise, direct updates while preserving permission limits and uncertainty. The exact
-wording was added to the source skill and DinoLand's copy; running agents were not reloaded.
-
-The [maintenance clarification](plans/agent-onboarding.md#reload-and-restart-guidance-clarification)
-separates intake stops, user-triggered roster reloads and user-led Foreman restarts. No seamless
-self-restart is promised. This changes instructions only, not runtime lifecycle behaviour.
-
-The approved [research cwd guidance correction](plans/slice-7.md#research-cwd-guidance-correction)
-aligns starter instructions with existing definitions: research keeps its role cwd, while
-implementation/review calls supply assigned worktrees. Public setup RED/GREEN and 22 focused checks
-pass, including controlled native dispatch. The parent repeated all 22 checks and applied only the
-three approved guidance patches to DinoLand, preserving custom edits and all agent settings.
-No sessions restarted; fresh-session model compliance and broader Slice 7 adoption remain untested.
-
-The [lifecycle status correction](plans/watch-status.md) implements all nine approved findings;
-39 focused tests pass on each Python, with peer-guard mutation proof retained. All 48 native
-lifecycle cases pass on each Python in private copies adapting only the host tmux search path.
-Canonical broader runs retain one baseline guidance failure and three OS skips. An intermittent
-private 3.13 shutdown timeout did not recur in five repeats or a sequential full rerun; its cause
-remains unproved. Fresh parent SQ passes the assigned gate with zero unresolved issues on the
-frozen source; no full-suite GREEN or coverage is claimed. All nine findings are validated with
-these limits. Parent verified the source manifest and SQ result; no policy decisions remain held.
-Plain/managed ownership and stop scope are preserved. Deployment/live validation is outside scope.
-
-[GitHub CLI readiness](plans/github-cli-readiness.md) now checks `gh api --help` before watcher
-connection to Foreman. The public CLI regression covers missing pagination support, failed help,
-real command expiry, misleading option text and compatible startup. Local validation passes all
-29 watcher tests; each broader Python run has 463 passes, three OS-specific skips and one native
-memory failure also reproduced on unchanged HEAD. The memory follow-up below now fixes that refusal.
-The device's tmux layout excludes 48 existing native lifecycle tests. No full-suite or hosted
-success is claimed; see the record for details.
-
-[Foreman memory integration](plans/foreman-memory.md) is implemented for internal server use.
-It connects scoped opt-in and exact model selection to the existing REST components, using
-Factory's fixed server/project and separate extension authentication. New starter roots select it;
-edited roots and ordinary native CLI targets remain supported without forced activation. Local
-automatic-memory opt-in is refused while SQLite/CLI planning remains available. Scott's later
-[runtime-alignment decision](plans/foreman-memory.md#runtime-alignment) removes Factory's Undici
-override and private runtime gate, retaining Pi's normal dependency choices. Tests check behaviour,
-not dependency versions. No live runtime upgrade occurred. The earlier final TypeScript scan had
-zero new findings; exact-source approval and internal bundle adoption covered that earlier snapshot.
-The redundant permission change
-was removed; Scott deferred additional protection against concurrent workspace-path replacement.
-Full extension and terminal checks pass. Aggregate suites pass 503 tests on each Python without
-skips; the final Python scan has zero findings. Actual Claude integration review through AgentShell
-is approved after correcting a false test expectation. Package evidence is in the work record.
-The capture-URL question remains open before live memory enablement. The shared-login helper is
-withdrawn, and CLI transport/local
-extension support remain deferred. No Forgetful CLI/server or authentication changes are planned.
-
-[Watched-label guidance](plans/foreman-issue-intake.md) is implemented locally: Foreman reads the
-saved configuration and asks before adding an intake label to a new issue. Watch-all cannot be
-avoided by omitting labels. The combined setup/guidance snapshot passes 491 tests per Python and
-its assigned SonarQube gate. Independent review accepted the initial slice with a CLI-wording fix;
-that fix is included in these full passes and a separate actual Claude text-only closure approved
-it. Those results cover the configuration/guidance snapshot. Current runtime checks have separate
-evidence and do not establish live adoption or hosted CI.
-
-[CI runtime improvements](plans/ci-test-runtime.md) now include Scott's approved public input
-matrices and explicit deadline composition. This supersedes the earlier simple-improvements limit.
-Production defaults and safety coverage remain unchanged; eleven expiry cases use short real waits,
-while the SDK's native fixed timeout stays intact. Final suites pass 511 tests per Python without
-skips: 413.314 seconds on 3.12 and 413.763 seconds on 3.13, down 35.2% and 33.3% from the baseline.
-Claude review through AgentShell approves the fixes; source/test hashes stayed unchanged.
-The latest inspected hosted workflow was cancelled, so hosted success remains unverified. No new
-commit, push, dependency change or CI timeout increase was made. The work record retains earlier
-479-test evidence and the source-only diagnosis of Foreman's `/forgetful plan` command.
-
-Watcher [problem isolation and Foreman alerts](plans/watcher-problems.md) and the approved follow-up
-are implemented: current issue eligibility, duplicate-owner reconciliation and startup/pre-create
-repository checks. The [SQ cleanup](plans/sonarqube-remediation.md) passes its assigned gate
-with zero outstanding findings. All groups and follow-ups are integrated locally into `main`.
-Combined checks pass 471 tests on each supported Python without skips. The cross-source first-poll
-baseline gap is corrected. Earlier shutdown timeouts remain unexplained after bounded investigation;
-no timeout fix is claimed. Claude Code accepted the code with this limitation. The ten recorded
-temporary branches/worktrees are removed; evidence is retained. That integration was later pushed
-as `966e89e`, followed by Foreman guidance at `0013a37`. No release occurred; CI timed out as above.
-User-approved Foreman completion for interrupted setup keeps watcher recovery read-only. Planning
-safety failures pause affected work, not the watcher; shared failures pause planning. Terminal loss
-and uncertain delivery retain their safeguards. DinoLand repair is excluded.
-
-The [normalized agent definitions](adrs/agent-definitions.md) now use audited extension 1.5.0.
-That earlier baseline passed 373 tests per Python version, with native SDK probes and no skips.
-Independent source review is accepted. The [uv upgrade](plans/uv-build-upgrade.md) passes package
-checks and independent review. Runtime repair policy remains open. See
-[current evidence](plans/agent-definitions.md). Init provisions the full selected team once.
-This supersedes earlier duplicate settings, skill synchronization and rerun-init guidance.
-
-Slices 4, 5 and 6 are implemented and locally validated; Slice 6 still needs a live delivery trial.
-Slice 7A/B and automated/local 7C are implemented locally; live 7C trials and adoption
-remain planned. Agent-following trials are deferred. Slice 8's setup-owned Foreman connection is
-implemented, reviewed and
-locally validated; general terminal discovery remains planned. [Slice 4/5
-checks](plans/slices-4-5.md) and
-[Slice 6 progress](plans/slice-6.md).
 
 ### Slice 4: create a plan and working copy for each issue
 
@@ -201,7 +145,7 @@ The Foreman starts one feature-owner for an issue. That agent manages the featur
 
 Scott has added research agents to `FACTORY.md`. The feature-owner can delegate fact-finding while
 using the unchanged grill-me skill. Research agents report back to the owner; implementation and
-PR review remain Slice 6 work.
+PR review follow the implemented Slice 6 responsibilities below.
 
 The audited AgentShell extension 1.5.0 supports normalized child references and role resources.
 Factory provisions and selects them. Native role `AGENTS.md` files provide the coordinators'
@@ -216,8 +160,9 @@ not proof that its process stopped. Keep work pending when the owner's status is
 
 Implemented and locally tested; see [validation and remaining checks](plans/slice-6.md).
 Owner guidance requires actual changes and tests in the plan, not just workflow stages. It proceeds
-when requirements are clear, unless repository rules require explicit plan approval. A real delivery
-trial still needs a disposable repository agreed with Scott and suitable native worker permissions.
+when requirements are clear, unless repository rules require explicit plan approval. A controlled
+full-workflow trial still needs an agreed repository, required workflows and native permissions;
+existing live use does not by itself validate every delivery and recovery path.
 Scott's updated `FACTORY.md` assigns PR creation to implementation, so PR-triggered CI can run.
 Required checks still must pass before implementation is complete; no draft-only rule is imposed.
 
@@ -237,11 +182,10 @@ Required checks still must pass before implementation is complete; no draft-only
 
 ### Slice 7: agree completion, verify evidence, then clean up
 
-The independent Opus review findings have implementation fixes and public regression evidence.
-The approved per-set receipts, one-set fair rotation and lost-stop correction are implemented.
-Parent verified the final source and passing SonarQube scan. Both Python suites retain one known
-baseline wording failure; no full-suite GREEN, hosted CI or live adoption is claimed.
-See the [final local validation](plans/slice-7.md#parent-final-local-validation).
+DoD setup/guidance, cleanup receipts, fair three-set rotation and stop handling are implemented.
+The [original local validation](plans/slice-7.md#parent-final-local-validation) retains its baseline
+failure and host limits. Later batching checks, installation and hosted CI are recorded under
+[current status](#current-status); they do not prove the full live DoD verification workflow.
 
 [Slice 7A](plans/slice-7.md#7a-local-implementation) implements first-setup selection/confirmation
 of
@@ -260,12 +204,14 @@ met.
   local/remote feature refs, including dirty/ignored content and extra commits. Native state drives
   partial retries/restart recovery; closed/new-only intake and GitHub failures do not hide cleanup.
   Save evidence elsewhere first. Resource names remain reserved until durable cleanup confirmation.
-  Preserve cleanup receipts; confirmed sets are not deleted again. Live adoption is not done.
+  Preserve cleanup receipts; confirmed sets are not deleted again. DinoLand adoption is recorded
+  above; automatic migration of other factories is not provided.
 - The [cleanup ADR](adrs/completed-plan-cleanup.md) records shared identity checks, target_branch,
   conflict isolation and explicit review of older completed mappings before enabling this version.
 - Automated tests check setup/recovery, not model compliance. One independent review and the final
-  parent SonarQube scan are complete; implementation owns the fixes. Disposable live model,
-  adoption and deployment/E2E trials remain deferred.
+  parent SonarQube scan are complete; implementation owns the fixes. The full live DoD verification
+  trials remain unverified, including deployment/E2E, failure and restart. Installation is not that
+  validation.
 
 ### Slice 8: use a Foreman that is already running
 
@@ -282,18 +228,17 @@ later work.
 - Leave an existing Foreman running when the watcher stops. Stop a Foreman the watcher started.
 - Test delivery while idle and busy. Report missing or stopped sessions without replacing them.
 
-AgentShell [0.5.0 already supports attachment][agentshell-release], although [issue #25][attach]
-is still open. Factory's current setup-owner integration does not use arbitrary-pane attachment.
+AgentShell [0.5.0 supports attachment][agentshell-release]; [issue #25][attach] records the
+upstream discussion. Factory's setup-owner integration does not use arbitrary-pane attachment.
 Connection cannot change an agent's settings or prove receipt; see the
 [attachment docs][attach-contract].
 
 ### Later slice: CLI-backed Foreman extension and local Forgetful support
 
-After the server-only extension works, revisit moving its planning, recall and capture calls onto
-the native Forgetful CLI used by Factory. This transport change is deferred. Local setup normally
-initializes or reuses
-`.factory/data/forgetful.db`; it does not start an HTTP server. Both CLI callers must use that same
-selected database/project, or the same configured server/project when in server mode.
+The extension currently uses server HTTP. A later slice may move its planning, recall and capture
+calls onto the native Forgetful CLI used by Factory. This transport change is deferred. Local setup
+initializes or reuses `.factory/data/forgetful.db`; it does not start an HTTP server. Both CLI
+callers must use that same database/project, or the same server/project when in server mode.
 
 - Preserve server support, setup preferences and Foreman-only resources; agree authentication
   reuse during that later design. Separate authentication remains the current approach.

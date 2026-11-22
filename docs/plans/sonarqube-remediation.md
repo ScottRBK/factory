@@ -1,6 +1,8 @@
 # Full SonarQube remediation
 
-Status: independently reviewed and integrated locally. R5 remains an unresolved limitation.
+Claude Code accepted the remediation with R5 open. Repeated runs did not explain the earlier
+shutdown timeout. The parent integrated the reviewed tree into main, and the integration was
+later pushed as `966e89e`. See the [current status](../plan.md#current-status) for subsequent CI.
 
 ## Scope and baseline
 
@@ -26,8 +28,9 @@ snapshot including the uncommitted watcher changes. Main remains untouched durin
 - Resources: eight findings in definitions, profiles, selected skills and resource files.
 - CLI and test helpers: eight findings in setup flow, typing and inherited test helpers.
 
-Source ownership is disjoint. Shared documentation and map changes belong to integration. Agents
-commit locally under Scott's identity, with no agent authorship trailers. No push is authorized.
+Source ownership was disjoint. Integration owned the shared documentation and map. During this
+phase, agents could commit locally under Scott's identity without agent authorship trailers.
+Pushes were outside their scope.
 Merge only completed handoffs after checking scope, evidence and source hashes. Keep the initial
 working copy safe; do not remove branches/worktrees until their changes are durably integrated.
 
@@ -181,9 +184,10 @@ The final documentation records these completed steps without changing product o
 
 The review, manifests, logs, package checks and cleanup record are retained under
 `/tmp/ff-sq-IV8BPd`. Live backend/model smoke, fresh-host installation, DinoLand repair and separate
-runtime-repair/cancellation/messaging work remain excluded. No push or release occurred.
+runtime-repair/cancellation/messaging work were outside the local integration phase. That phase
+ended without a push or release.
 
-## Safety and validation
+## Original safety and validation requirements
 
 Use the approved public CLI, external-command, real Git and native SDK/private-tmux test seams.
 Existing failing SonarQube findings provide the static-analysis baseline. Preserve behavior with

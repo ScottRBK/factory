@@ -2,11 +2,10 @@
 
 ## Status
 
-Scott approved this direction. Extension 1.5.0 is published, independently audited and bundled.
-Factory passes 373 tests on Python 3.12.3 and 3.13.5, with native SDK probes enabled and no skips.
-Core fixes and the final small delta passed independent review. Runtime repair policy remains
-open. Audited uv/build-backend 0.13.5 fixes the checksum defect; package checks and independent
-upgrade review pass. This contract does not establish live delivery or model compliance.
+Factory provisions and launches agents from normalized definitions. It bundles the audited
+AgentShell extension 1.5.0. The [implementation record](../plans/agent-definitions.md) covers
+the native SDK probes and independent review. The separately audited uv/build-backend 0.13.5
+corrected the wheel checksum defect. See [current validation](../plan.md#current-status).
 
 ## Decision
 
@@ -48,6 +47,8 @@ model or resources. Factory reads the root Foreman definition when it starts tha
 root must select Pi. Root resource options are forwarded, not replaced by controller defaults.
 Starter definitions explicitly select the earlier exclusion policy; omitted options retain native
 SDK defaults. Required Foreman/maintenance guidance and the audited extension remain launch checks.
+The configuration table in Scott's [intent document](../../FACTORY.md#configuration) still lists
+the older per-role TOML fields. Current setup stores those launch settings in each agent's JSON.
 
 Required workflow guidance uses Factory's explicit `foreman/SKILL.md` and
 `factory-maintenance/SKILL.md` folder-name convention, independently of agent names or locations.
@@ -81,10 +82,10 @@ instructions remain preserved and need deliberate reconciliation to adopt templa
 ## Selected worker skills
 
 Scott approved preserving prompt-based skills for Codex and Claude, without adding native SDK
-skill loading. The local extension implements the mapping below and passes public-tool tests,
-including interactive Codex/Claude delivery. Independent source and final release-delta reviews
-passed, as did exact-commit hosted CI. Factory's audited bundle now passes real SDK/fake-native
-checks for selected skill references, worktree launch, native resume and same-session reload.
+skill loading. Public-tool tests covered interactive Codex and Claude delivery. The 1.5.0
+release passed independent source and release-delta review and hosted CI. Tests of Factory's
+audited bundle used the real SDK and controlled children to check selected skill references,
+worktree launch, native resume and same-session reload.
 
 Keep selections in `agent.resources.skills`. The feature-owner reads the selected definition and
 supplies the full role briefing, task context, and absolute skill-file references in its prompt.
@@ -148,13 +149,6 @@ Ordinary repeat init makes no catalog/backend calls, consumes no launch consent 
 skills or definitions. Explicit first finalization saves newly approved missing native-home consent
 without recreating templates, validates access and writes completion last. Its output names the
 selected root definition rather than assuming starter folders still exist.
-Whether it should also offer runtime repair is awaiting Scott's decision; ordinary init remains
-non-reconciling. The five optional native probes now pass against the audited published bundle,
-including added-skill discovery without init. These checks use real Pi SDK loading and controlled
-child processes; they do not establish live model access or skill compliance.
-
-`FACTORY.md` remains Scott-owned. Its agent setup/configuration sections describe the older fixed
-role fields and will need his explicit update. This ADR records the newer direction without editing
-that intent document or the protected historical Design questions section.
-
-Progress and checks are in the [implementation plan](../plans/agent-definitions.md).
+Whether explicit finalization should offer runtime repair remains open. The native probes used
+real Pi SDK loading and controlled child processes to check added-skill discovery without init.
+Model access and compliance with the selected skills require separate evidence.

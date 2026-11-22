@@ -13,11 +13,11 @@ resumes. Factory owns first-time provisioning, root Foreman bootstrap and its wa
 The existing AgentShell 0.5.0 SDK appears sufficient for reference loading and resource forwarding;
 this does not imply every native harness supports every resource option.
 
-Do not modify live DinoLand configuration, personal Pi settings or credentials. Preserve the
-existing uncommitted Factory work. Scott approved the extension release after remaining changes,
-review and exact-commit validation, followed by an audited Factory bundle update. No Factory commit,
-unrelated dependency upgrade or automatic migration is approved. Audit and review extension
-runtime changes before changing Factory's bundled runtime.
+Scott approved the extension release after review and exact-commit validation, followed by an
+audited Factory bundle update. This phase preserved existing uncommitted Factory work and excluded
+Factory commits, unrelated upgrades, automatic migration, and changes to live DinoLand
+configuration, personal Pi settings or credentials. For later rollout and the open runtime repair
+decision, see the [current status](../plan.md#current-status).
 
 ## Progress
 
@@ -79,7 +79,7 @@ it first failed for the missing permission qualifier before updating both resour
 Mycelium 0.4.5 was regenerated with a byte-identical repeat export: 72 boxes, 3,472 filtered calls,
 52 filtered type relationships and the same eleven external-base warnings. Validation is text-only.
 
-## Current checkpoint
+## Extension 1.5.0 integration checkpoint
 
 Factory now bundles the independently audited published extension 1.5.0, revision
 `5acb6aabfaae7c4d889600f6a5fffbb1c412dc6b`. The exact approved JSON/zip bytes were applied only
@@ -175,7 +175,7 @@ The older real-CLI/backend smoke has not been rerun: it
 requires Pi 1.3.0, whereas both inspected installed locations have Pi 1.4.0, plus an existing
 Forgetful executable and model/dependency caches. Its offline disposable worker installation is
 not implied by these no-install probes.
-Factory hosted CI cannot represent this uncommitted tree; no Factory commit/push was authorized.
+This checkpoint used an uncommitted tree. The phase excluded Factory commits, pushes and hosted CI.
 F4 needs Scott's decision. Live delivery, model compliance and general descendant cancellation
 remain outside the successful checks above.
 
@@ -287,7 +287,7 @@ handles, not a claim to have captured every short-lived kernel process.
 
 The first 50-file release snapshot matched the implementer's hashes. The 1.5.0 version assertion
 was demonstrated red then green. Independent review passed 66 focused and 152 wider checks, then
-raised the package-loading and interactive-coverage gaps addressed in the current checkpoint.
+raised the package-loading and interactive-coverage gaps addressed in the 1.5.0 integration.
 Pinned dependencies/actions remained unchanged. The preliminary bundle comparison confirmed old
 bundle integrity and the unchanged SDK manifest/lock. Its source audit does not approve the final
 archive. Evidence is in `extension/skills`, `release-review` and `bundle-audit`.

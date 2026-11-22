@@ -2,9 +2,10 @@
 
 ## Status
 
-Implemented locally as starter Foreman guidance. Scott requested this while the separate Forgetful
-extension integration was in progress. It has not been committed, pushed or applied to DinoLand.
-See the [decision record](../adrs/foreman-issue-intake.md).
+Scott requested watched-label checks in the starter Foreman guidance during the Forgetful
+extension integration. This phase validated the guidance locally and ended without a commit, push
+or DinoLand update. See the [decision record](../adrs/foreman-issue-intake.md) and
+[current status](../plan.md#current-status).
 
 ## Validation
 

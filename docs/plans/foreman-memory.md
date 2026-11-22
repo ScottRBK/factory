@@ -2,16 +2,17 @@
 
 ## Status
 
-Implemented: Factory's configured server/project, Foreman-only loading,
-automatic-memory opt-in/model controls, and planning with memory off. Full source checks, SonarQube
-scans and actual Claude Code review through AgentShell are complete. The CLI and extension keep
-their own authentication for now. See the [decision record](../adrs/foreman-memory.md).
+Only Foreman loads the extension. It uses Factory's configured server and project and supports
+planning with automatic memory off. Users can opt in to recall/capture and select its model.
+Local factories already plan through the native CLI and SQLite. CLI-backed transport for the
+extension, including local extension support, remains future work. The CLI and extension
+authenticate separately.
 
-Scott has now chosen server-only extension support first, with CLI/local support as a later slice.
-This replaces the earlier proposal to block runtime integration on local/server parity and a
-bundle of native CLI changes. The extension's current HTTP path is the starting point for the
-server slice. The evidence below separates completed aggregate validation from earlier
-configuration-only results. No live installation or automatic-memory enablement was performed.
+The full suites, SonarQube scans and Claude Code review cover the integrated server version.
+The [runtime alignment](#runtime-alignment) follow-up removed the private Pi/Undici checks and
+records its own validation. Neither phase enabled automatic memory on DinoLand. The capture-URL
+policy remains open. See the [decision record](../adrs/foreman-memory.md) and
+[current status](../plan.md#current-status).
 
 Earlier configuration-only evidence:
 
@@ -60,7 +61,7 @@ Earlier configuration-only evidence:
   evidence, closed M1/L1/L2/N1/N2 and approved this slice with no remaining blocker. It did not
   rerun tools/tests. All 159 frozen files remained unchanged. Optional suggestions remain optional.
 - The earlier request for broad upstream CLI work is superseded by Scott's server-first decision.
-  Running Forgetful instances and DinoLand remain untouched.
+  This configuration phase left running Forgetful instances and DinoLand untouched.
 
 ## Server connection investigation after implementation approval
 
@@ -76,11 +77,10 @@ The extension retains its existing HTTP transport and authentication. Revisit us
 its transport in the later slice, including local support and any authentication implications.
 
 No production code, tests, dependencies, live state or credentials changed during this
-investigation. The existing audit still blocks unchanged-extension enablement. Runtime tests,
-new scans, packages and final integration review have not run; the earlier results remain scoped
-to the configuration/guidance slice. Evidence is in the `server-runtime/` directory under the
-existing temporary evidence root. Its report predates the separate-auth clarification: its source
-findings remain evidence, but its shared-login recommendation is superseded. See the
+investigation. At that point the audit blocked enabling the unchanged extension. Runtime tests,
+new scans, packages and final integration review came later. The `server-runtime/` directory
+under the temporary evidence root holds the report. Its source findings predate the clarification
+that withdrew its shared-login recommendation. See the
 [authentication decision](../adrs/foreman-memory.md).
 
 ## Runtime implementation and intermediate checks
@@ -201,9 +201,9 @@ Repeated exports are byte-identical. Known external-base warnings remain; this i
 not a rendered Mermaid proof. The overview remains under 500 lines; changed lines stay within 100.
 
 The historical Python 3.13 shutdown timeout remains unexplained; these successful runs do not
-establish a fix. Hosted CI, live adoption and capture-URL policy remain separate. The internal
-build does not authorize installation or watcher launch. These are operational limits, not license
-restrictions.
+establish a fix. The aggregate checks excluded hosted CI and live adoption. At the time, the
+build carried no authorization to install it or launch a watcher. These were operational limits.
+The [licensing correction](#licensing-wording-correction) records the MIT grant.
 
 ## Licensing wording correction
 
@@ -249,7 +249,7 @@ code. This documentation change does not alter bundle bytes, validate a release 
 - Remove the local-support restriction only when the CLI-backed extension is validated. Do not
   silently migrate existing factories or change a live Forgetful deployment.
 
-The earlier nine-path test-runtime improvement remains preserved and uncommitted. No commit, push,
+The nine-path test-runtime improvement was still uncommitted at this handoff. No commit, push,
 main-instance update or credential migration occurred. No live Foreman inference or delivery was
 validated; the separate Claude Code reviews did use the requested review model.
 Evidence: `/tmp/factory-foreman-forgetful-2ptedi1m/`.
@@ -259,8 +259,8 @@ Evidence: `/tmp/factory-foreman-forgetful-2ptedi1m/`.
 Scott rejected Factory's private runtime policy after the DinoLand trial found that the current
 standard Pi could load the normal extension but the managed wrapper refused it. Factory must follow
 Pi and the extension's supported dependencies. He also rejected regression assertions about exact
-dependency versions. These decisions supersede the earlier override and runtime-guard approval;
-they do not change Factory's server/project authority or authorize live installation.
+dependency versions. These decisions superseded the earlier override and runtime-guard approval.
+Factory retained server/project authority, and live installation was outside this follow-up.
 
 Implemented changes:
 

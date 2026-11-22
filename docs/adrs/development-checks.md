@@ -1,7 +1,7 @@
 # Development checks and dependency boundaries
 
-Status: implemented locally; hosted validation status is tracked in the
-[quality-checks plan](../plans/quality-checks.md).
+Push and pull-request CI build the package, verify the wheel, lint Python, check import boundaries
+and run the test suite. See [current hosted results](../plan.md#current-status).
 
 Back to [architecture](../architecture.md).
 
@@ -56,9 +56,7 @@ disabled; lifecycle fixtures manage their own child environments. No cache is re
 CI job.
 The existing unittest runner reports the slowest 25 cases, including setup and cleanup. Verbose
 progress remains available when a run stops before its duration summary. Local commands are in
-the README. Validation and hosted-CI status are tracked in the
-[quality-checks plan](../plans/quality-checks.md) and
-[runtime follow-up](../plans/ci-test-runtime.md).
+the README. The [quality-checks plan](../plans/quality-checks.md) records the original CI checks.
 
 ## Public testing boundaries
 
@@ -145,13 +143,13 @@ architecture check, then runs tests including the contract proofs. No project se
 tests substitute external GitHub and AgentShell, with no live model calls.
 At Scott's request, official checkout and Python setup actions use movable `v7` tags to receive
 compatible updates. Permissions remain read-only and checkout credentials are not persisted.
-Movable tags can change after their release was checked. Hosted validation evidence is in the
+Movable tags can change after their release was checked. Historical hosted results are in the
 [slice 1](../plans/slice-1.md), [slice 2](../plans/slice-2.md), and
 [quality-checks](../plans/quality-checks.md) plans.
-PR-event execution and cancellation have not yet been exercised on GitHub.
-The [CI runtime follow-up](../plans/ci-test-runtime.md) records the latest job-limit failures,
-measured test costs and the approved small improvements. Runtime work does not authorize shorter
-production deadlines or weaker process/Git checks.
+The push run for `454c210` passed on both supported Python versions. Its test steps used most of
+the 15-minute job limit. Runtime optimization is paused. The
+[runtime record](../plans/ci-test-runtime.md) preserves earlier job-limit failures, timings and
+changes to the test suite. Production deadlines and process and Git safety checks still apply.
 
 ## Local static analysis
 
@@ -169,9 +167,9 @@ These mappings need no per-repository `envault.toml`. Use explicit mappings for 
 never put token values in arguments or source `.env`. This development check is not a factory
 runtime dependency. The expected server gate is `Sonar way sans code coverage`; complexity rules
 come from the Python quality profile. Local scanner setup does not follow Git worktrees and must
-be repeated where needed. See [full SQ cleanup](../plans/sonarqube-remediation.md) for current
-scan results. [CLI onboarding](../plans/cli-onboarding.md) records earlier credential-permission
-limits.
+be repeated where needed. The [SonarQube record](../plans/sonarqube-remediation.md) identifies
+the source covered by those scans. [CLI onboarding](../plans/cli-onboarding.md) records earlier
+credential-permission limits.
 
 ## Consequences
 

@@ -1,9 +1,9 @@
 # Role resources, shared Pi login and Forgetful CLI
 
-Status: Factory uses [normalized agent definitions](agent-definitions.md) and audited extension
-1.5.0. Native SDK loading and controlled worker probes pass without inference. Shared Pi consent,
-resource checks and native Forgetful access remain; runtime repair policy and final checks are open.
-See [current release limits](../../README.md#status).
+Factory uses [normalized agent definitions](agent-definitions.md), the audited AgentShell
+extension 1.5.0 and the user's consented Pi home. Init preserves existing role files.
+The [agent-definition record](../plans/agent-definitions.md) covers native SDK loading and
+controlled worker probes. See [current validation](../plan.md#current-status).
 
 [CLI onboarding](../plans/cli-onboarding.md), [Slice 4/5](../plans/slices-4-5.md) and
 [Slice 6](../plans/slice-6.md) retain historical validation. They do not establish normalized native
@@ -138,8 +138,11 @@ must be at least 1 to allow owner research delegation.
 Factory checks it without modifying personal preferences or resetting inherited ancestry. Launch
 from inside a Pi subagent is rejected. No roster field can override the native depth policy.
 
-Only selected upstream extensions are provisioned. There is no Factory status/auth extension,
-replacement Pi executable, Forgetful wrapper, or remote-package auto-install.
+The starter Foreman also selects the managed [Forgetful extension](foreman-memory.md).
+It uses a separate login for server planning and optional memory. Local SQLite planning uses
+the native Forgetful CLI. Factory provisions bundled extension files during first setup.
+It does not replace the Pi executable, wrap the Forgetful CLI or automatically install remote
+extension packages.
 
 ## Optional implementation and review workers
 
@@ -168,12 +171,12 @@ The owner reads each selected definition and supplies the full role, task, workt
 briefing, plus absolute selected skill references and read-before-work instructions. Workers remain
 agent-driven; Python does not launch or control them.
 
-For normalized Codex/Claude children, extension 1.5 source additionally supplies deterministic skill
+For normalized Codex/Claude children, extension 1.5.0 supplies deterministic skill
 references, then removes only native `skills` from the outbound request. The canonical saved
 selection stays intact; other resource options retain native validation and errors. This is prompt
 skill delivery, not native registration or proof the model follows instructions. Pi and OpenCode
-retain native selected-skill support. Factory's audited 1.5.0 bundle passes real SDK/fake-native
-checks for these references and native resume, without claiming model compliance.
+retain native selected-skill support. Checks of Factory's audited 1.5.0 bundle used the real SDK
+and controlled workers to exercise these references and native resume without inference.
 
 Exact initial selectors come from each chosen harness's catalog in the configured repositories.
 Effort vocabulary is checked per harness; listing does not prove model-specific effort, live access
@@ -274,8 +277,8 @@ a two-second socket timeout and an 8 KiB response cap. It follows no redirects o
 and does not read proxy settings. Disabled/JWT/introspection, unknown, malformed or unavailable
 metadata suppress the notice. This is advisory only: native access checks still run and own auth.
 
-Watch validates consent, setup completion, role selections, depth and runtime metadata before
-starting Pi. It then checks the selected Forgetful project's planning access through the native
+Watch validates consent, setup completion, root resource selections, delegation depth and runtime
+metadata before starting or borrowing Foreman. It then checks planning access through the native
 CLI. Scott accepts browser login/refresh from an attended watcher. Cancellation and timeouts
 preserve saved plans/worktrees; Factory never reads credential values or treats cache presence as
 proof of access. The exact permission/schema checks are described in [issue

@@ -1,10 +1,8 @@
 # Factory initialization and provider separation
 
-Status: provider separation remains implemented. Current initialization uses the
-[normalized agent definition contract](agent-definitions.md). Slice 1 evidence below is historical.
-Factory now bundles audited extension 1.5.0; both supported Python runs pass 373 tests, including
-native SDK probes without inference. Runtime repair policy and final checks remain open.
-See [release limits](../../README.md#status).
+Initialization keeps provider access behind application contracts and provisions the team from
+[normalized agent definitions](agent-definitions.md). The original Slice 1 checks covered
+repository and label setup. See [current validation](../plan.md#current-status).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 1](../plans/slice-1.md).
 
@@ -103,9 +101,9 @@ without making Git remotes part of the domain's work-tracking service contract. 
 implements both tracking and resolution; bootstrap supplies it through the separate contracts.
 
 Work tracking and code hosting are separate responsibilities. A future Linear work item may refer
-to GitHub repositories; an Azure DevOps work item need not imply Azure-hosted code. Add a separate
-`CodeRepositoryService` when repository operations are implemented, rather than folding branches
-and pull requests into work tracking. Do not add unused future operations to first-slice contracts.
+to GitHub repositories, and an Azure DevOps work item need not imply Azure-hosted code. Today the
+`Worktrees` port covers native Git operations and agents handle PRs. The original proposal for a
+separate `CodeRepositoryService` concerned future code-hosting operations.
 
 Provider differences must remain explicit. If an adapter cannot support an operation, report that
 limitation rather than pretending every provider has GitHub's behaviour.
@@ -118,10 +116,12 @@ limitation rather than pretending every provider has GitHub's behaviour.
 2. First setup gathers repositories, labels, native Forgetful settings and the configured team.
    Check consent, local prerequisites, native model catalogs and configuration before saving.
 3. Check every repository origin and work source, then access and all label pages before creating
-   any labels. Provision the configured starter agents and select or create the Forgetful project.
+   any labels. Select or create the Forgetful project and provision the configured starter agents.
 4. Ensure missing labels and atomically save new configuration without overwriting an existing file.
-5. Manual setup checks Forgetful project/planning access and records completion. Assisted setup
-   retains its Foreman for review and explicit `init --finalize`, with watching blocked until then.
+5. Manual setup asks the user to confirm the [Definition of Done](completion-agreement.md) or
+   discuss it with Foreman. After confirmation, setup checks Forgetful project and planning access
+   before recording completion. Discussion and assisted setup both leave watching blocked until
+   explicit `init --finalize`.
 
 `init --finalize` completes or revalidates first setup using saved choices, without repeating the
 agent questionnaire or model catalogs. It can request consent if the saved Pi-home consent is
@@ -156,7 +156,7 @@ rollback. An initial retry before configuration is saved, or explicit finalizati
 existing labels. Do not report success when required access, label setup, or configuration storage
 failed. A timeout, interruption, or malformed response can leave the last remote operation
 uncertain; report that uncertainty and advise checking GitHub and configuration before retrying.
-External commands time out after 30 seconds.
+The default timeout for Git repository and GitHub label commands is 30 seconds.
 
 ## Command-line setup example
 

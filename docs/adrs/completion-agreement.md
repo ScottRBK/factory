@@ -1,12 +1,11 @@
 # Definition of Done agreement and completion handoff
 
-Status: Slice 7A setup and role guidance implemented locally. Model-following trials are deferred;
-completion is agent-guided, not a Python policy engine. Slice 7B/automated-local 7C now add
-[completed-plan disposal](completed-plan-cleanup.md); live adoption and model trials remain
-deferred. Foreman appended guidance now makes deployment/E2E conditional on the agreement. EOF after
-complete flags directs a terminal-session agreement and `init --finalize` for saved incomplete
-setup;
-flags do not select a default agreement. Cleanup review holds are recorded in the linked ADR.
+Setup saves a confirmed Markdown agreement. Role guidance assigns final verification to Foreman,
+including deployment and deployed E2E when the agreement requires them. Python handles setup and
+[completed-plan disposal](completed-plan-cleanup.md). The controlled live trial covering
+deployment, E2E, failure and restart remains unverified. See
+[current evidence](../plan.md#current-status).
+
 Back to [architecture](../architecture.md),
 [delivery](feature-delivery.md) and [work record](../plans/slice-7.md#7a-local-implementation).
 
@@ -20,9 +19,8 @@ No configurable location, inheritance, TOML policy fields, front matter or parse
 
 The file is the persistent project/programme agreement, not feature acceptance criteria. Both must
 be met. Foreman reads it before planning, before completion and after restart. It supplies the text
-and absolute path with the issue, plan and repository context to the feature-owner. Applicable
-shared
-requirements go briefly in existing task descriptions, separate from feature acceptance criteria.
+and absolute path with the issue, plan and repository context to the feature-owner. The owner notes
+applicable shared requirements briefly in existing tasks, separate from feature acceptance criteria.
 Preserve ownership/recovery JSON and the plan context's 2000-character limit. No structured policy
 snapshot or version registry is needed. Chat history and optional memory are not authoritative.
 
@@ -48,29 +46,27 @@ gates. Show the entire proposed Markdown and obtain explicit confirmation before
 invalid, EOF and declined answers never select merge-only. A different file created during that
 confirmation is preserved and reported as a conflict, not silently accepted.
 
-The CLI already saves configuration before the final access check and completion receipt. Keep
-that recovery boundary: interruption at DoD selection leaves saved configuration and no first-setup
-receipt. `init --finalize` can finish agreement selection without provisioning agents again.
-Choosing
-discussion starts the existing setup Foreman flow without a receipt or a placeholder policy file.
+The CLI saves configuration before the final access check and completion receipt. If input ends
+during DoD selection, the saved configuration survives and first setup stays incomplete. Even with
+all setup flags supplied, the user must confirm the agreement or discuss it with Foreman. Run
+`init --finalize` in a terminal to resume. Choosing discussion starts the setup Foreman without a
+receipt or a placeholder policy file.
 Assisted setup leaves agreement to its real conversation. Finalization can start that conversation
 when no owner exists; it never replaces a live/uncertain owner. An existing owner gets an attach
 instruction instead. A confirmed conversation save is ordinary Markdown; finalization preserves it.
 
-Ordinary repeated init remains a one-time-init no-op: no prompts, external checks, agreement
-creation
-or file replacement. It does not silently supply a policy to older ready workspaces. Existing files
-and edited skills are preserved. Foreman must ask about a missing, unclear or conflicting agreement
-before handing off work. Code checks file availability for preservation, not policy meaning or human
-approval. A ready setup receipt is not proof that a model read or followed this agreement.
+Ordinary repeated init preserves existing files and edited skills. It skips prompts and external
+checks, including agreement creation for older ready workspaces.
+Foreman must ask about a missing, unclear or conflicting agreement before handing off work. The
+CLI checks that an existing file can be preserved. The setup receipt cannot establish what the
+agreement requires, whether the user approved its contents or whether a model followed it.
 
 ## Delivery and completion
 
 The owner retains implementation, independent review and merge responsibilities. It records PRs,
 actual merge commits, target branches, workflow links and all ownership mappings, then hands back.
-Only required post-merge checks remain open; excluded deployment/E2E checks need no placeholder
-tasks.
-Ownership stays open for Foreman, even for merge-only delivery.
+The owner leaves only the required post-merge checks open. Excluded deployment or E2E checks
+need no placeholder tasks. Ownership stays open for Foreman, even for merge-only delivery.
 
 Foreman verifies live evidence against both acceptance criteria and the applicable agreement.
 Required deployment evidence must identify actual merged revisions. Required deployed E2E must
@@ -82,18 +78,18 @@ a linked follow-up issue. An uncertain create response requires lookup before re
 intake consent still applies to repair work.
 
 Finish verification and ownership in supported order with fresh versions and verified criteria;
-read back the plan and set completed with native update_plan if needed, then confirm its status.
-Forgetful can auto-complete active plans when all tasks are done or
-cancelled and at least one is done. Never cancel a still-required check to trigger that rule. Save
-all evidence before the last completion transition. Factory remains a verifier, not a deployer.
+read back the plan and set completed with native `update_plan` if needed, then confirm its status.
+Forgetful can auto-complete active plans when all tasks are done or cancelled and at least one is
+done. Never cancel a still-required check to trigger that rule. Save all evidence before the last
+completion transition. When deployment is required, Foreman verifies evidence from the deployment
+workflow. The Python CLI does not parse the agreement or run deployments.
 
 ## Cleanup boundary
 
 Neither Foreman nor owner deletes resources. The watcher now independently discovers full completed
 plans and disposes of validated worktrees/local/remote feature refs, without interpreting the DoD.
-Dirty/untracked/ignored files and extra branch commits are disposable after completion. Save
-evidence
-elsewhere before the last task transition; no further prompt or recoverable trash is provided.
+Dirty, untracked and ignored files and extra branch commits are disposable after completion. Save
+evidence elsewhere before the last task transition. Cleanup offers no further prompt or trash.
 Missing identity or conflicting ownership blocks affected cleanup. Native facts, not historical
 pending/removed markers, determine which resources remain. Open-plan marker recovery stays read-only
 and never recreates work. See the [cleanup ADR](completed-plan-cleanup.md) for checks and retries.
@@ -102,14 +98,13 @@ Existing edited guidance is preserved. Before enabling this version on an existi
 older completed plans and actual ownership mappings with Scott, including target_branch and paths
 beneath the owning repository's Factory directory. Missing identity needs explicit reconciliation;
 no policy or old mapping is silently adopted. Lifecycle/status, managed-only stop, workspace leases,
-uncertain delivery and owner-liveness safeguards remain. No live factory was changed by local work.
+uncertain delivery and owner-liveness safeguards remain.
 
 ## Validation boundary
 
 Public init tests establish preset persistence, explicit confirmation, no default, preservation and
-first-init recovery. Native isolated tmux/fake-Pi tests establish discussion launch, blocked
-watching
-until finalization, unchanged Foreman identity and confirmed-file preservation without inference.
+first-init recovery. Isolated native tmux tests with a fake Pi cover discussion launch, blocked
+watching until finalization, unchanged Foreman identity and preservation of the confirmed file.
 Public watch regression establishes closed-issue/new-only recovery of unfinished verification,
 unchanged mappings/evidence, no duplicate scaffolding and no policy-file mutation. It does not prove
 agent dispatch/completion, evidence interpretation, follow-up reuse or policy-change conversations.

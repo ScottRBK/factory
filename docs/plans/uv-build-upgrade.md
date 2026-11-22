@@ -1,8 +1,10 @@
 # uv and build-backend security upgrade
 
 Scott requested this upgrade after the Factory wheel checksum failure and a recent uv advisory.
-The scope is project/CI uv, its separately pinned build backend, installer version checks and
-packaging regression coverage. It does not authorize runtime repair, agent changes or a commit.
+The upgrade covered project/CI uv, the separately pinned build backend, installer version checks
+and packaging regression coverage. Runtime repair, agent changes and commits were outside that
+phase. The general runtime repair policy remains open. See the
+[current status](../plan.md#current-status).
 
 ## Selected versions and security finding
 

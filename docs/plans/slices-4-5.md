@@ -1,7 +1,7 @@
 # Slices 4 and 5 validation
 
-Status: implemented and locally validated. Independent review findings are resolved.
-The [plan](../plan.md) describes scope in plain terms. The
+Slices 4 and 5 passed local validation after the independent review findings were resolved.
+For later delivery work, see the [current status](../plan.md#current-status). The
 [issue-planning ADR](../adrs/issue-planning.md) records recovery rules; the
 [profile ADR](../adrs/agent-profiles.md) describes role loading and shared credentials.
 
@@ -14,8 +14,9 @@ The [plan](../plan.md) describes scope in plain terms. The
 - Ambiguous task creation and conflicting worktrees stop without deleting saved work.
 - Native role AGENTS files, selected skills and explicit child rosters configure Foreman, owner
   and research. The unchanged grill-me skill is read deliberately by the owner.
-- Agent guidance covers versioned ownership claims, clarification and safe continuation. It leaves
-  implementation/review execution and deployment completion for later slices.
+- These slices covered versioned ownership claims, clarification and safe continuation.
+  [Slice 6](slice-6.md) added implementation and review. [Slice 7](slice-7.md) added owner
+  handoff and Foreman guidance for completion under the agreed DoD.
 
 Scott approved public init/watch tests with temporary repositories and controlled external commands,
 plus isolated Pi/AgentShell checks without login or model calls. The extra `epic` label, attended
@@ -268,9 +269,10 @@ SonarQube analyzed `forgetful-factory` on `main`, analysis
 on thirteen code smells: nine complexity findings and four repeated-literal findings. Twelve are
 in files untouched by this task; the remaining connection-check complexity already existed, with
 no branching changed here. No bugs, vulnerabilities or security hotspots were reported;
-duplication was 0%. These wider Slice 4/5 findings remain open, not suppressed or fixed by this
-narrow change. Scanner warnings include missing blame for uncommitted files and binary archive
-encoding. Authentication used the shared envault aliases; no tokens were printed or stored.
+duplication was 0%. The narrow change left these findings open. The
+[subsequent cleanup](#code-smell-cleanup) records their resolution. The scanner warned about
+missing blame for uncommitted files and binary archive encoding. Authentication used the shared
+envault aliases. No tokens were printed or stored.
 
 Validation: 206 tests passed on each of Python 3.12 and 3.13, including native role loading without
 inference. All 72 focused tests and seven rebuilt-wheel public regressions passed. Ruff, all three

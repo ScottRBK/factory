@@ -1,5 +1,10 @@
 # Agent onboarding improvements
 
+Assisted setup can connect its watcher to the Foreman it started. The registration tests below
+cover the earlier design that copied skill selections into parent rosters.
+[Normalized definitions](agent-definitions.md) replaced that synchronization with child file
+references. See the [current status](../plan.md#current-status) for later work.
+
 ## Implemented
 
 - Consistent numbered Foreman model/effort and implementation/review app/model/effort menus.
@@ -125,14 +130,14 @@ cases to the public loader regression. No production Python changed after the fu
 No hosted CI, live onboarding, autonomous skill use or Sonar scan was performed for this follow-up.
 No dependencies, personal settings or DinoLand files changed.
 
-## Next phase: assisted setup, attachment and skills
+## Assisted setup, attachment and skills
 
 Status: assisted setup and same-Foreman watcher connection are implemented, reviewed and locally
 validated. Broader app support remains separate; existing resource/effort capabilities are not
 absent.
 The earlier 250-test evidence covers the numbered-menu/maintenance pass only. Detailed boundaries
 and contract findings are in the
-[onboarding ADR](../adrs/agent-onboarding.md#assisted-setup-and-remaining-work).
+[onboarding ADR](../adrs/agent-onboarding.md#assisted-setup-and-persistent-foreman).
 
 - [x] Replace the worker/planning-only question with manual or Foreman-assisted setup after
   configuring Foreman. Manual setup should expose each remaining role, including research.
@@ -342,9 +347,9 @@ duplicates and stale targets are refused, watcher stop preserves Foreman, and kn
 stops watching. They also cover path registration and resource/roster preservation. No-dispatch
 instructions and correct agent behavior are not proved by those fixtures.
 
-A live assisted-setup or delivery trial remains separate. Agree its repository and native
-permissions before use, including idle/busy delivery and agent use of explicit reload. Attachment
-does not inspect current model/effort/resources. Broader downstream app integration still needs
+The proposed live assisted-setup trial called for an agreed repository and native permissions
+to exercise idle/busy delivery and explicit reload. Those scenarios were outside these checks.
+Attachment does not inspect current model/effort/resources. Broader downstream app integration needs
 its own exact-selector, effort and native-resource tests; it is not part of this completed phase.
 
 ### Reload and restart guidance clarification
@@ -392,8 +397,8 @@ checks. The exact insertion and new line widths were also checked. No new tests 
 claims were added. Evidence and backups are under `/tmp/foreman-plain-language.4aaGLQ/`.
 
 No live reload, restart, message submission, package installation, commit or push was performed.
-The current Foreman may retain earlier instructions until it rereads the skill; do not force a
-reload while delegated work is active.
+The Foreman running at the time could retain the earlier instructions until it reread the skill.
+The patch did not require a forced reload during delegated work.
 
 ### Reviewer requirements and code quality
 

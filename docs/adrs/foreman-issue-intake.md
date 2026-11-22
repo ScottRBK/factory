@@ -27,6 +27,5 @@ label environment snapshot or separate issue-creation service. The role cwd is n
 This is agent guidance, not Python enforcement or a model-compliance claim. Existing issue polling,
 label matching, scaffolding and delegation remain unchanged. Ordinary repeated init preserves
 edited instructions; existing factories need deliberate reconciliation to adopt the new guidance.
-No running Foreman or DinoLand configuration was changed.
-
-Validation and remaining checks are recorded in the [work record](../plans/foreman-issue-intake.md).
+The [intake work record](../plans/foreman-issue-intake.md) covers the delivered instructions and
+file-preservation checks. See [current validation](../plan.md#current-status).

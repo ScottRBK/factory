@@ -1,11 +1,17 @@
 # Slice 7: Definition of Done and automatic cleanup
 
-Status: 7A/B and automated/local 7C implemented locally under Scott's explicit authorization.
-One independent review, implementation corrections and final parent SonarQube verification are
-complete. See [final local validation](#parent-final-local-validation) for evidence and limits.
-The full suite retains one known baseline failure. Live trials/adoption remain deferred.
-No commit, push or live factory change is authorized by this work.
-Back to [plan](../plan.md), [architecture](../architecture.md) and [intent](../../FACTORY.md).
+Slice 7 implemented DoD presets and confirmation, owner handoff, Foreman guidance for required
+deployment/E2E checks, and watcher cleanup. The [local validation](#parent-final-local-validation)
+covers 7A, 7B and the automated parts of 7C. The full live DoD trial, including failed checks and
+recovery after restart, remains unverified.
+
+The local implementation phase excluded commits, pushes and live changes. Scott later approved the
+[DinoLand installation and restart](cleanup-performance.md#dinoland-installation-and-restart).
+That rollout included the watcher from `337d02c`, which reuses CLI reads and fairly schedules
+up to three cleanup sets per cycle.
+Commit `b7e5f33` corrected the assertion that failed in the runs below. For subsequent CI and
+delivery progress, see the [current status](../plan.md#current-status).
+See also the [architecture](../architecture.md) and [factory intent](../../FACTORY.md).
 
 ## Outcome
 
@@ -23,8 +29,7 @@ This follows `FACTORY.md:23–32,69,151–167`: agree the DoD at setup,
 pass it to the feature-owner, and have Foreman check it before completion. Deployment/E2E is an
 example of DoD activities, not a universal requirement. Existing Slice 6 cleanup guidance remains
 historical behaviour. New roles leave resources for the completed-plan watcher and hand back to
-Foreman; old cleanup records remain readable. Completed-plan disposal is now implemented locally.
-The separate watch-status contract remains unchanged.
+Foreman. The watcher can still read old cleanup records.
 
 ## Agreed MVP decisions
 
@@ -285,7 +290,8 @@ resolved. No broad worktree pruning, forced resets of the main checkout or proce
 - [x] Document that enabling this behaviour also processes eligible older completed Factory plans.
       Review those mappings before rollout; do not silently install it into a running factory.
 - [x] Refresh architecture/ADRs, roadmap decisions, setup docs and role guidance together.
-- [ ] Validate the built wheel and run an explicitly approved disposable live trial.
+- [x] Validate the built wheel locally. See the [7B/7C handoff](#validation-and-handoff).
+- [ ] Run an explicitly approved disposable live trial of the DoD and cleanup flow.
 
 ## Validation plan
 
@@ -332,7 +338,7 @@ exact source/scan/test evidence and distinguish local validation from hosted CI 
       optional deployment/E2E as failure or falsely claiming those checks ran.
 - [ ] Demonstrate failed required verification retains the original plan and resources.
 - [x] Demonstrate interrupted cleanup resumes without recreating work or deleting unrelated data
-      through public watch and real disposable Git repositories; live adoption remains deferred.
+      through public watch and real disposable Git repositories.
 
 Historical planning-only boundary: the original proposal changed no code or live resources.
 Scott subsequently authorized local 7A implementation only. The record below supersedes that
@@ -505,11 +511,9 @@ and the same one-line host fixture adjustment. Current doc checks are `validated
 Current map/repeat evidence is `validated-map*`: 81 boxes, 12 known warnings, 3973 test calls and
 68 test type relationships filtered; byte-identical repeat, text inspection only.
 
-7B/7C remain unimplemented. Next work is completed-plan discovery and scoped native Git cleanup,
-then multi-repository cleanup/revision-combination trials, adoption reconciliation and explicitly
-approved disposable live validation. Agent compliance, hosted CI, parent SQ and independent review
-remain unverified. No new subagents were dispatched, so there are no new native subagent session
-IDs.
+At the 7A handoff, 7B/7C implementation, multi-repository trials and adoption reconciliation were
+still ahead. The handoff had no live agent, hosted CI, parent SQ or independent review evidence.
+No new subagents were dispatched.
 
 
 ## 7B and automated/local 7C implementation
@@ -696,10 +700,10 @@ The cached Mycelium refresh keeps 85 boxes, 4575 test calls/71 type relationship
 anchors changed in the 497-line overview; ADR anchors needed no change. Mermaid was checked as text,
 not rendered. Protected intent/approved prose, width/local file links and diff checks pass.
 
-This snapshot is ready for the parent's new rescan, then the single independent Opus review.
-Neither was launched by this worker, and no new gate pass or review approval is claimed. Live
-adoption/model-following/deployment/E2E gates remain deferred. No live change, installation,
-dependency upgrade, credential read, global setting change, commit or push was performed.
+This snapshot went to the parent for a rescan and one independent Opus review. The worker
+performed neither check. This handoff deferred live adoption and trials of model behavior,
+deployment and E2E. It involved no live change, installation, dependency upgrade, credential read,
+global setting change, commit or push.
 
 ## Opus review corrections: held decisions
 
@@ -750,10 +754,9 @@ and separate episodes; they do not accept disposal or weaken saved-state checks.
 covers the user-visible repair message. The unchanged auto-approval wording failure is still
 explicit.
 
-Current source freeze and final validation outcomes are recorded below when available. No live
-factory/DinoLand/Forgetful/GitHub/pipeline changes, adoption, install, dependency change, credential
-read, global setting change, commit or push is authorized or performed. All scratch evidence stays
-outside the repository. The protected intent and approved cleanup prose remain byte-identical.
+This correction phase excluded live factory, DinoLand, Forgetful, GitHub and pipeline changes,
+adoption, installation, dependency changes, credential reads, global settings, commits and pushes.
+Scratch evidence stayed outside the repository. The intent and approved cleanup text were unchanged.
 
 ### Corrected freeze and final validation
 
@@ -823,7 +826,7 @@ superseded: each worktree/local-branch/remote-ref set confirms independently.
   Pending sets reserve names and reread native resources after interruption/write failure. Terminal
   sets survive restart/sibling failure and protect later human reuse. Invalid or unreadable storage
   blocks all disposal while safe issue intake continues. No step journal or native marker mutation.
-- Implemented at most one pending set attempt per cycle, with a run-local round-robin cursor that
+- This version attempted at most one pending set per cycle, with a run-local round-robin cursor that
   advances on failure. Keep global unknown-claim withholding, namespace protections, default caching
   and per-command timeouts. No claim index without pending candidates; no cleanup Git for terminal
   sets. The bound is on attempts, not inventory cost or total wall-clock time.
@@ -847,10 +850,9 @@ confirmed cleanup would contradict the newly approved terminal-authority rule. N
 native facts or unchanged ownership evidence was removed.
 
 Final source identity, complete interpreter/wheel/lint/import/package/map checks and limitations
-will be recorded in the combined handoff. No installation, dependency change, live operation,
-commit/push, extra reviewer or worker SonarQube scan is authorized. Parent runs the final actual
-SonarQube analysis on the verified new freeze. Live adoption/model/deployment/E2E trials remain
-open.
+were reserved for the combined handoff. This phase excluded installations, dependency changes,
+live operations, commits, pushes, extra reviewers and worker SonarQube scans. The parent owned
+the final analysis. Live adoption and model, deployment and E2E trials were outside this phase.
 
 
 The startup extension of the deterministic signal test found a remaining gap: handlers were
@@ -1020,12 +1022,11 @@ interpreters. Parent accepts those implementation dispositions for this local ha
 recorded evidence. No second reviewer pass, substitute owner code review or independent approval
 of the corrected snapshot is claimed.
 
-Live adoption, old completed-mapping review, model compliance, deployment/E2E and deployed
-multi-repository verification remain separate work requiring authorization. Preserve receipt
-storage; unfinished names remain reserved, and partial native removal can require targeted
-operator-approved recovery. No installation, live operation, dependency change, commit or push
-was performed. Local implementation and validation are complete with the stated baseline failure
-and live-validation limits, not release approval.
+This handoff covered local implementation and validation. It excluded installation, live operation,
+dependency changes, commits and pushes. Older completed mappings needed individual review before
+adoption. Model compliance, deployment/E2E and deployed multi-repository verification were outside
+these checks. Preserve receipt storage. Unfinished names remain reserved, and partial native
+removal can require targeted operator-approved recovery.
 
 ## Research cwd guidance correction
 
@@ -1087,5 +1088,6 @@ including a pre-existing 104-column repository URL; all added lines are within 1
 backups and validation are in `/tmp/factory-research-cwd-guidance.OOoe1e`. Fresh-session model
 compliance remains untested; this patch is not broader Slice 7 installation or adoption.
 No watcher/owner restart, external planning mutation, inference trial, second review, commit or push
-was performed. The expensive full Slice 7 suite was not rerun. Its known `auto_approve false` versus
-`auto_approve=false` wording failure and native tmux fixture/Nix path limitation remain unchanged.
+was performed. This guidance patch did not rerun the full Slice 7 suite or address the
+`auto_approve false` versus `auto_approve=false` assertion or the native tmux fixture's Nix path
+limitation.

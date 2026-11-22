@@ -57,7 +57,8 @@ Shared external-command fixtures advertise supported help for compatible startup
 - Three installer cases skip outside Ubuntu 24.04; this device uses Ubuntu 26.04.
 - The failing native managed-memory probe expects one controlled REST project request but observes
   none. It fails identically on a separate, unchanged `300aa24` source snapshot on both Python
-  versions. It is not fixed here, and no full-suite green result is claimed.
+  versions. The [runtime alignment](foreman-memory.md#runtime-alignment) follow-up records the
+  cause and fix. The failed runs here predate that change.
 - Native SDK probes used installed Pi 1.4.0 with isolated homes, fake children and loopback HTTP;
   no live model or service account was used by the regression runs.
 
@@ -67,8 +68,9 @@ Temporary runners, environments, downloaded tools and the baseline copy remain o
 Independent read-only Claude review approved the original diff with no blocking findings. The
 regex suggestion is corrected with red/green evidence; managed-start error routing is documented.
 The review did not run tests. It also noted that init and a missing-executable regression remain
-outside this coverage; generic command failure handling is unchanged. Hosted CI has not been run.
-No commit, push, real watcher or Foreman launch is part of this change.
+outside this coverage. Generic command failure handling was unchanged. This phase excluded hosted
+CI, commits, pushes and real watcher or Foreman launches. See the
+[current status](../plan.md#current-status) for later CI.
 
 ## Host upgrade and documentation tooling
 

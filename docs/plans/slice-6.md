@@ -1,6 +1,9 @@
 # Slice 6: implementation, review and merge
 
-Status: implemented and locally validated; Sonar gate passed. The live trial remains open.
+Slice 6 added worker and owner guidance for implementation, review and merge. Local checks and
+the SonarQube gate passed. DinoLand has since taken issues through implementation, review and
+merge. The disposable trial proposed below was outside this slice's validation.
+For DoD verification and cleanup progress, see the [current status](../plan.md#current-status).
 
 ## Scope
 
@@ -8,8 +11,9 @@ Status: implemented and locally validated; Sonar gate passed. The live trial rem
 - Feature-specific plans, acceptance criteria and tests, not generic lifecycle task names.
 - Proceed when requirements are clear unless repository rules require plan approval.
 - Implementation owns tests, commits, pushes, PR creation/reuse and exact-commit CI correction.
-- Feature-owner verifies PRs/CI and owns task updates, independent review, fixes, merge and cleanup.
-- Deployment/E2E and overall plan completion remain Slice 7.
+- Feature-owner verifies PRs/CI and coordinates task updates, independent review, fixes and merge.
+  Slice 6 also assigned cleanup to the owner. [Slice 7](slice-7.md) moved cleanup to the watcher
+  after Foreman verifies the agreed DoD and completes the plan.
 
 See the [delivery ADR](../adrs/feature-delivery.md) for contracts and limitations. Scott updated
 `FACTORY.md` to give PR creation to implementation; agents have preserved that edit. The protected
@@ -133,9 +137,10 @@ These checks validate provisioned guidance/wiring, not live permissions or featu
 The user is handling the live-agent instruction separately; this update sends no duplicate prompt
 and does not restart, resume or replace a worker.
 
-## Before the live trial
+## Proposed disposable trial
 
-- Agree the disposable GitHub repository with Scott; none has been created or modified for a trial.
+- This phase did not create or modify a disposable GitHub repository. The first step in the
+  proposed trial was to agree on a repository with Scott.
 - Check native worker permissions for linked-worktree Git metadata, network and tools. Factory does
   not silently enable bypass mode or widen tool permissions.
 

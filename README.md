@@ -1,7 +1,10 @@
 # Forgetful Factory
 
 Forgetful Factory watches GitHub issues and coordinates coding agents across one or more
-repositories. It stores plans in Forgetful and runs agents through Pi and AgentShell.
+repositories. It stores plans in [Forgetful](https://github.com/ScottRBK/forgetful) and runs agents
+through [Pi](https://pi.dev/) and [AgentShell](https://github.com/ScottRBK/agent-shell).
+
+![Forgetful Factory sequence diagram](docs/assets/forgetful-factory-sequence.png)
 
 The watcher prepares issue plans and, for ordinary issues, a Git worktree, then notifies the
 Foreman. For cross-repository epics, the feature-owner selects the worktrees. You talk to the
@@ -10,9 +13,11 @@ implementation and review agents work on the changes, and the owner coordinates 
 
 ## Status
 
-The package is not published. Setup, issue planning, implementation/review coordination and
-completed-plan cleanup are implemented and locally tested. Live delivery and deployment/E2E
-validation remain pending. See the [implementation plan](docs/plan.md) for results and open work.
+The package is not published. Factory supports setup, issue planning, implementation and review,
+Definition of Done agreements and completed-plan cleanup. Foreman guidance requires deployment and
+deployed E2E evidence when the agreed Definition of Done calls for it. A full live trial of that
+verification workflow, including failure and restart recovery, remains unverified.
+See [current status](docs/plan.md#current-status) for confirmed results and remaining work.
 
 Existing factories are not automatically migrated or upgraded. Review their configuration,
 agent instructions and completed-plan worktree mappings before using a newer build.
@@ -26,7 +31,8 @@ agent instructions and completed-plan worktree mappings before using a newer bui
 - Set up your normal Pi login. Factory asks to share the whole Pi profile, including settings
   and session state. This does not isolate personal instructions.
 - Provide native Forgetful CLI access to a local database or an existing server with planning
-  enabled and Forgetful 0.5.5's `external_ref` support. Local mode needs cached embedding models.
+  enabled and the `external_ref` support provided by Forgetful 0.5.5. Local mode needs cached
+  embedding models.
 - Provide your existing grill-me skill, normally `~/.agents/skills/grill-me/SKILL.md`.
 
 Factory asks before installing missing tools and does not upgrade existing installations.

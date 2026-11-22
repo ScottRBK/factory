@@ -1,8 +1,8 @@
 # Project dependency management with uv
 
-Status: dependency management is implemented. Current tool versions and local upgrade evidence are
-in the [security-upgrade record](../plans/uv-build-upgrade.md). Earlier hosted migration evidence is
-in the [quality-checks plan](../plans/quality-checks.md); it does not validate this update.
+Factory uses locked dependencies in development and CI. The
+[security-upgrade record](../plans/uv-build-upgrade.md) documents the uv and build-backend audit.
+See [current hosted validation](../plan.md#current-status).
 
 Back to [architecture](../architecture.md).
 
@@ -68,10 +68,10 @@ by future lock updates before installation.
 
 ## Validation
 
-The first lock preserves all existing checker/runtime versions, with no additional packages.
-Locked environments pass lint, architecture checks, and all tests on Python 3.12/3.13.
-Normal wheel installs and `uv sync --locked --no-dev` exclude the dev tools. A deliberately
-changed manifest is rejected by locked sync. See the
+The migration kept the existing checker and runtime versions. Locked environments passed lint,
+architecture checks and tests on both supported Python versions. Normal wheel installs and
+`uv sync --locked --no-dev` excluded the development tools. Locked sync rejected a deliberately
+changed manifest. See the
 [quality-checks plan](../plans/quality-checks.md#uv-dependency-management-migration) for evidence.
 
 [original-audit]: https://github.com/ScottRBK/factory/blob/31df9bd/docs/dependency-audit.md

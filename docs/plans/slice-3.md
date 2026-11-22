@@ -1,18 +1,18 @@
 # Slice 3: Foreman setup and Forgetful access
 
-Back to the [implementation plan](../plan.md).
+For subsequent implementation, see the [current status](../plan.md#current-status).
 Architecture: [agent profiles](../adrs/agent-profiles.md).
 
 Status: closed on 2026-10-16 at Scott's request after the DinoLand onboarding trial.
 Closure includes the [CLI onboarding follow-up](cli-onboarding.md), its trial-feedback fixes,
 153-test validation on Python 3.12/3.13, packaging/smoke checks, passing SonarQube and Opus recheck.
-The Foreman remains discussion-only. Remote authentication and clean host installations remain
-unverified by the recorded automated validation; user acceptance does not expand that evidence.
+The Slice 3 Foreman handled discussion only. Its automated checks did not verify remote
+authentication or clean-host installation.
 
 The sections below preserve the original scope and implementation history, including superseded
-choices. Current setup is CLI-only, with consented shared Pi login and explicit role resources,
-not the separate Pi profile/MCP default below. The follow-up and [main plan](../plan.md) govern
-current behavior, remaining limitations and the proposed next slices.
+choices. The follow-up replaced the separate Pi profile and MCP default with consented shared Pi
+login, explicit role resources and native CLI planning. [Foreman memory](foreman-memory.md)
+records the later server-backed extension and the continuing use of CLI planning for local SQLite.
 
 ## Agreed scope
 
@@ -413,4 +413,4 @@ credentials, runtime, and session files were preserved. Read-only local setup/ru
 preflight passed before and after; no remote connection or login was attempted. Backups of only
 the changed files are outside either repository under
 `~/.local/state/forgetful-factory/profile-backups/DinoLand-20261014T233436Z`.
-The existing Foreman must be restarted to pick up the refreshed profile and launch environment.
+Picking up the refreshed profile and launch environment required restarting that Foreman.

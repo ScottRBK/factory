@@ -1,7 +1,7 @@
 # Issue plan placeholder: validation
 
 Status: implemented and locally validated through the approved public watch CLI boundary.
-Back to [plan](../plan.md), [decision](../adrs/issue-planning.md) and
+See the [current status](../plan.md#current-status), [decision](../adrs/issue-planning.md) and
 [architecture](../architecture.md).
 
 ## Failure and scope
@@ -140,6 +140,7 @@ updated; the existing AGENTS navigation still applies.
 - Arbitrarily large paths or other metadata can still exceed the server limit. No metadata is
   truncated and no general storage redesign is claimed.
 - Owner guidance is provisioned for new starter resources; existing edited/live resources are not
-  overwritten. Actual owner compliance and live adoption remain untested.
+  overwritten. These checks did not exercise adoption of the guidance or observe a live owner
+  reading the provider issue.
 - No changes to Scott's FACTORY.md edit, live DinoLand files, running watcher/Foreman, shared
   Forgetful server or records. No retry writes to live services, commit or push occurred.

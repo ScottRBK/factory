@@ -1,9 +1,9 @@
 # Slice 1: initialize a factory
 
-Back to the [implementation plan](../plan.md).
+For later slices and CI results, see the [current status](../plan.md#current-status).
 
 Status: implemented, independently reviewed, and locally validated. Review findings were fixed
-and regression-checked; live GitHub validation remains separately gated.
+and regression-checked. The Slice 1 checks excluded live GitHub label setup.
 See [architecture](../architecture.md) for the implemented first-slice structure.
 
 - [x] Package a `forgetful-factory init` command with interactive and explicit configuration.
@@ -61,8 +61,7 @@ Action dependency advisories and limits are recorded in the [original audit][ori
 Implementation committed and pushed as `2ee6e6b`; the push workflow passed on 2026-10-10.
 [CI run 38041488129](https://github.com/ScottRBK/factory/actions/runs/38041488129) tested that exact
 commit: all 28 tests passed on Python 3.11 (36.928 seconds) and Python 3.12 (37.253 seconds).
-Local pre-commit validation also passed all 28 tests. PR-event execution and cancellation of
-outdated runs have not been exercised on GitHub; a passing push run does not verify those paths.
+Local pre-commit validation also passed all 28 tests. This push run did not exercise PR events or
+cancellation of outdated runs. Python 3.11 was available only on the hosted runner for these checks.
 
 [original-audit]: https://github.com/ScottRBK/factory/blob/31df9bd/docs/dependency-audit.md
-Python 3.11 remains unavailable locally, but is now verified on the hosted runner.

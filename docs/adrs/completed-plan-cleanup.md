@@ -1,12 +1,17 @@
 # Completed-plan discovery and disposal
 
-Status: Slice 7B and automated/local 7C implemented locally. Live adoption, model-following and
-actual deployment/E2E trials are deferred. Per-set receipts, three-set rotation, cycle-local
-discovery snapshots and watch-stop checkpoints are implemented locally. Performance validation is in
-[the work record](../plans/cleanup-performance.md). The sole review's corrections are implemented.
-Final SQ has zero findings; the isolated real-CLI trial and final checks pass with recorded limits.
-Earlier receipt/stop evidence is in
-the [correction record](../plans/slice-7.md#approved-receipts-scheduling-and-watch-stop).
+The watcher attempts up to three distinct resource sets per cleanup cycle. It reuses discovery
+reads within the cycle, rechecks each selected set and persists a receipt after confirming removal.
+The [performance record](../plans/cleanup-performance.md#final-parent-validation-and-cleanup)
+covers review corrections and the isolated real-CLI trial. The earlier
+[receipt and stop checks](../plans/slice-7.md#approved-receipts-scheduling-and-watch-stop)
+cover the original one-set limit.
+
+Scott approved installing `337d02c` in DinoLand and restarting plain watch and its owned Foreman.
+The [rollout record](../plans/cleanup-performance.md#dinoland-installation-and-restart) confirms
+startup and preservation of existing profile and role files.
+See [current status](../plan.md#current-status).
+
 Back to [architecture](../architecture.md), [agreement](completion-agreement.md) and
 [work record](../plans/slice-7.md#7b-and-automatedlocal-7c-implementation).
 
@@ -110,10 +115,9 @@ repository share the result. This lookup is lazy during disposal. Each new cycle
 so its first required lookup reads again. Fresh selected-owner/plan checks do not refresh defaults
 or foreign ownership claims per disposal. The non-atomic race limits below still apply. Cleanup-only
 `ls-remote` and `push` close stdin, disable Git/askpass/credential-manager prompts and put the
-effective
-SSH command in batch mode, with a forced false askpass to prevent TTY fallback. Native configuration
-and interactive OAuth are unchanged. A failed
-network read is not an uncertain write. At most three distinct sets are attempted per cycle.
+effective SSH command in batch mode, with a forced false askpass to prevent TTY fallback. Native
+configuration and interactive OAuth are unchanged. A failed network read can be retried.
+At most three distinct sets are attempted per cycle.
 Round-robin ordering advances even when an attempt fails; a failed first set cannot starve its
 siblings or later plans. This bounds disposal attempts, not inventory or claim-index cost, and
 not the elapsed time of the several bounded native calls within one set.
@@ -121,9 +125,8 @@ not the elapsed time of the several bounded native calls within one set.
 Paths must be canonical, strictly beneath the owning repository's Factory directory, outside its
 Git metadata, not the main checkout or a symlink escape. A path containing any configured
 repository root is also protected, including an independent clone not listed by this Git directory.
-Check registration, recorded branch,
-actual worktree root/symbolic branch, expected common Git directory and the linked gitdir's
-backlink.
+Check the registration, recorded branch, actual worktree root and symbolic branch, expected
+common Git directory and the linked gitdir's backlink.
 An occupied unregistered path, stale/prunable registration, redirected Git identity, nested
 registered checkout or locked worktree blocks removal. Force is allowed for contents, not locks.
 
@@ -147,9 +150,8 @@ health check or proof of agent receipt.
 ### Durable terminal authority
 
 `CleanupReceipts` is an application port. The CLI wires `FileCleanupReceipts` to the separate
-cleanup
-workflow; Git does not know about receipts. `.factory/cleanup-finished.json` contains versioned
-terminal set identities, not progress steps or a general registry. Its scope is the canonical
+cleanup workflow. The Git adapter only handles Git state. `.factory/cleanup-finished.json` stores
+versioned identities for confirmed sets. Each identity includes the canonical
 workspace, configured native backend target, native plan ID and external reference, canonical work
 source, root, branch and worktree path. Native plan IDs are user-wide: the selected project and
 ownership-task ID are validated before disposal, not mutable parts of a finished set's identity.
@@ -224,14 +226,15 @@ edited role guidance with Scott. Reconcile repository/root/origin, actual target
 feature ref and competing ownership. Missing `target_branch` blocks cleanup; never infer it from
 a name or set a placeholder. Older paths outside the owning repository's Factory directory need
 explicit reconciliation, not automatic relocation. Do not clear an identity conflict to make a
-removal pass. No live factory, DinoLand record or old completed mapping was adopted by this work.
+removal pass. Installing Factory does not migrate historical records or prove that any particular
+mapping qualified for disposal.
 
 ## Validation limits
 
 Public watch tests use external native Forgetful/provider fixtures, actual temporary repositories,
 registered worktrees, bare remotes and a disposable SSH transport that runs native upload/receive
 pack. They establish deterministic cleanup, failure isolation and recovery. Native lifecycle suites
-cover plain/managed/status and owned/borrowed boundaries. These checks do not prove Foreman/owner
-compliance, live deployment, deployed revision combinations or E2E evidence interpretation. Those
-trials and live adoption remain separate. Pre-review SQ and the sole completed review do not prove
-the final optimized result; final parent validation/SQ and the disposable backend trial are pending.
+cover plain and managed watch, status and session ownership. After the independent review, final
+checks included SonarQube and an isolated real-CLI trial that cleared three sets. A controlled
+live trial of the agreement, deployment evidence, deployed E2E, failure handling and restart
+remains unverified.

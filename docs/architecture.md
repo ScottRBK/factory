@@ -6,92 +6,43 @@ Implementation decisions and their rationale live in the [ADRs below](#decision-
 
 ## System overview
 
-Factory sets up shared native Pi login, local role resources and native Forgetful CLI access.
-The watcher creates or reuses an issue plan, ownership task and ordinary-issue Git worktree before
-notifying the Foreman. The Foreman's selected roster launches a feature-owner for clarification,
-research and task planning. New plan recovery snapshots use a placeholder body, while live
-notifications retain the full issue. Owner guidance asks it to read the full provider issue before
-plan enrichment; Python does not enforce that read. Human planning belongs in goal/tasks, with
-brief context notes that preserve recovery JSON.
-See the [decision](adrs/issue-planning.md) and [checks](plans/issue-plan-placeholder.md).
-Optional implementation/review workers and owner-led merge guidance
-are implemented and locally validated in [Slice 6](plans/slice-6.md); live delivery is unverified.
-[Slice 7A](adrs/completion-agreement.md) adds confirmed setup agreements at
-`.factory/definition_of_done.md` and agent-guided handoff/completion. The CLI does not interpret
-Markdown or verify delivery evidence. [Completed-plan cleanup](adrs/completed-plan-cleanup.md) now
-runs independently through watch/native Git. Durable per-set receipts, cycle-local full-task reuse,
-fair three-set batches and stop checkpoints are implemented. Review fixes, final SQ and the
-isolated real-CLI cleanup trial are validated; live adoption/model-following/E2E remain deferred.
+Factory coordinates GitHub issues, Forgetful plans/tasks and a configurable agent team. Its core
+workflow is implemented; [current status](plan.md#current-status) records verified revisions,
+installation evidence and remaining validation work.
 
-[GitHub CLI readiness](plans/github-cli-readiness.md) now checks local `--slurp` support before
-watcher connection to Foreman. It rejects incompatible executables without polling or launching
-an agent; this is separate from GitHub authentication. The validation record documents the current
-device's native-test exclusions. The Foreman-memory probe failure was later traced to the
-Factory-only runtime gate; the
-[memory alignment follow-up](plans/foreman-memory.md#runtime-alignment) records its removal.
+- Setup selects repositories, a shared native Pi profile, Forgetful access and agent definitions.
+  Each agent owns its model, effort, resources and child references in `agent.json`.
+- The watcher creates or recovers an issue plan, ownership task and ordinary-issue Git worktree
+  before notifying Foreman. Epics leave repository/worktree selection to the feature-owner.
+  New plan context contains a bounded recovery placeholder; owner guidance requires reading the
+  full issue and comments before enriching the plan. Human requirements belong in goals/tasks.
+- Foreman alone dispatches feature-owners. Owners clarify requirements, plan tasks and coordinate
+  implementation/review workers. Implementation owns PR creation and exact-commit CI fixes;
+  owners verify evidence, arrange independent review and control merge.
+- A confirmed `.factory/definition_of_done.md` records workspace completion requirements.
+  Foreman verifies acceptance and the agreed checks, including deployment/deployed E2E when
+  required, before completing a plan. This is agent-guided verification, not a Python policy
+  engine or deployment service.
+- The watcher independently discovers completed plans and removes their recorded worktrees and
+  local/remote feature refs. Cleanup uses exact ownership/identity checks, fresh selected-plan
+  evidence and durable per-set receipts. Each cycle attempts up to three distinct sets fairly;
+  CLI reads stay serial. The completed state authorizes disposal of dirty files and extra commits.
+- Plain watch owns and closes its Foreman. A managed watcher borrows the persistent setup or
+  standalone Foreman's connection. General attachment to arbitrary terminals remains planned.
+- Foreman's optional extension uses the configured Forgetful server/project for its planning UI
+  and opt-in automatic memory. It has separate authentication from the CLI. Local SQLite planning
+  works through the CLI; CLI-backed/local extension support remains future work.
 
-[Watcher problem alerts](adrs/watcher-problems.md) now pause affected work and notify Foreman rather
-than terminate on planning safety failures. Scott chose user-approved Foreman completion for
-interrupted first-time setup, keeping watcher recovery read-only. The approved stale-issue,
-duplicate-owner and startup/pre-create repository corrections passed their baseline suites.
-The [full SonarQube cleanup](plans/sonarqube-remediation.md) now has zero outstanding findings and
-passes the assigned gate. That baseline passed 471 tests on each supported Python. An
-earlier shutdown timeout remains unexplained; no product fix is claimed. Claude Code accepted the
-code with this limitation, and it is integrated and pushed. The work records retain the evidence.
-Earlier hosted jobs exceeded their 15-minute limit. The [runtime work](plans/ci-test-runtime.md)
-now checks exhaustive malformed replies at approved public boundaries while retaining CLI routing,
-recovery, signals and ownership proofs. Immutable deadline composition supports shorter real expiry
-in tests without changing production defaults. The native SDK's fixed timeout remains unchanged.
-Final local suites pass 511 tests per Python without skips; independent review approves the fixes.
-The latest inspected hosted workflow was cancelled; hosted success remains unverified.
+Planning safety failures pause affected work and alert Foreman. Shared failures can pause intake;
+uncertain writes or delivery require reconciliation, not automatic replay or replacement. Lifecycle
+status separates live observation from saved state. Readiness does not prove model access, message
+receipt, functional health or that an agent followed its instructions.
 
-[Foreman memory integration](adrs/foreman-memory.md) is implemented for internal server use.
-New starter roots select a managed entrypoint; edited roots can keep native CLI planning without
-selecting it. The selected definition's sibling preferences control automatic recall/capture and
-its exact model. Server extension planning remains available with automatic memory off.
-Factory supplies the target/project, while the CLI and extension keep separate authentication.
-The shared-login helper is withdrawn; no credential copying or Forgetful changes are required.
-Local setup retains SQLite/CLI planning and starts no HTTP server. CLI transport and local extension
-support remain deferred. The installer locks Pi's normal dependencies without overrides; managed
-memory adds no private Pi/Undici version gate. Existing environment defaults disable Milo. The
-[alignment follow-up](plans/foreman-memory.md#runtime-alignment) records the decision and checks.
-Existing runtimes were not upgraded. Earlier source approval, 503-test runs per supported Python
-and AgentShell Claude review apply to the prior integration snapshot, not this follow-up.
-Live adoption is separate. The source-URL policy question applies before live memory enablement.
-The panel preference uses bounded reads and owner-only file creation;
-additional protection against concurrent workspace-path replacement was explicitly deferred.
-[Issue-intake guidance](adrs/foreman-issue-intake.md) tells Foreman to read watched labels and
-ask before adding one to a new issue, with explicit watch-all handling. The reviewed-fix snapshot
-passed 491 tests on each supported Python without skips. This is not runtime memory integration,
-live adoption or hosted CI evidence.
-
-[Normalized agent definitions](adrs/agent-definitions.md) now drive the source implementation:
-one-time team provisioning, root launch, watch and standalone Foreman commands pass offline tests.
-The audited extension 1.5.0 bundle passes native SDK loading and no-inference worker probes.
-Independent review of that earlier baseline is accepted; watcher changes have a separate review.
-Audited uv/build-backend 0.13.5 fixes the checksum defect; CI now verifies wheel RECORD entries.
-Package checks and independent upgrade review pass; runtime repair policy remains open. These
-checks do not establish live delivery or model compliance.
-
-Slices 4/5 are implemented and locally validated; see the
-[validation record](plans/slices-4-5.md). Earlier setup results remain in
-[CLI onboarding](plans/cli-onboarding.md). The [Slice 3 plan](plans/slice-3.md) retains historical
-MCP/separate-profile evidence. Assisted init now has a persistent setup Foreman and owner-managed
-watcher controls; validation is recorded in [agent onboarding](plans/agent-onboarding.md). Plain
-watch retains its owned-session cleanup. General terminal discovery remains [Slice 8](plan.md).
-
-[Watcher status](adrs/watch-status.md) now adds observation inside plain watch without changing
-session ownership. A private per-run discovery record locates a bounded read-only Unix endpoint;
-managed status retains its owner query. Source, live versus saved evidence, process presence and
-lifecycle phase remain separate; functional health is explicitly unchecked. Missing discovery does
-not prove older watchers absent. All nine approved review corrections pass 39 focused tests on each
-Python, including historical clean-stop reporting and optional observation startup. A private copy
-adapting only native tmux discovery passes all 48 lifecycle cases on each Python. Broader runs
-retain the known baseline guidance failure. An intermittent 3.13 shutdown timeout did not recur in
-five targeted repeats or the sequential full rerun; its cause remains unproved. Fresh parent SQ
-passes the assigned gate with zero unresolved issues on the frozen source. No full-suite GREEN
-or coverage claim is made; earlier SQ success covers its historical source only.
-See [the status work record](plans/watch-status.md) for exact evidence and validation limits.
+Starter definitions disable automatic personal/project resource discovery and home `SYSTEM.md`,
+but still share native Pi settings and may load other native instructions. This is not a sandbox.
+The memory capture/source-URL policy and accepted filesystem path-replacement limitation are
+recorded in the [memory ADR](adrs/foreman-memory.md). Historical test counts, reviews and scans
+belong to their work records; they are not current architecture guarantees.
 
 The factory uses hexagonal architecture: workflows depend on contracts, while adapters implement
 those contracts for external systems. GitHub is the current provider, not the domain model.

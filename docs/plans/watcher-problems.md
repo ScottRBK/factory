@@ -1,7 +1,8 @@
 # Watcher problem alerts
 
-Status: watcher follow-up implemented; later SQ refactors and final review are tracked separately.
-The [SQ cleanup](sonarqube-remediation.md) records current combined validation and remaining gates.
+This record covers the watcher alert changes and the scan that found 38 issues. The subsequent
+[SQ cleanup](sonarqube-remediation.md) cleared the findings and records the final review.
+For later validation, see the [current status](../plan.md#current-status).
 [Decision and boundaries](../adrs/watcher-problems.md).
 
 ## Approved scope
@@ -35,7 +36,7 @@ calls, personal credentials or backend mutations are required. Follow test-first
 7. Run focused and full offline regression suites, architecture/lint/package checks and independent
    review. Regenerate the detailed map after the code settles.
 
-## Evidence so far
+## Implementation and validation evidence
 
 Baseline: Factory `1e294fa619e64ff3b1e67429f59c384caf6b50c9`, clean before this change.
 Source hashes and protected Design questions were captured before edits.
@@ -205,10 +206,10 @@ Source hashes and protected Design questions were captured before edits.
   imported. Evidence is in `sonar-followup`, including gate/issue results and scope triage.
 - Current offline packages pass 72 wheel digests, exact matching of 69 source/resource files and
   48 test files, safe/unique archive checks and five extracted-wheel help commands. No installation.
-- SonarQube remediation and renewed review acceptance remain gates. Scott subsequently approved
+- SonarQube remediation and renewed review acceptance were still pending at handoff. Scott approved
   [fixing all outstanding findings](sonarqube-remediation.md), including the previously protected
   Factory integration code, with separate Pi worktrees and Claude Code review. Behavioral safety
   remains required; the source-byte freeze no longer prevents those approved refactors.
 
 Transient logs and review material live under `/tmp/factory-watcher-alerts-hpVnTr`, not in the repo.
-Only durable architecture and progress records belong here. No commit or push is part of this task.
+Commits and pushes were outside this watcher phase.

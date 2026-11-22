@@ -62,7 +62,8 @@ selected 575 tests: 571 passed, one existing guidance assertion failed, and thre
 63 exclusions remain explicit in `/tmp/factory-issue-change-parent/exclusions.txt`; this is not a
 full-suite pass. The failure at `tests/test_review_regressions.py:396` expects `auto_approve false`
 without an equals sign; the unchanged guidance contains `auto_approve=false` for research/review
-and `auto_approve=true` for implementation. It was not altered as part of this fix.
+and `auto_approve=true` for implementation. Commit `b7e5f33` later corrected that assertion.
+For subsequent hosted runs, see the [current status](../plan.md#current-status).
 
 The five native role/worker tests also passed with the already-installed Pi 1.5.0 SDK, including the
 loopback listener blocked in the worker sandbox. Ruff and `git diff --check` passed. Logs and the

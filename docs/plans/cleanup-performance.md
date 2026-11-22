@@ -1,9 +1,13 @@
 # Factory-only completed cleanup performance
 
-Status: implemented and locally validated after the sole independent Opus review. Final SQ has
-zero findings; the isolated unchanged-CLI/backend trial passed. Wider tests retain one known
-baseline wording failure. This work made no live DinoLand operation, Forgetful code edit,
-dependency graph/version change, commit or push.
+Status: implemented, reviewed and validated locally and through an isolated unchanged-CLI trial.
+Commit `337d02c` was subsequently installed in DinoLand and its watcher/owned Foreman restarted
+with approval. See [installation evidence](#dinoland-installation-and-restart) and
+[current status](../plan.md#current-status). The baseline assertion failure recorded below was
+corrected by `b7e5f33`; original test/scan results retain their exact scope.
+
+The implementation and validation sections are historical records of the pre-install phase.
+Their no-commit/no-push/no-live-operation limits describe that phase, not the later rollout.
 See the [decision](../adrs/completed-plan-cleanup.md) and [architecture](../architecture.md).
 
 ## Approved scope and implementation
@@ -473,3 +477,30 @@ Owned temporary roots are `/tmp/factory-cleanup-perf.XJ5htJ`,
 Earlier paths and commands above describe historical evidence locations; raw artifacts are gone.
 No test branch or worktree was created in the actual Factory repository. This work did not modify
 Forgetful's source, stop/restart DinoLand, install this candidate there, commit or push.
+
+## DinoLand installation and restart
+
+After the source validation above, Scott authorized commit, push, installation and startup.
+The cleanup work and previously approved role guidance were committed as
+`337d02ce040f91984d2964b06cecfa1df64852e2` and pushed to `main`.
+
+- Built offline through PEP 517 with pinned, hash-checked `uv_build` 0.13.5. AgentShell remained
+  0.5.0; no dependency upgrade or lockfile change was required.
+- Wheel SHA256: `7ec80c551722dd2a714a09c1aa38f4a0d99d116a3b0bd80405b6b5c706780043`.
+  All 82 wheel checksums and 79 packaged source/resource files were verified. Installed Factory
+  and AgentShell RECORD checks covered 87 and 51 files respectively.
+- Seventeen cleanup/performance/scheduling/notification tests passed against the installed package.
+  All 16 checked DinoLand settings, DoD and role files were preserved. Installation alone did not
+  replace the old running processes.
+- After separate restart confirmation, one SIGINT stopped the identity-checked old watcher.
+  Exit, owned Foreman closure and `watcher_cleanup_finished` were confirmed before replacement.
+- New watcher run `81de0938c48e49bab2521e0bb27bb797` reported live/present/watching with Foreman
+  ready. The observed process used the new installed interpreter. Forgetful planning access was
+  checked; the actual Foreman window was linked into the user's tmux session.
+
+These observations establish this installation and startup, not current process liveness, model
+compliance or a full deployment/E2E trial. The existing earlier-save warning was not repaired or
+manually replayed. There was no automatic profile migration or generic runtime-repair feature.
+The installation evidence was retained at `/tmp/ffi.lErTWo/result.md`; the facts above remain useful
+if that temporary path is later removed. Later hosted results are in the
+[CI record](ci-test-runtime.md#current-hosted-results).

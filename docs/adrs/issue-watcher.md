@@ -1,10 +1,9 @@
 # Issue polling and Foreman connection
 
-Status: owned-Pi watching and managed watcher controls remain. Current Factory source reads
-[normalized agent definitions](agent-definitions.md) through audited extension 1.5.0. Native SDK
-probes and both full Python suites pass without inference. Runtime repair policy and final checks
-remain open. Slice 4 planning/recovery and earlier lifecycle evidence remain historical; see
-[current release limits](../../README.md#status).
+Plain watch owns the Foreman it launches. A managed watcher borrows its persistent Foreman's
+connection. Factory reads the root [agent definition](agent-definitions.md) at launch, and the
+audited extension resolves its child roster. Arbitrary terminal attachment remains future work.
+See [current validation](../plan.md#current-status).
 
 Back to [architecture](../architecture.md). Scope and evidence: [slice 2](../plans/slice-2.md).
 
@@ -29,9 +28,9 @@ additional bounded identity probe detects a replaced pane even while idle. A liv
 revalidated process handle observes original pane-worker exit even when tmux queries fail. Failed
 queries alone preserve uncertain ownership; they do not authorize closing a still-running Pi.
 
-This existing-Foreman integration connects to the persistent owner's held session, not directly to
-an arbitrary pane. AgentShell 0.5.0 already supplies `attach_interactive()` and `TmuxTarget`
-for that later expansion; [#25][attachment-issue] remains open. Connecting a watcher does not change
+The watcher connects to the persistent owner's held session. AgentShell 0.5.0 supplies
+`attach_interactive()` and `TmuxTarget` for possible wider attachment, discussed in
+[#25][attachment-issue]. Connecting a watcher does not change
 running resources or prove receipt. No custom notification queue is introduced.
 
 Watcher composition first asks the GitHub adapter to check local CLI pagination support through
@@ -195,7 +194,7 @@ those tests from native local Forgetful and no-inference Pi checks.
 
 The earlier onboarding availability check used the [0.5.0 release][attachment-release] and installed
 public API. The [onboarding record](../plans/agent-onboarding.md) distinguishes isolated lifecycle
-and reload tests from unperformed live autonomous-agent trials.
+and reload tests from the model behaviour those tests could not observe.
 
 [attachment-release]: https://github.com/ScottRBK/agent-shell/releases/tag/v0.5.0
 

@@ -1,20 +1,19 @@
 # Watch status lifecycle correction
 
-Final implementation: all nine approved findings implemented and validated with recorded limits.
-Source remains frozen on `caec97...`; focused tests and fresh actual parent SQ pass. Broader tests
-retain the baseline phrase failure, OS skips and one unreproduced intermittent 3.13 shutdown.
-Parent verified the final source manifest and SQ result before the authorized commit and push.
-No policy holds, full-suite GREEN, deployment or coverage claim. Earlier results remain historical.
+The parent verified all nine lifecycle corrections against the `caec97...` source manifest before
+the authorized commit and push. Focused tests and SonarQube passed. The broader runs below record
+a wording assertion failure, OS skips and one unreproduced Python 3.13 shutdown timeout. These runs
+did not measure coverage or test deployment. Commit `b7e5f33` later corrected the assertion.
+See the [current status](../plan.md#current-status) for hosted CI.
 
 ## Scope and constraints
 
 Scott approved lifecycle-only status for both plain and managed watch, through public CLI tests
 and external-command/AgentShell boundary doubles. Preserve owned versus borrowed cleanup,
 managed-only stop and delivery/replacement safeguards. Health stays explicitly unverified.
-No live DinoLand interaction, dependency installation, commit, push or reviewer dispatch is part
-of this implementation. The parent owns the authorized actual SQ scans; this implementation agent
-does not scan or change scanner settings. `FACTORY.md` and the separate `plans/slice-7.md` work
-are preserved.
+The implementation agent's scope excluded live DinoLand interaction, installation, commits, pushes
+and reviewer dispatch. The parent ran the authorized SQ scans. The agent preserved scanner
+settings, `FACTORY.md` and the separate `plans/slice-7.md` work.
 
 Design: [watcher lifecycle observation](../adrs/watch-status.md).
 

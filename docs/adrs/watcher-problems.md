@@ -1,7 +1,10 @@
 # Watcher problems and Foreman escalation
 
-Status: approved follow-up implemented and revalidated; SonarQube triage and Opus review remain.
-Back to [architecture](../architecture.md). [Work and evidence](../plans/watcher-problems.md).
+The watcher pauses affected work and alerts Foreman. Two Opus reviews identified recovery gaps.
+The [watcher record](../plans/watcher-problems.md) describes the fixes. After the SonarQube work,
+Claude Code accepted the changes with the historical shutdown timeout still unexplained.
+See the [final review](../plans/sonarqube-remediation.md#final-review-and-local-integration)
+and [current validation](../plan.md#current-status).
 
 ## Decision
 
@@ -11,10 +14,9 @@ isolated. A shared planning problem pauses the affected factory operations while
 Foreman remain available. This refines the earlier fail-stop scaffold rule in
 [issue polling](issue-watcher.md) and [issue planning](issue-planning.md).
 
-No recorded worktree is silently recreated, reset, pruned or discarded. The watcher does not repair
-Forgetful records, change task states, cancel owners or launch replacements in response to errors.
-The existing plan-to-many-worktree relationship is unchanged. DinoLand's records are not part of
-this code change.
+Planning recovery preserves recorded worktrees. An alert never authorizes recreating, resetting,
+pruning or discarding them. The watcher does not repair Forgetful records, change task states,
+cancel owners or launch replacements in response to errors. A plan can cover several worktrees.
 
 ## Classification and reporting
 
@@ -109,8 +111,8 @@ No automatic repair, new reset flag or new authorization ledger is introduced.
 
 ## Implemented follow-up after the second review
 
-Scott approved three corrections after the second Opus review. They are implemented and covered
-by the current 465-test suites, not the earlier 446-test snapshot:
+Scott approved three corrections after the second Opus review. The watcher applies them during
+intake and recovery.
 
 - A retained pre-write lookup may discover saved work even after its issue closes. If it finds no
   plan, fresh creation additionally requires the issue to appear in the current successful poll

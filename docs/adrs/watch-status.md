@@ -1,11 +1,8 @@
 # Watcher lifecycle observation
 
-Status: all nine approved recommendations implemented and validated with the limits below.
-Focused tests pass on each Python; fresh parent SQ passes on the frozen source. Broader tests
-retain a baseline failure and an intermittent 3.13 shutdown timeout whose cause remains unproved.
-No full-suite GREEN, imported coverage or deployment validation is claimed.
-The historical scan identity, corrective TDD, broader limits and evidence are in
-[the work record](../plans/watch-status.md).
+Both watcher modes support read-only lifecycle status. Saved observations remain historical and
+functional health is unchecked. The [status work record](../plans/watch-status.md) covers all nine
+review corrections. See [current validation](../plan.md#current-status).
 Back to [architecture](../architecture.md).
 
 ## Decision
@@ -92,30 +89,17 @@ the endpoint closes. Completed cleanup calls are historical evidence, not curren
 
 ## Validation limits
 
-The current corrective candidate passes 39 focused tests on each supported Python. Peer-identity
-coverage is proved by real GREEN and guard-disabled private-copy RED; the guard remains unchanged.
-Canonical broader selections pass 498 of 502 tests per Python, with three OS skips and the baseline
-guidance failure reproduced on unchanged HEAD. The 48 native cases are explicitly excluded there
-because the fixture searches `/usr/bin:/bin` for tmux on this Nix host.
+The status review exercised the public CLI with temporary factories, external commands and
+AgentShell doubles. The peer-identity regression passed with the guard enabled and failed when
+the guard was disabled in a private copy. The Nix host's tmux lived outside the fixture's
+`/usr/bin:/bin` search path. With only that fixture path adapted, the native cases passed on both
+Python versions. SonarQube passed the assigned gate for that source without imported coverage.
 
-Private full-test copies adapt only that fixture search path; all assertions are unchanged. All 48
-native cases pass on each Python. Python 3.12 runs 550 cases: 546 passes, three skips and the same
-baseline failure. The first parallel Python 3.13 run has 545 passes, three skips, the baseline
-failure and one unexpected shutdown timeout. Five targeted repeats pass; a sequential full rerun
-has 546 passes, three skips and only the baseline failure. The original timeout trace is consistent
-with SIGINT inside `Popen.__del__`; observer timing involvement and baseline causality are unproved.
-The original failure is retained as intermittent evidence, not a resolved defect. No additional
-functional defect in this status scope is known.
-
-Fresh actual parent SQ passes `Sonar way sans code coverage` on manifest `caec97...`, with zero
-unresolved issues and zero duplication. No coverage is imported: coverage/new coverage are 0.0,
-and separate `caycStatus` remains non-compliant. Earlier `4d777...` SQ and focused evidence cover
-historical source only. The work record identifies exact analyses, manifests and logs.
-
-Public CLI tests use temporary factories, external commands and AgentShell boundary doubles. No
-live DinoLand processes, terminals or configuration are inspected or changed. Test execution that
-needs Unix sockets is delegated to the parent's permitted environment because the implementation
-sandbox rejects socket bind. No dependency or SDK upgrade is needed.
+The broader runs exposed an obsolete assertion about approval guidance. Commit `b7e5f33`
+corrected the assertion, and the push CI for `454c210` passed on both supported Python versions.
+A separate intermittent shutdown timeout occurred in the parallel Python 3.13 run. Its trace
+was consistent with SIGINT inside `Popen.__del__`. Five targeted repeats and a sequential full
+rerun did not reproduce it. Its cause remains unknown.
 
 Context7's CLI and MCP were unavailable; its anonymous public search returned the unrelated
 xenodium Emacs package for the ScottRBK AgentShell query. The existing pinned
@@ -137,8 +121,8 @@ started observer resources must close, original watcher results/diagnostics must
 newer discovery must not be replaced. Partial startup closes its listener and any started thread,
 then attempts identity-checked history. Constructor failure has no created listener to close.
 The optional context does not catch actual watcher/application errors; observer teardown failure
-also preserves their result. Parent confirmed five public regressions RED before implementation;
-all five pass in the 39-test focused runs on each Python, and native validation is described above.
+also preserves their result. Five public regression tests failed before the corrections and passed
+afterward on both supported Python versions.
 Real filesystem faults cover a 0755 directory refusal before listener creation and a 0500
 publication failure after bind. Direct `/proc` identity-read, bind or thread-start fault injection
 is not covered; the constructor and entry code are inside the optional boundary. This is not

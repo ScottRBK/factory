@@ -1,7 +1,7 @@
 # Issue planning and feature ownership
 
-Status: Slices 4 and 5 implemented; local validation and independent review passed.
-Back to [architecture](../architecture.md). [Validation](../plans/slices-4-5.md).
+The [Slices 4 and 5 record](../plans/slices-4-5.md) covers the original planning and recovery
+checks. See [current validation](../plan.md#current-status) and [architecture](../architecture.md).
 
 ## Responsibilities
 
@@ -74,8 +74,7 @@ Factory uses existing Forgetful text fields for a small JSON record:
   long issues; no body prefix or other truncated text is stored.
 - Ownership task `description`: `kind="factory-ownership"`, `workspace`, `external_ref` and
   `worktrees`. Each mapping contains `repository`, `local_dir`, `branch` and absolute `path`. New
-  mappings
-  also record `target_branch`; completed-plan disposal requires this reviewed target.
+  mappings also record `target_branch`. Completed-plan disposal requires this reviewed target.
   Historical owner cleanup can carry per-mapping `cleanup` metadata; see below.
 - Ownership task `assigned_agent`: the owner's real native Pi session ID, set by `claim_task`.
 
@@ -149,25 +148,22 @@ extension is required.
 The Git adapter checks origin, registered path, branch and common Git directory. Initial intake can
 reuse an existing matching registration; saved incomplete plans require approved Foreman completion.
 A missing or mismatched recorded worktree blocks its plan and alerts Foreman, without stopping
-unrelated plans or the watcher. It is never silently recreated. New generated worktrees live under
-each repository's
-`.factory/worktrees/`, ignored by Git. Uncommitted changes in the original working copy are not
-copied into a new tree.
+unrelated plans or the watcher. It is never silently recreated. New worktrees live under the
+owning repository's `.factory/worktrees/`. Factory writes a local ignore file if one is missing.
+Git leaves uncommitted changes in the original working copy.
 
 Slice 6 added an optional cleanup record for safely removed, merged worktrees. This remains a
 historical recovery contract; new 7A roles retain resources and do not perform those removals. The
-owner saves the
-canonical matching GitHub PR URL, full merge SHA and `pending` intent before removal; it records
-`removed` only after confirming path and registration absence. On restart, only a valid `removed`
-record permits absence. The adapter checks the origin and refuses occupied paths, symlinks or
-remaining registrations. Missing unmarked or pending work remains blocked for reconciliation.
+earlier guidance told the owner to save the canonical matching GitHub PR URL, full merge SHA and
+`pending` intent before removal, then record `removed` after confirming path and registration
+absence. On restart, only a valid `removed` record permits absence. The adapter checks the origin
+and refuses occupied paths, symlinks or remaining registrations. Missing unmarked or pending work
+remains blocked for reconciliation.
 
-This open-plan recovery path does not delete worktrees or verify GitHub merge evidence.
-The separate completed-plan workflow removes validated resources only after native completion. It
-preserves the reported
-cleanup metadata in the notification so the Foreman can inspect unfinished post-merge work without
-launching into a removed tree. The
-[cleanup record](feature-delivery.md#worktree-cleanup-and-restart) describes these checks.
+Open-plan recovery preserves cleanup metadata in the notification so Foreman can inspect unfinished
+post-merge work without launching into a removed tree. The watcher makes read-only Git checks
+during recovery. A separate workflow removes validated resources only after native plan completion.
+See the [cleanup record](feature-delivery.md#worktree-cleanup-and-restart).
 
 ## Updates and restart
 
@@ -175,10 +171,11 @@ While running, the watcher remembers submitted issue revisions, so edits can pro
 notification using the same plan/task/worktree IDs. Terminal submission is the acknowledgement;
 there is no durable agent-receipt record or custom message queue.
 
-At restart, draft/active Factory plans for the configured repositories are recovered first,
-including plans whose issues are closed. They are sent again to the new Foreman. `--new-only`
-still forwards changes to recovered work, while baselining unrelated open matches. Duplicate
-notifications after restart are expected; the Foreman must inspect current ownership before acting.
+At restart, after completed-plan discovery, the watcher recovers draft and active Factory plans
+for the configured repositories, including plans whose issues are closed. It sends them to the
+connected Foreman before fresh issue intake. With `--new-only`, changes to recovered work still
+reach Foreman while unrelated open matches form the baseline. Restart can repeat notifications,
+so Foreman must inspect current ownership before acting.
 
 [Problem alerts](watcher-problems.md) are independent of successful issue submissions. Blocked
 records are re-read by their known identities, including closed issues absent from GitHub polling.
