@@ -69,10 +69,28 @@ Evidence is local to this host; hosted CI has not run for this branch.
   searched only `/usr/bin:/bin`. Those runs used a scratch copy with only that search path
   changed. After the rebase onto `test/parallel-runner`, fixtures find tmux on `PATH`.
 
+## First use: pi-forgetful refresh
+
+Scott asked for upstream `pi-forgetful` at `45a0b79`, which includes the compaction fix
+`b4630a8`. The source record, patch rebuild, conflicts and audit are in
+[ROLE-SOURCES.md][refresh].
+
+- 8 of 40 `pi-forgetful` files changed; no file was added or dropped, so the deferred
+  removal was not needed. Other bundle members are byte-identical.
+- Full parallel suite on the rebuilt bundle: 647 passed, 9 skipped. The previous-release
+  fixture test still passes, because its hash stays in the history.
+- One-off lifecycle check (not committed): a factory with the previous release's 40
+  `pi-forgetful` files refused Foreman, `update` replaced 8 files with agent files unchanged,
+  and Foreman then started.
+- Read-only `update --dry-run` on DinoLand and dark-business: 8 to replace, 0 to add,
+  0 edited.
+
 ## Not done
 
 - Hosted CI for the exact commit.
-- A live update of DinoLand or another real factory.
+- A live update of DinoLand or another real factory; Scott runs these.
 - Removal of dropped files (deferred by decision).
 
 [issue]: https://github.com/ScottRBK/factory/issues/4
+[refresh]:
+  ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-22-pi-forgetful-refresh

@@ -72,10 +72,12 @@
     "1662fe96c62fe5472e9ea932897e2ee645eba10fe476dfc4e3afbee48619ddcb"
   ],
   "pi-forgetful/src/adapters/pi/planning.ts": [
-    "61d7c913b306b661ea778de49c4969e3757cf71b18adbeed1e1f395d9365e5fe"
+    "61d7c913b306b661ea778de49c4969e3757cf71b18adbeed1e1f395d9365e5fe",
+    "a51cb2da72c28840f5f2c6f1b48e0f6304000cbd38898a8d3a44beeea3bd02d9"
   ],
   "pi-forgetful/src/application/planning.ts": [
-    "57946e4d6e20d89c8eedc1d13a57790e50d99ac99456311479bf77c4bf458f49"
+    "57946e4d6e20d89c8eedc1d13a57790e50d99ac99456311479bf77c4bf458f49",
+    "4ef9d6a57e893b96d9c37b7d800f21215dc7bb6444a90262514fd45125f5e36c"
   ],
   "pi-forgetful/src/application/ports/planning.ts": [
     "eb5583730264dfa17d961155b7c831656f4faf8908fbd1b49fb2395d84e850a7"
@@ -97,13 +99,15 @@
     "d63a00681ad2a7b9182ed6d0e749b00db80dd66af3c299393a39f666788b00ac"
   ],
   "pi-forgetful/src/capture.ts": [
-    "898cddde28518bb61fefdda1628dd5597d3543e88a810fe209e57d9780021e8a"
+    "898cddde28518bb61fefdda1628dd5597d3543e88a810fe209e57d9780021e8a",
+    "e54406138197e8dc7c51e2b44cc00663a37a24c56ae9c08be1d8d1f6d10302ee"
   ],
   "pi-forgetful/src/concurrency.ts": [
     "42a31beb15c5d7933336cacdf520f293fb9f5a50f0d0e139294e19dd1df93272"
   ],
   "pi-forgetful/src/config.ts": [
-    "972b3c61a7a257c0d21e706d8cacba327d6483ec3208f536797717900f2dda3f"
+    "972b3c61a7a257c0d21e706d8cacba327d6483ec3208f536797717900f2dda3f",
+    "48cc93599a367e05154cf2984960e0c7f3c72ffbb6c5d16abe8920fe2ca8807b"
   ],
   "pi-forgetful/src/contracts.ts": [
     "a4238b5fc636dbc0878ef302da33f14b6257a673841711b043a728714471576e"
@@ -112,7 +116,8 @@
     "11dc5132be38224bf1f72a8de4c8302f90f35d36bd0c8fd32382428312a8769e"
   ],
   "pi-forgetful/src/extension.ts": [
-    "52f0aefa65217b91cd0009139c3887237531bea2b4403a3f11e525bb26827c7e"
+    "52f0aefa65217b91cd0009139c3887237531bea2b4403a3f11e525bb26827c7e",
+    "139c0e70532f8aa7139d53dda6cf51934cea1b5c54ab5feaa5649bbfd16a28dc"
   ],
   "pi-forgetful/src/foreground-tools.ts": [
     "fdeaeb8c15166a7e2ae072527c8eaff956fcc83031a2040935f1af0ddea9905c"
@@ -133,16 +138,19 @@
     "36fc32c5b9f6425c25c47939fc046f507ec6d5ff1461f49a1f678e0bf371d36a"
   ],
   "pi-forgetful/src/logging.ts": [
-    "3a2f26018572ead8417fd8c7b90803ed52b67879163868368c8f2a289f049232"
+    "3a2f26018572ead8417fd8c7b90803ed52b67879163868368c8f2a289f049232",
+    "50be627a591f168d6bc72b70547152ebdb8b0b80a37692f3f1d2269c55481c1d"
   ],
   "pi-forgetful/src/memory-context.ts": [
     "0b54f6a744cfb7d3fb60bbc9ca73207ea9e760716a7c3c81d6025ea9179e967b"
   ],
   "pi-forgetful/src/model-context.ts": [
-    "7225d966ef227edee928bb7036198620118fec9e2ad8438a843d740b9698d659"
+    "7225d966ef227edee928bb7036198620118fec9e2ad8438a843d740b9698d659",
+    "a9447bf3aa98f55ca325aad09f4341208287f1fc4f8c460392f80910215ec02f"
   ],
   "pi-forgetful/src/model.ts": [
-    "d86c4ab9b8d08c6aac83fcded8889d2a7641576e9caf814662335c2a1648bdf5"
+    "d86c4ab9b8d08c6aac83fcded8889d2a7641576e9caf814662335c2a1648bdf5",
+    "61f2bc9ecfae78a2d78d2a81e1b98483f5e38abd9a606482b16c3d512ed14ba2"
   ],
   "pi-forgetful/src/policies.ts": [
     "1f5344fa6688054ac42313a57894024f8579b9a0df497fa9ba7a154a5a8a9a43"

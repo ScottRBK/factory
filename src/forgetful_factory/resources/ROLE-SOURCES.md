@@ -24,8 +24,10 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
-- ScottRBK/pi-forgetful-extension, base `e670a88e5aaedb45132bca05c2c4f1a827c44f3c`, with
-  local patch `965ac4a729d4f9182d499542da8b8e49cc7c6f033b0a8e24a6e9ce0b80670055`.
+- ScottRBK/pi-forgetful-extension, base `45a0b793d94c02df36951d210d9026e0d661b9af`, with
+  local patch `4635923292215233dea361244b262079ad4bdaf6feee97a6ce3be67ace90fe49`. The patch
+  hash is the SHA-256 of `git diff --cached --full-index --binary` in a checkout of the base after
+  copying in the 40 bundled files and running `git add -A`. See the 2026-11-22 refresh below.
   The original 40-file runtime closure was independently approved for inert internal inclusion.
   The runtime-alignment follow-up removes only the Factory-specific host gate from that closure.
   Its new patch hash covers the complete local diff against the same upstream revision. Its managed
@@ -81,6 +83,49 @@ no APT index update. Other platforms and custom executable names require manual 
 
 The factory defaults Pi's fallback binary downloads and Forgetful model downloads to offline/cache
 mode. Local checks need an already provisioned model cache. Review and prepare models separately.
+## Adopting a new bundle
+
+1. Fetch the exact upstream commit; never a moving branch name.
+2. For `pi-forgetful`, rebuild the Factory patch as the diff between the bundled files and the
+   recorded base. Apply it with `git apply --3way`. Resolve conflicts by keeping upstream's code
+   and re-applying Factory behavior: the managed `factory.ts` entry, fixed project, no host gate.
+3. Recompute the runtime import closure from the entry points. Removal of a dropped file is not
+   implemented yet; add it, with a CLI test, before adopting a bundle that drops one.
+4. Review the runtime diff: imports, process launches, network, file writes, environment reads,
+   logging and dependency manifests. Type-check and run upstream tests on the patched tree.
+5. Rebuild the zip (sorted names, deflate, 2026-01-01 timestamps, mode 0600). Update the manifest
+   revision, patch hash and file hashes. Append every new hash to the history file.
+6. Run the full suite and `update --dry-run` against real factories. Record the evidence here.
+
+## 2026-11-22 pi-forgetful refresh
+
+Moved from base `e670a88` to `45a0b79` (five upstream commits). The runtime closure stays at the
+same 40 files; 8 changed: `model-context.ts`, `logging.ts`, `model.ts`, `capture.ts`,
+`config.ts`, `extension.ts` and both `planning.ts` files. `agentshell` and `hide-tools` bytes,
+external imports and `package.json` are unchanged.
+
+- `b4630a8`: private memory tasks always compact when needed. Pi's `compaction.enabled` now
+  controls only the main session. Before, a profile with it off failed every long-session capture.
+- `4cdf632`: debug logging keeps complete events as numbered trace chunks, plus event and task
+  IDs. Rows still pass credential exclusion and sanitizing. The log folder is now created 0700 and
+  files 0600. Logging stays `off` unless a user selects `debug`; Factory does not change it.
+- `d2a04ea`: the default recall model timeout rises from 5 to 15 seconds.
+- `45a0b79`: SonarQube refactor of status and planning code; no new capabilities, imports or
+  process, network or file access.
+- `a0587f7`: tests only.
+
+The old patch hash method was not recorded and its evidence folder no longer exists, so the patch
+was rebuilt from the bundled files against `e670a88`: 10 modified and 3 Factory-only files. Two
+conflicts were resolved by hand. In `extension.ts`, upstream's new `refreshStatusProject` keeps
+Factory's managed-mode skip and `config` argument, and status keeps Factory's managed and fixed
+project text. In `application/planning.ts`, upstream's new `readProject` keeps the fixed project.
+
+Validation: strict `tsc --noEmit`, including `factory.ts`, passes. Upstream's 1356 tests give
+the same result on the patched and plain trees: 987 pass, 0 fail, 369 skipped. That includes the
+new Pi SDK test with auto-compaction off. Factory's native probes pass with the Pi 1.3.0 SDK. The
+Pi 1.4.0 pin was not probed. Read-only `update --dry-run` on DinoLand and dark-business plans 8
+replacements, 0 additions and 0 edited files each. Evidence was in this session's scratch folder.
+
 ## Historical audits
 
 The 2026-10-17 independent extension audit verified release 1.4.0 and worker 0.5.0.
