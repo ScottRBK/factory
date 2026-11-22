@@ -186,7 +186,9 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         control.write_text(json.dumps({'incomplete': 'list_plans'}))
         self.env['PROFILE_PLANNING_CONTROL'] = str(control)
         process = self.start('--new-only')
-        self.wait_until(process, lambda: bool(self.alerts()))
+        # Cleanup alerts before intake reads; wait for both before the reply becomes complete.
+        self.wait_until(process, lambda: {a['code'] for a in self.alerts()} >= {
+            'inventory_read_failed', 'cleanup_inventory_read_failed'})
         self.assertTrue(Path(mapping['path']).exists())
         self.assertTrue(self.branch_exists(mapping, remote=True))
         # Act

@@ -205,8 +205,7 @@ class WatchStatusTests(WatchFixture):
     def test_discovery_replacement_is_preserved_during_status_and_original_exit(self):
         # Arrange: only this fixture's watcher and files can be affected.
         process = self.start('--new-only')
-        self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
-        path = self.workspace / '.factory/runtime/watch/status.json'
+        path = self.wait_for_published_ready(process)
         replacement = json.loads(path.read_text())
         replacement['run_id'] = 'b' * 32
         path.write_text(json.dumps(replacement))

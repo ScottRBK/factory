@@ -242,10 +242,9 @@ class DeepObservationInputTests(WatchFixture):
         self.assertEqual(observed['run_id'], original['run_id'])
 
     def test_maximum_size_deep_discovery_cannot_replace_interrupt_exit_status(self):
-        # Arrange: damage only this test's discovery after its owned session is ready.
+        # Arrange: damage only this test's discovery after its watcher published readiness.
         process = self.start('--new-only')
-        self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
-        path = self.workspace / '.factory/runtime/watch/status.json'
+        path = self.wait_for_published_ready(process)
         path.write_bytes(b'[' * 16384)
 
         # Act

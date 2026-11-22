@@ -480,6 +480,15 @@ class WatchFixture(unittest.TestCase):
             time.sleep(0.02)
         self.fail(f'Watch did not reach expected state; terminal events: {self.events()}')
 
+    def wait_for_published_ready(self, process):
+        # Fake Pi records 'ready' before the watcher publishes readiness to its discovery file.
+        # A test that changes that file must wait for the publication, or the watcher's
+        # read-then-replace can overwrite the change.
+        path = self.workspace / '.factory/runtime/watch/status.json'
+        self.wait_until(process, lambda: path.exists()
+                        and json.loads(path.read_text()).get('phase') == 'watching')
+        return path
+
     def _shutdown_diagnostic(self, process, error):
         self._collect_controller_handles()
         with selectors.DefaultSelector() as selector:
