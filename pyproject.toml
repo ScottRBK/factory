@@ -11,7 +11,12 @@ requires-python = ">=3.12"
 dependencies = ["agent-shell-py==0.5.0"]
 
 [dependency-groups]
-dev = ["ruff==0.17.0", "import-linter==2.15"]
+dev = [
+    "ruff==0.17.0",
+    "import-linter==2.15",
+    "pytest==9.2.0",
+    "pytest-xdist==3.8.0",
+]
 
 [project.scripts]
 forgetful-factory = "forgetful_factory.cli.main:main"
@@ -59,4 +64,11 @@ forbidden_modules = ["forgetful_factory.cli"]
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "E501"]
+select = ["E4", "E7", "E9", "F", "I", "E501", "TID251"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pytest".msg = "pytest is the test runner only; write unittest.TestCase tests."
+
+[tool.pytest]
+testpaths = ["tests"]
+faulthandler_timeout = 120

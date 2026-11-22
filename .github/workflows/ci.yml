@@ -49,6 +49,16 @@ jobs:
       - name: Run tests
         env:
           PYTHONDONTWRITEBYTECODE: "1"
+        # Warn at 450 s (half the job limit), on pass or fail, so growth shows before a cancel.
         run: |
           uv run --locked python -m compileall -q -f --invalidation-mode checked-hash src
-          uv run --locked python -m unittest discover -s tests -v --durations 25
+          start=$SECONDS
+          status=0
+          uv run --locked pytest -n auto --dist worksteal -v --durations=25 || status=$?
+          elapsed=$((SECONDS - start))
+          echo "Tests took ${elapsed}s."
+          if [ "$elapsed" -gt 450 ]; then
+            echo "::warning title=Slow test suite::Tests took ${elapsed}s, over the 450s budget" \
+              "(half the 15-minute job limit). See docs/plans/ci-test-runtime.md."
+          fi
+          exit "$status"

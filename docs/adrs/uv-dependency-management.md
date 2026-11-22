@@ -36,6 +36,30 @@ the native backend and uv executable remain separate artifacts. The independent 
 client DoS and conditional TLS key-share risks. The candidate is not vulnerability-free.
 See the [upgrade record](../plans/uv-build-upgrade.md) for hashes, scope and validation.
 
+## Test runner audit
+
+Checked 2026-11-22 before installation, using PyPI JSON metadata, PyPI provenance and the OSV API.
+These are development-only packages for the [test runner][test-runner]; a wheel install excludes
+them. All wheels are pure Python (`py3-none-any`). None is yanked.
+
+| Package | Version | Released | Provenance (trusted publisher) | OSV |
+| --- | --- | --- | --- | --- |
+| pytest | 9.2.0 | 2026-10-27 | `pytest-dev/pytest` deploy.yml | none |
+| pytest-xdist | 3.8.0 | 2025-07-01 | `pytest-dev/pytest-xdist` deploy.yml | none |
+| execnet | 2.1.2 | 2025-11-12 | `pytest-dev/execnet` deploy.yml | none |
+| pluggy | 1.7.0 | 2026-10-15 | `pytest-dev/pluggy` deploy.yml | none |
+| iniconfig | 2.3.1 | 2026-10-06 | `pytest-dev/iniconfig` test.yml | none |
+| packaging | 26.3 | 2026-08-04 | `pypa/packaging` publish.yml | none |
+| colorama | 0.4.6 | 2022-10-25 | none; Windows-only marker, not installed on Linux | none |
+
+Pygments 2.21.0 was already locked through Import Linter and Rich; it has no provenance
+attestation. Locked wheel hashes match the audited PyPI digests, for example pytest
+`07acdcf88ec174f9…` and pytest-xdist `202ca578cfeb7370…`. Context7's pytest documentation
+confirms `unittest.TestCase` and `subTest` support from 9.0 and the native `[tool.pytest]` table.
+This is a point-in-time check, not a source audit; later releases need a new audit.
+
+[test-runner]: development-checks.md#test-runner
+
 ## Historical migration audit
 
 Checked 2026-10-14, using official PyPI release metadata for `uv==0.13.1` and the OSV API.

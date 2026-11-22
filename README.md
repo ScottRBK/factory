@@ -113,10 +113,11 @@ uv sync --locked
 uv run --locked ruff check src tests
 uv run --locked lint-imports --no-cache
 uv run --locked python -m compileall -q -f --invalidation-mode checked-hash src
-uv run --locked python -m unittest discover -s tests -v --durations 25
+uv run --locked pytest -n auto --dist worksteal -v --durations=25
 ```
 
-CI checks Python 3.12 and 3.13. Lifecycle tests need tmux and use isolated homes with fake agents;
+Tests are `unittest.TestCase` classes; pytest runs them in parallel. CI checks Python 3.12 and
+3.13. Lifecycle tests need tmux on PATH and use isolated homes with fake agents;
 they do not call models or services. See [development checks](docs/adrs/development-checks.md)
 for test boundaries and optional native probes. Audit dependency changes before installing them;
 commit `uv.lock` with reviewed changes to `pyproject.toml`.

@@ -12,13 +12,15 @@ and the import graph in CI without adding development tools to runtime installat
 
 ## Lint and architecture contracts
 
-The `dev` dependency group provides Ruff 0.17.0 and Import Linter 2.15, separate from runtime
-package dependencies. `uv.lock` records exact resolved versions and artifact hashes for local
-and CI installs. See [uv dependency management](uv-dependency-management.md) for the decision
-and tool audit. Updates require another dependency audit.
+The `dev` dependency group provides Ruff 0.17.0, Import Linter 2.15, pytest 9.2.0 and
+pytest-xdist 3.8.0, separate from runtime package dependencies. `uv.lock` records exact resolved
+versions and artifact hashes for local and CI installs. See
+[uv dependency management](uv-dependency-management.md) for the decision and tool audit.
+Updates require another dependency audit.
 
 Ruff checks `src/` and `tests/` for common Python errors, unused imports, import ordering, and
-`E501` with a 100-column limit. Ruff infers Python 3.12 from `requires-python` rather than
+`E501` with a 100-column limit. `TID251` bans `pytest` imports, which keeps tests in `unittest`
+style (see [test runner](#test-runner)). Ruff infers Python 3.12 from `requires-python` rather than
 repeating the setting. Formatting is not required or added.
 Ruff's line-length rule has documented exceptions; it is not a strict Markdown-width validator.
 
@@ -45,7 +47,7 @@ No intentional violations are written into the actual source tree. These repeata
 against later weakening of the configuration, rather than mocking an import-analysis library.
 
 CI installs through `uv sync --locked` and runs Ruff, the real-source architecture check,
-and the full unittest suite through `uv run --locked` on Python 3.12/3.13. CI also runs
+and the full test suite through `uv run --locked` on Python 3.12/3.13. CI also runs
 `uv build` followed by `uv run --locked python tests/check_package.py dist/*.whl` to verify
 wheel RECORD membership, sizes and standard Base64 digests, instead of relying on editable installs.
 CI rebuilds the repository's Python source caches once before testing, using checked-hash
@@ -54,9 +56,30 @@ reuse compiled source; Python checks its content hash before using a cache. This
 production behavior, assertion or deadline. The test-runner environment keeps bytecode writing
 disabled; lifecycle fixtures manage their own child environments. No cache is restored from another
 CI job.
-The existing unittest runner reports the slowest 25 cases, including setup and cleanup. Verbose
-progress remains available when a run stops before its duration summary. Local commands are in
+The runner reports the slowest 25 cases, including setup and cleanup. Local commands are in
 the README. The [quality-checks plan](../plans/quality-checks.md) records the original CI checks.
+
+## Test runner
+
+Tests are `unittest.TestCase` classes. pytest with pytest-xdist is the runner only. It runs the
+same 648 test IDs as `python -m unittest discover`, in parallel worker processes:
+
+```bash
+uv run --locked pytest -n auto --dist worksteal -v --durations=25
+```
+
+- pytest 9 reports each failing `subTest`. It does not support the `load_tests` protocol; do not
+  add it. Fixtures, `parametrize` and marks do not work in `TestCase` classes.
+- Ruff `TID251` bans `pytest` imports. A bare `def test_x(): assert ...` function is not caught;
+  review must reject it. Changing to pytest-style tests needs Scott's agreement.
+- `--dist worksteal` balances test times from 0.01 s to about 12 s. `-n auto` uses one worker per
+  CPU. The suite is CPU-bound (process creation), so more workers than CPUs gain nothing and make
+  short harness timeouts more likely to expire.
+- `[tool.pytest] faulthandler_timeout = 120` prints all thread stacks for a test that runs longer
+  than 120 s. xdist prints a test name only when it finishes, so this is how a hang is found.
+- Each test needs its own temporary workspace, tmux socket, HOME and port 0. Tests may change
+  `os.environ` in-process only because each worker is a separate process.
+- `python -m unittest discover -s tests` still works, but CI no longer guards it.
 
 ## Public testing boundaries
 
@@ -94,17 +117,19 @@ Use TDD at the public boundaries approved by Scott:
   HOME/config/database paths and no-inference probes. No real login or provider requests. These
   validate native wiring and contracts, not an autonomous agent's planning quality.
 
-Do not add tests coupled to private helpers or internal mock calls. Use Python's `unittest`;
-the architecture proof tests additionally invoke the development-only Import Linter command.
+Do not add tests coupled to private helpers or internal mock calls. Write `unittest.TestCase`
+tests (see [test runner](#test-runner)); the architecture proof tests additionally invoke the
+development-only Import Linter command.
 Independently validate the installed package through local `uvx`.
 Live GitHub label validation in Dark Business requires separate confirmation of target repositories.
 
-Lifecycle tests need installed tmux. They run real AgentShell with fake Pi in a private tmux
-server and isolated homes, without service or model calls. To include optional native SDK probes:
+Lifecycle tests need installed tmux on the runner's PATH (for example apt or Nix). They run real
+AgentShell with fake Pi in a private tmux server and isolated homes, without service or model
+calls. To include optional native SDK probes:
 
 ```bash
 NATIVE_PI_SDK=/absolute/pi-coding-agent/dist/index.js \
-  uv run --locked python -m unittest discover -s tests -v --durations 25
+  uv run --locked pytest -n auto --dist worksteal -v --durations=25
 ```
 
 Use an isolated SDK environment, never a personal Pi profile. These probes test native loading
@@ -128,7 +153,10 @@ actual process or session failure, signal handling, ownership, cleanup and uncer
 The three-second threshold identifies cases to investigate; it is not a required test limit.
 Repeated setup may be reused only with complete restoration of files, environment, Git origin,
 external state and logs. Replace race-avoidance sleeps with observable external synchronization,
-not shorter sleeps or production polling changes. Preserve distinct busy-owner and pane-loss tests.
+not shorter sleeps or production polling changes. Wait for the state an assertion depends on,
+not an earlier signal: for example every expected alert, or the watcher's own published
+readiness (`WatchFixture.wait_for_published_ready`) rather than the fake Pi `ready` record.
+Preserve distinct busy-owner and pane-loss tests.
 
 Implementation and measured evidence are in the [runtime plan](../plans/ci-test-runtime.md).
 
@@ -146,10 +174,11 @@ compatible updates. Permissions remain read-only and checkout credentials are no
 Movable tags can change after their release was checked. Historical hosted results are in the
 [slice 1](../plans/slice-1.md), [slice 2](../plans/slice-2.md), and
 [quality-checks](../plans/quality-checks.md) plans.
-The push run for `454c210` passed on both supported Python versions. Its test steps used most of
-the 15-minute job limit. Runtime optimization is paused. The
-[runtime record](../plans/ci-test-runtime.md) preserves earlier job-limit failures, timings and
-changes to the test suite. Production deadlines and process and Git safety checks still apply.
+The job limit is 15 minutes. The test step prints a `::warning::` annotation when tests take
+more than 450 s (half the limit), on pass or fail, so suite growth shows before a cancellation.
+Record hosted test seconds for each slice in the [runtime record](../plans/ci-test-runtime.md),
+which also keeps earlier job-limit failures, timings and changes to the test suite. Production
+deadlines and process and Git safety checks still apply.
 
 ## Local static analysis
 

@@ -55,9 +55,12 @@ DoD or prove that a model followed it. Existing factories are not automatically 
   639 passes and nine skips. Test times were 798.740 and 782.815 seconds respectively.
   This proves that revision's push checks, not PR-event behaviour, deployment or E2E.
 - **CI correction:** `b7e5f33` fixed the obsolete permission-guidance assertion. Its own 3.13 job
-  timed out; the later run above passed. The suite is still slow. Runtime optimization is paused,
-  and the 15-minute job limit is unchanged.
+  timed out; the later run above passed.
   [Details](plans/ci-test-runtime.md#current-hosted-results).
+- **CI job limit:** docs-only commit `1364cbb` (run 45049755719) hit the 15-minute limit on both
+  Pythons while tests still passed. The suite had grown to use most of the limit. The parallel
+  test runner is implemented locally; hosted CI is not yet verified.
+  [Parallel runner](plans/ci-test-runtime.md#parallel-runner).
 - **DinoLand installation:** cleanup revision `337d02c` was installed and its watcher/owned
   Foreman restarted with approval. Package bytes, 17 installed-package tests, preserved settings
   and live startup were checked. This establishes installation and readiness, not a complete
@@ -72,7 +75,7 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 
 - Verify the full live DoD workflow, including required deployment/deployed E2E evidence,
   failure handling and restart recovery. Installation or a successful merge alone is not this proof.
-- Reduce CI runtime without dropping safety coverage. Scott paused the investigation.
+- Verify the parallel test runner on hosted CI for its exact commit, on both Pythons, three runs.
 - Add general selection of an already-running Foreman. The setup-owned connection already works.
 - Revisit CLI-backed Foreman extension calls and local SQLite extension support. Local Factory
   planning already works through the native CLI; the extension currently needs a server.

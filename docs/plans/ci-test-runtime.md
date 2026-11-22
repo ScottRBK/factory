@@ -1,11 +1,107 @@
 # CI test runtime
 
-Status: the earlier runtime refactor is implemented. Hosted push CI now passes on `454c210`, but
-suite runtime remains a concern. Further optimization is paused at Scott's request; the job limit
-remains 15 minutes. No experimental test change from the investigation below was adopted.
+Status: the [parallel runner](#parallel-runner) is implemented and validated locally on branch
+`test/parallel-runner`. Hosted CI for its commit is not yet verified. The job limit remains 15
+minutes. Earlier sections are historical.
 
 Back to [current status](../plan.md#current-status) and
 [development checks](../adrs/development-checks.md).
+
+## Parallel runner
+
+### Cause
+
+- [Run 45049755719][limit-ci] for docs-only `1364cbb` was cancelled at the 15-minute job limit on
+  both Pythons. Tests were still passing at a steady rate: 555 (3.12) and 607 (3.13) were done.
+  There was no hang and no failure.
+- The last green run used 798.740 of the 900 job seconds for tests. The suite grew from 472 to
+  648 tests after the first runtime pass, which used up its saving.
+- Hosted 3.12 timestamps: median 0.84 s per test, p90 2.56 s. 287 tests above 1 s sum to 618 s.
+- The suite is CPU-bound by process creation (CLI, Git, tmux, fake commands). In a local serial
+  run, user plus system time was about 82% of wall time. All tests ran one at a time on 4 vCPUs.
+- Why nothing warned earlier: no check tracked suite runtime. The first signal was the cancel.
+
+### Decision
+
+Agreed with an independent Fable 5.2 review, then approved by Scott:
+
+- pytest 9.2.0 and pytest-xdist 3.8.0 are the runner only. Tests stay `unittest.TestCase`; Ruff
+  `TID251` bans `pytest` imports. See the [test runner ADR][runner] and [audit][audit].
+- CI runs `pytest -n auto --dist worksteal -v --durations=25` with `faulthandler_timeout = 120`.
+- The test step warns at 450 s, on pass or fail. The job limit stays 15 minutes.
+- Rejected: a higher job limit; filename sharding (balance degrades silently); a custom parallel
+  runner (owned code); `--assert=plain` (no bare asserts, no gain); a step timeout (the same hard
+  cancel); `xdist_group` as a flake remedy (it does not reduce CPU contention).
+- Deferred: fixture reuse. If the warning fires, the next lever is fewer processes per test.
+  Parallel gain is capped near the CPU count.
+
+### Fixes found during validation
+
+1. **Local tmux lookup** (`tests/lifecycle_support.py:97-99`). The fixture looked for tmux only
+   in `/usr/bin:/bin`, so all 50 lifecycle tests failed in setup with Nix tmux. It now uses the
+   runner's PATH; the wrapper still calls tmux by absolute path with a private socket. Red: 8 of 8
+   `test_init_launch` tests. Green: all 64 tests in the seven affected modules. CI did not catch
+   this because apt installs tmux in `/usr/bin`.
+2. **Alert race** (`tests/test_completed_cleanup_recovery.py:188-189`). The test waited for any
+   alert, then completed the inventory reply. Cleanup alerts before intake reads, so intake could
+   read the completed reply and never alert. The test now waits for both alerts. At equal load
+   (four copies on one CPU, 32 runs), the old test failed 6 times and the fixed test 0 times.
+3. **Discovery publication race** (`WatchFixture.wait_for_published_ready` in
+   `tests/test_watch.py`; used by `tests/test_watch_status_review.py:244-247` and
+   `tests/test_watch_status.py:205-209`). Fake Pi records `ready` before the watcher publishes
+   readiness. A change written inside the watcher's read-then-replace window was overwritten.
+   Load alone did not reproduce it (0 of 160 runs; 64 used a disk-backed temporary folder). A
+   probe copy that held that window open reproduced the same assertion as the observed failure in
+   3 of 3 runs, and failed the second test in 2 of 2. Both fixed tests pass 6 of 6 under the
+   probe. The window includes an `fsync`, which is slower on a disk than on local tmpfs.
+
+Both races existed before this change. Serial timing hid them; each test synchronized on an
+earlier signal than the state it asserted. The ADR now states that rule.
+
+### Validation
+
+Local full-suite runs, one at a time on a 24-core machine. "4 CPUs" means `taskset -c 0-3`,
+which copies a hosted runner's CPU count but not its speed. Round 2 used the final source.
+
+| Run | Python | CPUs | Workers / dist | Round 1 | Round 2 |
+| --- | --- | --- | --- | --- | --- |
+| CI command | 3.12 | 24 | auto / worksteal | pass, 44 s | pass, 51 s |
+| CI command | 3.13 | 24 | auto / worksteal | pass, 46 s | pass, 47 s |
+| Stress | 3.12 | 4 | 4 / worksteal | pass, 163 s; pass, 158 s | pass, 164 s; pass, 170 s |
+| Stress | 3.13 | 4 | 4 / worksteal | pass, 159 s | pass, 165 s |
+| Stress | 3.12 | 4 | 6 / worksteal | pass, 133 s | pass, 137 s |
+| Stress | 3.13 | 4 | 6 / worksteal | pass, 133 s; pass, 134 s | pass, 146 s; pass, 142 s |
+| Other order | 3.12 | 4 | 4 / load | 2 failed, 160 s | pass, 165 s |
+| Other order | 3.13 | 4 | 4 / load | not run | pass, 174 s |
+| Serial pytest | 3.12 | 24 | 0 | pass, 569 s | not run |
+| `unittest` | 3.12 | 24 | serial | pass, 576 s | pass, 632 s |
+
+Every passing run had 639 passes, 9 skips and 718 passing subtests, the same counts as hosted
+CI. The two round-1 failures are the races fixed above. Six workers on four CPUs were faster
+than four, so the suite also waits, not only computes; CI keeps `-n auto` (one per CPU).
+
+Other checks:
+
+- pytest and unittest collect the same 648 test IDs.
+- Probes in a scratch folder: a failing `subTest` reports `SUBFAILED` and exits 1; a crashed
+  worker fails the run; the `faulthandler_timeout` dump reaches the output under xdist.
+- The CI step script, extracted from the workflow, passes the exit code through and warns on slow
+  passing and failing runs.
+- Ruff and all three import contracts pass. The wheel passes 82 checksums; its only
+  `Requires-Dist` is `agent-shell-py==0.5.0`.
+- No test tmux server or Factory test process remained after any run. Two processes matching the
+  check were Scott's live `dark-business` owner and controller, which were not touched.
+- The Mycelium map was not regenerated. It excludes tests and this change keeps the same calls in
+  the filtered test files. Mycelium 0.4.5 is no longer cached and 0.5.0 is not audited.
+
+### Remaining
+
+- After commit/push approval: hosted CI for the exact commit, both Pythons, three runs. Record
+  hosted test seconds here for each later slice.
+
+[limit-ci]: https://github.com/ScottRBK/factory/actions/runs/45049755719
+[runner]: ../adrs/development-checks.md#test-runner
+[audit]: ../adrs/uv-dependency-management.md#test-runner-audit
 
 ## Current hosted results
 

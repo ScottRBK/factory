@@ -308,7 +308,7 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
-  public testing boundaries, CI, and local static analysis.
+  public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
   reproducible local/CI environments, and the uv tool audit.
 - [Agent profiles](adrs/agent-profiles.md): shared Pi consent, role resources, native Forgetful CLI,
