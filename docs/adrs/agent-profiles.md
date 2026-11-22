@@ -209,7 +209,8 @@ repeated init preserves all file bytes and does not scan, register or reconcile 
 upstream bytes are checked against per-file hashes before copying missing files during provisioning.
 User edits are preserved. Obsolete instructions require explicit reconciliation. Shared resources
 live in `.factory/resources`, separate from agent names. There is no migration framework for
-existing factories, including DinoLand.
+existing factories, including DinoLand. The explicit `update` command replaces only unedited
+bundled role resources; see the [update ADR](role-resource-update.md).
 
 Missing Pi, tmux, Forgetful and the extension worker require installation consent. Existing
 executables are not upgraded. Supported recipes retain frozen dependency metadata, wheel-only

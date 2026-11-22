@@ -104,6 +104,20 @@ its watcher. Stopping a managed watcher leaves Foreman open. Commands and recove
 are in [watcher control](docs/adrs/agent-onboarding.md#operator-commands).
 Use `init --help` or `watch --help` through the same `uvx` invocation for all options.
 
+After you install a newer Factory, update the bundled role resources in `.factory/resources`.
+Stop Foreman, watch and delegated work first. Preview the changes, then apply them:
+
+```bash
+uvx --refresh --from "$wheel" forgetful-factory update --dry-run \
+  --workspace /absolute/path/to/workspace
+uvx --refresh --from "$wheel" forgetful-factory update --delegated-work-stopped \
+  --workspace /absolute/path/to/workspace
+```
+
+The update replaces only unedited files and never changes `.factory/agents/` or `.factory/data/`.
+An edited file stops the update; `--force` backs it up, then replaces it. See the
+[update ADR](docs/adrs/role-resource-update.md).
+
 ## Development
 
 From this checkout:
@@ -131,6 +145,8 @@ commit `uv.lock` with reviewed changes to `pyproject.toml`.
 - [Setup examples](docs/adrs/initialization.md#command-line-setup-example):
   local and server options.
 - [Setup and accounts](docs/adrs/agent-profiles.md): shared Pi profile and Forgetful CLI access.
+- [Role-resource update](docs/adrs/role-resource-update.md): bring bundled extensions up to a newer
+  Factory without losing agent customizations.
 - [Completion agreement](docs/adrs/completion-agreement.md): what must happen before a plan closes.
 - [Planning and recovery](docs/adrs/issue-planning.md): saved ownership and worktree handling.
 - [Foreman planning UI and optional memory](docs/adrs/foreman-memory.md): server-only extension;

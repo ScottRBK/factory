@@ -25,7 +25,7 @@ forgetful-factory = "forgetful_factory.cli.main:main"
 required-version = ">=0.13.5"
 
 [tool.uv.build-backend]
-source-include = ["tests/*.py", "tests/fixtures/*.md"]
+source-include = ["tests/*.py", "tests/fixtures/*.md", "tests/fixtures/*.ts"]
 
 [tool.importlinter]
 root_package = "forgetful_factory"

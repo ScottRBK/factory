@@ -86,6 +86,10 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 
 ### Recent delivered changes
 
+- [Role-resource update](plans/role-resource-update.md) adds `forgetful-factory update` for
+  issue #4. It replaces unedited bundled resources from earlier releases, refuses edited files
+  unless `--force` backs them up, and preserves agent definitions. Hosted CI and a live
+  DinoLand update are not yet verified. Removal of files that a bundle drops is deferred.
 - [Issue and comment notifications](plans/issue-change-notifications.md) ignore timestamp-only
   changes while retaining planning-relevant content and paginated comments.
 - [Watcher observation](plans/watch-status.md) distinguishes live process state, lifecycle phase

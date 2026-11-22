@@ -243,6 +243,14 @@ import or call graph.
 - `foreman` starts the configured root without a watcher; `foreman --attach` enters its existing
   owned terminal. These use the same lease, owner protocol, consent and uncertainty protections as
   assisted setup. They neither discover arbitrary terminals nor replace an uncertain session.
+- `update` brings `.factory/resources` up to the installed bundle. Each file is current, replaced
+  (its hash is an earlier shipped hash in `role-resources-history.json`), added or edited. An
+  edited file stops the whole update unless `--force` backs it up first. All new files are
+  staged before any rename. A real update needs `--delegated-work-stopped`, the workspace lease
+  and a stopped Foreman owner; `--dry-run` only reads. Agent definitions and data are never
+  written. A runtime that no longer matches the AgentShell lock needs `--install-role-runtime`.
+  Removal of files that a bundle drops is deferred. See the
+  [update ADR](adrs/role-resource-update.md).
 - The owner manages at most one watcher child and relays its notifications through the held
   AgentShell session. Borrowed close disconnects only that watcher. Startup events, actual process
   exit and captured terminal identity supply readiness/liveness. A pidfd, pinned to the live pane
@@ -313,6 +321,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   reproducible local/CI environments, and the uv tool audit.
 - [Agent profiles](adrs/agent-profiles.md): shared Pi consent, role resources, native Forgetful CLI,
   installation, child rosters and shared-credential limits.
+- [Role-resource update](adrs/role-resource-update.md): shipped hash history, edited-file refusal
+  and `--force` backups, stopped-factory guards, runtime consent and deferred removal.
 - [Issue planning and feature ownership](adrs/issue-planning.md): plan identity, partial-create
   recovery, native worktrees, revision notifications and owner continuation.
 - [DoD agreement and completion handoff](adrs/completion-agreement.md): plain Markdown setup,
@@ -327,12 +337,12 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 903; init: line 682; project choice: line 467;
-  numbered choices: line 212; worker setup: line 627; completion/skill folders: line 642;
-  optional manual launch: line 707; standalone Foreman: line 377.
-  New-setup orchestration: line 821; memory choices: line 585; REST eligibility: line 620.
+- CLI entry: `cli/main.py`, line 915; init: line 694; project choice: line 479;
+  numbered choices: line 224; worker setup: line 639; completion/skill folders: line 654;
+  optional manual launch: line 719; standalone Foreman: line 389.
+  New-setup orchestration: line 833; memory choices: line 597; REST eligibility: line 632.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
-  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 758 in main.
+  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 770 in main.
   Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
   selected root launch: line 71. Local GitHub capability probe:
   `adapters/github/work_tracking.py`, lines 13, 72, 91 and 107.
@@ -358,11 +368,13 @@ Paths below are relative to `src/forgetful_factory/`:
   Watch-local cancellation: `application/watch_stop.py`; native, delivery and wait checkpoints
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 316;
-  consent persistence: line 194; unselected-memory notice: line 344.
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 311;
+  consent persistence: line 189; unselected-memory notice: line 339.
   `adapters/filesystem/coordinator_profiles.py`, line 29; memory preferences: line 87;
   `adapters/filesystem/worker_profiles.py`, line 15. Starter templates live under `resources/`.
   Profile contract: `application/ports/foreman_profile.py`, line 8.
+  Bundle reads/update: `adapters/filesystem/role_resources.py`, lines 22, 47 and 79;
+  update command: `cli/resource_update.py`, line 22; stale-file check: line 113 in profile.
   Managed Pi readiness: `adapters/host_dependencies.py`, line 59.
 - Transient wizard choices: `application/initial_agent_choices.py`, line 9.
   Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
@@ -377,7 +389,7 @@ Paths below are relative to `src/forgetful_factory/`:
   client: `adapters/agentshell/owner_client.py`, line 110;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 10;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
-- Lifecycle status: `cli/main.py`, lines 302, 333, 365 and 414;
+- Lifecycle status: `cli/main.py`, lines 314, 345, 377 and 426;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
@@ -403,6 +415,8 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_foreman_memory_setup.py` checks opt-in, model choices and preference preservation.
   `tests/test_foreman_issue_intake.py` checks delivered label/consent guidance and preservation.
   `tests/test_factory_maintenance.py` covers selected maintenance guidance and preservation.
+  `tests/test_resource_update.py` updates a previous-release factory with the real bundle, then
+  starts Foreman; it also covers edited refusal, `--force` backups, dry-run and running refusal.
   `tests/test_worker_configuration.py`, `tests/test_worker_profiles.py` and
   `tests/test_worker_setup.py` cover worker setup; `tests/test_cleanup_recovery.py` covers recorded
   cleanup replay. `tests/test_cleanup_boundaries.py` covers malformed markers and real Git/path

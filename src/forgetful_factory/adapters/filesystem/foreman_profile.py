@@ -6,7 +6,6 @@ import re
 import shlex
 import shutil
 import sys
-import zipfile
 from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.agent_definitions import foreman_launch
@@ -19,6 +18,7 @@ from forgetful_factory.adapters.filesystem.resource_files import (
     write_json,
     write_new,
 )
+from forgetful_factory.adapters.filesystem.role_resources import bundled_files
 from forgetful_factory.adapters.filesystem.selected_skills import selected_skill_files
 from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
 from forgetful_factory.adapters.forgetful.connection import (
@@ -90,11 +90,14 @@ class ForemanProfile:
                 and not runtime_ready(managed, (managed / 'forgetful-requirements.txt',),
                                       FORGETFUL_PROBE, self.term_grace)):
             missing.append('forgetful')
-        project = self.bundle_directory / 'agentshell/python'
-        if not runtime_ready(project / '.venv', (project / 'pyproject.toml', project / 'uv.lock'),
-                             ROLE_PROBE, self.term_grace):
+        if not self.role_runtime_ready():
             missing.append('agentshell-runtime')
         return missing
+
+    def role_runtime_ready(self) -> bool:
+        project = self.bundle_directory / 'agentshell/python'
+        return runtime_ready(project / '.venv', (project / 'pyproject.toml', project / 'uv.lock'),
+                             ROLE_PROBE, self.term_grace)
 
     def validate_setup(self, connection: ForgetfulConnection, *,
                        include_home_system_prompt: bool = False,
@@ -117,10 +120,11 @@ class ForemanProfile:
                 check_real_path(path)
                 if (path.is_symlink() or not path.is_file() or
                         hashlib.sha256(path.read_bytes()).hexdigest() != digest):
-                    raise FactoryError(f'Stale or edited role resource: {path}; explicitly '
-                                       'reconcile it with the audited bundle before a restart '
-                                       'with foreman/watch, or init --finalize for incomplete '
-                                       'first setup. Existing files are preserved.')
+                    raise FactoryError(f'Stale or edited role resource: {path}. Existing files '
+                                       'are preserved. Preview with update --dry-run, then '
+                                       'reconcile with the audited bundle through update '
+                                       '--delegated-work-stopped before restarting foreman/watch '
+                                       'or init --finalize.')
 
     def installation(self, command: str) -> str | None:
         return HostDependencies(self.workspace, self.term_grace).description(command)
@@ -129,22 +133,14 @@ class ForemanProfile:
         HostDependencies(self.workspace, self.term_grace).install(command)
 
     def _install_resources(self) -> None:
-        manifest = json.loads((RESOURCES.parent / ROLE_RESOURCES_FILE).read_text())
-        with zipfile.ZipFile(RESOURCES.parent / 'role-resources.zip') as archive:
-            for name, source in manifest.items():
-                for relative, digest in source['files'].items():
-                    member = f'{name}/{relative}'
-                    data = archive.read(member)
-                    if hashlib.sha256(data).hexdigest() != digest:
-                        raise FactoryError('Bundled role resource checksum failed; '
-                                           'reinstall factory.')
-                    path = self.bundle_directory / member
-                    if path.exists() and (path.is_symlink() or
-                            hashlib.sha256(path.read_bytes()).hexdigest() != digest):
-                        raise FactoryError(f'Stale or edited role resource: {path}. Explicitly '
-                                           'reconcile with the audited bundle, or initialize a '
-                                           'fresh factory. User edits are preserved.')
-                    write_new(path, data.decode())
+        for member, data in bundled_files().items():
+            path = self.bundle_directory / member
+            if path.exists() and (path.is_symlink() or path.read_bytes() != data):
+                raise FactoryError(f'Stale or edited role resource: {path}. User edits are '
+                                   'preserved. Preview with update --dry-run, then reconcile '
+                                   'with update --delegated-work-stopped and rerun init.')
+            write_new(path, data.decode())
+
     def uses_browser_login(self, connection: ForgetfulConnection) -> bool:
         return uses_browser_login(connection)
 

@@ -1,0 +1,174 @@
+{
+  "agentshell/LICENSE": [
+    "7e53ef0379f162ea200d90727f78313d1a3b4ecf174b1bbbcc329a52b267709b"
+  ],
+  "agentshell/config.ts": [
+    "a52e3f581e2f717c1371762a9a2371cf419695abbed0e5cab3928a5588f78f37",
+    "bd30fd8a343f2bbc608d00da8c7aa5f42d51815b86fa1682e0d1a4884149e098"
+  ],
+  "agentshell/extensions/agentshell.ts": [
+    "9fb02db3e7aada6aae54af5dbd1a093f7b2c0d107b93e45933b6967142ae6ed7"
+  ],
+  "agentshell/index.ts": [
+    "ae1c12d9b447337ebce71020c5239a1da479a402c52c7a8bd26aa4d4d9bf1c22",
+    "693434561dd3a8806c831696a2277fbaf7adc2ec2b98764ab231d1dad33e6949"
+  ],
+  "agentshell/jobs.ts": [
+    "91dac181d8fc58125d8868b060d9a6b43304db9d9fb60135a047423e0126676a",
+    "84170d036e88b11410ebff6b62d8e2fe3c752f7987ec1b016d1356ff62e24d90"
+  ],
+  "agentshell/limits.ts": [
+    "5435e6161eaeba85f2c44e015e4c5d1107168c487a5cf189de76d3d937ea3f28"
+  ],
+  "agentshell/package.json": [
+    "de53a23bd912b42cb24e8de4ec7edd5bd62c915a7f81214c1c320ce23da33fe2",
+    "9da69f049c32b22bc7b0f0c05be7ba3e53d7ecc4028b5b7037b74a818f311a69"
+  ],
+  "agentshell/python/pyproject.toml": [
+    "959c7a7cd99f91a4ceb626bad2dc277ea95c410d1c360263697c2a3056a55586"
+  ],
+  "agentshell/python/uv.lock": [
+    "e252760aac56ef507efdeaa00502ce89ef5e90b9f9c486b977dfeb4b32eb476e"
+  ],
+  "agentshell/python/worker.py": [
+    "58fc8f45c90876d2a14e3badc102e5de395f9a3d14b10d03efbda2eb4d8b4d7c",
+    "3dd4e8fef5a417e6b477420d189964b68b7f3645d14af6fb04d84e7241d8430c"
+  ],
+  "agentshell/runner.ts": [
+    "f36be9c2962f50484e6dcb96a35774a15b8a1c2aa34da52638fb2d6473c57182",
+    "d2261f2c0f2ee86901d75221e2be9cb2fd0d6e160e3b8a0fad63e5cae04edb09"
+  ],
+  "hide-tools/index.ts": [
+    "fbbd756dcf0c9389ec15d1bc2999f7d1957e5f3bbef17f5fbe6494b288f1f86e"
+  ],
+  "hide-tools/package.json": [
+    "556f39cbc523bc2cf5a0dd34d8f30b6ed572274fb3c2602aa25284412216f6dc"
+  ],
+  "hide-tools/src/preferences.ts": [
+    "af99f4c478de4d2295311c6905648641a5685a349eea265440219b348e8864fe"
+  ],
+  "hide-tools/src/tool-rendering.ts": [
+    "2729786be6d4a7ee46a0a08e5142102a88e62c3f7eed7d47f5a88493bea88953"
+  ],
+  "pi-forgetful/factory.ts": [
+    "ada13a2a638ebeb739cd6f9325cf70d3b29ceec2114014b5e1fc55b521678d2e"
+  ],
+  "pi-forgetful/index.ts": [
+    "2202bfe1be97b9d58f381d712bd7ddbeb21459a4b18280012aebe0fcf3a8acc0"
+  ],
+  "pi-forgetful/package.json": [
+    "ce5a848455cfc78fbb90a73fd8af7c49dfae0d7923d129b94fa0a3d8a97aa467"
+  ],
+  "pi-forgetful/src/activity.ts": [
+    "03fc7546498e337c5de9066f0f01dbaf9d9a15c25ff1925af1e22a577f23e9a7"
+  ],
+  "pi-forgetful/src/adapters/forgetful/planning.ts": [
+    "05ebe557963cefe42513986e44e413fd4e0b323dd6e5e4c4b1f582e7cccb4af7"
+  ],
+  "pi-forgetful/src/adapters/local/bounded-json.ts": [
+    "953f6e75c5754eddacd0e5f648d4746d6d50db72b902c96fb5d33b487552d512"
+  ],
+  "pi-forgetful/src/adapters/local/planning-settings.ts": [
+    "1662fe96c62fe5472e9ea932897e2ee645eba10fe476dfc4e3afbee48619ddcb"
+  ],
+  "pi-forgetful/src/adapters/pi/planning.ts": [
+    "61d7c913b306b661ea778de49c4969e3757cf71b18adbeed1e1f395d9365e5fe"
+  ],
+  "pi-forgetful/src/application/planning.ts": [
+    "57946e4d6e20d89c8eedc1d13a57790e50d99ac99456311479bf77c4bf458f49"
+  ],
+  "pi-forgetful/src/application/ports/planning.ts": [
+    "eb5583730264dfa17d961155b7c831656f4faf8908fbd1b49fb2395d84e850a7"
+  ],
+  "pi-forgetful/src/bootstrap/factory.ts": [
+    "8187b43b8902c8b11d214f371540e48de8caa1884ede6e925aab94ee7814fc22",
+    "0d0fa89a9c93dc0495ddfef7f520b20689a9da2426c22f6ea79058d61d25de03"
+  ],
+  "pi-forgetful/src/bootstrap/planning.ts": [
+    "2b549f1c88672c4dca0cc66c3bd52f350fca1583a9e32b07f32d366836261f88"
+  ],
+  "pi-forgetful/src/capture-feedback.ts": [
+    "58e3cd62630656f385647f44caa0ea7ad53d8ad93f038adf21133bb3987424b0"
+  ],
+  "pi-forgetful/src/capture-links.ts": [
+    "27fe53c18d449d0741ba13862f31d3f550e40a263fc0daaeb6a3c4eff7817c3f"
+  ],
+  "pi-forgetful/src/capture-merge.ts": [
+    "d63a00681ad2a7b9182ed6d0e749b00db80dd66af3c299393a39f666788b00ac"
+  ],
+  "pi-forgetful/src/capture.ts": [
+    "898cddde28518bb61fefdda1628dd5597d3543e88a810fe209e57d9780021e8a"
+  ],
+  "pi-forgetful/src/concurrency.ts": [
+    "42a31beb15c5d7933336cacdf520f293fb9f5a50f0d0e139294e19dd1df93272"
+  ],
+  "pi-forgetful/src/config.ts": [
+    "972b3c61a7a257c0d21e706d8cacba327d6483ec3208f536797717900f2dda3f"
+  ],
+  "pi-forgetful/src/contracts.ts": [
+    "a4238b5fc636dbc0878ef302da33f14b6257a673841711b043a728714471576e"
+  ],
+  "pi-forgetful/src/domain/planning.ts": [
+    "11dc5132be38224bf1f72a8de4c8302f90f35d36bd0c8fd32382428312a8769e"
+  ],
+  "pi-forgetful/src/extension.ts": [
+    "52f0aefa65217b91cd0009139c3887237531bea2b4403a3f11e525bb26827c7e"
+  ],
+  "pi-forgetful/src/foreground-tools.ts": [
+    "fdeaeb8c15166a7e2ae072527c8eaff956fcc83031a2040935f1af0ddea9905c"
+  ],
+  "pi-forgetful/src/http-knowledge.ts": [
+    "8a3764bc1be7314cda4fec89c90cbda1375ee938a83e3fd2d37f0c0a2b068cc4"
+  ],
+  "pi-forgetful/src/http.ts": [
+    "5e0141ba54b3567fdf8ca085d93239a5928391b615ad779de7716ee4ba9ff749"
+  ],
+  "pi-forgetful/src/knowledge-read.ts": [
+    "53401d4976cc8446f0fa6ae747f30e18113ac56242d1ba64d87463e7b7f75fdc"
+  ],
+  "pi-forgetful/src/knowledge-tools.ts": [
+    "8664f04e89e447ec0eb5f80c14a2ad598710271c292dbafabc290db56b22963e"
+  ],
+  "pi-forgetful/src/knowledge-write.ts": [
+    "36fc32c5b9f6425c25c47939fc046f507ec6d5ff1461f49a1f678e0bf371d36a"
+  ],
+  "pi-forgetful/src/logging.ts": [
+    "3a2f26018572ead8417fd8c7b90803ed52b67879163868368c8f2a289f049232"
+  ],
+  "pi-forgetful/src/memory-context.ts": [
+    "0b54f6a744cfb7d3fb60bbc9ca73207ea9e760716a7c3c81d6025ea9179e967b"
+  ],
+  "pi-forgetful/src/model-context.ts": [
+    "7225d966ef227edee928bb7036198620118fec9e2ad8438a843d740b9698d659"
+  ],
+  "pi-forgetful/src/model.ts": [
+    "d86c4ab9b8d08c6aac83fcded8889d2a7641576e9caf814662335c2a1648bdf5"
+  ],
+  "pi-forgetful/src/policies.ts": [
+    "1f5344fa6688054ac42313a57894024f8579b9a0df497fa9ba7a154a5a8a9a43"
+  ],
+  "pi-forgetful/src/privacy.ts": [
+    "d0ef929add648109ddba383c9e463dc2eb7e974def3d2b51e5330025b4aab9da"
+  ],
+  "pi-forgetful/src/project-init.ts": [
+    "2c78b6799f9e9b8e88b6ebf5938f9431257d1720448c8857c3e7a90e603a2d5e"
+  ],
+  "pi-forgetful/src/queue.ts": [
+    "92033757542a729244761424218ec4ec4321a72c37b673d4bed81025f1a4b71b"
+  ],
+  "pi-forgetful/src/recall.ts": [
+    "3d467ce2611ac4f225b2d51eb39ce0ebbe98a4658c2a657e491a9686efe5783e"
+  ],
+  "pi-forgetful/src/repository.ts": [
+    "b98f0a26fdbcff8fbdd68c49b0fbe674a79cc6e6bc89a648782f9452b79336a0"
+  ],
+  "pi-forgetful/src/setup.ts": [
+    "9b30099f75c355d3e468fd065c78d02e06f75acbf46700cc54658908a74dc0c7"
+  ],
+  "pi-forgetful/src/snapshot.ts": [
+    "8ba9c686e922413dbd0789279c51c5194360bff5e85ef2034bdd16379d724346"
+  ],
+  "pi-forgetful/src/source-inspection.ts": [
+    "4f66f535c39786b7026ea31c046f156ad5c68c1fbc79067227e66f054b0614fe"
+  ]
+}

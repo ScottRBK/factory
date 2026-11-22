@@ -23,6 +23,7 @@ from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
 from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
+from forgetful_factory.cli.resource_update import update_resources
 from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.domain.models import FactoryError
 
@@ -121,6 +122,17 @@ def _parse_arguments() -> argparse.Namespace:
     foreman.add_argument('--attach', action='store_true', help='Enter the existing Foreman')
     foreman.add_argument('--agentshell-python', default=sys.executable,
                          help='Installed AgentShell interpreter for Foreman')
+    update = commands.add_parser('update',
+                                 help='Update bundled role resources from this Factory')
+    update.add_argument('--workspace', type=Path, default=Path.cwd())
+    update.add_argument('--delegated-work-stopped', action='store_true',
+                        help='Confirm Foreman, watch and delegated work are stopped')
+    update.add_argument('--dry-run', action='store_true',
+                        help='List the planned change for each file; write nothing')
+    update.add_argument('--force', action='store_true',
+                        help='Back up edited bundled files, then replace them')
+    update.add_argument('--install-role-runtime', action='store_true',
+                        help='Consent to the locked AgentShell runtime installation if needed')
     return parser.parse_args()
 
 
@@ -910,6 +922,8 @@ def main(deadlines: DeadlinePolicy = DeadlinePolicy()) -> int:
             return _watch(args, workspace, deadlines)
         if args.command == 'foreman':
             return _foreman(args, workspace, deadlines)
+        if args.command == 'update':
+            return update_resources(args, workspace, deadlines)
         return _initialise(args, workspace, deadlines)
     except EOFError:
         message = ('For noninteractive watch provide --existing or --new-only.'

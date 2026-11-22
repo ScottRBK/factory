@@ -5,6 +5,12 @@ verifies each file against `role-resources.json`, copies missing files, and pres
 Ordinary repeated init preserves the existing setup without repair or synchronization. The manifest
 records full upstream commits and SHA-256 hashes. No moving URL runs at initialization.
 
+`role-resources-history.json` lists every SHA-256 that Factory has shipped for each bundle path,
+including the current bundle. `forgetful-factory update` uses it to replace unedited files from
+earlier releases. When adopting a new bundle, append each new hash and remove none; update
+refuses to run when a current hash is missing. See the
+[update ADR](../../../docs/adrs/role-resource-update.md).
+
 Reviewed sources:
 
 - ScottRBK/pi-agentshell-extension, commit `5acb6aabfaae7c4d889600f6a5fffbb1c412dc6b`
