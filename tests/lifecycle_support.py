@@ -94,7 +94,9 @@ class LifecycleFixture(InitFixture):
     def setUp(self):
         super().setUp()
         self.owner_descriptors = {}
-        self.tmux = shutil.which('tmux', path='/usr/bin:/bin')
+        # Resolve the host's real tmux from the runner PATH (e.g. Nix profiles), before the
+        # isolated child PATH below; the wrapper written later calls it by absolute path.
+        self.tmux = shutil.which('tmux')
         self.assertIsNotNone(self.tmux, 'Native lifecycle tests need existing tmux')
         self.socket = self.workspace / 'tmux.sock'
         self.env = {key: value for key, value in self.env.items()
