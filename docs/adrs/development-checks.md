@@ -31,9 +31,9 @@ Import Linter's nine contracts in `pyproject.toml` enforce:
 - Adapters cannot depend on CLI.
 - `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
   other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (`agents/`, `forge/`, `planning/`, `runtime/`,
-  `ticketing/`, `workspace/`), imports go down only: adapters, services, ports, model. It is
-  exhaustive, so a module outside those layers fails.
+- `inside-each-area`: inside a context (`agents/`, `channels/`, `forge/`, `planning/`,
+  `runtime/`, `ticketing/`, `workspace/`), imports go down only: adapters, services, ports,
+  model. It is exhaustive, so a module outside those layers fails.
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
@@ -102,12 +102,13 @@ selected. `ToolInstallerContract` states that a bare host misses the tool, an in
 missing, and other tools are neither described nor installed; it runs against each installer (Pi,
 tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the host's launch data is
 plain data with a kind, its attach text names the session, and entry without a terminal only prints
-how to enter; it runs against `TmuxHost`. `tests/test_runtime_host.py` also sends launch frames to
-the real controller: an unknown host kind is refused before a session opens, and a frame without a
-host is invalid. The ticketing and forge mixins run against the GitHub adapter (with a stateful `gh`
-stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state
-in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it
-passes its mixin.
+how to enter; it runs against `TmuxHost`. `ChannelContract` states that the way to reach a session
+names it and that opening without a terminal only prints how; it runs against `TerminalChannel` on
+`TmuxHost`. `tests/test_runtime_host.py` also sends launch frames to the real controller: an unknown
+host kind is refused before a session opens, and a frame without a host is invalid. The ticketing
+and forge mixins run against the GitHub adapter (with a stateful `gh` stub for ticketing) and a
+non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state in a JSON file) and
+`FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan

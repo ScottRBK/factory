@@ -15,6 +15,7 @@ from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory, missing_tools
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
+from forgetful_factory.channels.adapters.terminal import TerminalChannel
 from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.forge.adapters.github import GitHubForge
 from forgetful_factory.planning.adapters.forgetful.connection import role_environment
@@ -36,6 +37,11 @@ TICKETING = {'github': GitHubTicketing}
 def build_host() -> TmuxHost:
     """AgentShell supports interactive sessions on tmux only."""
     return TmuxHost()
+
+
+def build_channel() -> TerminalChannel:
+    """People reach the Foreman in their own terminal, through the session host."""
+    return TerminalChannel(build_host())
 
 
 def build_tools(workspace: Path, connection: ForgetfulConnection, term_grace: float = 3):
@@ -92,7 +98,8 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     if notice is not None:
         print(notice, flush=True)
     terminal = terminal or AgentShellTerminal(
-        python, environment, **launch, deadlines=deadlines.agentshell, host=build_host())
+        python, environment, **launch, deadlines=deadlines.agentshell, host=build_host(),
+        channel=build_channel())
     if observation is not None:
         terminal = ObservedTerminal(terminal, observation)
     planning = ForgetfulPlanStore(workspace, config.forgetful,

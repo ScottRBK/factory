@@ -85,7 +85,7 @@ DoD or prove that a model followed it. Existing factories are not automatically 
   impose an internal-use-only restriction; retain applicable notices when distributing code.
 - Split the package into domain contexts (ticketing, forge, planning, workspace, agents, runtime,
   channels) with their own ports and adapters. See the
-  [domain contexts plan](plans/domain-contexts.md); slices 0–4c are done, slices 4d–6 remain.
+  [domain contexts plan](plans/domain-contexts.md); slices 0–4d are done, slices 5–6 remain.
 
 ### Recent delivered changes
 

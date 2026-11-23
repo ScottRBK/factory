@@ -393,7 +393,7 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
         request,
         start_owner,
     )
-    from forgetful_factory.cli.bootstrap import build_host, prepare_foreman_launch
+    from forgetful_factory.cli.bootstrap import build_channel, build_host, prepare_foreman_launch
     from forgetful_factory.configuration import load_configuration
 
     if args.attach:
@@ -416,7 +416,7 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
     if state['foreman'] != 'ready':
         raise FactoryError(state.get('warning', 'Foreman is not ready.') +
                            ' Foreman was preserved; inspect watch --status.')
-    build_host().enter(state['target'])
+    build_channel().open(state['target'])
     return 0
 
 
@@ -694,14 +694,14 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
 def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.agents.adapters.agentshell.owner_client import request
-    from forgetful_factory.cli.bootstrap import build_host
+    from forgetful_factory.cli.bootstrap import build_channel
 
     if args.attach:
         state = request(workspace, 'status')
         if state['foreman'] != 'ready':
             raise FactoryError('Foreman is not ready; inspect watch --status '
                                f'--workspace {shlex.quote(str(workspace))}.')
-        build_host().enter(state['target'])
+        build_channel().open(state['target'])
         return 0
     with WorkspaceWatchLease(workspace).hold():
         result = _initialise_locked(args, workspace, deadlines)
@@ -712,7 +712,7 @@ def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePo
             raise FactoryError(result.get('warning', 'Foreman is not ready.') +
                                ' Foreman was preserved. Inspect watch --status '
                                f'--workspace {shlex.quote(str(workspace))}.')
-        build_host().enter(result['target'])
+        build_channel().open(result['target'])
         return 0
     return _offer_factory_launch(args, workspace)
 

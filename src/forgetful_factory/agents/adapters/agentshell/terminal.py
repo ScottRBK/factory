@@ -8,6 +8,7 @@ from dataclasses import asdict
 
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.channels.ports import Channel
 from forgetful_factory.runtime.ports import SessionHost
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
@@ -20,9 +21,10 @@ class AgentShellTerminal:
                  resources: dict | None = None, prompt: str | None = None,
                  cwd: str | None = None, model: str | None = None, effort: str | None = None,
                  deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
-                 host: SessionHost):
+                 host: SessionHost, channel: Channel):
         self.python = python
         self.host = host
+        self.channel = channel
         self.environment = environment
         self.resources = resources
         self.prompt = prompt
@@ -36,7 +38,7 @@ class AgentShellTerminal:
 
     def startup_hint(self) -> str:
         return ('Watcher owns Pi and closes it on stop. '
-                f'Attach during startup: {self.host.how_to_attach(self.session_name)}')
+                f'Attach during startup: {self.channel.how_to_reach(self.session_name)}')
 
     def _write(self, value: dict, timeout: float) -> None:
         check_watch_stop()

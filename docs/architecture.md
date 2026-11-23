@@ -60,6 +60,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `workspace/` | Local checkouts and worktrees: `LocalRepositories`, `Worktrees` and Git adapters. |
 | `agents/` | The agent team: `AgentTeam`, `ForemanTerminal`, AgentShell and Pi adapters. |
 | `runtime/` | Where a session runs: the `SessionHost` port and the tmux adapter. |
+| `channels/` | How people reach the Foreman: the `Channel` port and the terminal channel. |
 | `adapters/` | Legacy: factory files (config, lease, receipts) and watch status. |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, files, installs. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
@@ -363,8 +364,8 @@ Paths below are relative to `src/forgetful_factory/`:
   New-setup orchestration: line 837; memory choices: line 596; REST eligibility: line 631.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 771 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 55 and 81; ticketing registry and source checks:
-  lines 33 and 66; GitHub CLI preflight: line 88; selected root launch: line 109.
+  Adapter wiring: `cli/bootstrap.py`, lines 61 and 87; ticketing registry and source checks:
+  lines 34 and 72; GitHub CLI preflight: line 94; selected root launch: line 116.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 14, 18, 79 and 98. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
@@ -380,11 +381,10 @@ Paths below are relative to `src/forgetful_factory/`:
   Cleanup: `application/cleanup_completed.py`, lines 48–117, 292–387; ticket scope: line 190;
   receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27; durable storage:
   `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
-- Planning: `planning/ports.py`, lines 7 and 11 (`PlanStore` adds `owns` and
-  `backend_identity`); `planning/adapters/forgetful/plan_store.py`, line 13; read
-  classification/validation: lines 26–81;
-  shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 13 and 124;
-  project listing/creation: lines 97 and 107.
+- Planning: `planning/ports.py`, lines 7 and 11 (`PlanStore` adds `owns` and `backend_identity`);
+  `planning/adapters/forgetful/plan_store.py`, line 13; read classification/validation: lines 26–81;
+  shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 13 and 124; project
+  listing/creation: lines 97 and 107.
 - Worktrees: `workspace/ports.py`, line 27; read/safety failures: lines 14 and 18;
   `workspace/adapters/git/worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
   Common identity: line 41; target: line 54; absence: line 83; disposal/checks: lines 200–359.
@@ -393,31 +393,30 @@ Paths below are relative to `src/forgetful_factory/`:
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `planning/adapters/forgetful/authentication.py`, line 10; public
   metadata only.
-- Agent team: `agents/adapters/pi/agent_team.py`, line 46; selected guidance: line 249;
-  consent persistence: line 140; unselected-memory notice: line 277; saved native home:
-  `agents/adapters/pi/native_home.py`, line 11.
-  `agents/adapters/pi/coordinator_profiles.py`, line 29; memory preferences: line 87;
-  `agents/adapters/pi/worker_profiles.py`, line 16. Starter templates live under `resources/`.
-  Contracts: `AgentTeam` in `agents/ports.py`, line 21; `PlanningSetup` in `planning/ports.py`,
-  line 38 (`planning/adapters/forgetful/setup.py`, line 9).
-  Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80;
-  update command: `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
+- Agent team: `agents/adapters/pi/agent_team.py`, line 46; selected guidance: line 249; consent
+  persistence: line 140; unselected-memory notice: line 277; saved native home:
+  `agents/adapters/pi/native_home.py`, line 11. `agents/adapters/pi/coordinator_profiles.py`,
+  line 29; memory preferences: line 87; `agents/adapters/pi/worker_profiles.py`, line 16. Starter
+  templates live under `resources/`. Contracts: `AgentTeam` in `agents/ports.py`, line 21;
+  `PlanningSetup` in `planning/ports.py`, line 38 (`planning/adapters/forgetful/setup.py`, line 9).
+  Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80; update command:
+  `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
 - Tool installs: `ToolInstaller` in `application/ports/tool_installer.py`, line 4; one installer per
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones
-  (`application/initialise_factory.py`, line 22), in the order of `cli/bootstrap.py`, line 41.
+  (`application/initialise_factory.py`, line 22), in the order of `cli/bootstrap.py`, line 47.
 - Transient wizard choices: `agents/model.py`, line 9.
   Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
   lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
-- Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10;
-  controller: `agents/adapters/agentshell/controller.py`, line 272; host choice: line 97;
-  child launch validation: line 118; pane identity and worker pinning: `tmux_host.py` beside it,
-  lines 9 and 28. Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`,
-  line 28. Files and modules started by path or module name:
-  `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
+- Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10; controller:
+  `agents/adapters/agentshell/controller.py`, line 272; host choice: line 97; child launch
+  validation: line 118; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
+  Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`, line 28. Channel:
+  `channels/ports.py`, line 4; terminal: `channels/adapters/terminal.py`, line 8. Started by path or
+  module name: `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
 - Setup lifecycle: `agents/adapters/agentshell/owner.py`, line 104;
   synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;
   client: `agents/adapters/agentshell/owner_client.py`, line 112;

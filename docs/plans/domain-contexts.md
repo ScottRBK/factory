@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–4c implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–4d implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -478,10 +478,25 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** slices 4d (smoke trial), 5, 6 (final trial); then SonarQube and the two
-reviews. Trials use a throwaway private
+**Next steps:** the smoke trial, then slices 5 and 6 (final trial); then SonarQube and the
+two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Slice 4d: done** (2026-11-23). No behaviour change.
+  - New `channels` context: `Channel` port (`how_to_reach`, `open`) and
+    `channels/adapters/terminal.py` with `TerminalChannel`, which gets the session host from
+    composition (`cli/bootstrap.py`, `build_channel`) and does not import it.
+  - The AgentShell terminal asks its channel for the attach text; the session no longer knows
+    how a person reaches it. `foreman`, `foreman --attach` and `init --attach` open the channel.
+  - Tests first: `ChannelContract` (runs against `TerminalChannel` on `TmuxHost`) and proof rows
+    for `channels` in the five rules (`channels.adapters → runtime.adapters` is rejected; the
+    port is allowed). The exact attach and entry lines pinned in 4c still pass.
+  - Checks: full suite 721 passed, 14 skipped; 9 contracts kept; Ruff clean.
+  - Flaky under load: `test_cleanup_performance.py::…three_distinct_attempts…` failed in 2 of 3
+    full parallel runs while the machine's load average was about 33 (other sessions' test runs
+    and builds). It passed 4 of 4 runs alone. It waits up to 15 s for two polls
+    (`tests/test_cleanup_performance.py:187`); 4d does not touch cleanup.
 
 - **Slice 4c: done** (2026-11-23). No behaviour change a user can see.
   - New `runtime` context: `SessionHost` port (`spec`, `how_to_attach`, `enter`) and

@@ -167,6 +167,9 @@ src/forgetful_factory/
 ├── runtime/
 │   ├── ports.py                     # SessionHost: launch data, attach text, terminal entry
 │   └── adapters/tmux.py             # The tmux host and its install recipe
+├── channels/
+│   ├── ports.py                     # Channel: how a person reaches the Foreman
+│   └── adapters/terminal.py         # The person's own terminal, through the session host
 └── adapters/
     └── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
 ```

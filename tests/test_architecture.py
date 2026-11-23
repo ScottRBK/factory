@@ -48,6 +48,8 @@ MODULES = (
     'workspace.adapters.git.worktrees',
     'runtime.ports',
     'runtime.adapters.tmux',
+    'channels.ports',
+    'channels.adapters.terminal',
     'boundary_probe.bridge',
 )
 
@@ -91,6 +93,11 @@ ALLOWED = (
     ('runtime.adapters.tmux', 'shared.errors'),
     ('agents.adapters.agentshell.controller', 'runtime.ports'),
     ('cli.bootstrap', 'runtime.adapters.tmux'),
+    ('channels.ports', 'runtime.ports'),
+    ('channels.adapters.terminal', 'channels.ports'),
+    ('channels.adapters.terminal', 'runtime.ports'),
+    ('agents.adapters.agentshell.controller', 'channels.ports'),
+    ('cli.bootstrap', 'channels.adapters.terminal'),
     ('cli.bootstrap', 'adapters.provider'),
     ('cli.bootstrap', 'application.workflow'),
     ('cli.bootstrap', 'shared.errors'),
@@ -125,6 +132,7 @@ REJECTED = (
     ('shared-independent', 'shared', 'workspace.ports'),
     ('shared-independent', 'shared', 'agents.model'),
     ('shared-independent', 'shared', 'runtime.ports'),
+    ('shared-independent', 'shared', 'channels.ports'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
     ('inside-each-area', 'forge.model', 'forge.ports'),
     ('inside-each-area', 'planning.model', 'planning.ports'),
@@ -139,6 +147,7 @@ REJECTED = (
     ('adapters-from-composition', 'application', 'agents.adapters.agentshell.controller'),
     ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
     ('adapters-from-composition', 'application', 'runtime.adapters.tmux'),
+    ('adapters-from-composition', 'application', 'channels.adapters.terminal'),
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
      ('adapters-independent',)),
@@ -149,6 +158,8 @@ REJECTED = (
     ('adapters-independent', 'agents.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'agents.adapters', 'runtime.adapters.tmux'),
     ('adapters-independent', 'runtime.adapters', 'agents.adapters.agentshell.controller'),
+    # A channel reaches the host through its port; composition supplies the adapter.
+    ('adapters-independent', 'channels.adapters', 'runtime.adapters.tmux'),
     ('adapters-independent', 'adapters.shared', 'planning.adapters.forgetful.plan_store'),
     # Legacy adapters and configuration are left out: application and domain import the
     # ticketing port and model, so from any ticketing module those imports break a second rule.
@@ -162,12 +173,14 @@ REJECTED = (
     ('contexts-not-legacy', 'agents.adapters', 'application.workflow'),
     ('contexts-not-legacy', 'agents.model', 'deadlines'),
     ('contexts-not-legacy', 'runtime.adapters', 'cli.prompts'),
+    ('contexts-not-legacy', 'channels.adapters', 'cli.prompts'),
     # The slice 4a imports from agents adapters into legacy adapters: both rules reject them.
     ('contexts-not-legacy', 'agents.adapters', 'adapters.shared', ('adapters-independent',)),
     # allow_indirect_imports: only direct imports are rejected; the indirect run must pass.
     ('agentshell-in-agents', 'ticketing.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'agents.model', 'agent_shell'),
     ('agentshell-in-agents', 'runtime.adapters', 'agent_shell'),
+    ('agentshell-in-agents', 'channels.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'cli', 'agent_shell'),
 )
 
