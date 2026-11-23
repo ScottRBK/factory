@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–4b implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–4c implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -478,10 +478,42 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** slices 4c, 4d (smoke trial), 5, 6 (final trial); then SonarQube and the two
+**Next steps:** slices 4d (smoke trial), 5, 6 (final trial); then SonarQube and the two
 reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Slice 4c: done** (2026-11-23). No behaviour change a user can see.
+  - New `runtime` context: `SessionHost` port (`spec`, `how_to_attach`, `enter`) and
+    `runtime/adapters/tmux.py` with `TmuxHost` (launch data, attach text, terminal entry) and
+    `TmuxInstall` (moved from 4b). `enter_terminal` left `owner_client.py`; the attach text left
+    `terminal.py`. Composition (`cli/bootstrap.py`, `build_host`) gives the host to the AgentShell
+    terminal and to `start_owner`.
+  - The launch JSON carries `"host": {"kind": "tmux"}` from both launch paths (watch-owned
+    terminal and persistent owner). The controller loads `tmux_host.py` (pane identity and worker
+    pinning, moved verbatim) from beside itself for kind `tmux`, and refuses any other kind:
+    "Unsupported Foreman host 'herdr'; AgentShell supports interactive sessions on tmux only." A
+    frame without a host is "Invalid Foreman launch configuration." Factory sends only `tmux`, so
+    users cannot meet the new refusal; it is the agreed guard for a future host.
+  - Tests first: the attach and entry lines were pinned exactly on the old code
+    (`test_watch.py`, `test_normalized_lifecycle.py`, `test_assisted_lifecycle.py`), then the
+    move. `SessionHostContract` runs against `TmuxHost`; `tests/test_runtime_host.py` sends frames
+    to the real controller. The Ubuntu 24.04 tmux recipe tests skip on this host, so the moved
+    recipe was compared with the old `HostDependencies` (from `aed82f8`) on a faked Ubuntu 24.04:
+    same question text and the same `apt-get` commands, root and non-root.
+  - Rules: `runtime` joins `shared-independent`, `inside-each-area`, `adapters-independent`,
+    `contexts-not-legacy` and `agentshell-in-agents`, with proof rows (the port-to-adapter row
+    also breaks `adapters-from-composition` and `adapters-independent`; isolated). The controller
+    may use `__file__` (it cannot import Factory); `launch.TMUX_HOST` must sit beside it.
+  - Docs: the issue-watcher ADR tree was stale since 4a (old `adapters/agentshell/` paths) and the
+    initialization ADR still named `WorkTrackingService` in the present tense since slice 1; both
+    fixed.
+  - Still tmux-aware in the agents adapter: the saved-target check in `owner_client.py` (`_reply`),
+    the controller's AgentShell tmux classes, and error texts that mention the tmux attach command.
+    Slice 4d moves the attach text out of the session.
+  - Checks: full suite 719 passed, 14 skipped (the same environment skips); 9 contracts kept;
+    Ruff clean; wheel (114 checksums) passes `tests/check_package.py`; the installed controller
+    loads `tmux_host.py` from site-packages and refuses `herdr`. `dist/` was not rebuilt.
 
 - **Slice 4b: done** (2026-11-23). No behaviour change.
   - `ForemanProfile` split. `PiAgentTeam` (`agents/adapters/pi/agent_team.py`) keeps the role

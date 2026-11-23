@@ -133,7 +133,8 @@ that protocol. The controller owns the interactive session lifetime; keeping it 
 also supports the optional interpreter override without mixing Python environments.
 It is an adapter detail, not a domain service or a general messaging framework.
 
-The controller uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
+The launch JSON names the session host (`{"kind": "tmux"}`); the controller refuses any other
+kind. It uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
 start event before submitting text, and calls `session.terminal.send_text(..., submit=True)`. For a
 persistent Foreman, `ForemanOwner` retains that controller independently of init's terminal and
 stdin lifetime. A bounded handover separates startup cancellation from later init exit. The managed
@@ -149,21 +150,25 @@ screenshots or infer that a submitted issue was completed.
 ```text
 src/forgetful_factory/
 ├── application/
-│   ├── watch_factory.py             # Polling, baseline, revisions, notifications
-│   └── ports/
-│       └── foreman_terminal.py      # Startup hint, launch, submit, wait, close
+│   └── watch_factory.py             # Polling, baseline, revisions, notifications
 ├── ticketing/
 │   ├── model.py                     # Provider-independent Ticket
 │   ├── ports.py                     # Ticketing: matching-open-ticket reads
 │   └── adapters/github.py           # Paginated issue reads and label matching
+├── agents/
+│   ├── ports.py                     # ForemanTerminal: startup hint, launch, submit, wait, close
+│   └── adapters/agentshell/
+│       ├── terminal.py              # Watcher-owned controller and acknowledgements
+│       ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
+│       ├── owner.py                 # Persistent Foreman and watcher child lifetime
+│       ├── owner_client.py          # Local lifecycle commands
+│       ├── controller.py            # AgentShell-owned interactive session, host by kind
+│       └── tmux_host.py             # Pane identity checks, loaded by the controller
+├── runtime/
+│   ├── ports.py                     # SessionHost: launch data, attach text, terminal entry
+│   └── adapters/tmux.py             # The tmux host and its install recipe
 └── adapters/
-    ├── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
-    └── agentshell/
-        ├── terminal.py              # Watcher-owned controller and acknowledgements
-        ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
-        ├── owner.py                 # Persistent Foreman and watcher child lifetime
-        ├── owner_client.py          # Local lifecycle commands and user terminal entry
-        └── controller.py            # AgentShell-owned interactive session
+    └── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
 ```
 
 GitHub fetches all pages of open issues and applies label matching locally: any configured label

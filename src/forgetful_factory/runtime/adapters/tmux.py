@@ -1,8 +1,14 @@
-"""tmux for AgentShell sessions. Only Ubuntu 24.04 x86_64 has a reviewed automatic recipe."""
+"""tmux: where interactive AgentShell sessions run. Launch data, attach, entry and install.
+
+Only Ubuntu 24.04 x86_64 has a reviewed automatic install recipe.
+"""
 import os
 import platform
 import re
+import shlex
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from forgetful_factory.shared.errors import FactoryError
@@ -17,6 +23,32 @@ def ubuntu_tmux() -> bool:
                 and platform.machine() == 'x86_64')
     except OSError:
         return False
+
+
+class TmuxHost:
+    def spec(self) -> dict:
+        return {'kind': 'tmux'}
+
+    def how_to_attach(self, session_name: str) -> str:
+        return f'tmux attach-session -t {session_name}'
+
+    def enter(self, target: dict) -> None:
+        """Client navigation only. All delivery belongs to AgentShell."""
+        command = ['tmux', '-S', target['socket_path'], 'attach-session', '-t',
+                   target['pane_id']]
+        print('Enter Foreman: ' + shlex.join(command), flush=True)
+        if not sys.stdin.isatty():
+            return
+        current = os.environ.get('TMUX', '').rsplit(',', 2)
+        if len(current) == 3:
+            if current[0] != target['socket_path']:
+                print('Run that command from a terminal outside your current tmux server.')
+                return
+            command[3] = 'switch-client'
+        result = subprocess.run(command, check=False)
+        if result.returncode:
+            raise FactoryError('Could not enter Foreman; it remains alive. '
+                               'Use the printed command.')
 
 
 class TmuxInstall:

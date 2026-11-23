@@ -8,6 +8,7 @@ from dataclasses import asdict
 
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.runtime.ports import SessionHost
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
 
@@ -18,8 +19,10 @@ class AgentShellTerminal:
     def __init__(self, python: str, environment: dict[str, str] | None = None,
                  resources: dict | None = None, prompt: str | None = None,
                  cwd: str | None = None, model: str | None = None, effort: str | None = None,
-                 deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines()):
+                 deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
+                 host: SessionHost):
         self.python = python
+        self.host = host
         self.environment = environment
         self.resources = resources
         self.prompt = prompt
@@ -33,7 +36,7 @@ class AgentShellTerminal:
 
     def startup_hint(self) -> str:
         return ('Watcher owns Pi and closes it on stop. '
-                f'Attach during startup: tmux attach-session -t {self.session_name}')
+                f'Attach during startup: {self.host.how_to_attach(self.session_name)}')
 
     def _write(self, value: dict, timeout: float) -> None:
         check_watch_stop()
@@ -99,7 +102,8 @@ class AgentShellTerminal:
         os.set_blocking(self.process.stdin.fileno(), False)
         self._write({'cwd': self.cwd, 'model': self.model, 'effort': self.effort,
                      'session_name': self.session_name, 'resources': self.resources,
-                     'prompt': self.prompt, 'deadlines': asdict(self.deadlines)}, 10)
+                     'prompt': self.prompt, 'deadlines': asdict(self.deadlines),
+                     'host': self.host.spec()}, 10)
         self._read(self.deadlines.parent_ready, 'ready')
 
     def send(self, message: str) -> None:

@@ -389,12 +389,11 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
 
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.agents.adapters.agentshell.owner_client import (
-        enter_terminal,
         read_state,
         request,
         start_owner,
     )
-    from forgetful_factory.cli.bootstrap import prepare_foreman_launch
+    from forgetful_factory.cli.bootstrap import build_host, prepare_foreman_launch
     from forgetful_factory.configuration import load_configuration
 
     if args.attach:
@@ -413,11 +412,11 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
                 print(notice, flush=True)
             state = start_owner(workspace, args.agentshell_python, environment, {
                 **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}',
-                'prompt': None}, deadlines.agentshell)
+                'prompt': None}, deadlines.agentshell, host=build_host())
     if state['foreman'] != 'ready':
         raise FactoryError(state.get('warning', 'Foreman is not ready.') +
                            ' Foreman was preserved; inspect watch --status.')
-    enter_terminal(state['target'])
+    build_host().enter(state['target'])
     return 0
 
 
@@ -694,14 +693,15 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
 
 def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
-    from forgetful_factory.agents.adapters.agentshell.owner_client import enter_terminal, request
+    from forgetful_factory.agents.adapters.agentshell.owner_client import request
+    from forgetful_factory.cli.bootstrap import build_host
 
     if args.attach:
         state = request(workspace, 'status')
         if state['foreman'] != 'ready':
             raise FactoryError('Foreman is not ready; inspect watch --status '
                                f'--workspace {shlex.quote(str(workspace))}.')
-        enter_terminal(state['target'])
+        build_host().enter(state['target'])
         return 0
     with WorkspaceWatchLease(workspace).hold():
         result = _initialise_locked(args, workspace, deadlines)
@@ -712,7 +712,7 @@ def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePo
             raise FactoryError(result.get('warning', 'Foreman is not ready.') +
                                ' Foreman was preserved. Inspect watch --status '
                                f'--workspace {shlex.quote(str(workspace))}.')
-        enter_terminal(result['target'])
+        build_host().enter(result['target'])
         return 0
     return _offer_factory_launch(args, workspace)
 
@@ -900,7 +900,7 @@ def _launch_setup_foreman(application, config, workspace, args, deadlines):
     import uuid
 
     from forgetful_factory.agents.adapters.agentshell.owner_client import start_owner
-    from forgetful_factory.cli.bootstrap import prepare_foreman_launch
+    from forgetful_factory.cli.bootstrap import build_host, prepare_foreman_launch
 
     application.team.prepare_setup_guidance()
     print(application.check_foreman(config, login=args.login))
@@ -909,7 +909,7 @@ def _launch_setup_foreman(application, config, workspace, args, deadlines):
         term_grace=deadlines.owned_process_term_grace)
     result = start_owner(workspace, args.agentshell_python, environment, {
         **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}', 'prompt': None},
-        deadlines.agentshell)
+        deadlines.agentshell, host=build_host())
     print('Setup is incomplete. Review the starter team with Foreman, then run '
           'init --finalize --delegated-work-stopped '
           f'--workspace {shlex.quote(str(workspace))}. Use /reload after finalization.')

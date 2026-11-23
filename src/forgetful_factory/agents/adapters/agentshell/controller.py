@@ -1,14 +1,18 @@
 """Run by the selected AgentShell interpreter using this installed file's absolute path."""
 import asyncio
 import contextlib
-import ctypes
+import importlib.util
 import json
 import math
 import os
-import select
 import signal
 import sys
 from dataclasses import asdict, dataclass
+from pathlib import Path
+
+# Host kind -> the file beside this one with that host's checks. AgentShell supports interactive
+# sessions on tmux only, so the controller knows only tmux.
+HOST_FILES = {'tmux': 'tmux_host.py'}
 
 
 async def ready(session) -> None:
@@ -52,52 +56,6 @@ async def interact(session, reader, reply, name, deadlines, *, persistent=False,
         reply({'kind': 'sent'})
 
 
-async def retain_identity(session, reply) -> None:
-    """Owned wait detects exit; compare identity too, since a pane ID can be respawned."""
-    from agent_shell.tmux import TmuxTarget
-
-    target = session.terminal.target
-    while True:
-        try:
-            async with asyncio.timeout(5):
-                current = await TmuxTarget.capture(target.pane_id, socket_path=target.socket_path)
-        except Exception as error:
-            reply({'kind': 'uncertain', 'message':
-                   'Foreman identity query unavailable; terminal state uncertain: '
-                   f'{str(error) or type(error).__name__}'})
-            return
-        if current != target:
-            raise RuntimeError('Captured Foreman terminal identity changed; replacement refused.')
-        await asyncio.sleep(1)
-
-
-async def pin_worker(target) -> int:
-    """Pin a live launch target, then revalidate it; never use saved owner metadata."""
-    from agent_shell.tmux import TmuxTarget
-
-    if hasattr(os, 'pidfd_open'):
-        descriptor = os.pidfd_open(target.pane_pid)
-    else:
-        # Python 3.13 builds may omit os.pidfd_open. This Linux fallback needs glibc 2.36+
-        # and a kernel supporting pidfd_open (5.3+); unsupported hosts remain uncertain.
-        function = ctypes.CDLL(None, use_errno=True).pidfd_open
-        function.argtypes = [ctypes.c_int, ctypes.c_uint]
-        function.restype = ctypes.c_int
-        descriptor = function(target.pane_pid, 0)
-        if descriptor < 0:
-            error = ctypes.get_errno()
-            raise OSError(error, os.strerror(error))
-    try:
-        async with asyncio.timeout(5):
-            current = await TmuxTarget.capture(target.pane_id, socket_path=target.socket_path)
-        if current != target or select.select([descriptor], [], [], 0)[0]:
-            raise RuntimeError('Original pane worker could not be validated alive.')
-        return descriptor
-    except BaseException:
-        os.close(descriptor)
-        raise
-
-
 async def worker_exited(descriptor) -> None:
     loop = asyncio.get_running_loop()
     exited = loop.create_future()
@@ -136,8 +94,21 @@ def runtime():
     return agent_type, session_resources, agent_shell, tmux_execution_host, tmux_placement
 
 
+def load_host(kind: str):
+    """Load the host's checks from the file beside this one; refuse a kind it does not know."""
+    if kind not in HOST_FILES:
+        raise ValueError(f'Unsupported Foreman host {kind!r}; AgentShell supports interactive '
+                         'sessions on tmux only.')
+    spec = importlib.util.spec_from_file_location(
+        f'factory_{kind}_host', Path(__file__).resolve().with_name(HOST_FILES[kind]))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @dataclass
 class SessionState:
+    host: object
     session: object | None = None
     worker: int | None = None
     worker_error: str | None = None
@@ -156,6 +127,8 @@ def validate_launch_config(config) -> None:
                    for key in ('cwd', 'model', 'effort', 'session_name'))
             or not isinstance(config.get('resources'), dict)
             or not isinstance(config.get('prompt'), (str, type(None)))
+            or not isinstance(config.get('host'), dict)
+            or not isinstance(config['host'].get('kind'), str)
             or not isinstance(deadlines, dict) or set(deadlines) != deadline_names
             or any(type(value) not in (int, float) or not math.isfinite(value) or value <= 0
                    for value in deadlines.values())):
@@ -188,7 +161,7 @@ async def open_session(state, shell, resources_type, config, reply, opened) -> N
 
 async def capture_worker(state, reply) -> None:
     try:
-        state.worker = await pin_worker(state.session.terminal.target)
+        state.worker = await state.host.pin_worker(state.session.terminal.target)
     except Exception as error:
         state.worker_error = ('Native worker lifetime unavailable; exit remains '
                               f'uncertain: {str(error) or type(error).__name__}')
@@ -234,7 +207,7 @@ async def supervise_session(state, reader, config, reply) -> None:
         tasks.append(exit_task)
         identity_task = None
         if config.get('report_target'):
-            identity_task = asyncio.create_task(retain_identity(session, reply))
+            identity_task = asyncio.create_task(state.host.retain_identity(session, reply))
             tasks.append(identity_task)
         lost_worker = None
         if state.worker is not None:
@@ -286,8 +259,9 @@ async def close_session(state, config, reply) -> None:
 
 async def serve(reader, config, reply, opened) -> None:
     validate_launch_config(config)
+    host = load_host(config['host']['kind'])
     shell, resources_type = build_shell(config)
-    state = SessionState()
+    state = SessionState(host)
     try:
         await open_session(state, shell, resources_type, config, reply, opened)
         await supervise_session(state, reader, config, reply)

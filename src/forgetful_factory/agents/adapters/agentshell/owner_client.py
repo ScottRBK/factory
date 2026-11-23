@@ -13,6 +13,7 @@ from pathlib import Path
 from forgetful_factory.agents.adapters.agentshell.foreman_runtime import runtime_directory
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.runtime.ports import SessionHost
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import read_generated_json
 
@@ -110,7 +111,8 @@ def request(workspace: Path, operation: str, **fields) -> dict:
 
 def start_owner(
         workspace: Path, python: str, environment: dict, launch: dict,
-        deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines()) -> dict:
+        deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
+        host: SessionHost) -> dict:
     try:
         checked = subprocess.run([python, '-u', str(CONTROLLER),
                                   '--check'], env=environment, stdin=subprocess.DEVNULL,
@@ -142,7 +144,8 @@ def start_owner(
                 env=environment)
         child.close()
         parent.settimeout(40)
-        parent.sendall((json.dumps({**launch, 'deadlines': asdict(deadlines)}) + '\n').encode())
+        parent.sendall((json.dumps({**launch, 'host': host.spec(),
+                                    'deadlines': asdict(deadlines)}) + '\n').encode())
         with parent.makefile('rb') as stream:
             result = _reply(stream)
             if 'error' in result:
@@ -172,20 +175,3 @@ def start_owner(
                                        'No replacement was started.') from None
         # Before adoption the owner treats handover EOF as cancellation, closing its controller.
         # After adoption it deliberately ignores init's descriptor/process lifetime.
-
-
-def enter_terminal(target: dict) -> None:
-    """Client navigation only. All delivery belongs to AgentShell."""
-    command = ['tmux', '-S', target['socket_path'], 'attach-session', '-t', target['pane_id']]
-    print('Enter Foreman: ' + shlex.join(command), flush=True)
-    if not sys.stdin.isatty():
-        return
-    current = os.environ.get('TMUX', '').rsplit(',', 2)
-    if len(current) == 3:
-        if current[0] != target['socket_path']:
-            print('Run that command from a terminal outside your current tmux server.')
-            return
-        command[3] = 'switch-client'
-    result = subprocess.run(command, check=False)
-    if result.returncode:
-        raise FactoryError('Could not enter Foreman; it remains alive. Use the printed command.')

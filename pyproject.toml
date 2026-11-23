@@ -77,6 +77,7 @@ forbidden_modules = [
     "forgetful_factory.domain",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
+    "forgetful_factory.runtime",
     "forgetful_factory.ticketing",
     "forgetful_factory.workspace",
 ]
@@ -89,6 +90,7 @@ containers = [
     "forgetful_factory.agents",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
+    "forgetful_factory.runtime",
     "forgetful_factory.ticketing",
     "forgetful_factory.workspace",
 ]
@@ -117,6 +119,7 @@ modules = [
     "forgetful_factory.agents.adapters",
     "forgetful_factory.forge.adapters",
     "forgetful_factory.planning.adapters",
+    "forgetful_factory.runtime.adapters",
     "forgetful_factory.ticketing.adapters",
     "forgetful_factory.workspace.adapters",
 ]
@@ -129,6 +132,7 @@ source_modules = [
     "forgetful_factory.agents",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
+    "forgetful_factory.runtime",
     "forgetful_factory.ticketing",
     "forgetful_factory.workspace",
 ]
@@ -157,6 +161,7 @@ source_modules = [
     "forgetful_factory.domain",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
+    "forgetful_factory.runtime",
     "forgetful_factory.shared",
     "forgetful_factory.ticketing",
     "forgetful_factory.workspace",

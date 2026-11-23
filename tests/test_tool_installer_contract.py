@@ -8,10 +8,10 @@ from unittest.mock import patch
 from contracts.tools import ToolInstallerContract
 
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
-from forgetful_factory.agents.adapters.agentshell.tmux_install import TmuxInstall
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
 from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInstall
 from forgetful_factory.planning.model import ForgetfulConnection
+from forgetful_factory.runtime.adapters.tmux import TmuxInstall
 from forgetful_factory.shared.installation import SYNC_RECEIPT, sync_fingerprint
 
 

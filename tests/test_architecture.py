@@ -46,6 +46,8 @@ MODULES = (
     'agents.adapters.agentshell.controller',
     'workspace.ports',
     'workspace.adapters.git.worktrees',
+    'runtime.ports',
+    'runtime.adapters.tmux',
     'boundary_probe.bridge',
 )
 
@@ -85,6 +87,10 @@ ALLOWED = (
     ('agents.adapters.agentshell.controller', 'agent_shell'),
     ('application.workflow', 'agents.ports'),
     ('cli.bootstrap', 'agents.adapters.agentshell.controller'),
+    ('runtime.adapters.tmux', 'runtime.ports'),
+    ('runtime.adapters.tmux', 'shared.errors'),
+    ('agents.adapters.agentshell.controller', 'runtime.ports'),
+    ('cli.bootstrap', 'runtime.adapters.tmux'),
     ('cli.bootstrap', 'adapters.provider'),
     ('cli.bootstrap', 'application.workflow'),
     ('cli.bootstrap', 'shared.errors'),
@@ -118,15 +124,21 @@ REJECTED = (
     ('shared-independent', 'shared', 'planning.model'),
     ('shared-independent', 'shared', 'workspace.ports'),
     ('shared-independent', 'shared', 'agents.model'),
+    ('shared-independent', 'shared', 'runtime.ports'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
     ('inside-each-area', 'forge.model', 'forge.ports'),
     ('inside-each-area', 'planning.model', 'planning.ports'),
     ('inside-each-area', 'agents.model', 'agents.ports'),
+    # A port importing its own adapter breaks the layers and the composition rule; through the
+    # agents adapter's use of the port it also links two adapter packages.
+    ('inside-each-area', 'runtime.ports', 'runtime.adapters.tmux',
+     ('adapters-from-composition', 'adapters-independent')),
     ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
     ('adapters-from-composition', 'application', 'forge.adapters.github'),
     ('adapters-from-composition', 'application', 'workspace.adapters.git.worktrees'),
     ('adapters-from-composition', 'application', 'agents.adapters.agentshell.controller'),
     ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
+    ('adapters-from-composition', 'application', 'runtime.adapters.tmux'),
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
      ('adapters-independent',)),
@@ -135,6 +147,8 @@ REJECTED = (
     ('adapters-independent', 'planning.adapters', 'forge.adapters.github'),
     ('adapters-independent', 'workspace.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'agents.adapters', 'ticketing.adapters.github'),
+    ('adapters-independent', 'agents.adapters', 'runtime.adapters.tmux'),
+    ('adapters-independent', 'runtime.adapters', 'agents.adapters.agentshell.controller'),
     ('adapters-independent', 'adapters.shared', 'planning.adapters.forgetful.plan_store'),
     # Legacy adapters and configuration are left out: application and domain import the
     # ticketing port and model, so from any ticketing module those imports break a second rule.
@@ -147,11 +161,13 @@ REJECTED = (
     ('contexts-not-legacy', 'workspace.adapters', 'application.workflow'),
     ('contexts-not-legacy', 'agents.adapters', 'application.workflow'),
     ('contexts-not-legacy', 'agents.model', 'deadlines'),
+    ('contexts-not-legacy', 'runtime.adapters', 'cli.prompts'),
     # The slice 4a imports from agents adapters into legacy adapters: both rules reject them.
     ('contexts-not-legacy', 'agents.adapters', 'adapters.shared', ('adapters-independent',)),
     # allow_indirect_imports: only direct imports are rejected; the indirect run must pass.
     ('agentshell-in-agents', 'ticketing.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'agents.model', 'agent_shell'),
+    ('agentshell-in-agents', 'runtime.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'cli', 'agent_shell'),
 )
 
@@ -372,7 +388,10 @@ class CoverageTests(unittest.TestCase):
 
     def test_package_folders_find_files_in_one_place(self):
         # Arrange: a file found relative to source breaks silently when a module moves.
-        allowed = {Path('shared/resources.py'), Path('agents/adapters/agentshell/launch.py')}
+        # The controller runs in AgentShell's interpreter, where Factory cannot be imported, so it
+        # finds its host file beside itself; test_launch_targets_exist checks that file.
+        allowed = {Path('shared/resources.py'), Path('agents/adapters/agentshell/launch.py'),
+                   Path('agents/adapters/agentshell/controller.py')}
         # Act
         users = {path.relative_to(SOURCE) for path in SOURCE.rglob('*.py')
                  if '__file__' in path.read_text()}
@@ -412,6 +431,8 @@ class CoverageTests(unittest.TestCase):
         # Assert
         self.assertTrue(launch.CONTROLLER.is_file())
         self.assertTrue(launch.MODEL_CATALOG.is_file())
+        self.assertTrue(launch.TMUX_HOST.is_file())
+        self.assertEqual(launch.TMUX_HOST.parent, launch.CONTROLLER.parent)
         owner = importlib.util.find_spec(launch.OWNER_MODULE)
         self.assertIsNotNone(owner)
         self.assertTrue(Path(owner.origin).is_relative_to(SOURCE))

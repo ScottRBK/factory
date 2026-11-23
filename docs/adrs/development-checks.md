@@ -31,9 +31,9 @@ Import Linter's nine contracts in `pyproject.toml` enforce:
 - Adapters cannot depend on CLI.
 - `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
   other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (`agents/`, `forge/`, `planning/`, `ticketing/`,
-  `workspace/`), imports go down only: adapters, services, ports, model. It is exhaustive, so a
-  module outside those layers fails.
+- `inside-each-area`: inside a context (`agents/`, `forge/`, `planning/`, `runtime/`,
+  `ticketing/`, `workspace/`), imports go down only: adapters, services, ports, model. It is
+  exhaustive, so a module outside those layers fails.
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
@@ -79,9 +79,12 @@ Import Linter's nine contracts in `pyproject.toml` enforce:
   hard-coded name or URL.
 - No test writes a source file path (`src/forgetful_factory/.../*.py`); tests use the launch
   constants instead.
-- Only `shared/resources.py` and `agents/adapters/agentshell/launch.py` use `__file__`. Files
-  started by path (`controller.py`, `model_catalog.py`) and the owner module name are constants
-  there, and a test checks that each resolves in the source tree.
+- Only `shared/resources.py`, `agents/adapters/agentshell/launch.py` and the controller use
+  `__file__`. Files started by path (`controller.py`, `model_catalog.py`) and the owner module name
+  are constants in `launch.py`, and a test checks that each resolves in the source tree. The
+  controller runs in AgentShell's interpreter, where Factory cannot be imported, so it loads its
+  host checks (`tmux_host.py`) from beside itself; `launch.TMUX_HOST` and a test check that file
+  is there.
 
 `tests/contracts/` holds one `unittest` mixin per port. `TicketingContract` states what every
 `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that pass
@@ -97,10 +100,14 @@ double. `AgentTeamContract` states that declined home consent saves nothing, acc
 kept once saved, setup is incomplete until recorded, and no memory notice exists before a launch is
 selected. `ToolInstallerContract` states that a bare host misses the tool, an installed tool is not
 missing, and other tools are neither described nor installed; it runs against each installer (Pi,
-tmux, Forgetful, AgentShell runtime). The ticketing and forge mixins run against the GitHub adapter
-(with a stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys
-such as `ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new
-adapter is done when it passes its mixin.
+tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the host's launch data is
+plain data with a kind, its attach text names the session, and entry without a terminal only prints
+how to enter; it runs against `TmuxHost`. `tests/test_runtime_host.py` also sends launch frames to
+the real controller: an unknown host kind is refused before a session opens, and a frame without a
+host is invalid. The ticketing and forge mixins run against the GitHub adapter (with a stateful `gh`
+stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state
+in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it
+passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan

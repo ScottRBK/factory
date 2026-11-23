@@ -8,7 +8,6 @@ from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigu
 from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
-from forgetful_factory.agents.adapters.agentshell.tmux_install import TmuxInstall
 from forgetful_factory.agents.adapters.pi.agent_team import PiAgentTeam
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
@@ -23,6 +22,7 @@ from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInsta
 from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPlanStore
 from forgetful_factory.planning.adapters.forgetful.setup import ForgetfulSetup
 from forgetful_factory.planning.model import ForgetfulConnection
+from forgetful_factory.runtime.adapters.tmux import TmuxHost, TmuxInstall
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
@@ -31,6 +31,11 @@ from forgetful_factory.workspace.adapters.git.worktrees import GitWorktrees
 
 # Ticketing adapters by the provider name saved in factory.toml.
 TICKETING = {'github': GitHubTicketing}
+
+
+def build_host() -> TmuxHost:
+    """AgentShell supports interactive sessions on tmux only."""
+    return TmuxHost()
 
 
 def build_tools(workspace: Path, connection: ForgetfulConnection, term_grace: float = 3):
@@ -87,7 +92,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     if notice is not None:
         print(notice, flush=True)
     terminal = terminal or AgentShellTerminal(
-        python, environment, **launch, deadlines=deadlines.agentshell)
+        python, environment, **launch, deadlines=deadlines.agentshell, host=build_host())
     if observation is not None:
         terminal = ObservedTerminal(terminal, observation)
     planning = ForgetfulPlanStore(workspace, config.forgetful,

@@ -651,7 +651,9 @@ class WatchCliTests(WatchFixture):
             process = self.start('--new-only', stdout=stream)
             self.wait_until(process, lambda: any(e['kind'] == 'launch' for e in self.events()))
             # Assert: launch and unrelated system events are not session readiness.
-            self.assertIn('tmux attach-session', output.read_text())
+            self.assertRegex(output.read_text(), r'Watcher owns Pi and closes it on stop\. '
+                             r'Attach during startup: tmux attach-session -t '
+                             r'factory-foreman-[0-9a-f]{12}\n')
             self.assertNotIn('Foreman session ready', output.read_text())
             # Act
             gate.touch()
