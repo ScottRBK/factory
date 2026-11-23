@@ -59,11 +59,13 @@ ID, infer identity from a name, or decode tokens.
 
 ## Issue identity and saved records
 
-The canonical reference is lowercase `github:owner/repo#number`. Lookups by `external_ref` are
-user-wide, without project or status filters. Factory then checks the returned plan's project and
-workspace. This catches a matching reference associated with another project instead of creating
-a second plan. Multiple workspaces writing the same plan are unsupported; the workspace lease
-cannot coordinate them.
+The canonical reference is `provider:source#key` with a lowercase source, such as
+`github:owner/repo#42`. Ticket keys are text (domain-contexts decision 6); a plan saved with the
+older integer `number` field needs reconciliation (`plan_recovery_invalid`). Lookups by
+`external_ref` are user-wide, without project or status filters. Factory then checks the returned
+plan's project and workspace. This catches a matching reference associated with another project
+instead of creating a second plan. Multiple workspaces writing the same plan are unsupported; the
+workspace lease cannot coordinate them.
 
 Factory uses existing Forgetful text fields for a small JSON record:
 

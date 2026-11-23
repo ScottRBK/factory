@@ -53,7 +53,8 @@ those contracts for external systems. GitHub is the current provider, not the do
 | --- | --- |
 | `cli/` | Parse commands, gather input, display results, and compose the application. |
 | `application/` | Coordinate setup, issue scaffolding and watching through ports. |
-| `domain/` | Define provider-independent models and work-tracking services. |
+| `domain/` | Define the repository reference saved in configuration. |
+| `ticketing/` | Tickets and the `Ticketing` port, with the GitHub Issues adapter. |
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
@@ -63,7 +64,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 ```mermaid
 classDiagram
     direction TB
-    class WorkTrackingService {
+    class Ticketing {
         <<interface>>
     }
     class ConfigurationStore {
@@ -81,17 +82,18 @@ classDiagram
     class ForemanProfile {
         <<interface>>
     }
-    InitialiseFactory --> WorkTrackingService
+    InitialiseFactory --> Ticketing
     InitialiseFactory --> ConfigurationStore
     InitialiseFactory --> LocalRepositories
     InitialiseFactory --> WorkSourceResolver
     InitialiseFactory --> ForemanProfile
-    WatchFactory --> WorkTrackingService
+    WatchFactory --> Ticketing
     WatchFactory --> ForemanTerminal
     WatchFactory --> ScaffoldIssue
     WatchFactory --> CleanupCompleted
     CleanupCompleted --> FactoryRecords
     CleanupCompleted --> Worktrees
+    CleanupCompleted --> Ticketing
     ScaffoldIssue --> FactoryRecords
     FactoryRecords --> Planning
     ScaffoldIssue --> Planning
@@ -100,8 +102,8 @@ classDiagram
     ScaffoldIssue --> WorkSourceResolver
     ForgetfulPlanning ..|> Planning
     GitWorktrees ..|> Worktrees
-    GitHubWorkTracking ..|> WorkTrackingService
-    GitHubWorkTracking ..|> WorkSourceResolver
+    GitHubTicketing ..|> Ticketing
+    GitHubSourceResolver ..|> WorkSourceResolver
     TomlConfigurationStore ..|> ConfigurationStore
     GitRepositories ..|> LocalRepositories
     AgentShellTerminal ..|> ForemanTerminal
@@ -320,7 +322,7 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
-  with their own ports and adapters. Slice 0 (`shared/` and coverage checks) is implemented.
+  with their own ports and adapters. Slices 0 (`shared/`, checks) and 1 (`ticketing/`) are done.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -349,20 +351,23 @@ Paths below are relative to `src/forgetful_factory/`:
   New-setup orchestration: line 831; memory choices: line 595; REST eligibility: line 630.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 768 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
-  selected root launch: line 71. Local GitHub capability probe:
-  `adapters/github/work_tracking.py`, lines 14, 73, 92 and 108.
+  Adapter wiring: `cli/bootstrap.py`, lines 29 and 52; ticketing registry and source checks:
+  lines 26 and 37; GitHub CLI preflight: line 59; selected root launch: line 80.
+  Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
+  `ticketing/adapters/github.py`, lines 14, 18, 76 and 95; remote-to-source mapping:
+  `adapters/github/source_resolver.py`, line 8.
   Deadline policies: `deadlines.py`, lines 12 and 29.
-- Workflows: `application/initialise_factory.py`, line 19;
-  `application/watch_factory.py`, line 62; private run state: line 40;
-  `application/scaffold_issue.py`, line 29.
+- Workflows: `application/initialise_factory.py`, line 20;
+  `application/watch_factory.py`, line 59; private run state: line 37;
+  `application/scaffold_issue.py`, line 37.
   Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
   Problem types and formatting: `application/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `application/factory_records.py`, lines 14–118;
-  pre-create checks: `application/scaffold_issue.py`, line 79; read-only lookup/recovery:
-  lines 167 and 223; placeholder creation: line 179. Cleanup: `application/cleanup_completed.py`,
-  lines 46–115, 287–383; receipt contract: `application/ports/cleanup_receipts.py`,
-  lines 7–27; durable storage: `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
+  Shared identity/repository checks: `application/factory_records.py`, lines 15–119;
+  pre-create checks: `application/scaffold_issue.py`, line 87; read-only lookup/recovery:
+  lines 175 and 231; placeholder creation: line 187; worktree names: line 31.
+  Cleanup: `application/cleanup_completed.py`, lines 48–117, 292–388; ticket scope: line 190;
+  receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27; durable storage:
+  `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 13 and 124;
@@ -399,8 +404,8 @@ Paths below are relative to `src/forgetful_factory/`:
 - Lifecycle status: `cli/main.py`, lines 312, 343, 375 and 424;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
-- Tracking: `domain/services/work_tracking.py`, line 6; configuration:
-  `application/configuration.py`, lines 12 and 83; public loader: `configuration.py`, line 9.
+- Configuration: `application/configuration.py`, lines 13 and 84; public loader:
+  `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
   and `tests/test_watch.py`. `tests/test_watch_status.py` covers both lifecycle sources through

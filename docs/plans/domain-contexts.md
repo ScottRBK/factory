@@ -1,8 +1,8 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slice 0 implemented** (see [Progress](#progress)). Fable reviewed
-the first draft on 2026-11-23; see the [review record](#review-record). The design parts still
-need to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
+**Status: Approved 2026-11-23; slices 0–1 implemented** (see [Progress](#progress)). Fable reviewed
+the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
+to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
 ## Goal
 
@@ -420,7 +420,7 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
   `key: str` (see [Saved data](#saved-data)). The `github:` matches at
   `cleanup_completed.py:194` and `scaffold_issue.py:307` use the ticket id format and
   `Ticketing.is_key`. A registry and `Ticketing.validate_source` replace `bootstrap.py:36-46`.
-  Foreman guidance and the role-resource bundle are updated.
+  Foreman guidance is updated (the hashed bundle did not need it; see Progress).
   Proof: fixtures match (with the recorded key change); ticketing mixin with `ENG-123` keys;
   GitHub ids and branch names unchanged; clear error for an unknown provider; resource update
   test passes with the new bundle.
@@ -456,6 +456,31 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+- **Slice 1: done** (2026-11-23).
+  - Golden fixtures (`tests/test_saved_data.py`, `tests/fixtures/saved_data/`) were recorded
+    from the code before the change. The key change then shows as a two-line fixture diff:
+    `"number": 1` became `"key": "1"` in the notification and in the plan snapshot.
+  - `ticketing/` holds `Ticket`, `TicketSource`, `Label`, the `Ticketing` port and
+    `GitHubTicketing`. `RepositoryReference` keeps its `work_source` field name, because the
+    notification's `repositories` list serializes it. Remote parsing moved to
+    `adapters/github/source_resolver.py` until slice 2.
+  - Composition: a `TICKETING` registry and `select_ticketing` (`cli/bootstrap.py`). The core
+    receives one `Ticketing`, so mixed providers in one factory are refused clearly.
+  - The bundle did **not** need rebuilding: role skills are starter templates outside the hashed
+    bundle, and no bundled extension reads the notification or `external_ref`. Only the Foreman
+    and feature-owner skill texts changed.
+  - Rules: `inside-each-area`, `adapters-from-composition`, `adapters-independent` and
+    `contexts-not-legacy`. `*.services` is left out until a `services` package exists; the new
+    rule-name check failed on it, as designed. Composition rule sources include legacy
+    `application` and `domain` until they move. The harness now works out report names for
+    layers and independence rules too.
+  - `TicketingContract` (`tests/contracts/ticketing.py`) passes for GitHub (stateful `gh` stub)
+    and `FakeTicketing` (`ENG-123` keys). Provider-name scan for every `ports.py`/`model.py`.
+    The second fake provider's run through scaffold, watch and cleanup moves to slice 2, where
+    the fake forge exists.
+  - Proof: each new rule, weakened in a scratch copy, failed its test; integer keys from the
+    GitHub adapter failed the contract; "GitHub" in `ticketing/model.py` failed the scan.
+    Full suite 677 passed, 14 skipped; 8 rules kept. Mycelium 0.4.5: 98 boxes, 13 warnings.
 - **Slice 0: done** (2026-11-23, branch `refactor/domain-contexts`).
   - `shared/` holds `FactoryError` (`errors.py`), `watch_stop.py`, `command.py`,
     `sensitive_command.py`, `resource_files.py` and `resources.py` (`resource_root()`, which
@@ -541,7 +566,7 @@ finding, fix it in code with a regression test, rebuild, and restart the trial f
 
 **Pass:** every stage in step 6 completes with no action outside the rules.
 
-### Baseline results (in progress)
+### Baseline results (passed with findings)
 
 - Build: commit `ff5bc18`, wheel SHA256
   `9acc02c5cd13663d4075b235340e82563d4e6c481cc75735d72b0e767658c6b1`. The wheel was built in
@@ -559,7 +584,13 @@ finding, fix it in code with a regression test, rebuild, and restart the trial f
   cancelled at 20 minutes, attempt 3 passed at about 22:00. The feature-owner ran the reruns.
 - Review (plan task 215) posted 22:07:43 as COMMENTED, no blocking findings (see F4).
   PR merged 22:08:58; issue closed.
-- Still to check: DoD checks, plan completed, cleanup.
+- Merge commit `bf7d8b0` (22:08:29 UTC). The Foreman checked the DoD ("After merge": review,
+  checks on the exact final commit, confirmed merge) and checked `GET /healthz` on the server
+  itself. It completed plan 14 with tasks 213–216 done.
+- 22:31:59: the watcher confirmed cleanup for plan 14. The worktree, local branch and remote
+  branch `factory/scottrbk-dinoland-22` are gone.
+- Result: every stage passed with no action outside the rules. The F1 workaround (Ctrl-C, then
+  `watch --existing`) is a normal user action. The watcher and Foreman were left running.
 
 Findings:
 

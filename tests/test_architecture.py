@@ -18,7 +18,7 @@ RULES = {rule['id']: rule for rule in
          tomllib.loads((ROOT / 'pyproject.toml').read_text())['tool']['importlinter']['contracts']}
 
 # Modules of the disposable package. boundary_probe sits outside every area; indirect rows
-# route through it.
+# route through it. cli.prompts imports nothing, so a row that targets it breaks one rule only.
 MODULES = (
     '__main__',
     'shared.errors',
@@ -29,50 +29,92 @@ MODULES = (
     'adapters.shared',
     'adapters.provider',
     'cli.bootstrap',
+    'cli.prompts',
     'configuration',
     'ticketing.model',
+    'ticketing.ports',
+    'ticketing.adapters.github',
     'boundary_probe.bridge',
 )
 
 # Allowed imports (importer, imported). Together they are the known-good fixture: ports, shared
 # adapter code and both composition entry points. With every rule on, it must pass.
 ALLOWED = (
-    ('__main__', 'cli.bootstrap'),
+    ('__main__', 'cli.prompts'),
     ('deadlines', 'shared.errors'),
     ('domain.models', 'shared.errors'),
+    ('domain.models', 'ticketing.model'),
     ('application.ports.tracking', 'domain.models'),
     ('application.workflow', 'shared.errors'),
     ('application.workflow', 'application.ports.tracking'),
+    ('application.workflow', 'ticketing.ports'),
     ('adapters.provider', 'application.ports.tracking'),
     ('adapters.provider', 'adapters.shared'),
-    ('cli.bootstrap', 'adapters.provider'),
     ('adapters.provider', 'shared.errors'),
+    ('adapters.provider', 'ticketing.model'),
+    ('ticketing.ports', 'ticketing.model'),
+    ('ticketing.adapters.github', 'ticketing.ports'),
+    ('ticketing.adapters.github', 'shared.errors'),
+    ('cli.bootstrap', 'adapters.provider'),
     ('cli.bootstrap', 'application.workflow'),
     ('cli.bootstrap', 'shared.errors'),
+    ('cli.bootstrap', 'ticketing.adapters.github'),
     ('configuration', 'adapters.provider'),
     ('configuration', 'shared.errors'),
 )
 
-# Rejected imports (rule id, importing area, imported module). Each row runs direct and
-# indirect. The rule must be the one that rejects it.
+# Rejected imports (rule id, importing area, imported module). The area is a package (the probe
+# is a new module in it) or a module (the probe line is added to it). Each row runs direct and
+# indirect, and only its own rule may reject it.
 REJECTED = (
     ('domain-independent', 'domain', 'application.workflow'),
     ('domain-independent', 'domain', 'adapters.provider'),
-    ('domain-independent', 'domain', 'cli.bootstrap'),
+    ('domain-independent', 'domain', 'cli.prompts'),
     ('domain-independent', 'domain', 'configuration'),
     ('application-contracts', 'application', 'adapters.provider'),
-    ('application-contracts', 'application', 'cli.bootstrap'),
+    ('application-contracts', 'application', 'cli.prompts'),
     ('application-contracts', 'application', 'configuration'),
-    ('adapters-no-cli', 'adapters', 'cli.bootstrap'),
+    ('adapters-no-cli', 'adapters', 'cli.prompts'),
     ('shared-independent', 'shared', '__main__'),
     ('shared-independent', 'shared', 'deadlines'),
     ('shared-independent', 'shared', 'domain.models'),
     ('shared-independent', 'shared', 'application.workflow'),
     ('shared-independent', 'shared', 'adapters.provider'),
-    ('shared-independent', 'shared', 'cli.bootstrap'),
+    ('shared-independent', 'shared', 'cli.prompts'),
     ('shared-independent', 'shared', 'configuration'),
     ('shared-independent', 'shared', 'ticketing.model'),
+    ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
+    ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
+    ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
+    ('adapters-independent', 'adapters', 'ticketing.adapters.github'),
+    # Legacy adapters and configuration are left out: application and domain import the
+    # ticketing port and model, so from any ticketing module those imports break a second rule.
+    ('contexts-not-legacy', 'ticketing.adapters', 'cli.prompts'),
+    ('contexts-not-legacy', 'ticketing.adapters', 'application.workflow'),
+    ('contexts-not-legacy', 'ticketing.ports', 'domain.models'),
+    ('contexts-not-legacy', 'ticketing.model', 'deadlines'),
 )
+
+
+def rule_units(rule: dict) -> tuple[list[str], list[str]]:
+    """Names the checker reports a violation between: (importer side, imported side)."""
+    if rule['type'] == 'forbidden':
+        return rule['source_modules'], rule['forbidden_modules']
+    if rule['type'] == 'independence':
+        return rule['modules'], rule['modules']
+    names = [f'{container}.{name.strip()}' for container in rule['containers']
+             for layer in rule['layers'] for name in re.split('[:|]', layer.strip('()'))]
+    return names, names
+
+
+def unit(module: str, names: list[str]) -> str | None:
+    """The shortest part of the module name that a rule name matches."""
+    parts = module.split('.')
+    for end in range(1, len(parts) + 1):
+        prefix = '.'.join(parts[:end])
+        if any(matches(name, prefix) for name in names):
+            return prefix
+    return None
 
 
 def source(module: str) -> Path:
@@ -126,34 +168,61 @@ class ArchitectureTests(unittest.TestCase):
             self.assert_passes(self.check(workspace))
             for (area, target), indirect in [(row, way) for row in rows for way in (False, True)]:
                 with self.subTest(area=area, target=target, indirect=indirect):
-                    probe = package / area / 'probe.py'
-                    target_module = f'{PACKAGE}.{target}'
-                    if indirect:
-                        bridge.write_text(f'import {target_module}\n')
-                        probe.write_text(f'import {PACKAGE}.boundary_probe.bridge\n')
+                    module = package / source(area)
+                    if module.is_file():
+                        probe, importer = module, f'{PACKAGE}.{area}'
                     else:
-                        probe.write_text(f'import {target_module}\n')
+                        probe = package / source(area).with_suffix('') / 'probe.py'
+                        importer = f'{PACKAGE}.{area}.probe'
+                    clean = probe.read_text() if probe.is_file() else None
+                    target_module = f'{PACKAGE}.{target}'
+                    line = f'import {target_module}\n'
+                    if indirect:
+                        bridge.write_text(line)
+                        line = f'import {PACKAGE}.boundary_probe.bridge\n'
+                    probe.write_text((clean or '') + line)
                     # Step 1: with the target rule off, the violation passes.
                     self.assert_passes(self.check(workspace, contracts=others))
                     # Step 2: with the target rule on, it fails with that rule and full path.
                     result = self.check(workspace)
                     self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
                     output = ' '.join(result.stdout.split())
-                    forbidden = [module for module in rule['forbidden_modules']
-                                 if f'{target_module}.'.startswith(f'{module}.')]
-                    self.assertEqual(len(forbidden), 1, f'{rule_id} must forbid {target_module}.')
-                    forbidden = forbidden[0]
+                    sources, targets = rule_units(rule)
+                    importer_unit, target_unit = unit(importer, sources), unit(target_module,
+                                                                               targets)
+                    self.assertTrue(importer_unit and target_unit,
+                                    f'{rule_id} does not cover {importer} -> {target_module}.')
                     self.assertIn(f'{rule["name"]} BROKEN', output)
-                    self.assertIn(f'{PACKAGE}.{area} is not allowed to import {forbidden}:',
+                    self.assertIn(f'{importer_unit} is not allowed to import {target_unit}:',
                                   output)
-                    self.assertIn(f'{PACKAGE}.{area}.probe', output)
+                    self.assertIn(importer, output)
                     self.assertIn(target_module, output)
                     if indirect:
                         self.assertIn(f'{PACKAGE}.boundary_probe.bridge', output)
                     # Step 3: with the violation removed, the fixture passes again.
-                    probe.unlink()
+                    if clean is None:
+                        probe.unlink()
+                    else:
+                        probe.write_text(clean)
                     bridge.write_text('')
                     self.assert_passes(self.check(workspace))
+
+    def test_unclassified_module_in_a_context_is_rejected(self):
+        # Arrange: every module in a context must be one of its layers.
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+            self.fixture(workspace)
+            (workspace / 'src' / PACKAGE / 'ticketing' / 'helpers.py').write_text('')
+            others = [rule for rule in RULES if rule != 'inside-each-area']
+            self.assert_passes(self.check(workspace, contracts=others))
+            # Act
+            result = self.check(workspace)
+            # Assert
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            output = ' '.join(result.stdout.split())
+            self.assertIn(f'{RULES["inside-each-area"]["name"]} BROKEN', output)
+            self.assertIn('not listed as layers', output)
+            self.assertIn(f'{PACKAGE}.ticketing.helpers', output)
 
     def test_allowed_imports_pass_every_rule(self):
         # Arrange
@@ -197,9 +266,16 @@ class CoverageTests(unittest.TestCase):
         # Import Linter silently skips a wildcard that matches nothing, which turns a rule off.
         modules = real_modules()
         for rule in RULES.values():
-            self.assertEqual(rule['type'], 'forbidden',
-                             f'Extend this check to cover {rule["type"]} rules.')
-            for name in [*rule['source_modules'], *rule['forbidden_modules']]:
+            if rule['type'] == 'forbidden':
+                names = [*rule['source_modules'], *rule['forbidden_modules']]
+            elif rule['type'] == 'independence':
+                names = rule['modules']
+            elif rule['type'] == 'layers':
+                # The checker itself fails on a missing required layer; optional ones may be absent.
+                names = rule['containers']
+            else:
+                self.fail(f'Extend this check to cover {rule["type"]} rules.')
+            for name in names:
                 if name.startswith(f'{PACKAGE}.'):
                     with self.subTest(rule=rule['id'], name=name):
                         self.assertTrue(any(matches(name, module) for module in modules))
@@ -222,6 +298,17 @@ class CoverageTests(unittest.TestCase):
                  if '__file__' in path.read_text()}
         # Assert
         self.assertEqual(users, allowed)
+
+    def test_ports_and_models_name_no_provider(self):
+        # Import rules cannot see a hard-coded provider name, URL or pattern in core code.
+        files = [*SOURCE.glob('*/ports.py'), *SOURCE.glob('*/model.py'),
+                 *SOURCE.glob('factory/**/*.py')]
+        self.assertTrue(files)
+        names = re.compile(r'github|gitlab|codeberg|linear|tmux|herdr|agent_shell', re.IGNORECASE)
+        found = {str(path.relative_to(SOURCE)): sorted({name.casefold() for name in
+                                                        names.findall(path.read_text())})
+                 for path in files}
+        self.assertEqual({path: hits for path, hits in found.items() if hits}, {})
 
     def test_resource_root_holds_the_bundle(self):
         from forgetful_factory.shared.resources import resource_root

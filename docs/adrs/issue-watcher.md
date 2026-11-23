@@ -17,7 +17,7 @@ Plain `watch` launches and owns a fresh Pi using the selected root `agent.json`.
 started by assisted first init or standalone `foreman`, retains Foreman independently and manages
 a watcher that borrows its delivery channel. `foreman --attach` enters that existing terminal.
 Neither standalone Foreman command starts a watcher. Reuse that
-session; never silently replace or duplicate it. Keep polling behind `WorkTrackingService` and
+session; never silently replace or duplicate it. Keep polling behind the `Ticketing` port and
 terminal delivery behind an application port. GitHub and AgentShell adapters perform external I/O.
 
 All notification delivery goes through AgentShell, not Factory-owned tmux input commands. Native
@@ -74,10 +74,10 @@ read per eligible issue per poll; unrelated issues and pull requests are not rea
 GitHub's issue timestamp is not assumed to advance for comment edits. Snapshots are not atomic
 across GitHub's issue and comment requests; a later successful poll observes subsequent changes.
 
-`list_issues` validates issue pages and selects eligible issues before `_issue` builds each domain
-record and its revision. That conversion retains the same normalization, per-issue paginated comment
-reads and full comment validation. The tuple is returned only after every eligible conversion
-succeeds; extracting conversion does not add a cache, change transport or expose partial results.
+`list_open` validates issue pages and selects eligible issues before `_ticket` builds each `Ticket`
+and its revision. That conversion retains the same normalization, per-issue paginated comment reads
+and full comment validation. The tuple is returned only after every eligible conversion succeeds;
+extracting conversion does not add a cache, change transport or expose partial results.
 
 Alert suppression, blocked records and issue revisions remain separate. A corrected record can
 recover without an issue edit. No work is deleted on failure. Ordinary notifications carry
@@ -152,12 +152,12 @@ src/forgetful_factory/
 │   ├── watch_factory.py             # Polling, baseline, revisions, notifications
 │   └── ports/
 │       └── foreman_terminal.py      # Startup hint, launch, submit, wait, close
-├── domain/
-│   ├── models.py                    # Provider-independent Issue
-│   └── services/work_tracking.py    # Adds matching-open-issue reads
+├── ticketing/
+│   ├── model.py                     # Provider-independent Ticket
+│   ├── ports.py                     # Ticketing: matching-open-ticket reads
+│   └── adapters/github.py           # Paginated issue reads and label matching
 └── adapters/
     ├── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
-    ├── github/work_tracking.py      # Paginated issue reads and label matching
     └── agentshell/
         ├── terminal.py              # Watcher-owned controller and acknowledgements
         ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
