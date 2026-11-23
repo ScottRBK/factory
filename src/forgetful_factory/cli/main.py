@@ -233,7 +233,7 @@ def _select_model(application, connection, home: str, requested: str | None,
     print(f'Native Pi login: in another terminal run PI_CODING_AGENT_DIR={shlex.quote(home)} pi, '
           'then use /login. Listing and selection do not verify model access.')
     while True:
-        models = application.profile.list_models(connection)
+        models = application.team.list_models(connection)
         if models:
             break
         print('No selectable models. Configure native Pi login/models in the chosen home.')
@@ -342,7 +342,7 @@ def _watch_status(workspace: Path) -> int:
     import json
 
     from forgetful_factory.adapters.watch_status import plain_watch_status, unknown_status
-    from forgetful_factory.agents.adapters.pi.foreman_profile import ForemanProfile
+    from forgetful_factory.cli.bootstrap import build_team
     from forgetful_factory.configuration import load_configuration
 
     plain = plain_watch_status(workspace)
@@ -362,7 +362,9 @@ def _watch_status(workspace: Path) -> int:
         else:
             state = plain or managed or unknown_status()
     try:
-        ForemanProfile(workspace).validate_completion(load_configuration(workspace))
+        # Setup counts as complete only when the configuration also loads.
+        load_configuration(workspace)
+        build_team(workspace).validate_completion()
         state['setup'] = 'complete'
     except (FactoryError, OSError):
         state['setup'] = 'incomplete'
@@ -476,7 +478,7 @@ def _listed_project_id(answer: str, projects: list[dict]) -> int:
 
 def _select_project(application: InitialiseFactory, connection: ForgetfulConnection,
                     workspace: Path) -> int:
-    projects = application.profile.projects(connection)
+    projects = application.planning.projects(connection)
     if projects:
         for project in projects:
             print(f"{project['id']}. {_safe_diagnostic(project['name'])}")
@@ -493,7 +495,7 @@ def _select_project(application: InitialiseFactory, connection: ForgetfulConnect
     if confirm.strip().lower() != 'y':
         raise FactoryError('Project creation cancelled; no project was created. '
                            'Setup is incomplete.')
-    project_id = application.profile.create_project(connection, name)
+    project_id = application.planning.create_project(connection, name)
     print(f'Created Forgetful project {project_id}: {_safe_diagnostic(name)}')
     return project_id
 
@@ -654,10 +656,11 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
     print('Foreman model selected; access unverified (no model request made).')
     print(f'Factory configuration: {workspace}/.factory/factory.toml')
     print('Checking Forgetful connection and planning access...', flush=True)
-    if application.profile.uses_browser_login(config.forgetful):
+    if application.planning.uses_browser_login(config.forgetful):
         print('If your browser opens, complete Forgetful sign-in there.', flush=True)
     print(application.check_foreman(config, login=login))
-    memory_selected = application.profile.record_completion(config)
+    memory_selected = application.team.record_completion(config.foreman_agent_file,
+                                                         config.forgetful)
     if initial:
         print('Add your skills as <skill-name>/SKILL.md inside these agent folders:')
         roles = ['foreman', 'feature-owner', 'research']
@@ -670,7 +673,7 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
         print('Follow agent_file references and use each agent\'s selected skills directories.')
     print('Agent settings live in agent.json. Add skills to a selected directory; '
           'reload or restart affected agents. Repeated init preserves your files.')
-    notice = application.profile.managed_memory_notice()
+    notice = application.team.managed_memory_notice()
     if notice is not None:
         print(notice)
     elif config.forgetful.instance == 'server' and not _managed_rest_mapping_available(
@@ -771,10 +774,10 @@ def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfig
     from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
 
     _connection(args, workspace, config.forgetful)
-    application.profile.choose_pi_home(args.pi_agent_dir,
-                                       lambda home: _confirm_pi_home(home, args))
-    application.profile.save_pi_choice()
-    application.profile.selected_launch(config)
+    application.team.choose_pi_home(args.pi_agent_dir,
+                                    lambda home: _confirm_pi_home(home, args))
+    application.team.save_pi_choice()
+    application.team.selected_launch(config.foreman_agent_file, config.forgetful)
     for message in application.initialise(config, before_writes=lambda: None, save=False):
         print(message)
     if agree_definition_of_done(workspace, config):
@@ -802,8 +805,8 @@ def _discover_worker_models(harness, role=None, *, application: InitialiseFactor
         directory = workspace / '.factory/agents' / role.replace('_', '-')
         check_real_path(directory)
         directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-        return application.profile.list_models(state.connection, harness=harness, cwd=directory)
-    catalogs = [set(application.profile.list_models(
+        return application.team.list_models(state.connection, harness=harness, cwd=directory)
+    catalogs = [set(application.team.list_models(
         state.connection, harness=harness, cwd=Path(repository.local_dir)))
         for repository in state.config.repository]
     return sorted(set.intersection(*catalogs))
@@ -824,7 +827,10 @@ def _validate_initial_model(application: InitialiseFactory, args: argparse.Names
         print('Checking worker model catalogs using the selected native apps/accounts. '
               'Listing may read native settings, credentials and network catalogs; '
               'it does not verify model access or model-specific effort support.')
-    application.profile.prepare_roles(state.config, choices)
+    application.team.prepare_roles(
+        choices, execution_enabled=state.config.execution_enabled,
+        repositories=[repository.local_dir for repository in state.config.repository],
+        connection=state.config.forgetful)
     return state.config
 
 
@@ -832,9 +838,9 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
                          workspace: Path, paths: list[Path] | None,
                          deadlines: DeadlinePolicy) -> int | dict:
     connection = _connection(args, workspace, None)
-    home = application.profile.choose_pi_home(args.pi_agent_dir,
-                                             lambda value: _confirm_pi_home(value, args))
-    application.profile.begin_setup()
+    home = application.team.choose_pi_home(args.pi_agent_dir,
+                                          lambda value: _confirm_pi_home(value, args))
+    application.team.begin_setup()
     config, choices = _configure_new_factory(
         application, workspace, args, paths, connection, home)
     state = _InitialSetupState(connection, config, args.foreman_model is None)
@@ -847,7 +853,7 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
         if not state.prepared:
             _prepare_foreman(application, state.connection, args)
             state.prepared = True
-        return application.profile.list_models(state.connection)
+        return application.team.list_models(state.connection)
 
     choices = _foreman_memory_choices(args, choices, memory_models, state.connection)
     validate_initial_agents(choices)
@@ -896,7 +902,7 @@ def _launch_setup_foreman(application, config, workspace, args, deadlines):
     from forgetful_factory.agents.adapters.agentshell.owner_client import start_owner
     from forgetful_factory.cli.bootstrap import prepare_foreman_launch
 
-    application.profile.prepare_setup_guidance()
+    application.team.prepare_setup_guidance()
     print(application.check_foreman(config, login=args.login))
     _, environment, launch = prepare_foreman_launch(
         config, workspace, complete=False,

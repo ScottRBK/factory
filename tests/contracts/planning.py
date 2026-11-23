@@ -1,4 +1,6 @@
-"""Promises every PlanStore adapter keeps. Plans and tasks stay plain dicts."""
+"""Promises every PlanStore and PlanningSetup adapter keeps. Plans and tasks stay dicts."""
+
+from forgetful_factory.shared.errors import FactoryError
 
 
 class PlanStoreContract:
@@ -45,3 +47,41 @@ class PlanStoreContract:
         self.assertIsInstance(first, str)
         self.assertTrue(first)
         self.assertEqual(first, second)
+
+
+class PlanningSetupContract:
+    """Mix into unittest.TestCase. The subclass supplies the adapter and a connection to it."""
+
+    def setup(self):
+        raise NotImplementedError
+
+    def connection(self, project_id=None):
+        raise NotImplementedError
+
+    def test_created_project_is_listed(self):
+        setup = self.setup()
+        before = setup.projects(self.connection())
+        project_id = setup.create_project(self.connection(), 'Dino habitat')
+        listed = {project['id']: project['name'] for project in setup.projects(self.connection())}
+        self.assertIsInstance(project_id, int)
+        self.assertEqual(listed.get(project_id), 'Dino habitat')
+        self.assertEqual(len(listed), len(before) + 1)
+
+    def test_check_confirms_access_to_the_selected_project(self):
+        setup = self.setup()
+        project_id = setup.create_project(self.connection(), 'Dino habitat')
+        message = setup.check(self.connection(project_id), execution_enabled=True)
+        self.assertIsInstance(message, str)
+        self.assertTrue(message)
+
+    def test_check_refuses_a_connection_without_a_project(self):
+        with self.assertRaises(FactoryError):
+            self.setup().check(self.connection(), execution_enabled=False)
+
+    def test_prepare_can_repeat(self):
+        setup = self.setup()
+        setup.prepare(self.connection())
+        setup.prepare(self.connection())
+
+    def test_browser_login_need_is_yes_or_no(self):
+        self.assertIsInstance(self.setup().uses_browser_login(self.connection()), bool)

@@ -120,18 +120,13 @@ modules = [
     "forgetful_factory.ticketing.adapters",
     "forgetful_factory.workspace.adapters",
 ]
-# Until slice 4b splits ForemanProfile. The checker fails once an ignore no longer matches.
-ignore_imports = [
-    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.adapters.host_dependencies",
-    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.planning.adapters.forgetful.authentication",
-    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.planning.adapters.forgetful.connection",
-]
 
 [[tool.importlinter.contracts]]
 id = "contexts-not-legacy"
 name = "Contexts do not import legacy areas or composition (until slice 5)"
 type = "forbidden"
 source_modules = [
+    "forgetful_factory.agents",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.ticketing",

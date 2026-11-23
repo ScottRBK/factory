@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–4a implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–4b implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -197,9 +197,10 @@ Ports contain only what the code uses today. Each port speaks its own context's 
 - **`AgentTeam`**: the agent-definition half of `ForemanProfile`. It takes `AgentChoices` (today's
   `InitialAgentChoices`), the root agent file path and the execution flag, not
   `FactoryConfiguration`.
-- **`ToolInstaller`**: `missing()`, `describe(name)`, `install(name)`. The agents, planning and
-  runtime adapters each implement it for their own tools. Python protocols are structural, so an
-  implementer does not import `factory`.
+- **`ToolInstaller`**: `absent()`, `unready()`, `describe(name)`, `install(name)`. One installer
+  per tool, in the context that owns the tool. Two lists instead of one `missing()` keep today's
+  prompt order: init offers every absent tool first, then every tool whose managed copy is not
+  ready (slice 4b). Python protocols are structural, so an implementer does not import `factory`.
 - **`SessionHost`**: `spec() -> dict` (the plain-data host for the launch JSON),
   `how_to_attach(target) -> str`, `enter(target)`.
 - **`Channel`**: `how_to_reach(target) -> str` and `open(target)`.
@@ -458,12 +459,13 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 **Rule (Scott, 2026-11-23): the refactor must not change functional behaviour.** Reviewers
 (Fable 5.2 and Astra in Codex, through AgentShell, after a SonarQube scan) must check this. Every
-change of behaviour so far is listed here, including small ones:
+change of behaviour so far is listed here, including small ones. Scott accepted the list below;
+any further change of behaviour needs his approval first.
 
 - **Agreed (decision 6):** ticket keys are text. The notification and plan snapshot carry
   `"key": "42"` instead of `"number": 42`; plans saved by older builds need reconciliation. The
   Foreman and feature-owner skills say `provider:source#key`.
-- **Message text, edge cases (not yet agreed):**
+- **Message text, edge cases (accepted by Scott, 2026-11-23):**
   - Init preflight now runs `GitHubTicketing.validate_source` before the origin check. A saved
     GitHub source in a bad format (for example `team/app.git`) now reports "Invalid GitHub work
     source …" instead of "Origin/source changed …". An unsupported provider still reports
@@ -476,10 +478,43 @@ change of behaviour so far is listed here, including small ones:
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** decide whether to restore the two edge-case messages; slices 4b, 4c, 4d (smoke
-trial), 5, 6 (final trial); then SonarQube and the two reviews. Trials use a throwaway private
+**Next steps:** slices 4c, 4d (smoke trial), 5, 6 (final trial); then SonarQube and the two
+reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Slice 4b: done** (2026-11-23). No behaviour change.
+  - `ForemanProfile` split. `PiAgentTeam` (`agents/adapters/pi/agent_team.py`) keeps the role
+    files, native home, model catalog and completion; it takes the choices, the agent file, the
+    execution flag and the repository directories instead of `FactoryConfiguration`.
+    `ForgetfulSetup` (`planning/adapters/forgetful/setup.py`) keeps projects, sign-in, check and
+    the local database folder. Ports: `AgentTeam` (`agents/ports.py`), `PlanningSetup`
+    (`planning/ports.py`), `ToolInstaller` (`application/ports/tool_installer.py` until slice 5).
+  - `host_dependencies.py` split by tool: `PiInstall` and `TmuxInstall`/`AgentShellRuntimeInstall`
+    in `agents/adapters/`, `ForgetfulInstall` in `planning/adapters/forgetful/install.py`, and the
+    uv check, lock extraction and install runner in `shared/installation.py`. tmux moves to
+    `runtime` in 4c.
+  - The agent team gets the planning role environment and the missing-tools check as functions
+    from `cli/bootstrap.py`, so no agents module imports planning adapters or `application`.
+  - Order kept: the old check listed tools absent from PATH (Pi, tmux, Forgetful), then managed
+    copies not ready (Pi, Forgetful, AgentShell runtime). One `missing()` per tool would offer a
+    stale managed Pi before a missing tmux. So the port has `absent()` and `unready()`, and
+    `missing_tools` joins all absent names, then all unready names. A recipe is found by name in
+    the same tool order, as the old name dispatch did. Probes run in the same order.
+  - Rules: the three `ignore_imports` are gone; `agents` joins `contexts-not-legacy`. New proof
+    rows: `agents.adapters → application.workflow`, `agents.model → deadlines` and
+    `agents.adapters → adapters.shared` (also rejected by `adapters-independent`).
+  - Tests first: a characterization test (`tests/test_pi_runtime_install.py`) showed on the old
+    code that a missing tmux is offered before a stale managed Pi, and that Pi comes next; the
+    existing `test_managed_forgetful_partial_install_cannot_be_accepted_on_retry` already pins
+    Forgetful before the AgentShell runtime. Mutations in a copy: one `missing()` pass per tool
+    fails the first; AgentShell runtime before Forgetful fails the second.
+  - Contracts: `AgentTeamContract` (Pi team), `PlanningSetupContract` (Forgetful with the
+    profile command double), `ToolInstallerContract` (all four installers).
+  - Checks: full suite 714 passed, 14 skipped (`-n auto --dist worksteal`); 9 import contracts
+    kept, no ignores; Ruff clean; wheel built to the scratchpad (110 checksums) passes
+    `tests/check_package.py`, holds the new modules and none of the removed ones; an installed
+    copy resolves the launch paths and builds the team. `dist/` was not rebuilt.
 
 - **Slice 4a: done** (2026-11-23), move only.
   - `agents/adapters/agentshell/` holds the AgentShell adapter, owner, controller, model catalog,

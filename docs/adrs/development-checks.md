@@ -37,39 +37,37 @@ Import Linter's nine contracts in `pyproject.toml` enforce:
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
-  Until slice 4b, three `ignore_imports` let `agents/adapters/pi/foreman_profile.py` use legacy
-  `host_dependencies.py` and the Forgetful authentication and connection adapters. Import Linter
-  fails when an ignore no longer matches, and the proof fixture contains the same two edges, so the
-  ignores stay exact.
+  It has no ignored imports. Composition gives the agent team what it needs from planning: the
+  role environment and the missing-tools check are functions passed in by `cli/bootstrap.py`.
 - `agentshell-in-agents`: only `agents.adapters` imports `agent_shell` directly. It needs
   `include_external_packages = true`. It sets `allow_indirect_imports`, because composition reaches
   AgentShell through the agents adapter; its indirect proof rows must pass.
 - `contexts-not-legacy` (until slice 5 of the [domain contexts plan](../plans/domain-contexts.md)):
-  contexts other than `agents` (until 4b removes its links to `application` and legacy adapters) do
-  not import the legacy `adapters`, `application`, `domain` or `deadlines`, or the CLI and
-  configuration facade. These checks include submodules and indirect paths. Application may use
-  domain contracts and its own ports. Adapters may use application/domain types and shared adapter
-  utilities. Bootstrap and the public configuration loader are composition entry points and may
-  construct adapters. The rules are coarse layer checks, not an allowlist limiting adapters to
-  application ports; adapter-to-workflow imports and external integration imports are not separately
-  restricted. Dynamic imports and runtime operations such as built-in file access remain outside
-  these checks. `tests/test_architecture.py` invokes the real checker on temporary, importable
-  fixture packages, using the repository's actual contracts. Two tables drive it. `ALLOWED` lists
-  the permitted imports; together they form the known-good fixture, which must pass every rule.
-  `REJECTED` lists (rule, area, target) rows; the area is a package (the probe is a new module) or a
-  module (the probe line is added to it). Each configured rule gets its own test, which fails if the
-  rule has no rows. Only the row's own rule may reject it, so `cli` rows target `cli.prompts`, which
-  imports nothing. Where that cannot hold, the row names the other rules that must also reject it,
-  and step 1 turns those off too; for example, any import from `forge` to `ticketing.adapters` is
-  also an indirect `forge.adapters` to `ticketing.adapters` import. The checker's report must name
-  the rule's own units, worked out for forbidden, layers and independence rules. Each row proves
-  direct and indirect rejection, checks that disabling the target rule permits the violation, and
-  checks that removing it passes again. Assertions identify the exact forbidden area pair, not
-  merely a target appearing somewhere in a longer rejected path. Indirect helpers live outside both
-  endpoint areas. Rule isolation uses CLI contract selection, preserving all global settings. No
-  intentional violations are written into the actual source tree. These repeatable proofs guard
-  against later weakening of the configuration, rather than mocking an import-analysis library.
-  Coverage checks in the same file guard what the checker cannot see by itself:
+  contexts, `agents` included, do not import the legacy `adapters`, `application`, `domain` or
+  `deadlines`, or the CLI and configuration facade. These checks include submodules and indirect
+  paths. Application may use domain contracts and its own ports. Adapters may use application/domain
+  types and shared adapter utilities. Bootstrap and the public configuration loader are composition
+  entry points and may construct adapters. The rules are coarse layer checks, not an allowlist
+  limiting adapters to application ports; adapter-to-workflow imports and external integration
+  imports are not separately restricted. Dynamic imports and runtime operations such as built-in
+  file access remain outside these checks. `tests/test_architecture.py` invokes the real checker on
+  temporary, importable fixture packages, using the repository's actual contracts. Two tables drive
+  it. `ALLOWED` lists the permitted imports; together they form the known-good fixture, which must
+  pass every rule. `REJECTED` lists (rule, area, target) rows; the area is a package (the probe is a
+  new module) or a module (the probe line is added to it). Each configured rule gets its own test,
+  which fails if the rule has no rows. Only the row's own rule may reject it, so `cli` rows target
+  `cli.prompts`, which imports nothing. Where that cannot hold, the row names the other rules that
+  must also reject it, and step 1 turns those off too; for example, any import from `forge` to
+  `ticketing.adapters` is also an indirect `forge.adapters` to `ticketing.adapters` import. The
+  checker's report must name the rule's own units, worked out for forbidden, layers and independence
+  rules. Each row proves direct and indirect rejection, checks that disabling the target rule
+  permits the violation, and checks that removing it passes again. Assertions identify the exact
+  forbidden area pair, not merely a target appearing somewhere in a longer rejected path. Indirect
+  helpers live outside both endpoint areas. Rule isolation uses CLI contract selection, preserving
+  all global settings. No intentional violations are written into the actual source tree. These
+  repeatable proofs guard against later weakening of the configuration, rather than mocking an
+  import-analysis library. Coverage checks in the same file guard what the checker cannot see by
+  itself:
 - Every source folder with Python files has `__init__.py`; a missing marker hides modules.
 - Every internal name in a rule matches a real module. Import Linter skips a wildcard that
   matches nothing, which turns a rule off silently. The check fails on a contract type it does
@@ -92,10 +90,17 @@ Import Linter's nine contracts in `pyproject.toml` enforce:
 fail, and change-request URLs belong to their repository. `PlanStoreContract` states that a created
 plan is in the store's project and found by reference, another project's plan is not owned, plans
 and tasks update, and the backend identity is stable text; it runs against `ForgetfulPlanStore` with
-the stateful native planning program. Each runs against the GitHub adapter (with a stateful `gh`
-stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state
-in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it
-passes its mixin.
+the stateful native planning program. `PlanningSetupContract` states that a created project is
+listed, the check confirms access to a selected project and refuses none, prepare can repeat, and
+the browser-login need is yes or no; it runs against `ForgetfulSetup` with the profile command
+double. `AgentTeamContract` states that declined home consent saves nothing, accepted consent is
+kept once saved, setup is incomplete until recorded, and no memory notice exists before a launch is
+selected. `ToolInstallerContract` states that a bare host misses the tool, an installed tool is not
+missing, and other tools are neither described nor installed; it runs against each installer (Pi,
+tmux, Forgetful, AgentShell runtime). The ticketing and forge mixins run against the GitHub adapter
+(with a stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys
+such as `ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new
+adapter is done when it passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan

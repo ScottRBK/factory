@@ -1,55 +1,78 @@
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from forgetful_factory.agents.ports import AgentTeam
 from forgetful_factory.application.configuration import (
     FactoryConfiguration,
     unique_labels,
     validate,
 )
 from forgetful_factory.application.ports.configuration_store import ConfigurationStore
-from forgetful_factory.application.ports.foreman_profile import ForemanProfile
+from forgetful_factory.application.ports.tool_installer import ToolInstaller
 from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.model import ForgetfulConnection
+from forgetful_factory.planning.ports import PlanningSetup
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Label, TicketSource
 from forgetful_factory.ticketing.ports import Ticketing
 from forgetful_factory.workspace.ports import LocalRepositories
 
 
+def missing_tools(tools: Sequence[ToolInstaller]) -> list[str]:
+    """Every absent tool first, then every tool that is present but not ready."""
+    return ([name for tool in tools for name in tool.absent()]
+            + [name for tool in tools for name in tool.unready()])
+
+
+def _reviewed_install(tools: Sequence[ToolInstaller],
+                      name: str) -> tuple[ToolInstaller | None, str | None]:
+    """The first tool with a reviewed recipe for name, and its consent question."""
+    for tool in tools:
+        recipe = tool.describe(name)
+        if recipe is not None:
+            return tool, recipe
+    return None, None
+
+
 class InitialiseFactory:
     def __init__(self, tracking: Ticketing, storage: ConfigurationStore,
-                 repositories: LocalRepositories, forge: Forge,
-                 profile: ForemanProfile):
+                 repositories: LocalRepositories, forge: Forge, team: AgentTeam,
+                 planning: PlanningSetup,
+                 tools: Callable[[ForgetfulConnection], Sequence[ToolInstaller]]):
         self.tracking = tracking
         self.storage = storage
         self.repositories = repositories
         self.forge = forge
-        self.profile = profile
+        self.team = team
+        self.planning = planning
+        self.tools = tools
 
     def prepare_foreman(self, connection: ForgetfulConnection,
                         install: Callable[[list[str]], None],
                         confirm: Callable[[str, str], bool]) -> None:
-        self.profile.prepare(connection)
-        missing = self.profile.missing_executables(connection)
+        self.team.prepare()
+        self.planning.prepare(connection)
+        tools = self.tools(connection)
+        missing = missing_tools(tools)
         if missing:
             for command in missing:
-                recipe = self.profile.installation(command)
+                installer, recipe = _reviewed_install(tools, command)
                 if recipe is None:
                     install([command])
                 elif confirm(command, recipe):
-                    self.profile.install(command)
+                    installer.install(command)
                 else:
                     raise FactoryError('Installation declined; executable missing. '
                                        'Setup is incomplete; rerun init to retry.')
-            if self.profile.missing_executables(connection):
+            if missing_tools(tools):
                 raise FactoryError('Required executable still missing; setup is incomplete. '
                                    'Complete the reviewed installation and rerun init.')
 
     def check_foreman(self, config: FactoryConfiguration, *, login: bool) -> str:
         if login:
-            self.profile.login(config.forgetful)
-        return self.profile.check(config.forgetful, execution_enabled=config.execution_enabled)
+            self.planning.login(config.forgetful)
+        return self.planning.check(config.forgetful, execution_enabled=config.execution_enabled)
 
     def load_existing(self, paths: list[Path] | None,
                       labels: list[str] | None) -> FactoryConfiguration | None:

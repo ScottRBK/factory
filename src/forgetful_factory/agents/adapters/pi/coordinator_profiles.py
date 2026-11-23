@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 from forgetful_factory.agents.adapters.pi.worker_profiles import WorkerProfiles
-from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import (
     check_skill_file,
@@ -48,9 +47,9 @@ class CoordinatorProfiles:
                                'research delegation. Review extensions/agentshell.json in the '
                                'shared Pi home; Factory preserves those preferences.') from error
 
-    def prepare(self, config: FactoryConfiguration, choices) -> None:
+    def prepare(self, execution_enabled: bool, choices) -> None:
         """Write the starter tree once, descendants before their parents."""
-        self.validate_guidance(config)
+        self.validate_guidance(execution_enabled)
         if not choices.grill_me_skill:
             raise FactoryError('Owner setup needs an existing unchanged grill-me SKILL.md.')
         check_skill_file(Path(choices.grill_me_skill))
@@ -67,7 +66,7 @@ class CoordinatorProfiles:
                           choices.research_agent_effort or choices.feature_owner_agent_effort,
                           'Gather facts and return context', [],
                           selected_resources([LOCAL_SKILLS_DIRECTORY], []))
-        if config.execution_enabled:
+        if execution_enabled:
             self.workers.prepare(choices)
             children.extend(('implementation', 'review'))
         extension = '../../resources/agentshell/extensions/agentshell.ts'
@@ -112,8 +111,8 @@ class CoordinatorProfiles:
                        'roles': [{'agent_file': f'../{child}/agent.json'} for child in children]},
         })
 
-    def validate_guidance(self, config: FactoryConfiguration) -> None:
-        if not config.execution_enabled:
+    def validate_guidance(self, execution_enabled: bool) -> None:
+        if not execution_enabled:
             return
         obsolete = ('this slice stops at a reviewable plan',
                     'are not available in this slice',

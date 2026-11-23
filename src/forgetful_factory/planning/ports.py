@@ -1,5 +1,6 @@
 from typing import Protocol
 
+from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
 
 
@@ -32,3 +33,20 @@ class PlanStore(Protocol):
 
     def backend_identity(self) -> str:
         """Stable text naming this store, saved in cleanup receipts."""
+
+
+class PlanningSetup(Protocol):
+    """First setup of the planning store: project choice, sign-in and access checks."""
+
+    def projects(self, connection: ForgetfulConnection) -> list[dict]: ...
+
+    def create_project(self, connection: ForgetfulConnection, name: str) -> int: ...
+
+    def prepare(self, connection: ForgetfulConnection) -> None: ...
+
+    def uses_browser_login(self, connection: ForgetfulConnection) -> bool: ...
+
+    def login(self, connection: ForgetfulConnection) -> None: ...
+
+    def check(self, connection: ForgetfulConnection, *, execution_enabled: bool) -> str:
+        """Confirm access to the selected project; return a one-line report."""

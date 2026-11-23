@@ -6,25 +6,20 @@ import re
 import shlex
 import shutil
 import sys
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from forgetful_factory.adapters.host_dependencies import (
-    FORGETFUL_PROBE,
-    ROLE_PROBE,
-    HostDependencies,
-    runtime_ready,
-)
 from forgetful_factory.agents.adapters.agentshell.launch import MODEL_CATALOG
 from forgetful_factory.agents.adapters.pi.agent_definitions import foreman_launch
 from forgetful_factory.agents.adapters.pi.coordinator_profiles import CoordinatorProfiles
+from forgetful_factory.agents.adapters.pi.native_home import (
+    FACTORY_DIRECTORY,
+    PI_PROFILE_FILE,
+    saved_pi_home,
+)
 from forgetful_factory.agents.adapters.pi.role_resources import bundled_files
 from forgetful_factory.agents.adapters.pi.selected_skills import selected_skill_files
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.planning.adapters.forgetful.authentication import uses_browser_login
-from forgetful_factory.planning.adapters.forgetful.connection import (
-    AgentForgetfulConnection,
-    role_environment,
-)
+from forgetful_factory.agents.model import InitialAgentChoices
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.executables import executable_path
@@ -43,17 +38,25 @@ RESOURCES = resource_root() / 'foreman'
 FOREMAN_SKILL_PATH = 'skills/foreman/SKILL.md'
 MAINTENANCE_SKILL_PATH = 'skills/factory-maintenance/SKILL.md'
 ROLE_GUIDANCE_FILE = 'APPEND_SYSTEM.md'
-PI_PROFILE_FILE = 'pi-profile.json'
 COMPLETION_FILE = 'setup-complete.json'
 ROLE_RESOURCES_FILE = 'role-resources.json'
-FACTORY_DIRECTORY = '.factory'
 MANAGED_MEMORY_RESOURCE = 'pi-forgetful'
 
 
-class ForemanProfile:
-    def __init__(self, workspace: Path, term_grace: float = 3):
+class PiAgentTeam:
+    """The agent team as Pi role files, launched through AgentShell.
+
+    role_environment(connection, pi_home) gives a role the planning settings it needs.
+    missing_tools(connection) names the tools that are absent or not ready.
+    """
+
+    def __init__(self, workspace: Path, term_grace: float = 3, *,
+                 role_environment: Callable[[ForgetfulConnection, str], dict[str, str]],
+                 missing_tools: Callable[[ForgetfulConnection], list[str]]):
         self.workspace = workspace
         self.term_grace = term_grace
+        self.role_environment = role_environment
+        self.missing_tools = missing_tools
         self.directory = workspace / '.factory/agents/foreman'
         self.foreman_skill = self.directory / FOREMAN_SKILL_PATH
         self.bundle_directory = workspace / '.factory/resources'
@@ -73,42 +76,13 @@ class ForemanProfile:
                                'AGENTS.md before assisted launch. Custom instructions and '
                                'existing files were preserved; no Foreman was launched.')
 
-    def missing_executables(self, connection: ForgetfulConnection) -> list[str]:
-        required = ['pi', 'tmux']
-        if connection.method == 'cli' or connection.instance == 'local':
-            required.append(connection.executable)
-        path = executable_path(self.workspace)
-        missing = [command for command in required if shutil.which(command, path=path) is None]
-        managed_pi = self.workspace / '.factory/runtime/pi/node_modules/.bin/pi'
-        if (shutil.which('pi', path=path) == str(managed_pi)
-                and Path(self.pi_home()).is_dir()
-                and not HostDependencies(
-                    self.workspace, self.term_grace).pi_ready(self.pi_home())):
-            missing.append('pi')
-        managed = self.workspace / '.factory/runtime/forgetful'
-        selected = shutil.which(connection.executable, path=path)
-        if (connection.executable in required
-                and selected == str(managed / 'bin/forgetful')
-                and connection.executable not in missing
-                and not runtime_ready(managed, (managed / 'forgetful-requirements.txt',),
-                                      FORGETFUL_PROBE, self.term_grace)):
-            missing.append('forgetful')
-        if not self.role_runtime_ready():
-            missing.append('agentshell-runtime')
-        return missing
-
-    def role_runtime_ready(self) -> bool:
-        project = self.bundle_directory / 'agentshell/python'
-        return runtime_ready(project / '.venv', (project / 'pyproject.toml', project / 'uv.lock'),
-                             ROLE_PROBE, self.term_grace)
-
     def validate_setup(self, connection: ForgetfulConnection, *,
                        include_home_system_prompt: bool = False,
                        include_memory_extension: bool = False) -> None:
         """Read-only preflight. Connection/authentication readiness belongs to Pi/CLI."""
         self.validate_guidance(include_home_system_prompt=include_home_system_prompt)
         self.require_pi_home(self.pi_home())
-        if self.missing_executables(connection):
+        if self.missing_tools(connection):
             raise FactoryError('Foreman profile/runtime is incomplete; complete first setup.')
         CoordinatorProfiles(self.workspace).validate_depth(self.pi_home())
         self.validate_bundled_resources(include_memory_extension=include_memory_extension)
@@ -128,12 +102,6 @@ class ForemanProfile:
                                        'reconcile with the audited bundle through update '
                                        'before restarting foreman/watch or init --finalize.')
 
-    def installation(self, command: str) -> str | None:
-        return HostDependencies(self.workspace, self.term_grace).description(command)
-
-    def install(self, command: str) -> None:
-        HostDependencies(self.workspace, self.term_grace).install(command)
-
     def _install_resources(self) -> None:
         for member, data in bundled_files().items():
             path = self.bundle_directory / member
@@ -142,24 +110,6 @@ class ForemanProfile:
                                    'preserved. Preview with update --dry-run, then reconcile '
                                    'with update and rerun init.')
             write_new(path, data.decode())
-
-    def uses_browser_login(self, connection: ForgetfulConnection) -> bool:
-        return uses_browser_login(connection)
-
-    def login(self, connection: ForgetfulConnection) -> None:
-        AgentForgetfulConnection(self.workspace, self.term_grace).login(connection)
-
-    def check(self, connection: ForgetfulConnection, *, execution_enabled: bool) -> str:
-        AgentForgetfulConnection(self.workspace, self.term_grace).check(
-            connection, execution_enabled=execution_enabled)
-        return 'Forgetful: connected; selected project and planning permissions verified.'
-
-    def projects(self, connection: ForgetfulConnection) -> list[dict]:
-        return AgentForgetfulConnection(self.workspace, self.term_grace).projects(connection)
-
-    def create_project(self, connection: ForgetfulConnection, name: str) -> int:
-        return AgentForgetfulConnection(self.workspace, self.term_grace).create_project(
-            connection, name)
 
     def _protect_runtime(self) -> None:
         path = self.workspace / '.factory/.gitignore'
@@ -179,27 +129,27 @@ class ForemanProfile:
             with path.open('a', encoding='utf-8') as stream:
                 stream.write('\n' + block)
 
-    def prepare(self, connection: ForgetfulConnection) -> None:
+    def prepare(self) -> None:
         self.validate_guidance()
         self.save_pi_choice()
         self._protect_runtime()
         self._install_resources()
         for relative in (ROLE_GUIDANCE_FILE, FOREMAN_SKILL_PATH, MAINTENANCE_SKILL_PATH):
             write_new(self.directory / relative, (RESOURCES / relative).read_text())
-        if connection.instance == 'local':
-            Path(connection.database).parent.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     def save_pi_choice(self) -> None:
         if self._pi_choice is not None:
             write_json(self.workspace / FACTORY_DIRECTORY / PI_PROFILE_FILE, self._pi_choice)
 
-    def prepare_roles(self, config, choices) -> None:
+    def prepare_roles(self, choices: InitialAgentChoices, *, execution_enabled: bool,
+                      repositories: Sequence[str], connection: ForgetfulConnection) -> None:
+        """repositories are the local directories that workers run in."""
         profiles = CoordinatorProfiles(self.workspace)
         profiles.validate_depth(self.pi_home())
-        if config.execution_enabled:
-            self.validate_worker_models(config, choices)
+        if execution_enabled:
+            self.validate_worker_models(choices, repositories, connection)
         if choices.foreman_memory_model is not None:
-            models = self.list_models(config.forgetful)
+            models = self.list_models(connection)
             if choices.foreman_memory_model not in models:
                 raise FactoryError('Foreman memory model is not selectable in the native Pi '
                                    'catalog; choose an exact provider/model and rerun init.')
@@ -207,26 +157,26 @@ class ForemanProfile:
             directory = self.workspace / '.factory/agents/research'
             check_real_path(directory)
             directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-            models = self.list_models(config.forgetful, harness=choices.research_agent_harness,
+            models = self.list_models(connection, harness=choices.research_agent_harness,
                                       cwd=directory)
             if choices.research_agent_model not in models:
                 raise FactoryError('Research model is not selectable in the native catalog; '
                                    'choose an exact selector and rerun init.')
-        profiles.prepare(config, choices)
+        profiles.prepare(execution_enabled, choices)
 
-    def validate_worker_models(self, config: FactoryConfiguration, choices) -> None:
+    def validate_worker_models(self, choices: InitialAgentChoices, repositories: Sequence[str],
+                               connection: ForgetfulConnection) -> None:
         for role in ('implementation', 'review'):
             harness = getattr(choices, f'{role}_agent_harness')
             model = getattr(choices, f'{role}_agent_model')
-            for repository in config.repository:
+            for local_dir in repositories:
                 try:
-                    models = self.list_models(config.forgetful, harness=harness,
-                                              cwd=Path(repository.local_dir))
+                    models = self.list_models(connection, harness=harness, cwd=Path(local_dir))
                     if model not in models:
                         raise ValueError('Unlisted selector')
                 except (FactoryError, ValueError) as error:
                     raise FactoryError(f'{role} model {model!r} is not selectable through '
-                                       f'native {harness} in {repository.local_dir}. Use an exact '
+                                       f'native {harness} in {local_dir}. Use an exact '
                                        'native catalog selector; access and model-specific effort '
                                        'support remain unverified. Diagnostics withheld.'
                                        ) from error
@@ -270,21 +220,7 @@ class ForemanProfile:
                                'init --finalize to approve the corrected home.')
 
     def pi_home(self) -> str:
-        try:
-            data = read_generated_json(
-                self.workspace / FACTORY_DIRECTORY / PI_PROFILE_FILE)
-            directory = data['agent_directory']
-            if (data['shared_profile_consent'] is not True or not isinstance(directory, str)
-                    or not Path(directory).is_absolute() or '\x00' in directory
-                    or Path(directory).is_relative_to(
-                        self.workspace / FACTORY_DIRECTORY)):
-                raise ValueError('Invalid consent')
-            return directory
-        except (OSError, ValueError, TypeError, KeyError) as error:
-            raise FactoryError('Shared Pi profile consent is missing or invalid. '
-                               'Review .factory/pi-profile.json if it exists; '
-                               'use init --finalize to approve missing consent for saved setup.'
-                               ) from error
+        return saved_pi_home(self.workspace)
 
     def list_models(self, connection: ForgetfulConnection, *, harness: str = 'pi',
                     cwd: Path | None = None) -> list[str]:
@@ -293,7 +229,7 @@ class ForemanProfile:
         if key in self._model_catalogs:
             return self._model_catalogs[key].copy()
         self.require_pi_home(self.pi_home())
-        environment = role_environment(self.workspace, connection, self.pi_home())
+        environment = self.role_environment(connection, self.pi_home())
         try:
             output = run_owned([sys.executable, str(MODEL_CATALOG), harness],
                                cwd, environment, term_grace=self.term_grace)
@@ -310,8 +246,8 @@ class ForemanProfile:
             self._model_catalogs[key] = models
         return models.copy()
 
-    def selected_launch(self, config: FactoryConfiguration) -> dict:
-        launch = foreman_launch(Path(config.foreman_agent_file))
+    def selected_launch(self, agent_file: str, connection: ForgetfulConnection) -> dict:
+        launch = foreman_launch(Path(agent_file))
         self.directory = Path(launch['cwd'])
         skills = selected_skill_files(launch['resources']['skills'])
         required = {}
@@ -333,7 +269,7 @@ class ForemanProfile:
         memory_extension = self.bundle_directory / 'pi-forgetful/factory.ts'
         self._managed_memory_selected = str(memory_extension.absolute()) in (
             launch['resources']['extensions'])
-        self.validate_setup(config.forgetful, include_home_system_prompt=
+        self.validate_setup(connection, include_home_system_prompt=
                             launch['resources'].get('include_home_system_prompt', True),
                             include_memory_extension=self._managed_memory_selected)
         return launch
@@ -345,8 +281,8 @@ class ForemanProfile:
                 'preferences are inactive. Native Factory CLI planning remains available; '
                 'no REST target was guessed.')
 
-    def record_completion(self, config: FactoryConfiguration) -> bool:
-        self.selected_launch(config)
+    def record_completion(self, agent_file: str, connection: ForgetfulConnection) -> bool:
+        self.selected_launch(agent_file, connection)
         replace_generated_json(
             self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE, {'complete': True})
         return self._managed_memory_selected is True
@@ -354,7 +290,7 @@ class ForemanProfile:
     def begin_setup(self) -> None:
         remove_generated(self.workspace / FACTORY_DIRECTORY / COMPLETION_FILE)
 
-    def validate_completion(self, _config: FactoryConfiguration) -> None:
+    def validate_completion(self) -> None:
         """Validate the receipt; completion is independent of editable configuration."""
         try:
             data = read_generated_json(

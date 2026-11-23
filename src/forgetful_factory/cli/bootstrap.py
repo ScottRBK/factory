@@ -1,21 +1,28 @@
 import shlex
 import sys
+from functools import partial
 from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
 from forgetful_factory.adapters.watch_status import ObservedTerminal
+from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
-from forgetful_factory.agents.adapters.pi.foreman_profile import ForemanProfile
+from forgetful_factory.agents.adapters.agentshell.tmux_install import TmuxInstall
+from forgetful_factory.agents.adapters.pi.agent_team import PiAgentTeam
+from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.initialise_factory import InitialiseFactory
+from forgetful_factory.application.initialise_factory import InitialiseFactory, missing_tools
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
 from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.forge.adapters.github import GitHubForge
 from forgetful_factory.planning.adapters.forgetful.connection import role_environment
+from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInstall
 from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPlanStore
+from forgetful_factory.planning.adapters.forgetful.setup import ForgetfulSetup
+from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
@@ -26,12 +33,29 @@ from forgetful_factory.workspace.adapters.git.worktrees import GitWorktrees
 TICKETING = {'github': GitHubTicketing}
 
 
+def build_tools(workspace: Path, connection: ForgetfulConnection, term_grace: float = 3):
+    """The tools Factory installs. Init offers them in this order within each group."""
+    return (PiInstall(workspace, term_grace), TmuxInstall(workspace, term_grace),
+            ForgetfulInstall(workspace, connection, term_grace),
+            AgentShellRuntimeInstall(workspace, term_grace))
+
+
+def build_team(workspace: Path, term_grace: float = 3) -> PiAgentTeam:
+    return PiAgentTeam(workspace, term_grace,
+                       role_environment=partial(role_environment, workspace),
+                       missing_tools=lambda connection: missing_tools(
+                           build_tools(workspace, connection, term_grace)))
+
+
 def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolicy()
                       ) -> InitialiseFactory:
+    term_grace = deadlines.owned_process_term_grace
     return InitialiseFactory(GitHubTicketing(deadlines.external_command),
                              TomlConfigurationStore(workspace),
                              GitRepositories(deadlines.external_command), GitHubForge(),
-                             ForemanProfile(workspace, deadlines.owned_process_term_grace))
+                             build_team(workspace, term_grace),
+                             ForgetfulSetup(workspace, term_grace),
+                             partial(build_tools, workspace, term_grace=term_grace))
 
 
 def select_ticketing(config: FactoryConfiguration, command_timeout: float) -> Ticketing:
@@ -79,12 +103,12 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
 
 def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True,
                            term_grace: float = 3):
-    profile = ForemanProfile(workspace, term_grace)
+    profile = build_team(workspace, term_grace)
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; complete first setup.')
     if complete:
-        profile.validate_completion(config)
-    launch = profile.selected_launch(config)
+        profile.validate_completion()
+    launch = profile.selected_launch(config.foreman_agent_file, config.forgetful)
     environment = role_environment(workspace, config.forgetful, profile.pi_home())
     environment['FACTORY_COMMAND'] = shlex.join([sys.executable, '-m', 'forgetful_factory'])
     environment['FACTORY_WORKSPACE'] = str(workspace)

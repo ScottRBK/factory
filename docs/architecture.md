@@ -56,11 +56,11 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `domain/` | Define the repository reference saved in configuration. |
 | `ticketing/` | Tickets and the `Ticketing` port, with the GitHub Issues adapter. |
 | `forge/` | Repositories and change requests: the `Forge` port, with the GitHub adapter. |
-| `planning/` | Plans and tasks: the `PlanStore` port, Forgetful settings and adapters. |
+| `planning/` | Plans and tasks: `PlanStore` and `PlanningSetup`, with the Forgetful adapters. |
 | `workspace/` | Local checkouts and worktrees: `LocalRepositories`, `Worktrees` and Git adapters. |
-| `agents/` | The agent team: choices, `ForemanTerminal`, AgentShell and Pi adapters. |
-| `adapters/` | Legacy: factory files (config, lease, receipts), watch status, tool installs. |
-| `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
+| `agents/` | The agent team: `AgentTeam`, `ForemanTerminal`, AgentShell and Pi adapters. |
+| `adapters/` | Legacy: factory files (config, lease, receipts) and watch status. |
+| `shared/` | Plumbing without business rules: errors, watch stop, commands, files, installs. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
 | `deadlines.py` | Define immutable, finite-positive command and AgentShell deadline policies. |
 ## Main classes and contracts
@@ -83,14 +83,18 @@ classDiagram
     class ForemanTerminal {
         <<interface>>
     }
-    class ForemanProfile {
+    class AgentTeam {
+        <<interface>>
+    }
+    class PlanningSetup {
         <<interface>>
     }
     InitialiseFactory --> Ticketing
     InitialiseFactory --> ConfigurationStore
     InitialiseFactory --> LocalRepositories
     InitialiseFactory --> Forge
-    InitialiseFactory --> ForemanProfile
+    InitialiseFactory --> AgentTeam
+    InitialiseFactory --> PlanningSetup
     WatchFactory --> Ticketing
     WatchFactory --> ForemanTerminal
     WatchFactory --> ScaffoldIssue
@@ -113,6 +117,8 @@ classDiagram
     AgentShellTerminal ..|> ForemanTerminal
     BorrowedForemanTerminal ..|> ForemanTerminal
     BorrowedForemanTerminal --> ForemanOwner
+    PiAgentTeam ..|> AgentTeam
+    ForgetfulSetup ..|> PlanningSetup
 ```
 
 `BorrowedForemanTerminal` communicates with the owner process through a private inherited channel;
@@ -350,19 +356,19 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 913; init: line 692; project choice: line 477;
-  numbered choices: line 220; worker setup: line 637; completion/skill folders: line 652;
-  optional manual launch: line 717; standalone Foreman: line 385.
-  New-setup orchestration: line 831; memory choices: line 595; REST eligibility: line 630.
+- CLI entry: `cli/main.py`, line 919; init: line 695; project choice: line 479;
+  numbered choices: line 220; worker setup: line 639; completion/skill folders: line 654;
+  optional manual launch: line 720; standalone Foreman: line 387.
+  New-setup orchestration: line 837; memory choices: line 597; REST eligibility: line 632.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
-  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 768 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 29 and 52; ticketing registry and source checks:
-  lines 26 and 37; GitHub CLI preflight: line 59; selected root launch: line 80.
+  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 771 in main.
+  Adapter wiring: `cli/bootstrap.py`, lines 50 and 76; ticketing registry and source checks:
+  lines 33 and 61; GitHub CLI preflight: line 83; selected root launch: line 104.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 14, 18, 79 and 98. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
   Deadline policies: `deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
-- Workflows: `application/initialise_factory.py`, line 20;
+- Workflows: `application/initialise_factory.py`, line 38;
   `application/watch_factory.py`, line 59; private run state: line 37;
   `application/scaffold_issue.py`, line 37.
   Public cleanup validation: `application/cleanup_marker.py`, line 15; error type: line 11.
@@ -373,7 +379,7 @@ Paths below are relative to `src/forgetful_factory/`:
   Cleanup: `application/cleanup_completed.py`, lines 48–117, 292–387; ticket scope: line 190;
   receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27; durable storage:
   `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
-- Planning: `planning/ports.py`, lines 6 and 10 (`PlanStore` adds `owns` and
+- Planning: `planning/ports.py`, lines 7 and 11 (`PlanStore` adds `owns` and
   `backend_identity`); `planning/adapters/forgetful/plan_store.py`, line 13; read
   classification/validation: lines 26–81;
   shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 13 and 124;
@@ -386,14 +392,21 @@ Paths below are relative to `src/forgetful_factory/`:
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `planning/adapters/forgetful/authentication.py`, line 10; public
   metadata only.
-- Profiles: `agents/adapters/pi/foreman_profile.py`, line 53; selected guidance: line 313;
-  consent persistence: line 192; unselected-memory notice: line 341.
-  `agents/adapters/pi/coordinator_profiles.py`, line 30; memory preferences: line 88;
+- Agent team: `agents/adapters/pi/agent_team.py`, line 46; selected guidance: line 249;
+  consent persistence: line 140; unselected-memory notice: line 277; saved native home:
+  `agents/adapters/pi/native_home.py`, line 11.
+  `agents/adapters/pi/coordinator_profiles.py`, line 29; memory preferences: line 87;
   `agents/adapters/pi/worker_profiles.py`, line 16. Starter templates live under `resources/`.
-  Profile contract: `application/ports/foreman_profile.py`, line 9.
+  Contracts: `AgentTeam` in `agents/ports.py`, line 21; `PlanningSetup` in `planning/ports.py`,
+  line 38 (`planning/adapters/forgetful/setup.py`, line 9).
   Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80;
-  update command: `cli/resource_update.py`, line 22; stale-file check: line 115 in profile.
-  Managed Pi readiness: `adapters/host_dependencies.py`, line 54.
+  update command: `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
+- Tool installs: `ToolInstaller` in `application/ports/tool_installer.py`, line 4; one installer
+  per tool: `agents/adapters/pi/runtime_install.py`, line 22 (managed Pi readiness: line 39);
+  `agents/adapters/agentshell/tmux_install.py` and `runtime_install.py`;
+  `planning/adapters/forgetful/install.py`, line 26. Install plumbing: `shared/installation.py`.
+  Init offers every absent tool before any unready one (`application/initialise_factory.py`,
+  line 22), in the order of `cli/bootstrap.py`, line 36.
 - Transient wizard choices: `agents/model.py`, line 9.
   Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
@@ -408,7 +421,7 @@ Paths below are relative to `src/forgetful_factory/`:
   client: `agents/adapters/agentshell/owner_client.py`, line 111;
   borrowed terminal: `agents/adapters/agentshell/borrowed_terminal.py`, line 10;
   private runtime directory: `agents/adapters/agentshell/foreman_runtime.py`, line 10.
-- Lifecycle status: `cli/main.py`, lines 310, 341, 373 and 422;
+- Lifecycle status: `cli/main.py`, lines 310, 341, 375 and 424;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Configuration: `application/configuration.py`, lines 11 and 44; Forgetful settings:
