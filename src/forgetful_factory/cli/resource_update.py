@@ -35,9 +35,6 @@ def update_resources(args: argparse.Namespace, workspace: Path,
         print('Dry run: nothing was changed.')
         _report(update, args.force)
         return 0
-    if not args.delegated_work_stopped:
-        raise FactoryError('Stop Foreman, watch and delegated work, then confirm with '
-                           '--delegated-work-stopped. Nothing was changed.')
     with WorkspaceWatchLease(workspace).hold():
         state = read_state(workspace)
         if state and state.get('foreman') != 'stopped':
@@ -55,8 +52,8 @@ def update_resources(args: argparse.Namespace, workspace: Path,
             if not args.install_role_runtime:
                 raise FactoryError('The AgentShell runtime does not match its bundled lock, so '
                                    'Foreman cannot start. Rerun update with '
-                                   '--delegated-work-stopped --install-role-runtime to consent '
-                                   'to the locked installation.')
+                                   '--install-role-runtime to consent to the locked '
+                                   'installation.')
             profile.install('agentshell-runtime')
             if not profile.role_runtime_ready():
                 raise FactoryError('The AgentShell runtime is still not ready after installation.')

@@ -125,8 +125,6 @@ def _parse_arguments() -> argparse.Namespace:
     update = commands.add_parser('update',
                                  help='Update bundled role resources from this Factory')
     update.add_argument('--workspace', type=Path, default=Path.cwd())
-    update.add_argument('--delegated-work-stopped', action='store_true',
-                        help='Confirm Foreman, watch and delegated work are stopped')
     update.add_argument('--dry-run', action='store_true',
                         help='List the planned change for each file; write nothing')
     update.add_argument('--force', action='store_true',

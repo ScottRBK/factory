@@ -57,14 +57,17 @@ the update. This is not an atomic transaction across files.
 
 ### Stopped factory
 
-A real update requires `--delegated-work-stopped`, holds the workspace lease, and refuses when the
-Foreman owner state is anything other than `stopped`. The lease blocks plain watch, init and a
-`foreman` start. Managed watch runs inside the Foreman owner, so the owner check covers it.
-Python cannot prove that detached delegated work stopped (AgentShell issue #28); the flag records
-the user's confirmation, as `init --finalize --delegated-work-stopped` does.
+A real update holds the workspace lease and refuses when the Foreman owner state is anything other
+than `stopped`. The lease blocks plain watch, init and a `foreman` start. Managed watch runs
+inside the Foreman owner, so the owner check covers it.
 
-`--dry-run` prints each planned change and writes nothing. It takes no lease and needs no
-confirmation, so it also works while the factory runs. It exits 1 when edited files would stop
+Python cannot prove that detached delegated work stopped (AgentShell issue #28). The first version
+required `--delegated-work-stopped` as the user's confirmation, but the flag checked nothing.
+Scott removed it on 2026-11-23: stopping delegated workers is the user's step, stated in the
+README. `init --finalize` keeps its own flag.
+
+`--dry-run` prints each planned change and writes nothing. It takes no lease, so it also works
+while the factory runs. It exits 1 when edited files would stop
 the update without `--force`.
 
 ### Scope

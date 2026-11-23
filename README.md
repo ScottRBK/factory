@@ -110,8 +110,7 @@ Stop Foreman, watch and delegated work first. Preview the changes, then apply th
 ```bash
 uvx --refresh --from "$wheel" forgetful-factory update --dry-run \
   --workspace /absolute/path/to/workspace
-uvx --refresh --from "$wheel" forgetful-factory update --delegated-work-stopped \
-  --workspace /absolute/path/to/workspace
+uvx --refresh --from "$wheel" forgetful-factory update --workspace /absolute/path/to/workspace
 ```
 
 The update replaces only unedited files and never changes `.factory/agents/` or `.factory/data/`.

@@ -53,7 +53,7 @@ class ResourceUpdateTests(InitFixture):
         before = snapshot(repo / '.factory')
 
         # Act
-        result = run_update(self, repo, '--delegated-work-stopped')
+        result = run_update(self, repo)
 
         # Assert: no partial update; the missing and previous-release files are also untouched.
         self.assertEqual(result.returncode, 1, result.stderr)
@@ -69,7 +69,7 @@ class ResourceUpdateTests(InitFixture):
         agents = snapshot(repo / '.factory/agents')
 
         # Act
-        result = run_update(self, repo, '--delegated-work-stopped', '--force')
+        result = run_update(self, repo, '--force')
 
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
@@ -101,19 +101,6 @@ class ResourceUpdateTests(InitFixture):
             self.assertIn('Dry run: nothing was changed.', result.stdout)
         self.assertEqual(snapshot(repo / '.factory'), before)
 
-    def test_update_requires_confirmation_that_delegated_work_stopped(self):
-        # Arrange
-        repo = self.mixed_factory()
-        before = snapshot(repo / '.factory')
-
-        # Act
-        result = run_update(self, repo, '--force')
-
-        # Assert
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn('--delegated-work-stopped', result.stderr)
-        self.assertEqual(snapshot(repo / '.factory'), before)
-
     def test_runtime_that_no_longer_matches_its_lock_needs_install_consent(self):
         # Arrange: the installed runtime records an earlier lock, as after a lock change.
         repo = self.repo()
@@ -126,8 +113,8 @@ class ResourceUpdateTests(InitFixture):
         self.env['PROFILE_INSTALL_LOG'] = str(log)
 
         # Act
-        declined = run_update(self, repo, '--delegated-work-stopped')
-        consented = run_update(self, repo, '--delegated-work-stopped', '--install-role-runtime')
+        declined = run_update(self, repo)
+        consented = run_update(self, repo, '--install-role-runtime')
 
         # Assert: files update without consent; only the consented run syncs the locked runtime.
         self.assertEqual(declined.returncode, 1, declined.stderr)
@@ -155,7 +142,7 @@ class ResourceUpdateWatchTests(unittest.TestCase):
         before = snapshot(resources)
 
         # Act
-        result = run_update(fixture, fixture.workspace, '--delegated-work-stopped')
+        result = run_update(fixture, fixture.workspace)
 
         # Assert
         self.assertEqual(result.returncode, 1, result.stderr)
@@ -181,7 +168,7 @@ class ResourceUpdateLifecycleTests(LifecycleFixture):
         before = snapshot(agents)
 
         # Act
-        updated = run_update(self, repo, '--delegated-work-stopped')
+        updated = run_update(self, repo)
         started = self.foreman(repo)
 
         # Assert
@@ -203,7 +190,7 @@ class ResourceUpdateLifecycleTests(LifecycleFixture):
         before = snapshot(repo / '.factory/resources')
 
         # Act
-        result = run_update(self, repo, '--delegated-work-stopped')
+        result = run_update(self, repo)
 
         # Assert
         self.assertEqual(result.returncode, 1, result.stderr)

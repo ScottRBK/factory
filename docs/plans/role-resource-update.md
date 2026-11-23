@@ -85,6 +85,17 @@ Scott asked for upstream `pi-forgetful` at `45a0b79`, which includes the compact
 - Read-only `update --dry-run` on DinoLand and dark-business: 8 to replace, 0 to add,
   0 edited.
 
+## Follow-up: confirmation flag removed
+
+Scott removed `--delegated-work-stopped` from `update` on 2026-11-23. It only unlocked the command;
+the lease and Foreman owner checks run without it, and Python cannot see detached workers. The
+stale-file and runtime errors now name `update` and `update --install-role-runtime`. Earlier
+sections above record the first version.
+
+- Red: with the flag removed from the test calls in `tests/test_resource_update.py`, 6 of 7 tests
+  failed on the old confirmation error; the dry-run test passed. The confirmation test was deleted.
+- Green: 7 of 7 after removing the option, its check and its mentions in three error messages.
+
 ## Not done
 
 - Hosted CI for the exact commit.

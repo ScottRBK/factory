@@ -89,7 +89,8 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 - [Role-resource update](plans/role-resource-update.md) adds `forgetful-factory update` for
   issue #4. It replaces unedited bundled resources from earlier releases, refuses edited files
   unless `--force` backs them up, and preserves agent definitions. The bundle now carries
-  `pi-forgetful` `45a0b79` with the private-task compaction fix. Live factory updates are
+  `pi-forgetful` `45a0b79` with the private-task compaction fix. `update` no longer takes
+  `--delegated-work-stopped`; it checks the lease and Foreman state only. Live factory updates are
   Scott's next step. Removal of files that a bundle drops is deferred.
 - [Issue and comment notifications](plans/issue-change-notifications.md) ignore timestamp-only
   changes while retaining planning-relevant content and paginated comments.

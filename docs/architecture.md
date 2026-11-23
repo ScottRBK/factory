@@ -246,10 +246,10 @@ import or call graph.
 - `update` brings `.factory/resources` up to the installed bundle. Each file is current, replaced
   (its hash is an earlier shipped hash in `role-resources-history.json`), added or edited. An
   edited file stops the whole update unless `--force` backs it up first. All new files are
-  staged before any rename. A real update needs `--delegated-work-stopped`, the workspace lease
-  and a stopped Foreman owner; `--dry-run` only reads. Agent definitions and data are never
-  written. A runtime that no longer matches the AgentShell lock needs `--install-role-runtime`.
-  Removal of files that a bundle drops is deferred. See the
+  staged before any rename. A real update needs the workspace lease and a stopped Foreman
+  owner; the user stops delegated workers first. `--dry-run` only reads. Agent definitions and
+  data are never written. A runtime that no longer matches the AgentShell lock needs
+  `--install-role-runtime`. Removal of files that a bundle drops is deferred. See the
   [update ADR](adrs/role-resource-update.md).
 - The owner manages at most one watcher child and relays its notifications through the held
   AgentShell session. Borrowed close disconnects only that watcher. Startup events, actual process
@@ -337,12 +337,12 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 915; init: line 694; project choice: line 479;
-  numbered choices: line 224; worker setup: line 639; completion/skill folders: line 654;
-  optional manual launch: line 719; standalone Foreman: line 389.
-  New-setup orchestration: line 833; memory choices: line 597; REST eligibility: line 632.
+- CLI entry: `cli/main.py`, line 913; init: line 692; project choice: line 477;
+  numbered choices: line 222; worker setup: line 637; completion/skill folders: line 652;
+  optional manual launch: line 717; standalone Foreman: line 387.
+  New-setup orchestration: line 831; memory choices: line 595; REST eligibility: line 630.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
-  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 770 in main.
+  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 768 in main.
   Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
   selected root launch: line 71. Local GitHub capability probe:
   `adapters/github/work_tracking.py`, lines 13, 72, 91 and 107.
@@ -389,7 +389,7 @@ Paths below are relative to `src/forgetful_factory/`:
   client: `adapters/agentshell/owner_client.py`, line 110;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 10;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
-- Lifecycle status: `cli/main.py`, lines 314, 345, 377 and 426;
+- Lifecycle status: `cli/main.py`, lines 312, 343, 375 and 424;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:

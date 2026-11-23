@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 5070. Type relationships removed: 86.
+Calls removed by test filtering: 5065. Type relationships removed: 86.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -66,11 +66,11 @@ Calls removed by test filtering: 5070. Type relationships removed: 86.
 - `tests/test_profiles.py`: 34 source occurrences (test-path).
 - `tests/test_project_onboarding.py`: 17 source occurrences (test-path).
 - `tests/test_research_configuration.py`: 8 source occurrences (test-path).
-- `tests/test_resource_update.py`: 19 source occurrences (test-path).
+- `tests/test_resource_update.py`: 18 source occurrences (test-path).
 - `tests/test_review_regressions.py`: 56 source occurrences (test-path).
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 24 source occurrences (test-path).
-- `tests/test_watch.py`: 61 source occurrences (test-path).
+- `tests/test_watch.py`: 62 source occurrences (test-path).
 - `tests/test_watch_issue_changes.py`: 3 source occurrences (test-path).
 - `tests/test_watch_lock.py`: 6 source occurrences (test-path).
 - `tests/test_watch_status.py`: 22 source occurrences (test-path).
@@ -1541,7 +1541,7 @@ classDiagram
 - c0079: `src/forgetful_factory/cli/bootstrap.py` — `src/forgetful_factory/cli/bootstrap.py`:1
 - c0080: `src/forgetful_factory/cli/definition_of_done.py` —
   `src/forgetful_factory/cli/definition_of_done.py`:1
-- c0081: `_InitialSetupState` — `src/forgetful_factory/cli/main.py`:751
+- c0081: `_InitialSetupState` — `src/forgetful_factory/cli/main.py`:749
 - c0082: `src/forgetful_factory/cli/main.py` — `src/forgetful_factory/cli/main.py`:1
 - c0083: `src/forgetful_factory/cli/numbered_selection.py` —
   `src/forgetful_factory/cli/numbered_selection.py`:1

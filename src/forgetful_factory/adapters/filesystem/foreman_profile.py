@@ -123,8 +123,7 @@ class ForemanProfile:
                     raise FactoryError(f'Stale or edited role resource: {path}. Existing files '
                                        'are preserved. Preview with update --dry-run, then '
                                        'reconcile with the audited bundle through update '
-                                       '--delegated-work-stopped before restarting foreman/watch '
-                                       'or init --finalize.')
+                                       'before restarting foreman/watch or init --finalize.')
 
     def installation(self, command: str) -> str | None:
         return HostDependencies(self.workspace, self.term_grace).description(command)
@@ -138,7 +137,7 @@ class ForemanProfile:
             if path.exists() and (path.is_symlink() or path.read_bytes() != data):
                 raise FactoryError(f'Stale or edited role resource: {path}. User edits are '
                                    'preserved. Preview with update --dry-run, then reconcile '
-                                   'with update --delegated-work-stopped and rerun init.')
+                                   'with update and rerun init.')
             write_new(path, data.decode())
 
     def uses_browser_login(self, connection: ForgetfulConnection) -> bool:
