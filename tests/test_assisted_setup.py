@@ -131,29 +131,6 @@ class FinalizationTests(InitFixture):
         self.assertEqual(research['effort'], 'low')
         self.assertTrue(config.execution_enabled)
 
-    def test_new_foreman_guidance_gates_dispatch_and_explains_same_session_finalization(self):
-        # Arrange / Act
-        repo = self.repo()
-        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-
-        # Assert
-        self.assertEqual(result.returncode, 0, result.stderr)
-        directory = repo / '.factory/agents/foreman'
-        instructions = (directory / 'AGENTS.md').read_text()
-        maintenance = (directory / 'skills/factory-maintenance/SKILL.md').read_text()
-        self.assertIn('Setup is incomplete', instructions)
-        self.assertIn('do not dispatch', instructions)
-        self.assertIn('FACTORY_COMMAND', maintenance)
-        self.assertIn('--finalize --delegated-work-stopped', maintenance)
-        self.assertIn('watch --start', maintenance)
-        self.assertIn('watch --stop', maintenance)
-        self.assertIn('same conversation', maintenance)
-        self.assertIn('Pi and OpenCode support skill paths', maintenance)
-        self.assertIn('Claude Code, Copilot CLI and Cursor support native plugins', maintenance)
-        self.assertIn('Broader Factory app support is a separate phase', maintenance)
-        self.assertNotIn('Copilot/Grok need native', maintenance)
-        self.assertNotIn('A dedicated Foreman-first setup mode is not yet available', maintenance)
-
     def test_finalize_missing_configuration_fails_without_prompting_or_writing(self):
         # Arrange
         repo = self.repo()

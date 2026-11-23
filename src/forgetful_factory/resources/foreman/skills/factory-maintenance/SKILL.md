@@ -33,14 +33,22 @@ Completion: the target workspace, affected roles and intended change are explici
 
 ## 2. Make maintenance safe
 
-Use `watch --status --workspace "$FACTORY_WORKSPACE"` and check its evidence before maintenance.
-A live `source: managed_owner` with `process_role: foreman_owner` identifies the persistent owner;
-`foreman: ready` alone also occurs in plain watch and does not identify an assisted setup session.
-For a live managed owner, `watch --stop --workspace "$FACTORY_WORKSPACE"` stops only its watcher;
-you remain in the same conversation. Confirm delegated runs have stopped before changing setup.
-For `source: plain_watch`, ask the user to stop it and apply changes from a separate session:
-stopping its watcher closes that Foreman. Saved, combined, unavailable or unknown observations
-are not proof of current liveness or exit. Preserve both sources' recorded evidence and recovery
+You can edit Factory skills, the Definition of Done and agent definitions at any time, including
+while plain or managed watch or delegated work runs. Do not ask the user to stop watching or use
+another session for these edits. After each change, warn the user when it takes effect:
+
+- Agents read skill files and the Definition of Done from disk. Any agent that reads a file after
+  your edit sees the new content, even before reload.
+- Your own loaded skills, roster selections and extensions refresh only after the user runs
+  native `/reload`. Reload can cancel extension jobs, including running delegated agents, so
+  advise reloading while Pi is idle and no delegated work runs.
+- Foreman launch settings (model, effort, cwd, environment or top-level resource selection) need
+  a user-led restart (section 5), not reload.
+
+`watch --status --workspace "$FACTORY_WORKSPACE"` reports watcher state. If the user asks you to
+stop a live managed owner's watcher, `watch --stop --workspace "$FACTORY_WORKSPACE"` stops only
+the watcher; you remain in the same conversation. Saved, combined, unavailable or unknown
+observations are not proof of current liveness or exit. Preserve recorded evidence and recovery
 guidance; do not replace an uncertain session. `health: not_checked` never establishes health.
 
 During incomplete setup, gather choices and edit only approved saved fields. Do not restore plans,
@@ -52,8 +60,8 @@ named settings or resource files. Resetting or deleting them requires a separate
 Preserve user comments and custom instructions. Do not clear setup receipts, alter ancestry/depth,
 change shared Pi preferences or widen native permissions to bypass a failed check.
 
-Completion: either maintenance is safely possible, or the user has a precise stopped-session
-handoff. Do not report changes when only recommendations were made.
+Completion: the user knows when each change takes effect. Do not report changes when only
+recommendations were made.
 
 ## Definition of Done setup and changes
 
@@ -132,8 +140,8 @@ Completion: agreed settings and affected selections agree, with no changes to un
 ## 4. Add or update skills
 
 Setup does not ask for skill paths. Users can add files after setup or ask you to help. Show the
-folders for their configured roles. Gather their choices while watching, then follow the
-stopped-work procedure above before applying changes. Existing explicit selections remain supported.
+folders for their configured roles. Apply agreed changes while watching and warn the user when
+they take effect (section 2). Existing explicit selections remain supported.
 
 Put each local skill under `.factory/agents/<role>/skills/<skill-name>/SKILL.md`. Include a unique
 `name` and a useful `description` in YAML frontmatter. Keep supporting files beside the skill and
@@ -155,16 +163,15 @@ reload is needed; do not run init to synchronize selections.
 
 ## 5. Validate, reload or hand off a restart
 
-For a completed factory, edit the selected definitions with watching and delegated work stopped.
-Stopping watching is an intake precaution, not how roster changes take effect. Explain these
-operations separately; do not describe every roster edit as requiring a watcher or Foreman restart.
+For a completed factory, edit selected definitions without stopping watching or delegated work.
+Explain reload and restart separately; do not describe every roster edit as requiring a watcher
+or Foreman restart.
 
 For child-agent roster changes, ask the user to run native `/reload` while Pi is idle and delegated
 work is confirmed stopped. Reload keeps this Foreman conversation open, but can cancel extension
 jobs. New child launches use the updated selections; existing children are not reconfigured.
 Do not restart Foreman for child-agent roster changes. Use the same reload route for content edits
-at already-selected Foreman skill paths. After validation and the user's reload, resume managed
-watching only with the user's agreed issue scope.
+at already-selected Foreman skill paths.
 
 Changes to Foreman's saved launch model, effort, cwd, environment or top-level resource selection
 need a deliberate new launch to take effect. There is no supported seamless Foreman self-restart.

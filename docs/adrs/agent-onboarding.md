@@ -114,16 +114,17 @@ The existing workspace directory is locked even before `.factory` exists, with t
 lock retained when present for compatibility with running older watchers. No PID files are added.
 A rejected init preserves the active setup receipt; a rejected watch cannot inspect partial setup.
 
-Maintenance requires confirmed-stopped delegated work before reload/restart. A plain watcher owns
-its Foreman, so that Foreman cannot stop itself and continue maintenance. A persistent Foreman can
-stop its managed watcher and help edit definitions in the same conversation. First-setup
-finalization can also run there. The lease guards CLI setup/watch, not arbitrary agent file edits or
-every native child process. Editing a definition does not update a running agent's selections.
+Foreman can edit selected definitions, skills and the Definition of Done at any time, including
+while plain or managed watch or delegated work runs. Scott removed the earlier rule that required a
+stopped watcher for these edits. With plain watch it forced a separate Foreman session, and issue
+labels already let him control intake. Foreman instead warns when each edit takes effect. Agents
+read skill files and the Definition of Done from disk, so a later read sees the edit before any
+reload. The lease guards CLI setup/watch, not agent file edits or native child processes.
 
-Stopping watching is an intake precaution, not the mechanism that applies roster edits. For child
-roster changes, guidance asks the user to run native `/reload` while idle after delegated work has
-stopped. This keeps the Foreman conversation open but can cancel extension jobs; it applies updated
-selections to new child launches. No Foreman restart is needed for that change.
+Native `/reload` applies child roster changes and Foreman skill content edits in the same
+conversation. It can cancel extension jobs, so guidance asks the user to reload while idle with no
+delegated work running. No Foreman restart is needed for these changes. A persistent Foreman can
+still stop its managed watcher, and first-setup finalization can run there.
 
 Foreman's saved launch-setting changes need a user-led restart. There is no seamless self-restart
 or automatic reconnection/conversation-restoration guarantee. The pane may close or detach the user.

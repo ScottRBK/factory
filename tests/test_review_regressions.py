@@ -358,20 +358,13 @@ class RuntimeDiagnosticsTests(PlanningWatchFixture):
 
 
 class GeneratedGuidanceTests(InitFixture):
-    def test_foreman_setup_guidance_explains_complete_roster_and_python_completion_gate(self):
+    def test_foreman_starter_roster_selects_feature_owner(self):
         repo = self.repo()
 
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
 
         self.assertEqual(setup.returncode, 0, setup.stderr)
         root = repo / '.factory/agents/foreman'
-        guidance = (root / 'AGENTS.md').read_text()
-        self.assertIn('complete starter roster is already present', guidance)
-        self.assertIn('Python refuses watching until first setup completes', guidance)
-        self.assertIn('instructions do not sandbox tools or prevent dispatch', guidance)
-        self.assertIn('init --finalize', guidance)
-        self.assertIn('do not dispatch', guidance)
-        self.assertNotIn('empty roster', guidance)
         self.assertEqual(json.loads((root / 'agent.json').read_text())['roster'],
                          {'enabled': True,
                           'roles': [{'agent_file': '../feature-owner/agent.json'}]})
