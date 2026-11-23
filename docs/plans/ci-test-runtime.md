@@ -65,8 +65,9 @@ earlier signal than the state it asserted. The ADR now states that rule.
    ([45071435522][r1], [45073295535][r2], [45074586886][r3], [45085666208][r4]). The second
    poll had not started within the 5 s default wait. Alone and locally, that wait took 1.9 s;
    the other wrapper test's wait took 1.6 s. Red: four workers on one CPU failed both tests.
-   Green: both waits allow 15 s, as `tests/test_cleanup_performance.py:187` does. The same check passed 3 of 3 runs; timed waits
-   under that load were 4.3 s and 3.7 s. Local rounds missed it because local CPUs are faster.
+   Green: both waits allow 15 s, as `tests/test_cleanup_performance.py:187` does. The same
+   check passed 3 of 3 runs; timed waits under that load were 4.3 s and 3.7 s. Local rounds
+   missed it because local CPUs are faster.
 
 ### Validation
 
