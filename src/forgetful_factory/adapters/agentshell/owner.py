@@ -13,11 +13,12 @@ import sys
 import uuid
 from pathlib import Path
 
+from forgetful_factory.adapters.agentshell.launch import CONTROLLER
 from forgetful_factory.adapters.agentshell.owner_client import read_state
 from forgetful_factory.adapters.filesystem.foreman_runtime import runtime_directory
-from forgetful_factory.adapters.filesystem.resource_files import replace_generated_json
 from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import replace_generated_json
 
 _CONTROLLER_KINDS = {
     'launched', 'ready', 'sent', 'exited', 'stopped', 'closed', 'error', 'send_error',
@@ -356,7 +357,7 @@ class ForemanOwner:
         self.deadlines = AgentShellLifecycleDeadlines(**launch.get('deadlines', {}))
         launch['report_target'] = True
         self.controller = await asyncio.create_subprocess_exec(
-            self.python, '-u', str(Path(__file__).with_name('controller.py')),
+            self.python, '-u', str(CONTROLLER),
             stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE,
             stderr=None, start_new_session=True)
         self.controller.stdin.write((json.dumps(launch) + '\n').encode())

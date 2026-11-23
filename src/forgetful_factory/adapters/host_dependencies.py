@@ -10,14 +10,15 @@ import zipfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from forgetful_factory.adapters.filesystem.resource_files import write_new
-from forgetful_factory.adapters.sensitive_command import run_owned
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import write_new
+from forgetful_factory.shared.resources import resource_root
+from forgetful_factory.shared.sensitive_command import run_owned
 
 SYNC_RECEIPT = '.factory-sync'
 FORGETFUL_REQUIREMENTS = 'forgetful-requirements.txt'
 PI_INPUTS = ('package.json', 'package-lock.json')
-LOCKS = Path(__file__).resolve().parents[1] / 'resources/install-locks.zip'
+LOCKS = resource_root() / 'install-locks.zip'
 
 
 def executable_path(workspace: Path) -> str:

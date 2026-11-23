@@ -8,16 +8,9 @@ import shutil
 import sys
 from pathlib import Path
 
+from forgetful_factory.adapters.agentshell.launch import MODEL_CATALOG
 from forgetful_factory.adapters.filesystem.agent_definitions import foreman_launch
 from forgetful_factory.adapters.filesystem.coordinator_profiles import CoordinatorProfiles
-from forgetful_factory.adapters.filesystem.resource_files import (
-    check_real_path,
-    read_generated_json,
-    remove_generated,
-    replace_generated_json,
-    write_json,
-    write_new,
-)
 from forgetful_factory.adapters.filesystem.role_resources import bundled_files
 from forgetful_factory.adapters.filesystem.selected_skills import selected_skill_files
 from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
@@ -32,11 +25,20 @@ from forgetful_factory.adapters.host_dependencies import (
     executable_path,
     runtime_ready,
 )
-from forgetful_factory.adapters.sensitive_command import run_owned
 from forgetful_factory.application.configuration import FactoryConfiguration, ForgetfulConnection
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import (
+    check_real_path,
+    read_generated_json,
+    remove_generated,
+    replace_generated_json,
+    write_json,
+    write_new,
+)
+from forgetful_factory.shared.resources import resource_root
+from forgetful_factory.shared.sensitive_command import run_owned
 
-RESOURCES = Path(__file__).resolve().parents[2] / 'resources' / 'foreman'
+RESOURCES = resource_root() / 'foreman'
 FOREMAN_SKILL_PATH = 'skills/foreman/SKILL.md'
 MAINTENANCE_SKILL_PATH = 'skills/factory-maintenance/SKILL.md'
 ROLE_GUIDANCE_FILE = 'APPEND_SYSTEM.md'
@@ -290,10 +292,9 @@ class ForemanProfile:
         if key in self._model_catalogs:
             return self._model_catalogs[key].copy()
         self.require_pi_home(self.pi_home())
-        helper = Path(__file__).parents[1] / 'agentshell/model_catalog.py'
         environment = role_environment(self.workspace, connection, self.pi_home())
         try:
-            output = run_owned([sys.executable, str(helper), harness],
+            output = run_owned([sys.executable, str(MODEL_CATALOG), harness],
                                cwd, environment, term_grace=self.term_grace)
             models = json.loads(output)
             if not isinstance(models, list) or any(not isinstance(m, str) for m in models):

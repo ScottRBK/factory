@@ -11,12 +11,12 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.resource_files import (
+from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import (
     check_real_path,
     replace_generated_json,
 )
-from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
-from forgetful_factory.domain.models import FactoryError
 
 _LIMIT = 16384
 _TIMEOUT = 0.5

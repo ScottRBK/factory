@@ -6,8 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from forgetful_factory.application.watch_stop import check_watch_stop
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.watch_stop import check_watch_stop
 
 
 def _close_capture_streams(process: subprocess.Popen) -> None:

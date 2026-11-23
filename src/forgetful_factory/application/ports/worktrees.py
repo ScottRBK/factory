@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 class WorktreeReadError(FactoryError):

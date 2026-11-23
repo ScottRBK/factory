@@ -1,7 +1,7 @@
 """Discover portable local skill files; metadata and ignore files remain native concerns."""
 from pathlib import Path
 
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def _add_skill_file(path: Path, files: dict[Path, None]) -> None:

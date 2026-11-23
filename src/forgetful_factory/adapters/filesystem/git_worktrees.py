@@ -3,10 +3,10 @@ import shlex
 import subprocess
 from pathlib import Path
 
-from forgetful_factory.adapters.command import run_command
 from forgetful_factory.application.ports.worktrees import WorktreeProblem, WorktreeReadError
-from forgetful_factory.application.watch_stop import check_watch_stop
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.command import run_command
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.watch_stop import check_watch_stop
 
 _ABSOLUTE_PATH_FORMAT = '--path-format=absolute'
 _BRANCH_REF_PREFIX = 'refs/heads/'

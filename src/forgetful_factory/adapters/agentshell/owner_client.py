@@ -10,10 +10,11 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
+from forgetful_factory.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
 from forgetful_factory.adapters.filesystem.foreman_runtime import runtime_directory
-from forgetful_factory.adapters.filesystem.resource_files import read_generated_json
 from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import read_generated_json
 
 
 def _reply(stream) -> dict:
@@ -111,7 +112,7 @@ def start_owner(
         workspace: Path, python: str, environment: dict, launch: dict,
         deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines()) -> dict:
     try:
-        checked = subprocess.run([python, '-u', str(Path(__file__).with_name('controller.py')),
+        checked = subprocess.run([python, '-u', str(CONTROLLER),
                                   '--check'], env=environment, stdin=subprocess.DEVNULL,
                                  capture_output=True, text=True, timeout=10)
     except (OSError, subprocess.TimeoutExpired) as error:
@@ -135,7 +136,7 @@ def start_owner(
     try:
         with os.fdopen(descriptor, 'ab', buffering=0) as log:
             process = subprocess.Popen(
-                [sys.executable, '-m', 'forgetful_factory.adapters.agentshell.owner',
+                [sys.executable, '-m', OWNER_MODULE,
                  str(workspace), python, str(child.fileno())], pass_fds=(child.fileno(),),
                 stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
                 env=environment)

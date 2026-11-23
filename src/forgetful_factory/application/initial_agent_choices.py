@@ -2,7 +2,7 @@
 from dataclasses import dataclass
 
 from forgetful_factory.application.configuration import nonblank
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 @dataclass(frozen=True)

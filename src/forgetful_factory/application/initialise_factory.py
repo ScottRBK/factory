@@ -11,8 +11,9 @@ from forgetful_factory.application.ports.configuration_store import Configuratio
 from forgetful_factory.application.ports.foreman_profile import ForemanProfile
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
-from forgetful_factory.domain.models import FactoryError, Label, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import Label, RepositoryReference, WorkSource
 from forgetful_factory.domain.services.work_tracking import WorkTrackingService
+from forgetful_factory.shared.errors import FactoryError
 
 
 class InitialiseFactory:

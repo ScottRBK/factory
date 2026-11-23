@@ -1,8 +1,8 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Proposed, reviewed, revised.** Nothing is implemented. Fable reviewed the first draft on
-2026-11-23; see the [review record](#review-record). On approval, the design parts move to
-`docs/adrs/domain-contexts.md`, and `docs/architecture.md` and `docs/plan.md` link to it.
+**Status: Approved 2026-11-23; slice 0 implemented** (see [Progress](#progress)). Fable reviewed
+the first draft on 2026-11-23; see the [review record](#review-record). The design parts still
+need to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
 ## Goal
 
@@ -305,6 +305,7 @@ source_modules = ["forgetful_factory.shared", "forgetful_factory.cli",
                   "forgetful_factory.factory", "forgetful_factory.ticketing", "...",
                   "forgetful_factory.agents.ports", "forgetful_factory.agents.model"]
 forbidden_modules = ["agent_shell"]
+allow_indirect_imports = true         # cli reaches agent_shell through the agents adapter
 ```
 
 In plain words:
@@ -316,11 +317,22 @@ In plain words:
 5. Only `cli` and `configuration.py` import adapters.
 6. One adapter package never imports another.
 7. Core code and ports/models start no processes and open no sockets.
-8. Only `agents.adapters` imports AgentShell.
+8. Only `agents.adapters` imports AgentShell directly.
 
-**Check in slice 0:** wildcards in `forbidden` sources, `exhaustive` with optional layers, and
-external `subprocess`/`agent_shell` with `include_external_packages`. The proofs (part B)
-establish each one. Do not trust a green run alone.
+**Checked in slice 0 (2026-11-23).** A spike with import-linter 2.15 and a two-context fixture
+showed (Context7 docs agree):
+
+- Wildcard `forbidden` sources work: `*.services → beta.adapters` failed with the full path.
+- `exhaustive` with optional layers works: a context without `services` passed; a stray
+  `alpha/helpers.py` failed with "not listed as layers".
+- `include_external_packages` works for `subprocess` (also inside a function) and `agent_shell`.
+- A wildcard that matches nothing is **skipped silently**; a plain missing name fails with
+  "does not exist". So the "rule names exist" check (part C) is required for wildcards.
+- Rule 8 first had no `allow_indirect_imports`. Then `cli → agents.adapters → agent_shell`
+  broke it, although that is the composition path. The option is now set; a direct import from
+  `cli` still fails.
+
+The proofs (part B) establish each rule when it arrives. Do not trust a green run alone.
 
 ### B. Proof tests (rules really reject violations)
 
@@ -399,7 +411,9 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 `docs/architecture.md`, the relevant ADR and the Mycelium map.
 
 - **0. Shared kernel and test harness.** Errors, `watch_stop`, command runners, safe writes and a
-  resource-root function move to `shared/`. Adapters stop importing `application`.
+  resource-root function move to `shared/`. Adapters stop importing `application.watch_stop`
+  (they still import application ports until those move). The uv check moves with the
+  `host_dependencies.py` split in 4b.
   Proof: table-driven harness; coverage checks; `shared` rule; full suite.
 - **1. Characterization and ticketing.** First commit: golden fixtures for the saved data. Then
   models, tracking port and GitHub issue reads move to `ticketing/`, and `number: int` becomes
@@ -439,6 +453,27 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
   Proof: `top-level` and `core-no-processes` rules with proofs; full suite.
 
 - **6. Final trial.** Full DinoLand trial on the final commit (see below).
+
+### Progress
+
+- **Slice 0: done** (2026-11-23, branch `refactor/domain-contexts`).
+  - `shared/` holds `FactoryError` (`errors.py`), `watch_stop.py`, `command.py`,
+    `sensitive_command.py`, `resource_files.py` and `resources.py` (`resource_root()`, which
+    replaces the five `parents[n]`). Adapters no longer import `application.watch_stop`.
+  - `adapters/agentshell/launch.py` holds the launch constants (`CONTROLLER`, `MODEL_CATALOG`,
+    `OWNER_MODULE`). Slice 4a moves them with the files; no `tmux_host.py` exists yet.
+  - New rule `shared-independent`. The harness now uses `ALLOWED`/`REJECTED` tables, with one
+    test per configured rule. Coverage checks: package markers, rule names, the `shared` rule
+    covers every top-level module, `__file__` only in two files, launch targets and resources
+    resolve.
+  - Proof: in a scratch copy, each guard failed on its own mutation: weakened rule, rule
+    without rows, row naming an unknown rule, rule rejecting composition, folder without
+    `__init__.py`, wildcard matching nothing, unread contract type, new top-level module,
+    `__file__` elsewhere, renamed controller, moved owner module.
+  - Checks: Ruff; `lint-imports` 4 kept; compileall; full suite 640 passed, 14 skipped (was 635).
+    Wheel built outside `dist/`: 89 checksums verified; resources and launch targets resolve
+    in the installed wheel. Mycelium 0.4.5 from the cached archive (no install): 96 boxes,
+    the same 13 warnings, repeat export identical. Doc line citations remapped with difflib.
 
 Order reason: slices 0–2 are pure Python and low risk, and they fix the GitHub coupling first.
 Slice 4 touches the live Foreman lifecycle, so it comes after the structure is proven.
@@ -522,7 +557,9 @@ finding, fix it in code with a regression test, rebuild, and restart the trial f
   Unit tests passed. Browser suites on the self-hosted runner: push run 45265461575 cancelled at
   20 minutes; PR run 45265515883 attempt 1 failed (`#app:not([inert])` 30 s timeout), attempt 2
   cancelled at 20 minutes, attempt 3 passed at about 22:00. The feature-owner ran the reruns.
-- Still to check: review, merge, DoD checks, plan completed, cleanup.
+- Review (plan task 215) posted 22:07:43 as COMMENTED, no blocking findings (see F4).
+  PR merged 22:08:58; issue closed.
+- Still to check: DoD checks, plan completed, cleanup.
 
 Findings:
 
@@ -536,6 +573,10 @@ Findings:
   began about 7.5 minutes after start.
 - **F3. Start-later hint.** The `init` "start later" text prints a uv cache Python path, not the
   README `uvx --from "$wheel"` command.
+- **F4. Reviewer cannot run tests.** The independent reviewer's sandbox blocked network and local
+  servers (`listen EPERM`, `spawnSync git EPERM`), so its local `npm test` failed. It relied on
+  the CI run for the exact head. The feature-owner posted the review for it. The review found no
+  blocking issues.
 
 ## Decisions
 

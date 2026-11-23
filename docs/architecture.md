@@ -55,6 +55,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `application/` | Coordinate setup, issue scaffolding and watching through ports. |
 | `domain/` | Define provider-independent models and work-tracking services. |
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
+| `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
 | `deadlines.py` | Define immutable, finite-positive command and AgentShell deadline policies. |
 ## Main classes and contracts
@@ -318,6 +319,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   bounded read-only responses, live versus historical evidence and explicitly unchecked health.
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
+- [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
+  with their own ports and adapters. Slice 0 (`shared/` and coverage checks) is implemented.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -348,18 +351,18 @@ Paths below are relative to `src/forgetful_factory/`:
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 768 in main.
   Adapter wiring: `cli/bootstrap.py`, lines 24 and 32; GitHub CLI preflight: line 49;
   selected root launch: line 71. Local GitHub capability probe:
-  `adapters/github/work_tracking.py`, lines 13, 72, 91 and 107.
+  `adapters/github/work_tracking.py`, lines 14, 73, 92 and 108.
   Deadline policies: `deadlines.py`, lines 12 and 29.
-- Workflows: `application/initialise_factory.py`, line 18;
+- Workflows: `application/initialise_factory.py`, line 19;
   `application/watch_factory.py`, line 62; private run state: line 40;
-  `application/scaffold_issue.py`, line 28.
+  `application/scaffold_issue.py`, line 29.
   Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
   Problem types and formatting: `application/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `application/factory_records.py`, lines 13–117;
-  pre-create checks: `application/scaffold_issue.py`, line 78; read-only lookup/recovery:
-  lines 166 and 222; placeholder creation: line 178. Cleanup: `application/cleanup_completed.py`,
-  lines 46–115, 287–383; receipt contract: `application/ports/cleanup_receipts.py`, lines 7–27;
-  durable storage: `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
+  Shared identity/repository checks: `application/factory_records.py`, lines 14–118;
+  pre-create checks: `application/scaffold_issue.py`, line 79; read-only lookup/recovery:
+  lines 167 and 223; placeholder creation: line 179. Cleanup: `application/cleanup_completed.py`,
+  lines 46–115, 287–383; receipt contract: `application/ports/cleanup_receipts.py`,
+  lines 7–27; durable storage: `adapters/filesystem/cleanup_receipts.py`, lines 40–100.
 - Planning: `application/ports/planning.py`, lines 6 and 10;
   `adapters/forgetful/planning.py`, line 13; read classification/validation: lines 26–74;
   shared scope/checks: `adapters/forgetful/connection.py`, lines 13 and 124;
@@ -368,35 +371,36 @@ Paths below are relative to `src/forgetful_factory/`:
   `adapters/filesystem/git_worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
   Common identity: line 41; target: line 54; absence: line 83; disposal/checks: lines 200–359.
   Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 19.
-  Watch-local cancellation: `application/watch_stop.py`; native, delivery and wait checkpoints
+  Watch-local cancellation: `shared/watch_stop.py`; native, delivery and wait checkpoints
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `adapters/forgetful/authentication.py`, line 10; public metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 50; selected guidance: line 311;
-  consent persistence: line 189; unselected-memory notice: line 339.
-  `adapters/filesystem/coordinator_profiles.py`, line 29; memory preferences: line 87;
-  `adapters/filesystem/worker_profiles.py`, line 15. Starter templates live under `resources/`.
+- Profiles: `adapters/filesystem/foreman_profile.py`, line 52; selected guidance: line 312;
+  consent persistence: line 191; unselected-memory notice: line 340.
+  `adapters/filesystem/coordinator_profiles.py`, line 30; memory preferences: line 88;
+  `adapters/filesystem/worker_profiles.py`, line 16. Starter templates live under `resources/`.
   Profile contract: `application/ports/foreman_profile.py`, line 8.
-  Bundle reads/update: `adapters/filesystem/role_resources.py`, lines 22, 47 and 79;
-  update command: `cli/resource_update.py`, line 22; stale-file check: line 113 in profile.
-  Managed Pi readiness: `adapters/host_dependencies.py`, line 59.
+  Bundle reads/update: `adapters/filesystem/role_resources.py`, lines 23, 48 and 80;
+  update command: `cli/resource_update.py`, line 22; stale-file check: line 115 in profile.
+  Managed Pi readiness: `adapters/host_dependencies.py`, line 60.
 - Transient wizard choices: `application/initial_agent_choices.py`, line 9.
   Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
-  File checks and conflict-safe definition writes: `adapters/filesystem/resource_files.py`,
+  File checks and conflict-safe definition writes: `shared/resource_files.py`,
   lines 18 and 46; selected guidance walk: `adapters/filesystem/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
   controller: `adapters/agentshell/controller.py`, line 298; live worker pinning: line 74;
-  child launch validation: line 147.
-- Setup lifecycle: `adapters/agentshell/owner.py`, line 103;
-  synchronous lock/startup: lines 62 and 79; process entrypoint: line 463;
-  client: `adapters/agentshell/owner_client.py`, line 110;
+  child launch validation: line 147. Files and modules started by path or module name:
+  `adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
+- Setup lifecycle: `adapters/agentshell/owner.py`, line 104;
+  synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;
+  client: `adapters/agentshell/owner_client.py`, line 111;
   borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 10;
   private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
 - Lifecycle status: `cli/main.py`, lines 312, 343, 375 and 424;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
 - Tracking: `domain/services/work_tracking.py`, line 6; configuration:
-  `application/configuration.py`, lines 11 and 82; public loader: `configuration.py`, line 9.
+  `application/configuration.py`, lines 12 and 83; public loader: `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
   and `tests/test_watch.py`. `tests/test_watch_status.py` covers both lifecycle sources through
@@ -433,7 +437,8 @@ Paths below are relative to `src/forgetful_factory/`:
   retention and latched unknown outcomes; managed coverage also preserves the original Foreman.
   `tests/test_watcher_followup.py` covers current eligibility, duplicate reconciliation and
   repository/branch/path checks before new planning writes.
-  `tests/test_architecture.py` proves the import rules reject violations.
+  `tests/test_architecture.py` proves the import rules reject violations, and checks that the
+  rules see every module and that launch targets and resources resolve.
 - Normalized definitions and root policy: `tests/test_agent_definitions.py`.
   Native lifecycle regressions: `tests/test_normalized_lifecycle.py`,
   `tests/test_assisted_lifecycle.py` and `tests/test_assisted_review_fixes.py`;

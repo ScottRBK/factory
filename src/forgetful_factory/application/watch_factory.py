@@ -8,7 +8,6 @@ from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
-from forgetful_factory.application.watch_stop import check_watch_stop
 from forgetful_factory.application.watcher_problems import (
     IntakeProblem,
     RepositoryProblem,
@@ -18,12 +17,13 @@ from forgetful_factory.application.watcher_problems import (
     WatcherAlerts,
 )
 from forgetful_factory.domain.models import (
-    FactoryError,
     Issue,
     RepositoryReference,
     WorkSource,
 )
 from forgetful_factory.domain.services.work_tracking import WorkTrackingService
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.watch_stop import check_watch_stop
 
 
 @dataclass

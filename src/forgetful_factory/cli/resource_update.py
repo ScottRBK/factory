@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 from forgetful_factory.deadlines import DeadlinePolicy
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def _report(update, force: bool) -> None:

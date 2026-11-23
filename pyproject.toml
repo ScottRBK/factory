@@ -60,6 +60,21 @@ type = "forbidden"
 source_modules = ["forgetful_factory.adapters"]
 forbidden_modules = ["forgetful_factory.cli"]
 
+[[tool.importlinter.contracts]]
+id = "shared-independent"
+name = "Shared imports nothing above it"
+type = "forbidden"
+source_modules = ["forgetful_factory.shared"]
+forbidden_modules = [
+    "forgetful_factory.__main__",
+    "forgetful_factory.adapters",
+    "forgetful_factory.application",
+    "forgetful_factory.cli",
+    "forgetful_factory.configuration",
+    "forgetful_factory.deadlines",
+    "forgetful_factory.domain",
+]
+
 [tool.ruff]
 line-length = 100
 

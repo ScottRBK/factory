@@ -116,7 +116,7 @@ print('[[]]' if '/comments?' in sys.argv[2]
             self.assertEqual(epic.revision, reordered.revision)
 
     def test_comments_are_paginated_order_independent_and_fail_closed(self):
-        from forgetful_factory.domain.models import FactoryError
+        from forgetful_factory.shared.errors import FactoryError
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

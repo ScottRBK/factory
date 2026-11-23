@@ -5,11 +5,11 @@ import subprocess
 import time
 import uuid
 from dataclasses import asdict
-from pathlib import Path
 
-from forgetful_factory.application.watch_stop import check_watch_stop
+from forgetful_factory.adapters.agentshell.launch import CONTROLLER
 from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.watch_stop import check_watch_stop
 
 
 class AgentShellTerminal:
@@ -87,10 +87,9 @@ class AgentShellTerminal:
         return reply
 
     def start(self) -> None:
-        helper = Path(__file__).with_name('controller.py').resolve()
         try:
             self.process = subprocess.Popen(
-                [self.python, '-u', str(helper)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                [self.python, '-u', str(CONTROLLER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 # Library diagnostics stay on stderr, separate from the protocol and user stdin.
                 stderr=None, start_new_session=True, env=self.environment,
             )

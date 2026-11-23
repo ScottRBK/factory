@@ -7,7 +7,8 @@ from forgetful_factory.application.ports.local_repositories import LocalReposito
 from forgetful_factory.application.ports.planning import Planning
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
-from forgetful_factory.domain.models import FactoryError, Issue, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import Issue, RepositoryReference, WorkSource
+from forgetful_factory.shared.errors import FactoryError
 
 
 class FactoryRecords:

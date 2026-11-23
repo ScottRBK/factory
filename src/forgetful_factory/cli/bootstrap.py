@@ -18,7 +18,7 @@ from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
 from forgetful_factory.deadlines import DeadlinePolicy
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolicy()

@@ -25,7 +25,7 @@ from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.cli.resource_update import update_resources
 from forgetful_factory.deadlines import DeadlinePolicy
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def select_repositories(application: InitialiseFactory, workspace: Path) -> list[Path]:
@@ -427,8 +427,8 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
     from forgetful_factory.adapters.agentshell.borrowed_terminal import BorrowedForemanTerminal
     from forgetful_factory.adapters.agentshell.owner_client import read_state
     from forgetful_factory.adapters.watch_status import observe_plain_watch
-    from forgetful_factory.application.watch_stop import watch_stop_scope
     from forgetful_factory.configuration import load_configuration
+    from forgetful_factory.shared.watch_stop import watch_stop_scope
 
     if not math.isfinite(args.interval) or args.interval <= 0:
         raise FactoryError('--interval must be positive and finite.')
@@ -797,7 +797,7 @@ def _discover_worker_models(harness, role=None, *, application: InitialiseFactor
         _prepare_foreman(application, state.connection, args)
         state.prepared = True
     if role is not None:
-        from forgetful_factory.adapters.filesystem.resource_files import check_real_path
+        from forgetful_factory.shared.resource_files import check_real_path
 
         directory = workspace / '.factory/agents' / role.replace('_', '-')
         check_real_path(directory)

@@ -1,7 +1,7 @@
 """Known scaffold failures and safe Foreman alert submission."""
 import json
 
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 # Agent-facing explanations are controlled text, never exception or command output.
 SUMMARIES = {

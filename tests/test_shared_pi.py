@@ -6,7 +6,7 @@ from profile_support import events
 from test_init import INIT_SETTINGS, InitFixture
 
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 class SharedPiTests(InitFixture):

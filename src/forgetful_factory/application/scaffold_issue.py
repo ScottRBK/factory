@@ -22,7 +22,8 @@ from forgetful_factory.application.watcher_problems import (
     ScaffoldReadProblem,
     UncertainScaffold,
 )
-from forgetful_factory.domain.models import FactoryError, Issue, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import Issue, RepositoryReference, WorkSource
+from forgetful_factory.shared.errors import FactoryError
 
 
 class ScaffoldIssue:

@@ -9,10 +9,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.resource_files import check_real_path
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import check_real_path
+from forgetful_factory.shared.resources import resource_root
 
-PACKAGE_RESOURCES = Path(__file__).resolve().parents[2] / 'resources'
+PACKAGE_RESOURCES = resource_root()
 
 
 def _digest(data: bytes) -> str:

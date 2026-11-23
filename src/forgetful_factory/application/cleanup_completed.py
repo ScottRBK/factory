@@ -11,7 +11,7 @@ from forgetful_factory.application.ports.cleanup_receipts import CleanupReceipts
 from forgetful_factory.application.ports.planning import PlanningReadError
 from forgetful_factory.application.ports.worktrees import Worktrees
 from forgetful_factory.application.watcher_problems import ScaffoldProblem, WatcherAlerts
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 _TARGET_KEYS = ('target', 'common-target', 'remote-target')
 _RECEIPTS_ALERT_SUBJECT = 'cleanup:receipts'

@@ -1,7 +1,7 @@
 import subprocess
 
-from forgetful_factory.application.watch_stop import check_watch_stop
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.watch_stop import check_watch_stop
 
 
 def run_command(arguments: list[str], *, timeout: float = 30,

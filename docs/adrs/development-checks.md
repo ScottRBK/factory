@@ -24,11 +24,13 @@ style (see [test runner](#test-runner)). Ruff infers Python 3.12 from `requires-
 repeating the setting. Formatting is not required or added.
 Ruff's line-length rule has documented exceptions; it is not a strict Markdown-width validator.
 
-Import Linter's three forbidden contracts in `pyproject.toml` enforce:
+Import Linter's four forbidden contracts in `pyproject.toml` enforce:
 
 - Domain cannot depend on application, adapters, CLI, or the public configuration loader.
 - Application cannot depend on adapters, CLI, or the public configuration loader.
 - Adapters cannot depend on CLI.
+- `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
+  other top-level module. Every area may import it.
 
 These checks include submodules and indirect paths. Application may use domain contracts and its
 own ports. Adapters may use application/domain types and shared adapter utilities. Bootstrap and
@@ -38,13 +40,28 @@ adapter-to-workflow imports and external integration imports are not separately 
 Dynamic imports and runtime operations such as built-in file access remain outside these checks.
 
 `tests/test_architecture.py` invokes the real checker on temporary, importable fixture packages,
-using the repository's actual contracts. It proves direct and indirect rejection for every listed
-forbidden target, checks that disabling the target rule permits the violation, and verifies that
-clean ports/shared utilities/composition pass. Assertions identify the exact forbidden area pair,
-not merely a target appearing somewhere in a longer rejected path. Indirect helpers live outside
-both endpoint areas. Rule isolation uses CLI contract selection, preserving all global settings.
-No intentional violations are written into the actual source tree. These repeatable proofs guard
-against later weakening of the configuration, rather than mocking an import-analysis library.
+using the repository's actual contracts. Two tables drive it. `ALLOWED` lists the permitted
+imports; together they form the known-good fixture, which must pass every rule. `REJECTED` lists
+(rule, area, target) rows. Each configured rule gets its own test, which fails if the rule has no
+rows. Each row proves direct and indirect rejection, checks that disabling the target rule
+permits the violation, and checks that removing it passes again. Assertions identify the exact
+forbidden area pair, not merely a target appearing somewhere in a longer rejected path. Indirect
+helpers live outside both endpoint areas. Rule isolation uses CLI contract selection, preserving
+all global settings. No intentional violations are written into the actual source tree. These
+repeatable proofs guard against later weakening of the configuration, rather than mocking an
+import-analysis library.
+
+Coverage checks in the same file guard what the checker cannot see by itself:
+
+- Every source folder with Python files has `__init__.py`; a missing marker hides modules.
+- Every internal name in a rule matches a real module. Import Linter skips a wildcard that
+  matches nothing, which turns a rule off silently. The check fails on a contract type it does
+  not yet read, so a new type extends it.
+- The `shared` rule forbids every other top-level module, so a new top-level module needs a
+  decision.
+- Only `shared/resources.py` and `adapters/agentshell/launch.py` use `__file__`. Files started by
+  path (`controller.py`, `model_catalog.py`) and the owner module name are constants there, and
+  a test checks that each resolves in the source tree.
 
 CI installs through `uv sync --locked` and runs Ruff, the real-source architecture check,
 and the full test suite through `uv run --locked` on Python 3.12/3.13. CI also runs

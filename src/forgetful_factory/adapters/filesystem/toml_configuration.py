@@ -10,7 +10,7 @@ from forgetful_factory.application.configuration import (
     FactoryConfiguration,
     from_mapping,
 )
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def quote(value: str) -> str:

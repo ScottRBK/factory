@@ -3,8 +3,8 @@ import os
 import stat
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.resource_files import check_real_path
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import check_real_path
 
 
 def runtime_directory(workspace: Path, *, create: bool = False) -> Path:

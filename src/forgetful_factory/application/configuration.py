@@ -4,7 +4,8 @@ from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from forgetful_factory.domain.models import FactoryError, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import RepositoryReference, WorkSource
+from forgetful_factory.shared.errors import FactoryError
 
 
 @dataclass(frozen=True)

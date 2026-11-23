@@ -1,9 +1,9 @@
 """Set up a human agreement, not a machine-interpreted completion policy."""
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.resource_files import check_skill_file, write_new
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import check_skill_file, write_new
 
 
 def agree_definition_of_done(workspace: Path, config: FactoryConfiguration) -> bool:

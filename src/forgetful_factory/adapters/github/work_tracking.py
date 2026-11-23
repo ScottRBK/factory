@@ -2,8 +2,9 @@ import hashlib
 import json
 import re
 
-from forgetful_factory.adapters.command import run_command
-from forgetful_factory.domain.models import FactoryError, Issue, Label, WorkSource
+from forgetful_factory.domain.models import Issue, Label, WorkSource
+from forgetful_factory.shared.command import run_command
+from forgetful_factory.shared.errors import FactoryError
 
 
 class GitHubWorkTracking:

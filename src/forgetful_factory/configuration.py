@@ -3,7 +3,7 @@ from pathlib import Path
 
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def load_configuration(workspace: str | Path) -> FactoryConfiguration:

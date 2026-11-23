@@ -3,7 +3,7 @@ from pathlib import Path
 from forgetful_factory.adapters.forgetful.connection import AgentForgetfulConnection
 from forgetful_factory.application.configuration import ForgetfulConnection
 from forgetful_factory.application.ports.planning import PlanningReadError
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def _positive_id(value: object) -> bool:

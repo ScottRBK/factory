@@ -83,6 +83,9 @@ DoD or prove that a model followed it. Existing factories are not automatically 
   One approved installation does not introduce an automatic upgrade or repair mechanism.
 - Prepare a package release. No release is recorded. The corrected licensing wording does not
   impose an internal-use-only restriction; retain applicable notices when distributing code.
+- Split the package into domain contexts (ticketing, forge, planning, workspace, agents, runtime,
+  channels) with their own ports and adapters. See the
+  [domain contexts plan](plans/domain-contexts.md); slice 0 is done, slices 1–6 remain.
 
 ### Recent delivered changes
 

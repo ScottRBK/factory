@@ -3,18 +3,19 @@ import json
 import os
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.resource_files import (
+from forgetful_factory.adapters.filesystem.worker_profiles import WorkerProfiles
+from forgetful_factory.application.configuration import FactoryConfiguration
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import (
     check_skill_file,
     read_generated_json,
     write_definition,
     write_json,
     write_new,
 )
-from forgetful_factory.adapters.filesystem.worker_profiles import WorkerProfiles
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.resources import resource_root
 
-TEMPLATES = Path(__file__).resolve().parents[2] / 'resources'
+TEMPLATES = resource_root()
 ROLE_INSTRUCTIONS_FILE = 'AGENTS.md'
 LOCAL_SKILLS_DIRECTORY = './skills'
 

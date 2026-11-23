@@ -9,7 +9,7 @@ from test_init import INIT_SETTINGS, InitFixture
 from forgetful_factory.adapters.forgetful.connection import AgentForgetfulConnection
 from forgetful_factory.application.configuration import ForgetfulConnection
 from forgetful_factory.configuration import load_configuration
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 class PlanningSetupTests(InitFixture):

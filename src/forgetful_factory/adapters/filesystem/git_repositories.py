@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from forgetful_factory.adapters.command import run_command
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.command import run_command
+from forgetful_factory.shared.errors import FactoryError
 
 
 def _resolve_repository(path: Path) -> Path:

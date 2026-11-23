@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 
 from forgetful_factory.configuration import load_configuration
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 VALID = '''watcher_label = ["factory"]
 foreman_agent_file = "agents/foreman/agent.json"
