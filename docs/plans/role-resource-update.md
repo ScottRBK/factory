@@ -111,6 +111,12 @@ its consent flag.
 - Green: the skipped run exits 1, names the Foreman start problem and leaves the updated files in
   place; the plain run syncs the locked runtime once. 7 of 7 resource-update tests pass.
 
+### pi-forgetful `574a4e8`
+
+The bundle moved to upstream `574a4e8`: history summaries keep Pi's full reply allowance.
+Only `src/model-context.ts` changed; the Factory patch hash is unchanged. The audit and evidence
+are in [ROLE-SOURCES.md][refresh-574].
+
 ## Not done
 
 - Hosted CI for the exact commit.
@@ -120,3 +126,5 @@ its consent flag.
 [issue]: https://github.com/ScottRBK/factory/issues/4
 [refresh]:
   ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-22-pi-forgetful-refresh
+[refresh-574]:
+  ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-23-pi-forgetful-refresh

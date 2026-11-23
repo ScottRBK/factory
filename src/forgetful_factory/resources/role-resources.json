@@ -28,7 +28,7 @@
   },
   "pi-forgetful": {
     "repository": "git@github.com:ScottRBK/pi-forgetful-extension.git",
-    "revision": "45a0b793d94c02df36951d210d9026e0d661b9af",
+    "revision": "574a4e8bfb2de368445036fb8e3ce89b08c58065",
     "local_patch_sha256": "4635923292215233dea361244b262079ad4bdaf6feee97a6ce3be67ace90fe49",
     "distribution": "Authorized internal use only; no upstream license grant",
     "files": {
@@ -61,7 +61,7 @@
       "src/knowledge-write.ts": "36fc32c5b9f6425c25c47939fc046f507ec6d5ff1461f49a1f678e0bf371d36a",
       "src/logging.ts": "50be627a591f168d6bc72b70547152ebdb8b0b80a37692f3f1d2269c55481c1d",
       "src/memory-context.ts": "0b54f6a744cfb7d3fb60bbc9ca73207ea9e760716a7c3c81d6025ea9179e967b",
-      "src/model-context.ts": "a9447bf3aa98f55ca325aad09f4341208287f1fc4f8c460392f80910215ec02f",
+      "src/model-context.ts": "c7152f5a98ea088e01c05ba9e14ee16cd199a15581d5aad9a883640dada03713",
       "src/model.ts": "61f2bc9ecfae78a2d78d2a81e1b98483f5e38abd9a606482b16c3d512ed14ba2",
       "src/policies.ts": "1f5344fa6688054ac42313a57894024f8579b9a0df497fa9ba7a154a5a8a9a43",
       "src/privacy.ts": "d0ef929add648109ddba383c9e463dc2eb7e974def3d2b51e5330025b4aab9da",

@@ -24,10 +24,10 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
-- ScottRBK/pi-forgetful-extension, base `45a0b793d94c02df36951d210d9026e0d661b9af`, with
+- ScottRBK/pi-forgetful-extension, base `574a4e8bfb2de368445036fb8e3ce89b08c58065`, with
   local patch `4635923292215233dea361244b262079ad4bdaf6feee97a6ce3be67ace90fe49`. The patch
   hash is the SHA-256 of `git diff --cached --full-index --binary` in a checkout of the base after
-  copying in the 40 bundled files and running `git add -A`. See the 2026-11-22 refresh below.
+  copying in the 40 bundled files and running `git add -A`. See the refreshes below.
   The original 40-file runtime closure was independently approved for inert internal inclusion.
   The runtime-alignment follow-up removes only the Factory-specific host gate from that closure.
   Its new patch hash covers the complete local diff against the same upstream revision. Its managed
@@ -96,6 +96,31 @@ mode. Local checks need an already provisioned model cache. Review and prepare m
 5. Rebuild the zip (sorted names, deflate, 2026-01-01 timestamps, mode 0600). Update the manifest
    revision, patch hash and file hashes. Append every new hash to the history file.
 6. Run the full suite and `update --dry-run` against real factories. Record the evidence here.
+
+## 2026-11-23 pi-forgetful refresh
+
+Moved from base `45a0b79` to `574a4e8` (one upstream commit). In the 40-file runtime closure,
+only `src/model-context.ts` changed, and its imports did not. `agentshell` and `hide-tools`
+bytes, `package.json` and the npm lock are unchanged.
+
+- `574a4e8`: history summaries keep Pi's full summary reply (80% of `reserveTokens`, capped by
+  `maxTokens`). Before, a batch that filled most of the private window got a reply cut to the
+  space left. The provider then stopped at "length", so the capture job failed and blocked later
+  jobs on its branch. Now such a batch splits between whole records; one record that cannot fit
+  fails with the existing "cannot fit" error. Task replies keep their cap. The change is local
+  token budgeting only: no new imports, processes, network, file writes or environment reads.
+
+The old patch hash reproduced from the bundled files against `45a0b79`. The Factory patch does
+not touch `model-context.ts`, and no patched file changed upstream, so the patch applied without
+conflicts and its hash is unchanged.
+
+Validation: strict `tsc --noEmit`, including `factory.ts`, passes. Upstream's 1359 tests give
+the same result on the patched and plain trees: 990 pass, 0 fail, 369 skipped. That includes the
+three new tests: the near-window split, the single-record failure and the real Pi SDK queue
+drain. Dev dependencies came from Scott's clean upstream checkout at `574a4e8`, whose package
+files match; nothing was installed. Factory's full parallel suite: 646 passed, 9 skipped; ruff
+and import contracts pass. Read-only `update --dry-run` from the built wheel, 0 edited
+and 0 to add in both: dark-business, already on `45a0b79`, plans 1 replacement; DinoLand plans 8.
 
 ## 2026-11-22 pi-forgetful refresh
 
