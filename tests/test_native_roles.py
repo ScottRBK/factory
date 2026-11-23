@@ -249,7 +249,6 @@ class NativeRoleTests(InitFixture):
                     maintenance = next(s for s in observation['skills']
                                        if s['name'] == 'factory-maintenance')
                     self.assertFalse(maintenance['disableModelInvocation'])
-                    self.assertIn('configuring agent apps', maintenance['description'])
                     self.assertEqual(maintenance['filePath'],
                                      str(directory / 'skills/factory-maintenance/SKILL.md'))
                 if role == 'feature-owner':

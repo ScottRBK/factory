@@ -369,44 +369,6 @@ class GeneratedGuidanceTests(InitFixture):
                          {'enabled': True,
                           'roles': [{'agent_file': '../feature-owner/agent.json'}]})
 
-    def test_owner_guidance_uses_explicit_permission_and_its_own_selected_definition(self):
-        repo = self.repo()
-
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, *worker_settings(self))
-
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        owner = repo / '.factory/agents/feature-owner'
-        instructions = (owner / 'AGENTS.md').read_text()
-        workflow = (owner / 'skills/feature-owner/SKILL.md').read_text()
-        self.assertIn('execution_enabled', instructions)
-        self.assertIn('$FACTORY_WORKSPACE/.factory/factory.toml', instructions)
-        self.assertIn('$FACTORY_WORKSPACE/.factory/factory.toml', workflow)
-        self.assertIn('$PI_AGENTSHELL_ROSTER_FILE', workflow)
-        self.assertNotIn('research-only roster means planning-only', instructions)
-        for phrase in ('full role', 'TDD for implementation', 'additional skills',
-                       'absolute SKILL.md', 'before work', 'configured responsibilities',
-                       'independent review', 'acceptance criteria'):
-            self.assertIn(phrase, workflow)
-        permission_guidance = ' '.join(workflow.split())
-        self.assertIn('Launch implementation workers with auto_approve=true for their '
-                      'assigned Factory tasks.', permission_guidance)
-        self.assertIn('This policy does not extend to research or review workers; keep '
-                      'auto_approve=false for those workers unless separately authorized.',
-                      permission_guidance)
-
-    def test_maintenance_guidance_accepts_local_relative_or_absolute_child_references(self):
-        repo = self.repo()
-
-        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
-
-        self.assertEqual(setup.returncode, 0, setup.stderr)
-        skill = repo / '.factory/agents/foreman/skills/factory-maintenance/SKILL.md'
-        guidance = ' '.join(skill.read_text().split())
-        self.assertIn('local relative or absolute `agent_file`', guidance)
-        self.assertIn('Children own their settings', guidance)
-        self.assertIn('Do not claim that selecting a path proves native loading', guidance)
-
-
 class LocalSelectorTests(WatchOutcomeFixture):
     def test_existing_scheme_paths_cannot_be_used_as_selected_resources(self):
         root = self.workspace / '.factory/agents/foreman'

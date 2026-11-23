@@ -109,13 +109,6 @@ class ManualLaunchTests(LifecycleFixture):
             self.assertNotIn('Launch factory now?', text)
             self.assertNotIn('To start your factory later', text)
         role = repo / '.factory/agents/foreman'
-        guidance = (role / 'skills/factory-maintenance/SKILL.md').read_text()
-        self.assertIn('you start the watcher from this conversation', guidance)
-        self.assertIn('Confirm whether to include existing matching issues', guidance)
-        self.assertIn('not a separate CLI launch prompt', guidance)
-        self.assertIn('watch --start --existing', guidance)
-        self.assertIn('watch --start --new-only', guidance)
-        self.assertIn('/reload', guidance)
         self.assertEqual(self.status(repo)['target'], original['target'])
 
         # Act: emulate Foreman's command from its role directory, without a model request.

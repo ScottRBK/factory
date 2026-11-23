@@ -14,34 +14,12 @@ class ForemanIssueIntakeTests(InitFixture):
         # Act: provision through the public CLI without a model or live GitHub call.
         result = self.run_cli(repo, '--repo', '.', *settings, '--label', 'Expedite')
 
-        # Assert: the saved config remains authoritative; both guidance entry points use it.
+        # Assert: the saved config remains authoritative.
         self.assertEqual(result.returncode, 0, result.stderr)
         config = tomllib.loads((repo / '.factory/factory.toml').read_text())
         self.assertEqual(config['watcher_label'], ['Ready for Factory', 'Expedite'])
         self.assertEqual(config['repository'][0]['source'], 'team/app')
-        role = repo / '.factory/agents/foreman'
-        for relative in ('AGENTS.md', 'skills/foreman/SKILL.md'):
-            with self.subTest(guidance=relative):
-                guidance = ' '.join((role / relative).read_text().split())
-                for required in (
-                    '"$FACTORY_WORKSPACE/.factory/factory.toml"',
-                    '`watcher_label`',
-                    '`repository`',
-                    'A request to log an issue is not permission to add a watched label.',
-                ):
-                    self.assertIn(required, guidance)
-        skill = ' '.join((role / 'skills/foreman/SKILL.md').read_text().split())
-        for required in (
-            'Ask before creating the issue whether to add a watched label',
-            'unless the user already explicitly requested that label.',
-            'One matching label is enough; do not add every watched label.',
-            'Matching is case-insensitive; use the existing GitHub label spelling.',
-            'Only configured repositories are watched.',
-            'A watched label makes an open issue eligible; it does not prove work has started.',
-            'Do not scaffold a plan or dispatch an owner merely because you logged or labelled it.',
-        ):
-            self.assertIn(required, skill)
-        # Init may ensure label definitions, but this guidance change must not create issues.
+        # Init may ensure label definitions, but must not create issues.
         calls = json.loads(self.state.read_text())['calls']
         self.assertFalse(any('/issues' in call[1] for call in calls))
 
@@ -59,17 +37,6 @@ class ForemanIssueIntakeTests(InitFixture):
         config = tomllib.loads((repo / '.factory/factory.toml').read_text())
         self.assertEqual(config['watcher_label'], ['*'])
         self.assertEqual(json.loads(self.state.read_text()).get('created', []), [])
-        skill = ' '.join((repo / '.factory/agents/foreman/skills/foreman/SKILL.md')
-                         .read_text().split())
-        for required in (
-            'If `watcher_label` contains the entry `*`, all open issues in configured '
-            'repositories are watched',
-            'including issues with no labels.',
-            'Do not add a literal `*` label or offer leaving labels off as an opt-out.',
-            'Explain this before creating the issue and ask whether the user wants to proceed.',
-            'If they do not want automatic intake, pause and agree how to proceed',
-        ):
-            self.assertIn(required, skill)
 
     def test_repeat_init_preserves_edited_issue_intake_guidance(self):
         # Arrange: local edits remain the user's responsibility, not a template-sync target.

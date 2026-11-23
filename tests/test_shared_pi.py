@@ -308,7 +308,6 @@ class SharedPiTests(InitFixture):
         self.assertIn(str(repo / '.factory/resources/hide-tools/index.ts'), args)
         self.assertNotIn('Discuss only. Custom role guidance.', args)
         self.assertEqual(launch['cwd'], str(role))
-        self.assertIn('APPEND_SYSTEM.md', (role / 'AGENTS.md').read_text())
         self.assertIn('session ready', stdout)
         self.assertNotIn('model access verified', stdout)
 

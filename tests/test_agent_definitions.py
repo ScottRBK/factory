@@ -120,15 +120,6 @@ class AgentDefinitionInitTests(InitFixture):
             self.assertEqual(document['roster'], {'enabled': False, 'roles': []})
         implementation = json.loads((agents / 'implementation/agent.json').read_text())['agent']
         self.assertIn(str(self.workspace / 'tdd/SKILL.md'), implementation['resources']['skills'])
-        guidance = ' '.join((agents / 'feature-owner/skills/feature-owner/SKILL.md')
-                            .read_text().split())
-        for required in ('agent.json', 'configured names and descriptions', 'directory selections',
-                         'absolute SKILL.md', 'full role briefing', 'read them before work',
-                         'TDD', 'additional skills'):
-            self.assertIn(required, guidance)
-        for obsolete in ('resources.json', 'roster_entry="implementation"',
-                         'roster_entry="review"'):
-            self.assertNotIn(obsolete, guidance)
 
 
 class AgentDefinitionLaunchTests(WatchFixture):

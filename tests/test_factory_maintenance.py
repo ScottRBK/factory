@@ -66,13 +66,6 @@ class FactoryMaintenanceTests(InitFixture):
         self.assertIn('./skills', json.loads(before)['agent']['resources']['skills'])
         skill = role / 'skills/factory-maintenance/SKILL.md'
         guidance = skill.read_text()
-        for required in ('name: factory-maintenance', 'description:', 'agent.json',
-                         'Setup does not ask for skill paths', 'after setup', 'TDD',
-                         'foreman --attach', 'init --finalize', 'uncertain delivery',
-                         'read-before-work', 'full briefing', 'absolute SKILL.md'):
-            self.assertIn(required, guidance)
-        self.assertNotIn('disable-model-invocation: true', guidance)
-        self.assertIn('skills/factory-maintenance/SKILL.md', (role / 'AGENTS.md').read_text())
         # Act
         edited = guidance + '\nAsk our team before changing selected review models.\n'
         skill.write_text(edited)

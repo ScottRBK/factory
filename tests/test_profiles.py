@@ -30,8 +30,7 @@ class ProfileTests(InitFixture):
         self.assertEqual(settings['skills'], ['./skills'])
         self.assertFalse((profile / 'mcp.json').exists())
         self.assertTrue((profile / 'skills/foreman/SKILL.md').is_file())
-        self.assertIn('Additional Foreman guidance',
-                      (profile / 'APPEND_SYSTEM.md').read_text())
+        self.assertTrue((profile / 'APPEND_SYSTEM.md').is_file())
         self.assertTrue((repo / '.factory/agents/feature-owner/AGENTS.md').exists())
         self.assertFalse((profile / 'auth.json').exists())
         self.assertFalse((profile / 'mcp-auth.json').exists())

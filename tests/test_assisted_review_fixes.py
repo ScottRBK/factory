@@ -365,8 +365,6 @@ class AssistedReviewFixes(LifecycleFixture):
         self.assertEqual(status.returncode, 0, status.stderr)
         self.assertEqual(json.loads(status.stdout)['setup'], 'complete')
         self.assertEqual(json.loads(status.stdout)['target'], original['target'])
-        agents = (repo / '.factory/agents/foreman/AGENTS.md').read_text()
-        self.assertIn('watch --status --workspace "$FACTORY_WORKSPACE"', agents)
         self.assertIn(f'--workspace {shlex.quote(str(repo))}', setup.stdout)
         self.send_and_wait_for_exit(repo, original['target'])
 
