@@ -15,6 +15,7 @@ from forgetful_factory.application.cleanup_marker import (
     CleanupMarkerError,
     validate_cleanup_marker,
 )
+from forgetful_factory.forge.adapters.github import GitHubForge
 
 FIXTURES = Path(__file__).parent / 'fixtures' / 'saved_data'
 UPDATE = os.environ.get('UPDATE_SAVED_DATA') == '1'
@@ -146,10 +147,13 @@ class SavedDataTests(CompletedCleanupFixture):
 
 class CleanupMarkerTests(unittest.TestCase):
     def test_cleanup_marker_decisions(self):
+        # The configured remote, not the mapping's ticket source, names the repository.
+        forge = GitHubForge()
+        repository = forge.repository('git@github.com:team/app.git')
         decisions = []
         for mapping in MARKERS:
             try:
-                decision = validate_cleanup_marker(mapping)
+                decision = validate_cleanup_marker(mapping, forge, repository)
             except CleanupMarkerError:
                 decision = 'rejected'
             decisions.append({'mapping': mapping, 'decision': decision})

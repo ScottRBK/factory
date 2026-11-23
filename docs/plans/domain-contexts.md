@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–1 implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–2 implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -456,6 +456,30 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+- **Slice 2: done** (2026-11-23).
+  - `forge/` holds `RepositoryRef`, the `Forge` port and `GitHubForge`. `WorkSourceResolver` and
+    `adapters/github/` are gone. `FactoryRecords.check_source` returns the remote's repository,
+    and compares it with the ticket source only when the forge and ticketing provider are the
+    same service. Init proposes the forge repository as the ticket source, as before.
+  - The marker check takes the forge and the remote's repository
+    (`validate_cleanup_marker(mapping, forge, repository)`). The saved marker fixture is
+    unchanged. Its error text now says "change request URL" (operator text, not saved data).
+  - Init's "Unsupported work-tracking provider" check moved into
+    `GitHubTicketing.validate_source`, which refuses another provider's source; init adds its
+    guidance. The ticketing contract now requires this.
+  - `ForgeContract` (`tests/contracts/forge.py`) passes for `GitHubForge` and `FakeForge`.
+    `tests/test_second_provider.py` runs watch with the `tracker` fake on a GitHub remote:
+    intake, recovery with a GitHub PR marker, and cleanup. It failed under both old GitHub
+    assumptions (marker against the ticket source; `github:`-only cleanup scope).
+    `WatchFixture.entrypoint` lets a test compose a provider into the real CLI.
+  - `forge` joins the four context rules and the `shared` rule. Rows may now name other rules
+    that must also reject them (the skill's isolation): any `forge` to `ticketing.adapters`
+    import is also an indirect adapter-to-adapter import. With that, the `*.ports` wildcard row
+    `forge.ports → ticketing.adapters` is proven; it fails when the wildcard is removed.
+  - A fake forge run through the whole watcher needs a host-based forge registry. That waits
+    until a second real forge exists.
+  - Checks: full suite 686 passed, 14 skipped; 8 rules kept; Mycelium 0.4.5: 99 boxes, 13
+    warnings, repeat export identical.
 - **Slice 1: done** (2026-11-23).
   - Golden fixtures (`tests/test_saved_data.py`, `tests/fixtures/saved_data/`) were recorded
     from the code before the change. The key change then shows as a two-line fixture diff:

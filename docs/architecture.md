@@ -55,6 +55,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `application/` | Coordinate setup, issue scaffolding and watching through ports. |
 | `domain/` | Define the repository reference saved in configuration. |
 | `ticketing/` | Tickets and the `Ticketing` port, with the GitHub Issues adapter. |
+| `forge/` | Repositories and change requests: the `Forge` port, with the GitHub adapter. |
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
@@ -73,7 +74,7 @@ classDiagram
     class LocalRepositories {
         <<interface>>
     }
-    class WorkSourceResolver {
+    class Forge {
         <<interface>>
     }
     class ForemanTerminal {
@@ -85,7 +86,7 @@ classDiagram
     InitialiseFactory --> Ticketing
     InitialiseFactory --> ConfigurationStore
     InitialiseFactory --> LocalRepositories
-    InitialiseFactory --> WorkSourceResolver
+    InitialiseFactory --> Forge
     InitialiseFactory --> ForemanProfile
     WatchFactory --> Ticketing
     WatchFactory --> ForemanTerminal
@@ -99,11 +100,11 @@ classDiagram
     ScaffoldIssue --> Planning
     ScaffoldIssue --> Worktrees
     ScaffoldIssue --> LocalRepositories
-    ScaffoldIssue --> WorkSourceResolver
+    ScaffoldIssue --> Forge
     ForgetfulPlanning ..|> Planning
     GitWorktrees ..|> Worktrees
     GitHubTicketing ..|> Ticketing
-    GitHubSourceResolver ..|> WorkSourceResolver
+    GitHubForge ..|> Forge
     TomlConfigurationStore ..|> ConfigurationStore
     GitRepositories ..|> LocalRepositories
     AgentShellTerminal ..|> ForemanTerminal
@@ -322,7 +323,7 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
-  with their own ports and adapters. Slices 0 (`shared/`, checks) and 1 (`ticketing/`) are done.
+  with their own ports and adapters. Slices 0–2 (`shared/`, `ticketing/`, `forge/`) are done.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -354,15 +355,15 @@ Paths below are relative to `src/forgetful_factory/`:
   Adapter wiring: `cli/bootstrap.py`, lines 29 and 52; ticketing registry and source checks:
   lines 26 and 37; GitHub CLI preflight: line 59; selected root launch: line 80.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
-  `ticketing/adapters/github.py`, lines 14, 18, 76 and 95; remote-to-source mapping:
-  `adapters/github/source_resolver.py`, line 8.
+  `ticketing/adapters/github.py`, lines 14, 18, 79 and 98. Forge port: `forge/ports.py`, line 6;
+  GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
   Deadline policies: `deadlines.py`, lines 12 and 29.
 - Workflows: `application/initialise_factory.py`, line 20;
   `application/watch_factory.py`, line 59; private run state: line 37;
   `application/scaffold_issue.py`, line 37.
-  Public cleanup validation: `application/cleanup_marker.py`, line 12; error type: line 8.
+  Public cleanup validation: `application/cleanup_marker.py`, line 15; error type: line 11.
   Problem types and formatting: `application/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `application/factory_records.py`, lines 15–119;
+  Shared identity/repository checks: `application/factory_records.py`, lines 16–123;
   pre-create checks: `application/scaffold_issue.py`, line 87; read-only lookup/recovery:
   lines 175 and 231; placeholder creation: line 187; worktree names: line 31.
   Cleanup: `application/cleanup_completed.py`, lines 48–117, 292–388; ticket scope: line 190;

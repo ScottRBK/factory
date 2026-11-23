@@ -11,6 +11,10 @@ from forgetful_factory.application.cleanup_marker import (
     validate_cleanup_marker,
 )
 from forgetful_factory.application.ports.worktrees import WorktreeProblem
+from forgetful_factory.forge.adapters.github import GitHubForge
+
+FORGE = GitHubForge()
+REPOSITORY = FORGE.repository('git@github.com:team/app.git')
 
 
 class PersistedCleanupMarkerTests(unittest.TestCase):
@@ -38,10 +42,11 @@ class PersistedCleanupMarkerTests(unittest.TestCase):
         original_mixed_case = copy.deepcopy(mixed_case_repository)
 
         # Act / Assert
-        self.assertIsNone(validate_cleanup_marker(absent))
-        self.assertEqual(validate_cleanup_marker(pending), 'pending')
-        self.assertEqual(validate_cleanup_marker(removed), 'removed')
-        self.assertEqual(validate_cleanup_marker(mixed_case_repository), 'removed')
+        self.assertIsNone(validate_cleanup_marker(absent, FORGE, REPOSITORY))
+        self.assertEqual(validate_cleanup_marker(pending, FORGE, REPOSITORY), 'pending')
+        self.assertEqual(validate_cleanup_marker(removed, FORGE, REPOSITORY), 'removed')
+        self.assertEqual(validate_cleanup_marker(mixed_case_repository, FORGE, REPOSITORY),
+                         'removed')
         self.assertEqual(mixed_case_repository, original_mixed_case)
 
     def test_rejects_every_malformed_marker_and_noncanonical_url_without_mutation(self):
@@ -79,7 +84,7 @@ class PersistedCleanupMarkerTests(unittest.TestCase):
 
                 # Act / Assert
                 with self.assertRaises(CleanupMarkerError):
-                    validate_cleanup_marker(mapping)
+                    validate_cleanup_marker(mapping, FORGE, REPOSITORY)
                 self.assertEqual(mapping, before)
 
 

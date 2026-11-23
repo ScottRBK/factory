@@ -31,8 +31,8 @@ Import Linter's eight contracts in `pyproject.toml` enforce:
 - Adapters cannot depend on CLI.
 - `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
   other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (now `ticketing/`), imports go down only: adapters,
-  services, ports, model. It is exhaustive, so a module outside those layers fails.
+- `inside-each-area`: inside a context (now `ticketing/` and `forge/`), imports go down only:
+  adapters, services, ports, model. It is exhaustive, so a module outside those layers fails.
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
@@ -52,14 +52,17 @@ using the repository's actual contracts. Two tables drive it. `ALLOWED` lists th
 together they form the known-good fixture, which must pass every rule. `REJECTED` lists (rule, area,
 target) rows; the area is a package (the probe is a new module) or a module (the probe line is added
 to it). Each configured rule gets its own test, which fails if the rule has no rows. Only the row's
-own rule may reject it, so `cli` rows target `cli.prompts`, which imports nothing. The checker's
-report must name the rule's own units, worked out for forbidden, layers and independence rules. Each
-row proves direct and indirect rejection, checks that disabling the target rule permits the
-violation, and checks that removing it passes again. Assertions identify the exact forbidden area
-pair, not merely a target appearing somewhere in a longer rejected path. Indirect helpers live
-outside both endpoint areas. Rule isolation uses CLI contract selection, preserving all global
-settings. No intentional violations are written into the actual source tree. These repeatable proofs
-guard against later weakening of the configuration, rather than mocking an import-analysis library.
+own rule may reject it, so `cli` rows target `cli.prompts`, which imports nothing. Where that cannot
+hold, the row names the other rules that must also reject it, and step 1 turns those off too; for
+example, any import from `forge` to `ticketing.adapters` is also an indirect `forge.adapters` to
+`ticketing.adapters` import. The checker's report must name the rule's own units, worked out for
+forbidden, layers and independence rules. Each row proves direct and indirect rejection, checks that
+disabling the target rule permits the violation, and checks that removing it passes again.
+Assertions identify the exact forbidden area pair, not merely a target appearing somewhere in a
+longer rejected path. Indirect helpers live outside both endpoint areas. Rule isolation uses CLI
+contract selection, preserving all global settings. No intentional violations are written into the
+actual source tree. These repeatable proofs guard against later weakening of the configuration,
+rather than mocking an import-analysis library.
 
 Coverage checks in the same file guard what the checker cannot see by itself:
 
@@ -78,9 +81,18 @@ Coverage checks in the same file guard what the checker cannot see by itself:
 
 `tests/contracts/` holds one `unittest` mixin per port. `TicketingContract` states what every
 `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that pass
-`is_key`, content-only revisions, source checks and labels. `tests/test_ticketing_contract.py`
-runs it against the GitHub adapter with a stateful `gh` stub and against `FakeTicketing`, a
-non-GitHub provider with keys such as `ENG-123`. A new adapter is done when it passes the mixin.
+`is_key`, content-only revisions, source checks (including another provider's source) and labels.
+`ForgeContract` states that every accepted remote form names one repository, unsupported remotes
+fail, and change-request URLs belong to their repository. Each runs against the GitHub adapter
+(with a stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys
+such as `ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new
+adapter is done when it passes its mixin.
+
+`tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
+GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan
+cleanup. It failed when the marker was checked against the ticket source, and when cleanup scope
+accepted only `github:` references. This is the leak check for GitHub strings, patterns and
+numeric keys in the core.
 
 `tests/test_saved_data.py` pins the bytes Factory stores or sends to agents: plan record and
 context, ownership task, issue notification, watcher alert, cleanup receipts, init's

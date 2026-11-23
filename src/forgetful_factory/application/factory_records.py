@@ -5,21 +5,22 @@ from pathlib import Path
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.planning import Planning
-from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
 from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.forge.model import RepositoryRef
+from forgetful_factory.forge.ports import Forge
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
 
 
 class FactoryRecords:
     def __init__(self, planning: Planning, workspace: Path, config: FactoryConfiguration,
-                 repositories: LocalRepositories, sources: WorkSourceResolver):
+                 repositories: LocalRepositories, forge: Forge):
         self.planning = planning
         self.workspace = workspace
         self.config = config
         self.repositories = repositories
-        self.sources = sources
+        self.forge = forge
 
     def check_repository(self, repository: RepositoryReference) -> None:
         try:
@@ -34,17 +35,20 @@ class FactoryRecords:
                                     paths=(repository.local_dir,))
         self.check_source(repository)
 
-    def check_source(self, repository: RepositoryReference) -> None:
+    def check_source(self, repository: RepositoryReference) -> RepositoryRef:
+        """Return the forge repository of the remote, checking it against the ticket source."""
         try:
-            source = self.sources.source_from_remote(repository.remote)
+            hosted = self.forge.repository(repository.remote)
         except FactoryError as error:
             raise RepositoryProblem('repository_source_mismatch', str(error),
                                     paths=(repository.local_dir,)) from error
-        expected = repository.work_source
-        if source != TicketSource(expected.provider, expected.reference.casefold()):
+        source = repository.work_source
+        # The remote names the ticket source only when one service is both forge and ticketing.
+        if hosted.forge == source.provider and hosted.reference != source.reference.casefold():
             raise RepositoryProblem('repository_source_mismatch',
                                     f'Origin/source mapping differs for {repository.local_dir}.',
                                     paths=(repository.local_dir,))
+        return hosted
 
     def snapshot(self, context: dict, external_ref: str) -> Ticket:
         try:

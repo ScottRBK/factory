@@ -48,13 +48,15 @@ class FakeTicketingContractTests(TicketingContract, unittest.TestCase):
     non_keys = ('42', 'eng-1', 'ENG-0', 'ENG-01', 'ENG 1')
 
     def setUp(self):
-        self.fake = FakeTicketing()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.fake = FakeTicketing(Path(directory.name) / 'tracker.json')
 
     def adapter(self):
         return self.fake
 
     def publish(self, tickets):
-        self.fake.tickets[self.source.reference.casefold()] = tickets
+        self.fake.publish(self.source, tickets)
 
 
 class GitHubTicketingContractTests(TicketingContract, unittest.TestCase):

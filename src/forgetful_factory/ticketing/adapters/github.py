@@ -26,6 +26,9 @@ class GitHubTicketing:
                                'Install or upgrade gh on PATH, then restart watch.')
 
     def validate_source(self, source: TicketSource) -> None:
+        if source.provider != 'github':
+            raise FactoryError(f'Unsupported work-tracking provider {source.provider!r}; '
+                               "this integration supports 'github'.")
         reference = source.reference
         if (_SOURCE.fullmatch(reference) is None or reference.endswith('.git')
                 or reference.split('/')[-1] in ('.', '..')):

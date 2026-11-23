@@ -10,8 +10,8 @@ from forgetful_factory.application.configuration import (
 from forgetful_factory.application.ports.configuration_store import ConfigurationStore
 from forgetful_factory.application.ports.foreman_profile import ForemanProfile
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
-from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.forge.ports import Forge
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Label, TicketSource
 from forgetful_factory.ticketing.ports import Ticketing
@@ -19,12 +19,12 @@ from forgetful_factory.ticketing.ports import Ticketing
 
 class InitialiseFactory:
     def __init__(self, tracking: Ticketing, storage: ConfigurationStore,
-                 repositories: LocalRepositories, sources: WorkSourceResolver,
+                 repositories: LocalRepositories, forge: Forge,
                  profile: ForemanProfile):
         self.tracking = tracking
         self.storage = storage
         self.repositories = repositories
-        self.sources = sources
+        self.forge = forge
         self.profile = profile
 
     def prepare_foreman(self, connection: ForgetfulConnection,
@@ -88,9 +88,11 @@ class InitialiseFactory:
         for path in paths:
             remote = self.repositories.origin(path)
             try:
-                source = self.sources.source_from_remote(remote)
+                hosted = self.forge.repository(remote)
             except FactoryError as error:
                 raise FactoryError(f'Repository {path}: {error}') from error
+            # Default: the forge also tracks the work, so its repository is the ticket source.
+            source = TicketSource(hosted.forge, hosted.reference)
             references[str(path)] = RepositoryReference(str(path), remote, source)
         return references
 
@@ -103,15 +105,19 @@ class InitialiseFactory:
         validate(config)
         for repository in config.repository:
             remote = self.repositories.origin(Path(repository.local_dir))
-            source = self.sources.source_from_remote(remote)
-            if repository.work_source.provider != source.provider:
+            hosted = self.forge.repository(remote)
+            source = repository.work_source
+            try:
+                self.tracking.validate_source(source)
+            except FactoryError as error:
                 raise FactoryError(
-                    f'Unsupported work-tracking provider {repository.work_source.provider!r}; '
-                    f'this integration supports {source.provider!r}. '
-                    'Correct .factory/factory.toml, then use init --finalize for incomplete '
-                    'saved setup, or restart watch or foreman for completed setup.'
-                )
-            if remote != repository.remote or source != repository.work_source:
+                    f'{error} Correct .factory/factory.toml, then use init --finalize for '
+                    'incomplete saved setup, or restart watch or foreman for completed setup.'
+                ) from error
+            # The remote names the ticket source only when one service is both forge and ticketing.
+            same_service = hosted.forge == source.provider
+            if remote != repository.remote or (same_service and hosted.reference
+                                               != source.reference):
                 raise FactoryError(f'Origin/source changed for {repository.local_dir}; '
                                    'review the origin and correct .factory/factory.toml if saved. '
                                    'Use init --finalize for incomplete saved setup, or restart '

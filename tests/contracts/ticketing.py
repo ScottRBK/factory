@@ -5,6 +5,7 @@ A new ticketing adapter is done when a subclass of TicketingContract passes for 
 import hashlib
 import json
 import re
+from pathlib import Path
 
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Label, Ticket, TicketSource
@@ -88,6 +89,10 @@ class TicketingContract:
                 with self.assertRaises(FactoryError):
                     adapter.validate_source(TicketSource(self.source.provider, reference))
 
+    def test_refuses_another_providers_source(self):
+        with self.assertRaises(FactoryError):
+            self.adapter().validate_source(TicketSource('another-provider', self.source.reference))
+
     def test_created_label_is_listed(self):
         adapter = self.adapter()
         adapter.create_label(self.source, Label('factory-new'))
@@ -100,16 +105,31 @@ class TicketingContract:
 
 
 class FakeTicketing:
-    """A non-GitHub provider: its own name, URLs and text keys such as ENG-123."""
+    """A non-GitHub provider: its own name, URLs and text keys such as ENG-123.
 
-    def __init__(self):
-        self.tickets: dict[str, list[dict]] = {}
-        self.labels: dict[str, list[str]] = {}
+    State lives in a JSON file, so a watcher in another process can use the same fake:
+    {"tickets": {source: [ticket, ...]}, "labels": {source: [name, ...]}}.
+    """
+
+    def __init__(self, state: Path):
+        self.state = state
+
+    def _load(self) -> dict:
+        if not self.state.exists():
+            return {'tickets': {}, 'labels': {}}
+        return json.loads(self.state.read_text())
+
+    def publish(self, source: TicketSource, tickets: list[dict]) -> None:
+        state = self._load()
+        state['tickets'][source.reference.casefold()] = tickets
+        self.state.write_text(json.dumps(state))
 
     def check_ready(self) -> None:
         pass
 
     def validate_source(self, source: TicketSource) -> None:
+        if source.provider != 'tracker':
+            raise FactoryError(f'Unsupported work-tracking provider {source.provider!r}.')
         if re.fullmatch(r'[a-z][a-z0-9-]*', source.reference.casefold()) is None:
             raise FactoryError(f'Invalid tracker team {source.reference!r}.')
 
@@ -120,15 +140,18 @@ class FakeTicketing:
         self.validate_source(source)
 
     def list_labels(self, source: TicketSource) -> tuple[Label, ...]:
-        return tuple(Label(name) for name in self.labels.get(source.reference.casefold(), []))
+        names = self._load()['labels'].get(source.reference.casefold(), [])
+        return tuple(Label(name) for name in names)
 
     def create_label(self, source: TicketSource, label: Label) -> None:
-        self.labels.setdefault(source.reference.casefold(), []).append(label.name)
+        state = self._load()
+        state['labels'].setdefault(source.reference.casefold(), []).append(label.name)
+        self.state.write_text(json.dumps(state))
 
     def list_open(self, source: TicketSource, labels: tuple[str, ...]) -> tuple[Ticket, ...]:
         watched = {name.casefold() for name in labels}
         result = []
-        for item in self.tickets.get(source.reference.casefold(), []):
+        for item in self._load()['tickets'].get(source.reference.casefold(), []):
             names = {name.casefold() for name in item['labels']}
             if item['state'] != 'open' or not ('*' in watched or names & watched):
                 continue

@@ -131,7 +131,7 @@ intake and recovery.
   plan. Startup checks cannot cover later Git changes or all future issue-specific paths. Checks
   are read-only; do not rewrite Git or configuration. Preserve precise controlled failure causes.
 
-The application reuses the `LocalRepositories` and `WorkSourceResolver` ports for repository
+The application reuses the `LocalRepositories` and `Forge` ports for repository
 checks; provider parsing stays outside the filesystem adapter. `Worktrees.inspect` exposes a
 read-only check separately from `ensure` and its write boundary. Repository pauses and fresh-issue
 preflight failures have distinct types from saved-plan failures and uncertain writes. Duplicate

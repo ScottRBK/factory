@@ -34,6 +34,9 @@ MODULES = (
     'ticketing.model',
     'ticketing.ports',
     'ticketing.adapters.github',
+    'forge.model',
+    'forge.ports',
+    'forge.adapters.github',
     'boundary_probe.bridge',
 )
 
@@ -48,6 +51,7 @@ ALLOWED = (
     ('application.workflow', 'shared.errors'),
     ('application.workflow', 'application.ports.tracking'),
     ('application.workflow', 'ticketing.ports'),
+    ('application.workflow', 'forge.ports'),
     ('adapters.provider', 'application.ports.tracking'),
     ('adapters.provider', 'adapters.shared'),
     ('adapters.provider', 'shared.errors'),
@@ -55,6 +59,10 @@ ALLOWED = (
     ('ticketing.ports', 'ticketing.model'),
     ('ticketing.adapters.github', 'ticketing.ports'),
     ('ticketing.adapters.github', 'shared.errors'),
+    ('forge.ports', 'forge.model'),
+    ('forge.adapters.github', 'forge.ports'),
+    ('forge.adapters.github', 'shared.errors'),
+    ('cli.bootstrap', 'forge.adapters.github'),
     ('cli.bootstrap', 'adapters.provider'),
     ('cli.bootstrap', 'application.workflow'),
     ('cli.bootstrap', 'shared.errors'),
@@ -63,9 +71,10 @@ ALLOWED = (
     ('configuration', 'shared.errors'),
 )
 
-# Rejected imports (rule id, importing area, imported module). The area is a package (the probe
-# is a new module in it) or a module (the probe line is added to it). Each row runs direct and
-# indirect, and only its own rule may reject it.
+# Rejected imports (rule id, importing area, imported module[, other rules]). The area is a
+# package (the probe is a new module in it) or a module (the probe line is added to it). Each row
+# runs direct and indirect. Only its own rule may reject it, unless the row names the other rules
+# that must also reject it; step 1 then turns those off too (the skill's isolation).
 REJECTED = (
     ('domain-independent', 'domain', 'application.workflow'),
     ('domain-independent', 'domain', 'adapters.provider'),
@@ -83,16 +92,24 @@ REJECTED = (
     ('shared-independent', 'shared', 'cli.prompts'),
     ('shared-independent', 'shared', 'configuration'),
     ('shared-independent', 'shared', 'ticketing.model'),
+    ('shared-independent', 'shared', 'forge.model'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
+    ('inside-each-area', 'forge.model', 'forge.ports'),
     ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
+    ('adapters-from-composition', 'application', 'forge.adapters.github'),
     ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
+    # Every forge module is reachable from forge.adapters, so independence also rejects this.
+    ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
+     ('adapters-independent',)),
     ('adapters-independent', 'adapters', 'ticketing.adapters.github'),
+    ('adapters-independent', 'forge.adapters', 'ticketing.adapters.github'),
     # Legacy adapters and configuration are left out: application and domain import the
     # ticketing port and model, so from any ticketing module those imports break a second rule.
     ('contexts-not-legacy', 'ticketing.adapters', 'cli.prompts'),
     ('contexts-not-legacy', 'ticketing.adapters', 'application.workflow'),
     ('contexts-not-legacy', 'ticketing.ports', 'domain.models'),
     ('contexts-not-legacy', 'ticketing.model', 'deadlines'),
+    ('contexts-not-legacy', 'forge.adapters', 'cli.prompts'),
 )
 
 
@@ -155,10 +172,10 @@ class ArchitectureTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def assert_rejected(self, rule_id):
-        rows = [(area, target) for rule, area, target in REJECTED if rule == rule_id]
+        rows = [(row[1], row[2], row[3] if len(row) > 3 else ())
+                for row in REJECTED if row[0] == rule_id]
         self.assertTrue(rows, f'Rule {rule_id} has no rows in REJECTED.')
         rule = RULES[rule_id]
-        others = [other for other in RULES if other != rule_id]
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary)
             self.fixture(workspace)
@@ -166,8 +183,10 @@ class ArchitectureTests(unittest.TestCase):
             bridge = package / source('boundary_probe.bridge')
             # Arrange: the actual rules accept the clean fixture.
             self.assert_passes(self.check(workspace))
-            for (area, target), indirect in [(row, way) for row in rows for way in (False, True)]:
+            for (area, target, also), indirect in [(row, way) for row in rows
+                                                   for way in (False, True)]:
                 with self.subTest(area=area, target=target, indirect=indirect):
+                    others = [other for other in RULES if other != rule_id and other not in also]
                     module = package / source(area)
                     if module.is_file():
                         probe, importer = module, f'{PACKAGE}.{area}'
@@ -235,7 +254,9 @@ class ArchitectureTests(unittest.TestCase):
             self.assert_passes(result)
 
     def test_every_rejected_row_names_a_configured_rule(self):
-        self.assertLessEqual({rule for rule, _, _ in REJECTED}, set(RULES))
+        named = {row[0] for row in REJECTED} | {
+            rule for row in REJECTED for rule in (row[3] if len(row) > 3 else ())}
+        self.assertLessEqual(named, set(RULES))
 
 
 def real_modules() -> set[str]:

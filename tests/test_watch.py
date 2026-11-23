@@ -324,8 +324,11 @@ class WatchFixture(unittest.TestCase):
         return [e for e in self.events() if e['kind'] == 'send'
                 and e['text'].startswith('Factory issue notification.')]
 
+    # The watcher command; a subclass may replace it to compose a test provider.
+    entrypoint = ('-m', 'forgetful_factory')
+
     def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None, deadlines=None):
-        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+        entrypoint = (self.entrypoint if deadlines is None
                       else programmatic_factory(deadlines))
         process = subprocess.Popen(
             [sys.executable, *entrypoint, 'watch', '--workspace',

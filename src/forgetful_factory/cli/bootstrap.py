@@ -10,7 +10,6 @@ from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
 from forgetful_factory.adapters.forgetful.connection import role_environment
 from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
-from forgetful_factory.adapters.github.source_resolver import GitHubSourceResolver
 from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
@@ -18,6 +17,7 @@ from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
 from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.forge.adapters.github import GitHubForge
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
@@ -30,7 +30,7 @@ def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolic
                       ) -> InitialiseFactory:
     return InitialiseFactory(GitHubTicketing(deadlines.external_command),
                              TomlConfigurationStore(workspace),
-                             GitRepositories(deadlines.external_command), GitHubSourceResolver(),
+                             GitRepositories(deadlines.external_command), GitHubForge(),
                              ForemanProfile(workspace, deadlines.owned_process_term_grace))
 
 
@@ -71,7 +71,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                                  term_grace=deadlines.owned_process_term_grace)
     worktrees = GitWorktrees(deadlines.external_command)
     scaffold = ScaffoldIssue(planning, worktrees, workspace, config,
-                             GitRepositories(deadlines.external_command), GitHubSourceResolver())
+                             GitRepositories(deadlines.external_command), GitHubForge())
     return WatchFactory(ticketing, terminal, scaffold,
                         CleanupCompleted(scaffold.records, scaffold.worktrees,
                                          FileCleanupReceipts(workspace), ticketing))

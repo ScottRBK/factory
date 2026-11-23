@@ -11,7 +11,6 @@ from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.factory_records import FactoryRecords
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.planning import Planning, PlanningReadError
-from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.application.ports.worktrees import (
     WorktreeProblem,
     WorktreeReadError,
@@ -24,6 +23,7 @@ from forgetful_factory.application.watcher_problems import (
     UncertainScaffold,
 )
 from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.forge.ports import Forge
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
 
@@ -37,12 +37,12 @@ def worktree_name(ticket: Ticket) -> str:
 class ScaffoldIssue:
     def __init__(self, planning: Planning, worktrees: Worktrees, workspace: Path,
                  config: FactoryConfiguration, repositories: LocalRepositories,
-                 sources: WorkSourceResolver):
+                 forge: Forge):
         self.planning = planning
         self.worktrees = worktrees
         self.workspace = workspace
         self.config = config
-        self.records = FactoryRecords(planning, workspace, config, repositories, sources)
+        self.records = FactoryRecords(planning, workspace, config, repositories, forge)
 
     def check(self) -> None:
         self.planning.check()
@@ -333,9 +333,9 @@ class ScaffoldIssue:
                                   paths=error.paths or (mapping['path'],)) from error
 
     def _ensure_mapping(self, repository, mapping: dict, *, recorded: bool) -> None:
-        self.records.check_source(repository)
+        hosted = self.records.check_source(repository)
         try:
-            state = validate_cleanup_marker(mapping)
+            state = validate_cleanup_marker(mapping, self.records.forge, hosted)
         except CleanupMarkerError as error:
             raise ScaffoldProblem('cleanup_invalid', str(error)) from error
         if state == 'removed':

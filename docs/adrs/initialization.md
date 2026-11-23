@@ -95,10 +95,10 @@ Initialization uses `WorkTrackingService` access checks and label operations for
 watching uses its matching-open-issue reads. The GitHub adapter translates these operations into
 `gh` commands and maps failures into clear, provider-independent errors.
 `ConfigurationStore` loads and saves factory configuration.
-`LocalRepositories` provides bounded local discovery and origin inspection. `WorkSourceResolver`
-is a separate application port: this integration maps a GitHub origin to a GitHub work source,
-without making Git remotes part of the domain's work-tracking service contract. The GitHub adapter
-implements both tracking and resolution; bootstrap supplies it through the separate contracts.
+`LocalRepositories` provides bounded local discovery and origin inspection. The original
+`WorkSourceResolver` port mapped a GitHub origin to a GitHub work source. Since the domain
+contexts refactor, the `Forge` port maps a remote to its repository, and init proposes that
+repository as the ticket source when the forge also tracks the work.
 
 Work tracking and code hosting are separate responsibilities. A future Linear work item may refer
 to GitHub repositories, and an Azure DevOps work item need not imply Azure-hosted code. Today the

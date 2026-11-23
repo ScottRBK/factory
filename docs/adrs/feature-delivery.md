@@ -171,6 +171,9 @@ with `state`, `pull_request_url` and `merge_commit`. The mapping retains the ori
 local directory, branch and path.
 Use the canonical GitHub PR URL and the actual full lowercase Git commit SHA from verified merge
 evidence. Repository matching is case-insensitive, as on GitHub; the recorded URL is preserved.
+Since slice 2 of the [domain contexts plan](../plans/domain-contexts.md), the watcher asks the
+`Forge` whether the URL is a change request of the repository named by the configured remote,
+not by the mapping's `repository` (the ticket source).
 
 The earlier owner guidance called for saving `pending` before removal and `removed` only after
 checking that the path and its registration were absent. The owner had to coordinate updates to
