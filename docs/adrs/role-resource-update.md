@@ -85,9 +85,11 @@ the update without `--force`.
 
 After the files pass validation, the command checks the AgentShell worker runtime: its sync
 receipt must match `pyproject.toml` and `uv.lock`, and its import probe must pass. A changed lock
-makes the runtime not ready. `--install-role-runtime` consents to the existing locked installer,
-the same one that `init --install-role-runtime` uses. Without consent the command exits 1 with
-that instruction; the updated files stay in place, so a rerun with consent completes the work.
+makes the runtime not ready. `update` then runs the existing locked installer, the same one that
+`init --install-role-runtime` uses. Scott chose this default on 2026-11-23: an update is expected
+to update, and the lock was reviewed when the bundle was adopted. `init` keeps asking for consent
+because it is the first install. `--no-install-role-runtime` skips the install; the command then
+exits 1 and the updated files stay in place, so a plain rerun completes the work.
 
 ## Deferred
 

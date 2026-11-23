@@ -129,8 +129,8 @@ def _parse_arguments() -> argparse.Namespace:
                         help='List the planned change for each file; write nothing')
     update.add_argument('--force', action='store_true',
                         help='Back up edited bundled files, then replace them')
-    update.add_argument('--install-role-runtime', action='store_true',
-                        help='Consent to the locked AgentShell runtime installation if needed')
+    update.add_argument('--no-install-role-runtime', action='store_true',
+                        help='Do not install the locked AgentShell runtime when it is out of date')
     return parser.parse_args()
 
 

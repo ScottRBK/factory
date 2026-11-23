@@ -114,8 +114,9 @@ uvx --refresh --from "$wheel" forgetful-factory update --workspace /absolute/pat
 ```
 
 The update replaces only unedited files and never changes `.factory/agents/` or `.factory/data/`.
-An edited file stops the update; `--force` backs it up, then replaces it. See the
-[update ADR](docs/adrs/role-resource-update.md).
+An edited file stops the update; `--force` backs it up, then replaces it. When the new bundle
+changes the AgentShell lock, the update installs the locked packages from PyPI;
+`--no-install-role-runtime` skips that. See the [update ADR](docs/adrs/role-resource-update.md).
 
 ## Development
 

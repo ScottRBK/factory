@@ -101,7 +101,7 @@ class ResourceUpdateTests(InitFixture):
             self.assertIn('Dry run: nothing was changed.', result.stdout)
         self.assertEqual(snapshot(repo / '.factory'), before)
 
-    def test_runtime_that_no_longer_matches_its_lock_needs_install_consent(self):
+    def test_runtime_that_no_longer_matches_its_lock_is_installed_unless_skipped(self):
         # Arrange: the installed runtime records an earlier lock, as after a lock change.
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
@@ -113,14 +113,14 @@ class ResourceUpdateTests(InitFixture):
         self.env['PROFILE_INSTALL_LOG'] = str(log)
 
         # Act
-        declined = run_update(self, repo)
-        consented = run_update(self, repo, '--install-role-runtime')
+        skipped = run_update(self, repo, '--no-install-role-runtime')
+        installed = run_update(self, repo)
 
-        # Assert: files update without consent; only the consented run syncs the locked runtime.
-        self.assertEqual(declined.returncode, 1, declined.stderr)
-        self.assertIn('--install-role-runtime', declined.stderr)
+        # Assert: the skipped run updates files only; plain update syncs the locked runtime once.
+        self.assertEqual(skipped.returncode, 1, skipped.stderr)
+        self.assertIn('Foreman cannot start', skipped.stderr)
         self.assertEqual((resources / CHANGED).read_bytes(), bundled(CHANGED))
-        self.assertEqual(consented.returncode, 0, consented.stderr)
+        self.assertEqual(installed.returncode, 0, installed.stderr)
         syncs = [event for event in events(log) if event['args'][:1] == ['sync']]
         self.assertEqual(len(syncs), 1)
         self.assertIn('--locked', syncs[0]['args'])

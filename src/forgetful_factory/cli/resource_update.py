@@ -49,11 +49,10 @@ def update_resources(args: argparse.Namespace, workspace: Path,
         profile.validate_bundled_resources(include_memory_extension=True)
         print('Role resources match the installed Factory bundle.')
         if not profile.role_runtime_ready():
-            if not args.install_role_runtime:
+            if args.no_install_role_runtime:
                 raise FactoryError('The AgentShell runtime does not match its bundled lock, so '
-                                   'Foreman cannot start. Rerun update with '
-                                   '--install-role-runtime to consent to the locked '
-                                   'installation.')
+                                   'Foreman cannot start. Rerun update without '
+                                   '--no-install-role-runtime to install the locked runtime.')
             profile.install('agentshell-runtime')
             if not profile.role_runtime_ready():
                 raise FactoryError('The AgentShell runtime is still not ready after installation.')

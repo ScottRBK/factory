@@ -248,8 +248,9 @@ import or call graph.
   edited file stops the whole update unless `--force` backs it up first. All new files are
   staged before any rename. A real update needs the workspace lease and a stopped Foreman
   owner; the user stops delegated workers first. `--dry-run` only reads. Agent definitions and
-  data are never written. A runtime that no longer matches the AgentShell lock needs
-  `--install-role-runtime`. Removal of files that a bundle drops is deferred. See the
+  data are never written. A runtime that no longer matches the AgentShell lock is installed
+  from that lock unless `--no-install-role-runtime`. Removal of files that a bundle drops is
+  deferred. See the
   [update ADR](adrs/role-resource-update.md).
 - The owner manages at most one watcher child and relays its notifications through the held
   AgentShell session. Borrowed close disconnects only that watcher. Startup events, actual process

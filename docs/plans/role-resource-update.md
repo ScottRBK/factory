@@ -27,8 +27,9 @@ Each slice started with a failing CLI test in `tests/test_resource_update.py`.
 4. `--dry-run` lists add/replace/edited per file and changes no file under `.factory`.
 5. Refusal without `--delegated-work-stopped`, with a running Foreman (real tmux), and with a
    running plain watch (workspace lease).
-6. A runtime whose sync receipt does not match the lock needs `--install-role-runtime`; the
-   consented run performs one locked `uv sync`.
+6. A runtime whose sync receipt does not match the lock needs `--install-role-runtime` (now the
+   default; see [follow-ups](#follow-ups-on-2026-11-23)); the consented run performs one locked
+   `uv sync`.
 7. The Foreman stale-resource error names `update --dry-run`.
 
 The refusal guards in slice 5 were written in slice 1, before their tests. Mutation checks
@@ -85,16 +86,30 @@ Scott asked for upstream `pi-forgetful` at `45a0b79`, which includes the compact
 - Read-only `update --dry-run` on DinoLand and dark-business: 8 to replace, 0 to add,
   0 edited.
 
-## Follow-up: confirmation flag removed
+## Follow-ups on 2026-11-23
 
-Scott removed `--delegated-work-stopped` from `update` on 2026-11-23. It only unlocked the command;
-the lease and Foreman owner checks run without it, and Python cannot see detached workers. The
-stale-file and runtime errors now name `update` and `update --install-role-runtime`. Earlier
-sections above record the first version.
+Earlier sections above record the first version.
+
+### Confirmation flag removed
+
+Scott removed `--delegated-work-stopped` from `update`. It only unlocked the command; the lease
+and Foreman owner checks run without it, and Python cannot see detached workers. The stale-file
+errors now name plain `update`.
 
 - Red: with the flag removed from the test calls in `tests/test_resource_update.py`, 6 of 7 tests
   failed on the old confirmation error; the dry-run test passed. The confirmation test was deleted.
 - Green: 7 of 7 after removing the option, its check and its mentions in three error messages.
+
+### Runtime install by default
+
+Scott chose to install a changed AgentShell runtime lock by default, because an update is expected
+to update. `--install-role-runtime` became the opt-out `--no-install-role-runtime`; `init` keeps
+its consent flag.
+
+- Red: the runtime test now runs `update --no-install-role-runtime`, then plain `update`. It
+  failed because the opt-out flag did not exist.
+- Green: the skipped run exits 1, names the Foreman start problem and leaves the updated files in
+  place; the plain run syncs the locked runtime once. 7 of 7 resource-update tests pass.
 
 ## Not done
 
