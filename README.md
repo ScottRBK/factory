@@ -118,6 +118,18 @@ An edited file stops the update; `--force` backs it up, then replaces it. When t
 changes the AgentShell lock, the update installs the locked packages from PyPI;
 `--no-install-role-runtime` skips that. See the [update ADR](docs/adrs/role-resource-update.md).
 
+Foreman's Forgetful extension reads its settings from `.factory/agents/foreman/forgetful.json`.
+The file takes the extension's own settings and rules, for example:
+
+```json
+{"enabled": true, "capture_mode": "auto", "model": "provider/model-id",
+ "context_limit_tokens": 262144, "logging": "debug"}
+```
+
+Factory sets the server, authentication, project and log folder, so the file must not set them.
+Stop Foreman, edit the file, then start Foreman. After a Factory upgrade, run `update` first.
+See [memory settings](docs/adrs/foreman-memory.md#memory-settings).
+
 ## Development
 
 From this checkout:

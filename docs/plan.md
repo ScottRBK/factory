@@ -86,6 +86,10 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 
 ### Recent delivered changes
 
+- [Memory settings](plans/memory-settings.md) for issue #5: Foreman's `forgetful.json` takes the
+  extension's own settings, such as `context_limit_tokens` and `logging`, with the extension's
+  rules. Factory refuses only the keys it sets and unknown keys. `init` leaves out `model` when
+  none is chosen.
 - [Role-resource update](plans/role-resource-update.md) adds `forgetful-factory update` for
   issue #4. It replaces unedited bundled resources from earlier releases, refuses edited files
   unless `--force` backs them up, and preserves agent definitions. The bundle now carries

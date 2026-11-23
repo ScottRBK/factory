@@ -8,6 +8,7 @@ from pathlib import Path
 import test_watch
 from lifecycle_support import LifecycleFixture
 from profile_support import events
+from test_foreman_memory_setup import EDITED_SETTINGS
 from test_init import INIT_SETTINGS, ROOT, InitFixture
 
 BUNDLE = ROOT / 'src/forgetful_factory/resources/role-resources.zip'
@@ -154,12 +155,14 @@ class ResourceUpdateWatchTests(unittest.TestCase):
 
 class ResourceUpdateLifecycleTests(LifecycleFixture):
     def test_previous_release_factory_updates_and_foreman_starts(self):
-        # Arrange: a completed factory whose memory extension has previous-release bytes.
+        # Arrange: a completed factory whose memory extension has previous-release bytes
+        # and whose memory settings the user edited by hand.
         repo = self.repo()
         setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
         self.assertEqual(setup.returncode, 0, setup.stderr)
         stale = repo / '.factory/resources' / CHANGED
         stale.write_bytes(PREVIOUS.read_bytes())
+        (repo / '.factory/agents/foreman/forgetful.json').write_bytes(EDITED_SETTINGS)
         refused = self.foreman(repo)
         self.assertNotEqual(refused.returncode, 0)
         self.assertIn('Stale or edited role resource', refused.stderr)

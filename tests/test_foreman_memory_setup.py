@@ -6,6 +6,10 @@ import shutil
 from lifecycle_support import LifecycleFixture
 from test_init import INIT_SETTINGS, InitFixture
 
+# A user's hand edit with extension settings that init never writes.
+EDITED_SETTINGS = (b'{"enabled": true, "capture_mode": "observe", "model": "provider/model",\n'
+                   b' "context_limit_tokens": 262144, "verbosity": "info", "logging": "debug"}\n')
+
 
 class ForemanMemorySetupTests(InitFixture):
     def test_explicit_opt_in_saves_role_scoped_automatic_memory_preferences(self):
@@ -177,7 +181,6 @@ class ForemanMemorySetupTests(InitFixture):
             self.assertEqual(preferences, {
                 'enabled': False,
                 'capture_mode': 'off',
-                'model': None,
             })
 
     def test_server_setup_loads_foreman_planning_when_automatic_memory_is_off(self):
@@ -350,7 +353,7 @@ class ForemanMemorySetupTests(InitFixture):
                 target = self.workspace / f'{kind}-user-data.json'
                 target.write_text('{"user_data":"preserve"}\n')
                 original = target.read_bytes()
-                preference = {'enabled': False, 'capture_mode': 'off', 'model': None,
+                preference = {'enabled': False, 'capture_mode': 'off',
                               'server': 'https://wrong.example'}
                 if kind == 'symlink':
                     path.symlink_to(target)
@@ -430,6 +433,21 @@ class ForemanMemorySetupTests(InitFixture):
         self.assertIn('memory preferences differ', conflict.stderr)
         self.assertEqual(conflict_path.read_bytes(), conflict_preserved)
 
+    def test_repeated_init_keeps_user_edited_memory_settings_byte_for_byte(self):
+        # Arrange: a completed factory whose user added extension settings by hand.
+        repo = self.repo()
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        path = repo / '.factory/agents/foreman/forgetful.json'
+        path.write_bytes(EDITED_SETTINGS)
+
+        # Act
+        result = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS)
+
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(path.read_bytes(), EDITED_SETTINGS)
+
 
 class AssistedForemanMemorySetupTests(LifecycleFixture):
     def test_assisted_setup_can_leave_memory_off_without_hidden_choices(self):
@@ -454,6 +472,5 @@ class AssistedForemanMemorySetupTests(LifecycleFixture):
         self.assertEqual(preferences, {
             'enabled': False,
             'capture_mode': 'off',
-            'model': None,
         })
         self.send(self.status(repo)['target'], 'EXIT_FAKE')

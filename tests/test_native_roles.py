@@ -6,6 +6,7 @@ these checks do not establish liveness, resume success, task claims or autonomou
 """
 import json
 import os
+import stat
 import subprocess
 import sys
 import unittest
@@ -89,7 +90,7 @@ const notices = [];
 const errors = [];
 await session.bindExtensions({mode: "json", onError: error => errors.push(error.error),
   uiContext: {notify: message => notices.push(message), setWidget: () => undefined}});
-await session.prompt("/forgetful status");
+for (const command of JSON.parse(process.env.PROBE_COMMANDS)) await session.prompt(command);
 await session.extensionRunner.emit({type: "session_shutdown", reason: "quit"});
 session.dispose();
 await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
@@ -99,6 +100,45 @@ console.log(JSON.stringify({
   commands: loaded.extensions.flatMap(e => [...e.commands.keys()])
 }));
 '''
+
+OFF = {'enabled': False, 'capture_mode': 'off'}
+ON = {'enabled': True, 'capture_mode': 'auto', 'model': 'provider/model'}
+PROJECT_REQUEST = ['GET /factory/api/v1/projects/12']
+PROJECT = 'project Factory fixture project (#12)'
+MANAGED_NO_MODEL = ('Forgetful memory model is not configured; recall and capture are paused. '
+                    'Set model in the selected Foreman forgetful.json.')
+MANAGED_BLOCKED = ('This Foreman memory configuration is managed by Factory; settings were not '
+                   'changed. Edit the selected Foreman forgetful.json or forgetful-auth.json.')
+
+
+def managed_probe(workspace: Path, repo: Path, definition: Path, *commands: str) -> dict:
+    """Load the managed Foreman memory extension in native Pi against a fixture server."""
+    env = {
+        'PATH': os.environ['PATH'],
+        'HOME': str(workspace),
+        'PI_OFFLINE': '1',
+        'PI_CODING_AGENT_DIR': str(workspace / 'native pi'),
+        'PROBE_ROLE': str(definition.parent),
+        'PROBE_COMMANDS': json.dumps(commands or ['/forgetful status']),
+        'PI_AGENTSHELL_ROSTER_FILE': str(definition),
+        'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
+        'FACTORY_WORKSPACE': str(repo),
+        'FACTORY_FOREMAN_AGENT_FILE': str(definition),
+        'FACTORY_FORGETFUL_INSTANCE': 'server',
+        'FACTORY_FORGETFUL_PROJECT_ID': '12',
+        'FORGETFUL_SERVER': 'https://memory.example/factory/mcp',
+    }
+    result = subprocess.run(
+        [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', MANAGED_PROBE],
+        cwd=definition.parent, env=env, capture_output=True, text=True, timeout=30, check=True)
+    return json.loads(result.stdout)
+
+
+def status_and_warnings(observation: dict) -> tuple[str, set[str]]:
+    """Split probe notices into the one status line and the distinct warnings."""
+    status, = (notice for notice in observation['notices']
+               if 'Forgetful on; capture' in notice or 'Forgetful off; capture' in notice)
+    return status, set(observation['notices']) - {status}
 
 
 @unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native loading')
@@ -133,28 +173,11 @@ class NativeRoleTests(InitFixture):
         config = factory / 'factory.toml'
         config.write_text(config.read_text().replace(
             'agents/foreman/agent.json', 'coordinators/dispatch/agent.json'))
-        env = {
-            'PATH': os.environ['PATH'],
-            'HOME': str(self.workspace),
-            'PI_OFFLINE': '1',
-            'PI_CODING_AGENT_DIR': str(self.workspace / 'native pi'),
-            'PROBE_ROLE': str(role),
-            'PI_AGENTSHELL_ROSTER_FILE': str(definition),
-            'NATIVE_PI_SDK': str(Path(os.environ['NATIVE_PI_SDK']).resolve()),
-            'FACTORY_WORKSPACE': str(repo),
-            'FACTORY_FOREMAN_AGENT_FILE': str(definition),
-            'FACTORY_FORGETFUL_INSTANCE': 'server',
-            'FACTORY_FORGETFUL_PROJECT_ID': '12',
-            'FORGETFUL_SERVER': 'https://memory.example/factory/mcp',
-        }
 
         # Act
-        result = subprocess.run(
-            [os.environ.get('NATIVE_PI_NODE', 'node'), '--input-type=module', '-e', MANAGED_PROBE],
-            cwd=role, env=env, capture_output=True, text=True, timeout=30, check=True)
+        observation = managed_probe(self.workspace, repo, definition)
 
         # Assert
-        observation = json.loads(result.stdout)
         self.assertEqual(observation['loadErrors'], [])
         self.assertEqual(observation['errors'], [])
         self.assertIn('forgetful', observation['commands'])
@@ -250,3 +273,131 @@ class NativeRoleTests(InitFixture):
         output = [json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(output[0]['kind'], 'agent_types')
         self.assertIn('pi', output[0]['agent_types'])
+
+
+@unittest.skipUnless(os.environ.get('NATIVE_PI_SDK'), 'Set NATIVE_PI_SDK for native loading')
+class NativeManagedMemorySettingsTests(InitFixture):
+    """forgetful.json holds the extension's own settings; Factory keeps server, auth and state."""
+
+    def server_factory(self) -> tuple[Path, Path]:
+        repo = self.repo()
+        setup = self.run_cli(repo, '--repo', '.', *INIT_SETTINGS, '--no-foreman-memory',
+                             '--forgetful-instance', 'server',
+                             '--forgetful-server', 'https://memory.example/factory/mcp')
+        self.assertEqual(setup.returncode, 0, setup.stderr)
+        return repo, repo / '.factory/agents/foreman/agent.json'
+
+    def test_memory_off_starter_file_loads_without_warnings(self):
+        # Arrange
+        repo, definition = self.server_factory()
+
+        # Act
+        observation = managed_probe(self.workspace, repo, definition)
+
+        # Assert
+        status, warnings = status_and_warnings(observation)
+        self.assertEqual(warnings, set())
+        self.assertTrue(status.startswith(
+            'Managed Foreman memory is off; planning uses fixed project #12; '
+            'private task window up to 100000 tokens. Forgetful off; capture off;'), status)
+        self.assertIn('verbosity warning; logging off;', status)
+        self.assertIn(PROJECT, status)
+        self.assertEqual(observation['requests'], PROJECT_REQUEST)
+
+    def test_settings_follow_extension_rules_and_defaults(self):
+        # Arrange
+        repo, definition = self.server_factory()
+        cases = {
+            'larger task window': ({**OFF, 'context_limit_tokens': 262144},
+                                   ['private task window up to 262144 tokens.'], set()),
+            'invalid task window': ({**OFF, 'context_limit_tokens': 0},
+                                    ['private task window up to 100000 tokens.'],
+                                    {'Invalid context_limit_tokens; choose a positive safe '
+                                     'integer. Using 100000.'}),
+            'recall only': ({**ON, 'capture_mode': 'off'},
+                            ['Forgetful on; capture off;', 'model provider/model'], set()),
+            'observe': ({**ON, 'capture_mode': 'observe'},
+                        ['Forgetful on; capture observe;'], set()),
+            'invalid capture mode': ({**ON, 'capture_mode': 'bogus'},
+                                     ['Forgetful on; capture off;'],
+                                     {'Invalid capture mode; using off until corrected.'}),
+            'on without a model': ({'enabled': True, 'capture_mode': 'auto'},
+                                   ['Forgetful on; capture auto;', 'model not configured'],
+                                   {MANAGED_NO_MODEL}),
+            'empty': ({}, ['Forgetful on; capture auto;', 'model not configured'],
+                      {MANAGED_NO_MODEL}),
+            'ready': (ON, ['Managed Foreman memory uses fixed project #12; private task window '
+                           'up to 100000 tokens. Forgetful on; capture auto;',
+                           'verbosity warning; logging off;', 'model provider/model'], set()),
+        }
+        for name, (settings, fragments, expected_warnings) in cases.items():
+            with self.subTest(name):
+                definition.with_name('forgetful.json').write_text(json.dumps(settings))
+
+                # Act
+                observation = managed_probe(self.workspace, repo, definition)
+
+                # Assert: plans keep working; no Factory rule turns memory unavailable.
+                status, warnings = status_and_warnings(observation)
+                self.assertEqual(observation['errors'], [])
+                self.assertEqual(warnings, expected_warnings)
+                for fragment in fragments:
+                    self.assertIn(fragment, status)
+                self.assertIn(PROJECT, status)
+                self.assertEqual(observation['requests'], PROJECT_REQUEST)
+
+    def test_factory_owned_unknown_or_non_object_settings_make_memory_unavailable(self):
+        # Arrange
+        repo, definition = self.server_factory()
+        owned = {'base_url': 'http://elsewhere.example', 'token': 'secret',
+                 'token_env': 'OTHER_TOKEN', 'log_directory': '/tmp/forgetful-logs',
+                 'planning_panel': True}
+        cases = {key: ({**OFF, key: value}, f'forgetful.json must not set {key}; Factory sets it.')
+                 for key, value in owned.items()}
+        cases['unknown'] = ({**OFF, 'contextLimitTokens': 262144},
+                            'forgetful.json has unknown setting contextLimitTokens.')
+        # Factory fixes the project scope; the extension's project-file key is refused too.
+        cases['scope'] = ({**OFF, 'scope': 'global'}, 'forgetful.json has unknown setting scope.')
+        cases['array'] = ([OFF], 'forgetful.json must be a JSON object.')
+        for name, (settings, reason) in cases.items():
+            with self.subTest(name):
+                definition.with_name('forgetful.json').write_text(json.dumps(settings))
+
+                # Act
+                observation = managed_probe(self.workspace, repo, definition)
+
+                # Assert: no request reaches the server.
+                status, warnings = status_and_warnings(observation)
+                message = f'Managed Foreman memory is unavailable: {reason}'
+                self.assertEqual(warnings, {message})
+                self.assertTrue(status.startswith(f'{message} Forgetful off;'), status)
+                self.assertEqual(observation['requests'], [])
+
+    def test_debug_logging_writes_only_below_factory_state(self):
+        # Arrange
+        repo, definition = self.server_factory()
+        definition.with_name('forgetful.json').write_text(
+            json.dumps({**OFF, 'verbosity': 'info', 'logging': 'debug'}))
+
+        # Act
+        observation = managed_probe(self.workspace, repo, definition)
+
+        # Assert
+        status, warnings = status_and_warnings(observation)
+        self.assertEqual(warnings, set())
+        self.assertIn('verbosity info; logging on;', status)
+        logs = list(self.workspace.rglob('forgetful-*.jsonl'))
+        self.assertTrue(logs)
+        for log in logs:
+            self.assertEqual(log.parent, repo / '.factory/data/pi-forgetful/logs')
+            self.assertEqual(stat.S_IMODE(log.stat().st_mode), 0o600)
+
+    def test_blocked_command_points_to_the_foreman_settings_files(self):
+        # Arrange
+        repo, definition = self.server_factory()
+
+        # Act
+        observation = managed_probe(self.workspace, repo, definition, '/forgetful setup')
+
+        # Assert
+        self.assertIn(MANAGED_BLOCKED, observation['notices'])

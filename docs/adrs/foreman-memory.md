@@ -32,11 +32,12 @@ selection. Other setup prompts retain their existing cancellation behavior.
 model against the native Pi catalog and writes starter preferences beside Foreman's `agent.json`:
 
 ```json
-{"enabled": false, "capture_mode": "off", "model": null}
+{"enabled": false, "capture_mode": "off"}
 ```
 
 The starter file is `.factory/agents/foreman/forgetful.json`. Opt-in writes `enabled: true` and
 `capture_mode: "auto"`, with an exact selected model. A model alone does not enable memory.
+With no model chosen, `model` is left out, as the extension does; `null` warns at each start.
 The file contains no backend, project, token or copied authentication settings. Matching partial
 setup preserves formatting; conflicting/invalid preserved preferences are refused. The read-back
 uses the existing protected JSON reader rather than following a replaced file or directory link.
@@ -45,6 +46,43 @@ Ordinary repeated init does not synchronize preferences or edited agent files.
 Saving preferences does not verify extension authentication or memory-model access. Native CLI
 planning checks use the CLI's login. The managed extension performs its own runtime and project
 checks when Foreman starts, before any automatic memory-model request.
+
+## Memory settings
+
+`forgetful.json` holds the extension's own settings ([issue #5][issue-5]). Each factory has its
+own file, so two factories can behave differently. The extension's loader reads the file with the
+extension's rules, defaults and warnings, the same as its personal `settings.json`. Factory keeps
+no copy of those rules. The settings are listed in the extension's
+[configuration documentation][extension-settings].
+
+Factory refuses two kinds of key. Memory is then unavailable until the file is corrected:
+
+- Keys that Factory sets: `base_url`, `token` and `token_env` (server and authentication),
+  `log_directory` (state stays under `.factory/data/pi-forgetful/`) and `planning_panel` (kept in
+  `planning.json`).
+- Unknown keys, such as a misspelt `contextLimitTokens`. This includes `scope`, because Factory
+  fixes the project. At each bundle refresh, type-checking compares Factory's key list with the
+  extension's settings type.
+
+Changes from the earlier fixed three-key file:
+
+- Recall-only (`enabled: true`, `capture_mode: "off"`) and `observe` capture are possible.
+- A bad value warns and uses the extension default. It no longer makes memory unavailable.
+  `enabled` is the exception: a value that is not `true` or `false`, such as `"false"`, counts as
+  `true` with no warning. That is the extension's rule; [an upstream issue][enabled-issue]
+  proposes a fix.
+- Memory on with no model warns and pauses recall and capture. Plans stay available.
+- `context_limit_tokens`, `recall_concurrency`, the timeouts, `verbosity` and `logging` can be
+  set. Status shows the limit, for example `private task window up to 262144 tokens`.
+- `logging` stays `off` unless set. `logging: "debug"` writes owner-only files below
+  `.factory/data/pi-forgetful/logs`, which `.factory/.gitignore` excludes.
+
+Factories that share a Pi profile also share Pi's compaction settings, such as `reserveTokens`
+(default 16384). A `context_limit_tokens` below `reserveTokens` makes every private memory task
+fail. Two factories whose `forgetful-auth.json` names the same `token_env` use one credential.
+
+Foreman reads the file when it starts. To change settings, stop Foreman, run `update` after a
+Factory upgrade, edit `forgetful.json`, then start Foreman. An earlier bundle refuses the new keys.
 
 ## Local setup and the current transport difference
 
@@ -153,7 +191,8 @@ Standalone settings retain their existing merge behavior.
 Durable queues are stored under the Factory workspace and separated by endpoint, credential-derived
 identity and project. Tokens are not stored in queue paths. Existing uncertain-write receipts and
 retry protections remain. Changing a credential can select a different queue partition; old work
-is retained rather than automatically replayed under a different identity. File logging stays off.
+is retained rather than automatically replayed under a different identity. File logging is off
+unless `forgetful.json` sets `logging` ([memory settings](#memory-settings)).
 
 The workspace is the state location, not additional read authority. File inspection stays within
 Pi's trusted selected cwd. File and HTTP response reads have a 1 MiB limit before paging or model
@@ -182,3 +221,7 @@ prove them necessary. Earlier proposals for account IDs, richer errors and nonin
 are investigation inputs for this slice, not an approved package of backend changes.
 
 Progress and validation are in the [work record](../plans/foreman-memory.md).
+
+[issue-5]: https://github.com/ScottRBK/factory/issues/5
+[extension-settings]: https://github.com/ScottRBK/pi-forgetful-extension#configuration
+[enabled-issue]: https://github.com/ScottRBK/pi-forgetful-extension/issues/6

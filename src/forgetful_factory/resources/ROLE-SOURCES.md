@@ -25,7 +25,7 @@ Reviewed sources:
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
 - ScottRBK/pi-forgetful-extension, base `574a4e8bfb2de368445036fb8e3ce89b08c58065`, with
-  local patch `4635923292215233dea361244b262079ad4bdaf6feee97a6ce3be67ace90fe49`. The patch
+  local patch `f232245398a5d8dc362d24aafe507f788fbd6cd2825799bcf4a925157087adae`. The patch
   hash is the SHA-256 of `git diff --cached --full-index --binary` in a checkout of the base after
   copying in the 40 bundled files and running `git add -A`. See the refreshes below.
   The original 40-file runtime closure was independently approved for inert internal inclusion.
@@ -93,9 +93,36 @@ mode. Local checks need an already provisioned model cache. Review and prepare m
    implemented yet; add it, with a CLI test, before adopting a bundle that drops one.
 4. Review the runtime diff: imports, process launches, network, file writes, environment reads,
    logging and dependency manifests. Type-check and run upstream tests on the patched tree.
+   Strict `tsc` fails when the extension's settings type gains or loses a key. Add a new key to
+   `SETTING_KEYS` in `src/bootstrap/factory.ts`, and also to `FACTORY_OWNED_KEYS` when it sets a
+   path, network target or identity.
 5. Rebuild the zip (sorted names, deflate, 2026-01-01 timestamps, mode 0600). Update the manifest
    revision, patch hash and file hashes. Append every new hash to the history file.
 6. Run the full suite and `update --dry-run` against real factories. Record the evidence here.
+
+## 2026-11-23 managed memory settings
+
+Same base `574a4e8`; only the Factory patch changed, in two files ([issue #5][issue-5]).
+
+- `src/bootstrap/factory.ts` (Factory-only): the managed entry no longer checks `enabled`,
+  `capture_mode` and `model` itself, and no longer hardcodes the other settings. It refuses keys
+  that Factory sets and unknown keys. It then calls the extension's exported
+  `loadForgetfulConfig()` with `forgetful.json` as both the user and the project settings file.
+  Factory still sets the server, authentication, project, scope and state folders.
+- `src/extension.ts`: in managed mode, the no-model warning and the blocked-command message
+  point to the selected Foreman `forgetful.json`.
+
+Runtime review: no new imports, processes or network targets. The extension's ordinary reader
+reads `forgetful.json` again after Factory's bounded, no-follow read. A file replaced between the
+two reads is within the accepted workspace path-replacement limitation above. The loader also
+reads optional `prompts/*.md` beside `forgetful.json`; Factory ignores the result. File logging
+is new only when `forgetful.json` sets `logging`; logs stay in `.factory/data/pi-forgetful/logs`.
+
+Validation: the old patch hash reproduced before the change. Strict `tsc --noEmit`, including
+`factory.ts`, passes. Upstream's 1359 tests give the same result on the earlier and new patched
+trees: 990 pass, 0 fail, 369 skipped. Factory's full suite with native tests on the Pi 1.6.0
+SDK: 658 passed, 3 skipped. Read-only `update --dry-run`, 0 edited and 0 to add in both:
+DinoLand plans 9 replacements, dark-business 3.
 
 ## 2026-11-23 pi-forgetful refresh
 
@@ -175,3 +202,5 @@ Source archive SHA-256 (not installed under the wheel-only policy):
 Evidence: `/tmp/forgetful-055-audit/AUDIT.md` (local audit handoff).
 Neither audit proves a fresh host installation, live authentication, or autonomous planning.
 Existing executables and edited installed resources require explicit reconciliation.
+
+[issue-5]: https://github.com/ScottRBK/factory/issues/5

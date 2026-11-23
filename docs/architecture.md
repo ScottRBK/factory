@@ -31,7 +31,9 @@ installation evidence and remaining validation work.
   standalone Foreman's connection. General attachment to arbitrary terminals remains planned.
 - Foreman's optional extension uses the configured Forgetful server/project for its planning UI
   and opt-in automatic memory. It has separate authentication from the CLI. Local SQLite planning
-  works through the CLI; CLI-backed/local extension support remains future work.
+  works through the CLI; CLI-backed/local extension support remains future work. Its
+  `forgetful.json` takes the extension's own settings, resolved by the extension's loader; Factory
+  refuses only the keys it sets (server, authentication, log folder, panel) and unknown keys.
 
 Planning safety failures pause affected work and alert Foreman. Shared failures can pause intake;
 uncertain writes or delivery require reconciliation, not automatic replay or replacement. Lifecycle

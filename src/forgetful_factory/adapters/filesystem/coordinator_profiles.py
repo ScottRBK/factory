@@ -89,8 +89,9 @@ class CoordinatorProfiles:
         value = {
             'enabled': choices.foreman_memory_enabled,
             'capture_mode': 'auto' if choices.foreman_memory_enabled else 'off',
-            'model': choices.foreman_memory_model,
         }
+        if choices.foreman_memory_model is not None:
+            value['model'] = choices.foreman_memory_model
         write_json(path, value)
         try:
             saved = read_generated_json(path)

@@ -84,7 +84,8 @@
   ],
   "pi-forgetful/src/bootstrap/factory.ts": [
     "8187b43b8902c8b11d214f371540e48de8caa1884ede6e925aab94ee7814fc22",
-    "0d0fa89a9c93dc0495ddfef7f520b20689a9da2426c22f6ea79058d61d25de03"
+    "0d0fa89a9c93dc0495ddfef7f520b20689a9da2426c22f6ea79058d61d25de03",
+    "8ddd228e033cba610732ff1cd0ae0438acea635e47d7585efdbbfa31fe949dd3"
   ],
   "pi-forgetful/src/bootstrap/planning.ts": [
     "2b549f1c88672c4dca0cc66c3bd52f350fca1583a9e32b07f32d366836261f88"
@@ -117,7 +118,8 @@
   ],
   "pi-forgetful/src/extension.ts": [
     "52f0aefa65217b91cd0009139c3887237531bea2b4403a3f11e525bb26827c7e",
-    "139c0e70532f8aa7139d53dda6cf51934cea1b5c54ab5feaa5649bbfd16a28dc"
+    "139c0e70532f8aa7139d53dda6cf51934cea1b5c54ab5feaa5649bbfd16a28dc",
+    "37c5bdb2d76786a69326731fc5bc154cf2122ee7f8413c5441861161e6a18e5b"
   ],
   "pi-forgetful/src/foreground-tools.ts": [
     "fdeaeb8c15166a7e2ae072527c8eaff956fcc83031a2040935f1af0ddea9905c"
