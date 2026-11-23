@@ -31,9 +31,9 @@ Import Linter's eight contracts in `pyproject.toml` enforce:
 - Adapters cannot depend on CLI.
 - `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
   other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (now `forge/`, `planning/`, `ticketing/`), imports go
-  down only: adapters, services, ports, model. It is exhaustive, so a module outside those
-  layers fails.
+- `inside-each-area`: inside a context (now `forge/`, `planning/`, `ticketing/`, `workspace/`),
+  imports go down only: adapters, services, ports, model. It is exhaustive, so a module outside
+  those layers fails.
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.

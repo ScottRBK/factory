@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–3a implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–3b implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -456,6 +456,11 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+- **Slice 3b: done** (2026-11-23). `workspace/ports.py` holds `LocalRepositories`, `Worktrees`,
+  `WorktreeProblem` and `WorktreeReadError`; the Git adapters moved to
+  `workspace/adapters/git/{repositories,worktrees}.py`. No legacy adapter imported them, so no
+  ignore was needed. `workspace` joins the context rules with proof rows. The real-Git tests
+  pass unchanged.
 - **Slice 3a: done** (2026-11-23).
   - `planning/model.py` holds `ForgetfulConnection`, `loopback_host` and
     `connection_from_mapping`; `planning/ports.py` holds `PlanStore` and `PlanningReadError`;

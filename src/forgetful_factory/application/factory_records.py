@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
 from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.forge.model import RepositoryRef
@@ -11,6 +10,7 @@ from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
+from forgetful_factory.workspace.ports import LocalRepositories
 
 
 class FactoryRecords:

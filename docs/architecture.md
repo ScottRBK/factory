@@ -57,6 +57,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `ticketing/` | Tickets and the `Ticketing` port, with the GitHub Issues adapter. |
 | `forge/` | Repositories and change requests: the `Forge` port, with the GitHub adapter. |
 | `planning/` | Plans and tasks: the `PlanStore` port, Forgetful settings and adapters. |
+| `workspace/` | Local checkouts and worktrees: `LocalRepositories`, `Worktrees` and Git adapters. |
 | `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
@@ -324,8 +325,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
-  with their own ports and adapters. Slices 0–3a are done: `shared/`, `ticketing/`, `forge/` and
-  `planning/`.
+  with their own ports and adapters. Slices 0–3b are done: `shared/`, `ticketing/`, `forge/`,
+  `planning/` and `workspace/`.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -376,10 +377,10 @@ Paths below are relative to `src/forgetful_factory/`:
   classification/validation: lines 26–81;
   shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 13 and 124;
   project listing/creation: lines 97 and 107.
-- Worktrees: `application/ports/worktrees.py`, line 19; read/safety failures: lines 6 and 10;
-  `adapters/filesystem/git_worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
+- Worktrees: `workspace/ports.py`, line 27; read/safety failures: lines 14 and 18;
+  `workspace/adapters/git/worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
   Common identity: line 41; target: line 54; absence: line 83; disposal/checks: lines 200–359.
-  Repository root/origin inspection: `adapters/filesystem/git_repositories.py`, line 19.
+  Repository root/origin inspection: `workspace/adapters/git/repositories.py`, line 19.
   Watch-local cancellation: `shared/watch_stop.py`; native, delivery and wait checkpoints
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `planning/adapters/forgetful/authentication.py`, line 10; public

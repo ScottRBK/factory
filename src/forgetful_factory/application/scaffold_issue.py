@@ -9,12 +9,6 @@ from forgetful_factory.application.cleanup_marker import (
 )
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.factory_records import FactoryRecords
-from forgetful_factory.application.ports.local_repositories import LocalRepositories
-from forgetful_factory.application.ports.worktrees import (
-    WorktreeProblem,
-    WorktreeReadError,
-    Worktrees,
-)
 from forgetful_factory.application.watcher_problems import (
     IntakeProblem,
     ScaffoldProblem,
@@ -26,6 +20,12 @@ from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanningReadError, PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
+from forgetful_factory.workspace.ports import (
+    LocalRepositories,
+    WorktreeProblem,
+    WorktreeReadError,
+    Worktrees,
+)
 
 
 def worktree_name(ticket: Ticket) -> str:

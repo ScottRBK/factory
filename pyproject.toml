@@ -76,6 +76,7 @@ forbidden_modules = [
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
 ]
 
 [[tool.importlinter.contracts]]
@@ -86,6 +87,7 @@ containers = [
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
 ]
 exhaustive = true
 layers = ["(adapters)", "(services)", "ports", "(model)"]
@@ -112,6 +114,7 @@ modules = [
     "forgetful_factory.forge.adapters",
     "forgetful_factory.planning.adapters",
     "forgetful_factory.ticketing.adapters",
+    "forgetful_factory.workspace.adapters",
 ]
 # Until slice 4b splits ForemanProfile. The checker fails once an ignore no longer matches.
 ignore_imports = [
@@ -127,6 +130,7 @@ source_modules = [
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
 ]
 forbidden_modules = [
     "forgetful_factory.adapters",

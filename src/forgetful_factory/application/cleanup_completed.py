@@ -7,11 +7,11 @@ from pathlib import Path
 
 from forgetful_factory.application.factory_records import FactoryRecords
 from forgetful_factory.application.ports.cleanup_receipts import CleanupReceipts, CleanupSet
-from forgetful_factory.application.ports.worktrees import Worktrees
 from forgetful_factory.application.watcher_problems import ScaffoldProblem, WatcherAlerts
 from forgetful_factory.planning.ports import PlanningReadError
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.ports import Ticketing
+from forgetful_factory.workspace.ports import Worktrees
 
 _TARGET_KEYS = ('target', 'common-target', 'remote-target')
 _RECEIPTS_ALERT_SUBJECT = 'cleanup:receipts'

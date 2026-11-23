@@ -5,13 +5,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
 from forgetful_factory.application.cleanup_marker import (
     CleanupMarkerError,
     validate_cleanup_marker,
 )
-from forgetful_factory.application.ports.worktrees import WorktreeProblem
 from forgetful_factory.forge.adapters.github import GitHubForge
+from forgetful_factory.workspace.adapters.git.worktrees import GitWorktrees
+from forgetful_factory.workspace.ports import WorktreeProblem
 
 FORGE = GitHubForge()
 REPOSITORY = FORGE.repository('git@github.com:team/app.git')

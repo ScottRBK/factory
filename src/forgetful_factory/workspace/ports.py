@@ -1,6 +1,14 @@
+"""Local checkouts and worktrees."""
+from pathlib import Path
 from typing import Protocol
 
 from forgetful_factory.shared.errors import FactoryError
+
+
+class LocalRepositories(Protocol):
+    def origin(self, path: Path) -> str: ...
+
+    def discover(self, workspace: Path) -> list[Path]: ...
 
 
 class WorktreeReadError(FactoryError):

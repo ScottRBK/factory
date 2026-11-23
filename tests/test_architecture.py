@@ -43,6 +43,8 @@ MODULES = (
     'planning.adapters.forgetful.connection',
     'planning.adapters.forgetful.plan_store',
     'adapters.filesystem.foreman_profile',
+    'workspace.ports',
+    'workspace.adapters.git.worktrees',
     'boundary_probe.bridge',
 )
 
@@ -74,6 +76,10 @@ ALLOWED = (
     ('planning.adapters.forgetful.plan_store', 'planning.adapters.forgetful.connection'),
     ('application.workflow', 'planning.ports'),
     ('cli.bootstrap', 'planning.adapters.forgetful.plan_store'),
+    ('workspace.adapters.git.worktrees', 'workspace.ports'),
+    ('workspace.adapters.git.worktrees', 'shared.errors'),
+    ('application.workflow', 'workspace.ports'),
+    ('cli.bootstrap', 'workspace.adapters.git.worktrees'),
     # Ignored by adapters-independent until slice 4b; the fixture keeps the ignores matched.
     ('adapters.filesystem.foreman_profile', 'planning.adapters.forgetful.authentication'),
     ('adapters.filesystem.foreman_profile', 'planning.adapters.forgetful.connection'),
@@ -108,11 +114,13 @@ REJECTED = (
     ('shared-independent', 'shared', 'ticketing.model'),
     ('shared-independent', 'shared', 'forge.model'),
     ('shared-independent', 'shared', 'planning.model'),
+    ('shared-independent', 'shared', 'workspace.ports'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
     ('inside-each-area', 'forge.model', 'forge.ports'),
     ('inside-each-area', 'planning.model', 'planning.ports'),
     ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
     ('adapters-from-composition', 'application', 'forge.adapters.github'),
+    ('adapters-from-composition', 'application', 'workspace.adapters.git.worktrees'),
     ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
@@ -120,6 +128,7 @@ REJECTED = (
     ('adapters-independent', 'adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'forge.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'planning.adapters', 'forge.adapters.github'),
+    ('adapters-independent', 'workspace.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'adapters.shared', 'planning.adapters.forgetful.plan_store'),
     # Legacy adapters and configuration are left out: application and domain import the
     # ticketing port and model, so from any ticketing module those imports break a second rule.
@@ -129,6 +138,7 @@ REJECTED = (
     ('contexts-not-legacy', 'ticketing.model', 'deadlines'),
     ('contexts-not-legacy', 'forge.adapters', 'cli.prompts'),
     ('contexts-not-legacy', 'planning.adapters', 'cli.prompts'),
+    ('contexts-not-legacy', 'workspace.adapters', 'application.workflow'),
 )
 
 

@@ -5,8 +5,6 @@ from pathlib import Path
 from forgetful_factory.adapters.agentshell.terminal import AgentShellTerminal
 from forgetful_factory.adapters.filesystem.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
-from forgetful_factory.adapters.filesystem.git_repositories import GitRepositories
-from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
 from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
@@ -21,6 +19,8 @@ from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPl
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
+from forgetful_factory.workspace.adapters.git.repositories import GitRepositories
+from forgetful_factory.workspace.adapters.git.worktrees import GitWorktrees
 
 # Ticketing adapters by the provider name saved in factory.toml.
 TICKETING = {'github': GitHubTicketing}
