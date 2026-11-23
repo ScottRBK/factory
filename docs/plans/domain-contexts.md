@@ -456,6 +456,31 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+**Rule (Scott, 2026-11-23): the refactor must not change functional behaviour.** Reviewers
+(Fable 5.2 and Astra in Codex, through AgentShell, after a SonarQube scan) must check this. Every
+change of behaviour so far is listed here, including small ones:
+
+- **Agreed (decision 6):** ticket keys are text. The notification and plan snapshot carry
+  `"key": "42"` instead of `"number": 42`; plans saved by older builds need reconciliation. The
+  Foreman and feature-owner skills say `provider:source#key`.
+- **Message text, edge cases (not yet agreed):**
+  - Init preflight now runs `GitHubTicketing.validate_source` before the origin check. A saved
+    GitHub source in a bad format (for example `team/app.git`) now reports "Invalid GitHub work
+    source …" instead of "Origin/source changed …". An unsupported provider still reports
+    "Unsupported work-tracking provider …", with slightly different wording.
+  - The cleanup-marker diagnostic (operator stderr only) says "change request URL" instead of
+    "GitHub PR URL".
+- **Not reachable with GitHub only:** mixed ticketing providers are refused; the remote-matches-
+  source check is skipped when forge and ticketing differ; cleanup scope accepts any provider's
+  key format through `is_key` (`[1-9][0-9]*` for GitHub; the old pattern `[1-9]\d*` also
+  accepted non-ASCII digits, which Factory never writes).
+- **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
+
+**Next steps:** decide whether to restore the two edge-case messages; slices 4b, 4c, 4d (smoke
+trial), 5, 6 (final trial); then SonarQube and the two reviews. Trials use a throwaway private
+GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
+baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
 - **Slice 4a: done** (2026-11-23), move only.
   - `agents/adapters/agentshell/` holds the AgentShell adapter, owner, controller, model catalog,
     launch constants and runtime directory; `agents/adapters/pi/` holds definitions, profiles,
