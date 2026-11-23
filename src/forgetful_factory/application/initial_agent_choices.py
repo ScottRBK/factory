@@ -1,8 +1,8 @@
 """One-time choices for the starter team; not saved Factory configuration."""
 from dataclasses import dataclass
 
-from forgetful_factory.application.configuration import nonblank
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.validation import nonblank
 
 
 @dataclass(frozen=True)

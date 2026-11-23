@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–2 implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–3a implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -456,6 +456,22 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+- **Slice 3a: done** (2026-11-23).
+  - `planning/model.py` holds `ForgetfulConnection`, `loopback_host` and
+    `connection_from_mapping`; `planning/ports.py` holds `PlanStore` and `PlanningReadError`;
+    the Forgetful adapters moved to `planning/adapters/forgetful/` (`ForgetfulPlanStore`).
+  - `PlanStore.create_plan` adds the project; `owns(plan)` and `backend_identity()` replace the
+    core's reads of `config.forgetful` in scaffold and cleanup. Init's setup reads stay until 4b
+    splits `ForemanProfile`. The plan and receipt fixtures are unchanged.
+  - The new rules found a hidden link: the Forgetful connection adapter imported
+    `executable_path` from legacy `host_dependencies.py`. It moved to `shared/executables.py`;
+    `nonblank` moved to `shared/validation.py`.
+  - `adapters-independent` has two exact `ignore_imports` for legacy `foreman_profile.py` until
+    4b. The proof fixture holds the same edges, so the ignores stay matched.
+  - `PlanStoreContract` passes for `ForgetfulPlanStore` with the stateful native planning
+    program; an `owns` that accepts every plan fails it.
+  - Checks: full suite 690 passed, 14 skipped; 8 rules kept; Mycelium 0.4.5: 102 boxes, 13
+    warnings, repeat export identical.
 - **Slice 2: done** (2026-11-23).
   - `forge/` holds `RepositoryRef`, the `Forge` port and `GitHubForge`. `WorkSourceResolver` and
     `adapters/github/` are gone. `FactoryRecords.check_source` returns the remote's repository,

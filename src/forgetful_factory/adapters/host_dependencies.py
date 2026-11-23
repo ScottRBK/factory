@@ -21,12 +21,6 @@ PI_INPUTS = ('package.json', 'package-lock.json')
 LOCKS = resource_root() / 'install-locks.zip'
 
 
-def executable_path(workspace: Path) -> str:
-    runtime = workspace / '.factory/runtime'
-    return os.pathsep.join((str(runtime / 'pi/node_modules/.bin'),
-                            str(runtime / 'forgetful/bin'), os.environ.get('PATH', '')))
-
-
 def sync_fingerprint(inputs: tuple[Path, ...]) -> str:
     return hashlib.sha256(b'\0'.join(path.read_bytes() for path in inputs)).hexdigest()
 

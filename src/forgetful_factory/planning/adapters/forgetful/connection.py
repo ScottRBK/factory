@@ -3,9 +3,9 @@ import json
 import os
 from pathlib import Path
 
-from forgetful_factory.adapters.host_dependencies import executable_path
-from forgetful_factory.application.configuration import ForgetfulConnection
+from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.executables import executable_path
 from forgetful_factory.shared.sensitive_command import run_owned
 from forgetful_factory.shared.watch_stop import check_watch_stop
 

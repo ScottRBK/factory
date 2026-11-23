@@ -8,8 +8,6 @@ from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
 from forgetful_factory.adapters.filesystem.git_repositories import GitRepositories
 from forgetful_factory.adapters.filesystem.git_worktrees import GitWorktrees
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
-from forgetful_factory.adapters.forgetful.connection import role_environment
-from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
 from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
@@ -18,6 +16,8 @@ from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watch_factory import WatchFactory
 from forgetful_factory.deadlines import DeadlinePolicy
 from forgetful_factory.forge.adapters.github import GitHubForge
+from forgetful_factory.planning.adapters.forgetful.connection import role_environment
+from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
@@ -66,7 +66,7 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
         python, environment, **launch, deadlines=deadlines.agentshell)
     if observation is not None:
         terminal = ObservedTerminal(terminal, observation)
-    planning = ForgetfulPlanning(workspace, config.forgetful,
+    planning = ForgetfulPlanStore(workspace, config.forgetful,
                                  execution_enabled=config.execution_enabled,
                                  term_grace=deadlines.owned_process_term_grace)
     worktrees = GitWorktrees(deadlines.external_command)

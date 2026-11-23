@@ -1,8 +1,8 @@
 from pathlib import Path
 
-from forgetful_factory.adapters.forgetful.connection import AgentForgetfulConnection
-from forgetful_factory.application.configuration import ForgetfulConnection
-from forgetful_factory.application.ports.planning import PlanningReadError
+from forgetful_factory.planning.adapters.forgetful.connection import AgentForgetfulConnection
+from forgetful_factory.planning.model import ForgetfulConnection
+from forgetful_factory.planning.ports import PlanningReadError
 from forgetful_factory.shared.errors import FactoryError
 
 
@@ -10,7 +10,7 @@ def _positive_id(value: object) -> bool:
     return type(value) is int and value > 0
 
 
-class ForgetfulPlanning:
+class ForgetfulPlanStore:
     def __init__(self, workspace: Path, connection: ForgetfulConnection, *,
                  execution_enabled: bool, term_grace: float = 3):
         self.cli = AgentForgetfulConnection(workspace, term_grace)
@@ -56,7 +56,14 @@ class ForgetfulPlanning:
         return plan
 
     def create_plan(self, **fields) -> dict:
-        return self._call('create_plan', **fields)
+        return self._call('create_plan', **fields, project_id=self.connection.project_id)
+
+    def owns(self, plan: dict) -> bool:
+        return plan.get('project_id') == self.connection.project_id
+
+    def backend_identity(self) -> str:
+        connection = self.connection
+        return connection.instance + ':' + (connection.server or connection.database)
 
     def update_plan(self, plan_id: int, **fields) -> dict:
         return self._call('update_plan', plan_id=plan_id, **fields)

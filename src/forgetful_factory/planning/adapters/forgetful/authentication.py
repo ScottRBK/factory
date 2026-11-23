@@ -4,7 +4,7 @@ from contextlib import closing
 from http.client import HTTPConnection, HTTPException, HTTPSConnection
 from urllib.parse import urlsplit
 
-from forgetful_factory.application.configuration import ForgetfulConnection
+from forgetful_factory.planning.model import ForgetfulConnection
 
 
 def uses_browser_login(connection: ForgetfulConnection) -> bool:

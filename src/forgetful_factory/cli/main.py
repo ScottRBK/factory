@@ -10,10 +10,7 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlsplit
 
-from forgetful_factory.application.configuration import (
-    FactoryConfiguration,
-    ForgetfulConnection,
-)
+from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initial_agent_choices import (
     WORKER_EFFORTS,
     InitialAgentChoices,
@@ -25,6 +22,7 @@ from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.cli.resource_update import update_resources
 from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
 
 

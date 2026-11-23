@@ -31,11 +31,15 @@ Import Linter's eight contracts in `pyproject.toml` enforce:
 - Adapters cannot depend on CLI.
 - `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
   other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (now `ticketing/` and `forge/`), imports go down only:
-  adapters, services, ports, model. It is exhaustive, so a module outside those layers fails.
+- `inside-each-area`: inside a context (now `forge/`, `planning/`, `ticketing/`), imports go
+  down only: adapters, services, ports, model. It is exhaustive, so a module outside those
+  layers fails.
 - `adapters-from-composition`: shared, context ports and models, application and domain do not
   import a context's adapters. Only CLI composition and the configuration facade do.
 - `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
+  Until slice 4b, two `ignore_imports` let legacy `foreman_profile.py` use the Forgetful
+  authentication and connection adapters. Import Linter fails when an ignore no longer matches,
+  and the proof fixture contains the same two edges, so the ignores stay exact.
 - `contexts-not-legacy` (until slice 5 of the
   [domain contexts plan](../plans/domain-contexts.md)): contexts do not import the legacy
   `adapters`, `application`, `domain` or `deadlines`, or the CLI and configuration facade.
@@ -83,10 +87,13 @@ Coverage checks in the same file guard what the checker cannot see by itself:
 `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that pass
 `is_key`, content-only revisions, source checks (including another provider's source) and labels.
 `ForgeContract` states that every accepted remote form names one repository, unsupported remotes
-fail, and change-request URLs belong to their repository. Each runs against the GitHub adapter
-(with a stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys
-such as `ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new
-adapter is done when it passes its mixin.
+fail, and change-request URLs belong to their repository. `PlanStoreContract` states that a created
+plan is in the store's project and found by reference, another project's plan is not owned, plans
+and tasks update, and the backend identity is stable text; it runs against `ForgetfulPlanStore` with
+the stateful native planning program. Each runs against the GitHub adapter (with a stateful `gh`
+stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state
+in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it
+passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan
@@ -150,7 +157,7 @@ Use TDD at the public boundaries approved by Scott:
   worktree safety. Cover plan/task creation, uncertain outcomes, revisions, restart, notification,
   cleanup and exclusive workspace ownership. Run the real AgentShell lifecycle with Pi/tmux doubles.
 - **Planning adapter reads:** approved for the CI runtime follow-up. Exercise the real
-  `ForgetfulPlanning.plans()`, `get_plan()` and `tasks()` operations with a controlled external
+  `ForgetfulPlanStore.plans()`, `get_plan()` and `tasks()` operations with a controlled external
   Forgetful executable and real temporary files. Check complete malformed-input matrices here;
   retain watcher CLI proofs for each distinct inventory/detail pause, alert and recovery path.
   No private validation helpers or mocked internal calls replace either boundary.

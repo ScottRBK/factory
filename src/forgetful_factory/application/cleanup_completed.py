@@ -7,9 +7,9 @@ from pathlib import Path
 
 from forgetful_factory.application.factory_records import FactoryRecords
 from forgetful_factory.application.ports.cleanup_receipts import CleanupReceipts, CleanupSet
-from forgetful_factory.application.ports.planning import PlanningReadError
 from forgetful_factory.application.ports.worktrees import Worktrees
 from forgetful_factory.application.watcher_problems import ScaffoldProblem, WatcherAlerts
+from forgetful_factory.planning.ports import PlanningReadError
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.ports import Ticketing
 
@@ -188,7 +188,7 @@ class CleanupCompleted:
                     retry='next_poll', plan_id=plan_id)
 
     def _in_scope(self, plan: dict) -> bool:
-        if (plan.get('project_id') != self.records.config.forgetful.project_id
+        if (not self.records.planning.owns(plan)
                 or plan.get('status') != 'completed'):
             return False
         reference = plan.get('external_ref')
@@ -357,8 +357,7 @@ class CleanupCompleted:
 
     def _mapping_identity(self, plan_id: int, reference: str, mapping: dict, *,
                           workspace: str | None = None) -> CleanupSet:
-        connection = self.records.config.forgetful
-        backend = connection.instance + ':' + (connection.server or connection.database)
+        backend = self.records.planning.backend_identity()
         return CleanupSet(workspace or str(self.records.workspace), backend, plan_id, reference,
                           mapping['repository'].casefold(), mapping['local_dir'],
                           mapping['branch'], mapping['path'])

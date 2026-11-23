@@ -13,20 +13,21 @@ from forgetful_factory.adapters.filesystem.agent_definitions import foreman_laun
 from forgetful_factory.adapters.filesystem.coordinator_profiles import CoordinatorProfiles
 from forgetful_factory.adapters.filesystem.role_resources import bundled_files
 from forgetful_factory.adapters.filesystem.selected_skills import selected_skill_files
-from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
-from forgetful_factory.adapters.forgetful.connection import (
-    AgentForgetfulConnection,
-    role_environment,
-)
 from forgetful_factory.adapters.host_dependencies import (
     FORGETFUL_PROBE,
     ROLE_PROBE,
     HostDependencies,
-    executable_path,
     runtime_ready,
 )
-from forgetful_factory.application.configuration import FactoryConfiguration, ForgetfulConnection
+from forgetful_factory.application.configuration import FactoryConfiguration
+from forgetful_factory.planning.adapters.forgetful.authentication import uses_browser_login
+from forgetful_factory.planning.adapters.forgetful.connection import (
+    AgentForgetfulConnection,
+    role_environment,
+)
+from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.executables import executable_path
 from forgetful_factory.shared.resource_files import (
     check_real_path,
     read_generated_json,

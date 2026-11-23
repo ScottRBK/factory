@@ -10,7 +10,6 @@ from forgetful_factory.application.cleanup_marker import (
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.factory_records import FactoryRecords
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
-from forgetful_factory.application.ports.planning import Planning, PlanningReadError
 from forgetful_factory.application.ports.worktrees import (
     WorktreeProblem,
     WorktreeReadError,
@@ -24,6 +23,7 @@ from forgetful_factory.application.watcher_problems import (
 )
 from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.forge.ports import Forge
+from forgetful_factory.planning.ports import PlanningReadError, PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
 
@@ -35,7 +35,7 @@ def worktree_name(ticket: Ticket) -> str:
 
 
 class ScaffoldIssue:
-    def __init__(self, planning: Planning, worktrees: Worktrees, workspace: Path,
+    def __init__(self, planning: PlanStore, worktrees: Worktrees, workspace: Path,
                  config: FactoryConfiguration, repositories: LocalRepositories,
                  forge: Forge):
         self.planning = planning
@@ -192,7 +192,7 @@ class ScaffoldIssue:
             'The feature owner will update it after reviewing the issue/plan.')
         try:
             self.planning.create_plan(
-                title=issue.title, project_id=self.config.forgetful.project_id,
+                title=issue.title,
                 external_ref=issue.id, source_url=issue.url,
                 context=json.dumps({'workspace': str(self.workspace), 'issue': snapshot},
                                    ensure_ascii=False))
@@ -217,7 +217,7 @@ class ScaffoldIssue:
         if plan.get('id') != plan_id or plan.get('external_ref') != issue.id:
             raise ScaffoldProblem('plan_identity_changed',
                                   'Saved plan identity changed; reconcile it.', plan_id=plan_id)
-        if plan.get('project_id') != self.config.forgetful.project_id:
+        if not self.planning.owns(plan):
             raise ScaffoldProblem('plan_project_mismatch',
                                   f'{issue.id} already belongs to another project; reconcile it.',
                                   plan_id=plan['id'])
@@ -273,7 +273,7 @@ class ScaffoldIssue:
         if plan.get('id') != plan_id or plan.get('external_ref') != external_ref:
             raise ScaffoldProblem('plan_identity_changed',
                                   'Saved plan identity changed; reconcile it.')
-        if plan.get('project_id') != self.config.forgetful.project_id:
+        if not self.planning.owns(plan):
             raise ScaffoldProblem('plan_project_mismatch',
                                   'Saved plan belongs to another project; reconcile it.')
         return plan
@@ -306,7 +306,7 @@ class ScaffoldIssue:
     def _is_unfinished_factory_plan(self, summary: dict, prefixes: set[str]) -> bool:
         project_id = summary.get('project_id')
         status = summary.get('status')
-        if (type(project_id) is int and project_id != self.config.forgetful.project_id
+        if (type(project_id) is int and not self.planning.owns(summary)
                 or status in ('completed', 'archived')):
             return False
         # A known reference with invalid association/status still needs per-plan recovery checks.

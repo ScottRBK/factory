@@ -4,8 +4,8 @@ import os
 import re
 from pathlib import Path
 
-from forgetful_factory.application.configuration import nonblank
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.validation import nonblank
 
 RESOURCE_FLAGS = ('inherit_personal_resources', 'inherit_project_resources',
                   'include_instruction_files', 'include_home_system_prompt')

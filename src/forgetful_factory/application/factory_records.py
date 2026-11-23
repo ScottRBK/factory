@@ -4,17 +4,17 @@ from pathlib import Path
 
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
-from forgetful_factory.application.ports.planning import Planning
 from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
 from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.forge.model import RepositoryRef
 from forgetful_factory.forge.ports import Forge
+from forgetful_factory.planning.ports import PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
 
 
 class FactoryRecords:
-    def __init__(self, planning: Planning, workspace: Path, config: FactoryConfiguration,
+    def __init__(self, planning: PlanStore, workspace: Path, config: FactoryConfiguration,
                  repositories: LocalRepositories, forge: Forge):
         self.planning = planning
         self.workspace = workspace
