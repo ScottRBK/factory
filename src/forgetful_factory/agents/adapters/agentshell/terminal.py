@@ -6,8 +6,8 @@ import time
 import uuid
 from dataclasses import asdict
 
-from forgetful_factory.adapters.agentshell.launch import CONTROLLER
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
+from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
 

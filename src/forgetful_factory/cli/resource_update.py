@@ -21,10 +21,10 @@ def _report(update, force: bool) -> None:
 
 def update_resources(args: argparse.Namespace, workspace: Path,
                      deadlines: DeadlinePolicy) -> int:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
-    from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
-    from forgetful_factory.adapters.filesystem.role_resources import apply_update, plan_update
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.agents.adapters.pi.foreman_profile import ForemanProfile
+    from forgetful_factory.agents.adapters.pi.role_resources import apply_update, plan_update
 
     directory = workspace / '.factory/resources'
     if not directory.is_dir():

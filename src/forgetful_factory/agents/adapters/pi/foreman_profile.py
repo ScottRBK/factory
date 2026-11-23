@@ -8,17 +8,17 @@ import shutil
 import sys
 from pathlib import Path
 
-from forgetful_factory.adapters.agentshell.launch import MODEL_CATALOG
-from forgetful_factory.adapters.filesystem.agent_definitions import foreman_launch
-from forgetful_factory.adapters.filesystem.coordinator_profiles import CoordinatorProfiles
-from forgetful_factory.adapters.filesystem.role_resources import bundled_files
-from forgetful_factory.adapters.filesystem.selected_skills import selected_skill_files
 from forgetful_factory.adapters.host_dependencies import (
     FORGETFUL_PROBE,
     ROLE_PROBE,
     HostDependencies,
     runtime_ready,
 )
+from forgetful_factory.agents.adapters.agentshell.launch import MODEL_CATALOG
+from forgetful_factory.agents.adapters.pi.agent_definitions import foreman_launch
+from forgetful_factory.agents.adapters.pi.coordinator_profiles import CoordinatorProfiles
+from forgetful_factory.agents.adapters.pi.role_resources import bundled_files
+from forgetful_factory.agents.adapters.pi.selected_skills import selected_skill_files
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.planning.adapters.forgetful.authentication import uses_browser_login
 from forgetful_factory.planning.adapters.forgetful.connection import (

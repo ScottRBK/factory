@@ -10,12 +10,12 @@ from pathlib import Path
 from typing import cast
 from urllib.parse import urlsplit
 
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.initial_agent_choices import (
+from forgetful_factory.agents.model import (
     WORKER_EFFORTS,
     InitialAgentChoices,
     validate_initial_agents,
 )
+from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
 from forgetful_factory.cli.definition_of_done import agree_definition_of_done
@@ -293,7 +293,7 @@ def _choose_existing(args: argparse.Namespace) -> bool:
 def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
     import json
 
-    from forgetful_factory.adapters.agentshell.owner_client import request
+    from forgetful_factory.agents.adapters.agentshell.owner_client import request
 
     if args.start:
         if not args.existing and not args.new_only:
@@ -308,8 +308,8 @@ def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
 
 
 def _managed_watch_status(workspace: Path) -> dict | None:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state, request
     from forgetful_factory.adapters.watch_status import unknown_status
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state, request
 
     try:
         state = read_state(workspace)
@@ -341,8 +341,8 @@ def _managed_watch_status(workspace: Path) -> dict | None:
 def _watch_status(workspace: Path) -> int:
     import json
 
-    from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
     from forgetful_factory.adapters.watch_status import plain_watch_status, unknown_status
+    from forgetful_factory.agents.adapters.pi.foreman_profile import ForemanProfile
     from forgetful_factory.configuration import load_configuration
 
     plain = plain_watch_status(workspace)
@@ -385,13 +385,13 @@ def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy)
 def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     import uuid
 
-    from forgetful_factory.adapters.agentshell.owner_client import (
+    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+    from forgetful_factory.agents.adapters.agentshell.owner_client import (
         enter_terminal,
         read_state,
         request,
         start_owner,
     )
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.cli.bootstrap import prepare_foreman_launch
     from forgetful_factory.configuration import load_configuration
 
@@ -422,9 +422,11 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
 def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from contextlib import nullcontext
 
-    from forgetful_factory.adapters.agentshell.borrowed_terminal import BorrowedForemanTerminal
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
     from forgetful_factory.adapters.watch_status import observe_plain_watch
+    from forgetful_factory.agents.adapters.agentshell.borrowed_terminal import (
+        BorrowedForemanTerminal,
+    )
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
     from forgetful_factory.configuration import load_configuration
     from forgetful_factory.shared.watch_stop import watch_stop_scope
 
@@ -688,8 +690,8 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
 
 
 def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
-    from forgetful_factory.adapters.agentshell.owner_client import enter_terminal, request
     from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+    from forgetful_factory.agents.adapters.agentshell.owner_client import enter_terminal, request
 
     if args.attach:
         state = request(workspace, 'status')
@@ -713,7 +715,7 @@ def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePo
 
 
 def _offer_factory_launch(args: argparse.Namespace, workspace: Path) -> int:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
 
     state = read_state(workspace)
     if args.finalize or (state and state.get('foreman') != 'stopped'):
@@ -766,7 +768,7 @@ def _validate_setup_owner(args: argparse.Namespace, workspace: Path, state: dict
 def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfiguration,
                            args: argparse.Namespace, workspace: Path,
                            deadlines: DeadlinePolicy) -> int | dict:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
 
     _connection(args, workspace, config.forgetful)
     application.profile.choose_pi_home(args.pi_agent_dir,
@@ -869,7 +871,7 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
 
 def _initialise_locked(args: argparse.Namespace, workspace: Path,
                        deadlines: DeadlinePolicy) -> int | dict | str:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
 
     application = build_initialiser(workspace, deadlines)
     if application.storage.load() is not None and not args.finalize:
@@ -891,7 +893,7 @@ def _initialise_locked(args: argparse.Namespace, workspace: Path,
 def _launch_setup_foreman(application, config, workspace, args, deadlines):
     import uuid
 
-    from forgetful_factory.adapters.agentshell.owner_client import start_owner
+    from forgetful_factory.agents.adapters.agentshell.owner_client import start_owner
     from forgetful_factory.cli.bootstrap import prepare_foreman_launch
 
     application.profile.prepare_setup_guidance()

@@ -9,7 +9,8 @@ import sys
 from lifecycle_support import LifecycleFixture, pidfd_open
 from test_init import INIT_SETTINGS
 
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.deadlines import DeadlinePolicy
 
 
 class AssistedLifecycleTests(LifecycleFixture):

@@ -1,3 +1,5 @@
+import math
+
 from forgetful_factory.shared.errors import FactoryError
 
 
@@ -11,3 +13,8 @@ def nonblank(value: object, field: str) -> str:
     except UnicodeError as error:
         raise FactoryError(f'{field} must contain valid Unicode text.') from error
     return value
+
+
+def positive_duration(name: str, value: object) -> None:
+    if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
+        raise ValueError(f'{name} must be positive and finite.')

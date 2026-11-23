@@ -42,7 +42,11 @@ MODULES = (
     'planning.adapters.forgetful.authentication',
     'planning.adapters.forgetful.connection',
     'planning.adapters.forgetful.plan_store',
-    'adapters.filesystem.foreman_profile',
+    'adapters.host_dependencies',
+    'agents.model',
+    'agents.ports',
+    'agents.adapters.agentshell.controller',
+    'agents.adapters.pi.foreman_profile',
     'workspace.ports',
     'workspace.adapters.git.worktrees',
     'boundary_probe.bridge',
@@ -80,9 +84,14 @@ ALLOWED = (
     ('workspace.adapters.git.worktrees', 'shared.errors'),
     ('application.workflow', 'workspace.ports'),
     ('cli.bootstrap', 'workspace.adapters.git.worktrees'),
+    ('agents.ports', 'agents.model'),
+    ('agents.adapters.agentshell.controller', 'agent_shell'),
+    ('application.workflow', 'agents.ports'),
+    ('cli.bootstrap', 'agents.adapters.agentshell.controller'),
     # Ignored by adapters-independent until slice 4b; the fixture keeps the ignores matched.
-    ('adapters.filesystem.foreman_profile', 'planning.adapters.forgetful.authentication'),
-    ('adapters.filesystem.foreman_profile', 'planning.adapters.forgetful.connection'),
+    ('agents.adapters.pi.foreman_profile', 'adapters.host_dependencies'),
+    ('agents.adapters.pi.foreman_profile', 'planning.adapters.forgetful.authentication'),
+    ('agents.adapters.pi.foreman_profile', 'planning.adapters.forgetful.connection'),
     ('cli.bootstrap', 'adapters.provider'),
     ('cli.bootstrap', 'application.workflow'),
     ('cli.bootstrap', 'shared.errors'),
@@ -115,12 +124,15 @@ REJECTED = (
     ('shared-independent', 'shared', 'forge.model'),
     ('shared-independent', 'shared', 'planning.model'),
     ('shared-independent', 'shared', 'workspace.ports'),
+    ('shared-independent', 'shared', 'agents.model'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
     ('inside-each-area', 'forge.model', 'forge.ports'),
     ('inside-each-area', 'planning.model', 'planning.ports'),
+    ('inside-each-area', 'agents.model', 'agents.ports'),
     ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
     ('adapters-from-composition', 'application', 'forge.adapters.github'),
     ('adapters-from-composition', 'application', 'workspace.adapters.git.worktrees'),
+    ('adapters-from-composition', 'application', 'agents.adapters.agentshell.controller'),
     ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
@@ -129,6 +141,7 @@ REJECTED = (
     ('adapters-independent', 'forge.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'planning.adapters', 'forge.adapters.github'),
     ('adapters-independent', 'workspace.adapters', 'ticketing.adapters.github'),
+    ('adapters-independent', 'agents.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'adapters.shared', 'planning.adapters.forgetful.plan_store'),
     # Legacy adapters and configuration are left out: application and domain import the
     # ticketing port and model, so from any ticketing module those imports break a second rule.
@@ -139,7 +152,18 @@ REJECTED = (
     ('contexts-not-legacy', 'forge.adapters', 'cli.prompts'),
     ('contexts-not-legacy', 'planning.adapters', 'cli.prompts'),
     ('contexts-not-legacy', 'workspace.adapters', 'application.workflow'),
+    # allow_indirect_imports: only direct imports are rejected; the indirect run must pass.
+    ('agentshell-in-agents', 'ticketing.adapters', 'agent_shell'),
+    ('agentshell-in-agents', 'agents.model', 'agent_shell'),
+    ('agentshell-in-agents', 'cli', 'agent_shell'),
 )
+
+# Rows and imports name modules relative to the package, except these external packages.
+EXTERNAL = {'agent_shell'}
+
+
+def absolute(module: str) -> str:
+    return module if module in EXTERNAL else f'{PACKAGE}.{module}'
 
 
 def rule_units(rule: dict) -> tuple[list[str], list[str]]:
@@ -179,7 +203,7 @@ class ArchitectureTests(unittest.TestCase):
         for module in MODULES:
             path = package / source(module)
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(''.join(f'import {PACKAGE}.{imported}\n'
+            path.write_text(''.join(f'import {absolute(imported)}\n'
                                     for importer, imported in ALLOWED if importer == module))
             parent = path.parent
             while parent != workspace / 'src':
@@ -223,7 +247,7 @@ class ArchitectureTests(unittest.TestCase):
                         probe = package / source(area).with_suffix('') / 'probe.py'
                         importer = f'{PACKAGE}.{area}.probe'
                     clean = probe.read_text() if probe.is_file() else None
-                    target_module = f'{PACKAGE}.{target}'
+                    target_module = absolute(target)
                     line = f'import {target_module}\n'
                     if indirect:
                         bridge.write_text(line)
@@ -231,6 +255,15 @@ class ArchitectureTests(unittest.TestCase):
                     probe.write_text((clean or '') + line)
                     # Step 1: with the target rule off, the violation passes.
                     self.assert_passes(self.check(workspace, contracts=others))
+                    if indirect and rule.get('allow_indirect_imports'):
+                        # The rule rejects direct imports only; this indirect path must pass.
+                        self.assert_passes(self.check(workspace))
+                        if clean is None:
+                            probe.unlink()
+                        else:
+                            probe.write_text(clean)
+                        bridge.write_text('')
+                        continue
                     # Step 2: with the target rule on, it fails with that rule and full path.
                     result = self.check(workspace)
                     self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
@@ -342,7 +375,7 @@ class CoverageTests(unittest.TestCase):
 
     def test_package_folders_find_files_in_one_place(self):
         # Arrange: a file found relative to source breaks silently when a module moves.
-        allowed = {Path('shared/resources.py'), Path('adapters/agentshell/launch.py')}
+        allowed = {Path('shared/resources.py'), Path('agents/adapters/agentshell/launch.py')}
         # Act
         users = {path.relative_to(SOURCE) for path in SOURCE.rglob('*.py')
                  if '__file__' in path.read_text()}
@@ -360,6 +393,14 @@ class CoverageTests(unittest.TestCase):
                  for path in files}
         self.assertEqual({path: hits for path, hits in found.items() if hits}, {})
 
+    def test_tests_find_source_files_through_constants(self):
+        # A source path written in a test breaks silently when the module moves (slice 4a).
+        written = re.compile(rf'src/{PACKAGE}/[\w/]+\.py')
+        found = {path.name: written.findall(path.read_text())
+                 for path in ROOT.joinpath('tests').rglob('*.py')
+                 if path.name != Path(__file__).name}
+        self.assertEqual({name: paths for name, paths in found.items() if paths}, {})
+
     def test_resource_root_holds_the_bundle(self):
         from forgetful_factory.shared.resources import resource_root
 
@@ -369,7 +410,7 @@ class CoverageTests(unittest.TestCase):
 
     def test_launch_targets_exist(self):
         # Arrange: these are started by file path or module name, which imports cannot see.
-        from forgetful_factory.adapters.agentshell import launch
+        from forgetful_factory.agents.adapters.agentshell import launch
 
         # Assert
         self.assertTrue(launch.CONTROLLER.is_file())

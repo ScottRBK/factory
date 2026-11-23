@@ -1,8 +1,8 @@
-"""One-time choices for the starter team; not saved Factory configuration."""
-from dataclasses import dataclass
+"""The agent team: one-time starter choices and AgentShell lifecycle deadlines."""
+from dataclasses import dataclass, fields
 
 from forgetful_factory.shared.errors import FactoryError
-from forgetful_factory.shared.validation import nonblank
+from forgetful_factory.shared.validation import nonblank, positive_duration
 
 
 @dataclass(frozen=True)
@@ -125,3 +125,20 @@ def validate_initial_agents(configuration: InitialAgentChoices) -> None:
         raise FactoryError('The feature-owner harness must be pi for native session tracking.')
     if configuration.feature_owner_agent_model is not None:
         nonblank(configuration.feature_owner_agent_model, 'feature_owner_agent_model')
+
+
+@dataclass(frozen=True)
+class AgentShellLifecycleDeadlines:
+    controller_ready: float = 30
+    controller_send: float = 10
+    controller_close: float = 8
+    parent_ready: float = 35
+    owner_watcher_start: float = 30
+    owner_watcher_stop: float = 5
+    owner_ready: float = 35
+    owner_controller_close: float = 20
+    owner_pre_adoption_cleanup: float = 45
+
+    def __post_init__(self) -> None:
+        for item in fields(self):
+            positive_duration(item.name, getattr(self, item.name))

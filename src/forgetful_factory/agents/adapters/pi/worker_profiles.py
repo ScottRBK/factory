@@ -1,7 +1,7 @@
 """Provision worker definitions; Factory never launches workers."""
 from pathlib import Path
 
-from forgetful_factory.application.initial_agent_choices import InitialAgentChoices
+from forgetful_factory.agents.model import InitialAgentChoices
 from forgetful_factory.shared.resource_files import (
     check_skill_file,
     write_definition,

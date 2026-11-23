@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Protocol
 
+from forgetful_factory.agents.model import InitialAgentChoices
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.initial_agent_choices import InitialAgentChoices
 from forgetful_factory.planning.model import ForgetfulConnection
 
 

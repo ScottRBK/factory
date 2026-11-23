@@ -3,7 +3,7 @@ import json
 import os
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.worker_profiles import WorkerProfiles
+from forgetful_factory.agents.adapters.pi.worker_profiles import WorkerProfiles
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import (

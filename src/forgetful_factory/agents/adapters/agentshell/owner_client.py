@@ -10,9 +10,9 @@ import sys
 from dataclasses import asdict
 from pathlib import Path
 
-from forgetful_factory.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
-from forgetful_factory.adapters.filesystem.foreman_runtime import runtime_directory
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines
+from forgetful_factory.agents.adapters.agentshell.foreman_runtime import runtime_directory
+from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import read_generated_json
 

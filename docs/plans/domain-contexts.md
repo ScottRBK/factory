@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–3b implemented** (see [Progress](#progress)). Fable reviewed
+**Status: Approved 2026-11-23; slices 0–4a implemented** (see [Progress](#progress)). Fable reviewed
 the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
 to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
@@ -456,6 +456,26 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
 
 ### Progress
 
+- **Slice 4a: done** (2026-11-23), move only.
+  - `agents/adapters/agentshell/` holds the AgentShell adapter, owner, controller, model catalog,
+    launch constants and runtime directory; `agents/adapters/pi/` holds definitions, profiles,
+    role resources and selected skills. `agents/model.py` holds `InitialAgentChoices` and
+    `AgentShellLifecycleDeadlines`; `agents/ports.py` holds `ForemanTerminal`. `DeadlinePolicy`
+    stays in `deadlines.py` until slice 5; the duration check moved to `shared/validation.py`.
+  - `OWNER_MODULE` and the path constants follow the files; the launch test, the built wheel
+    (104 checksums) and the installed copy all resolve them. `dist/` was not rebuilt.
+  - Rules: `agents` joins `shared`, layers and independence. One more temporary ignore
+    (`foreman_profile → host_dependencies`). `agents` cannot join `contexts-not-legacy` until 4b:
+    its profiles still take `FactoryConfiguration`. New rule `agentshell-in-agents` with
+    `include_external_packages`; the harness takes external targets, and an indirect row for an
+    `allow_indirect_imports` rule must pass (the composition path).
+  - Before a 4a build is installed for DinoLand, stop its live owner (watcher and Foreman from
+    the baseline trial are still running from the earlier wheel).
+  - Finding: `tests/test_init.py:75` wrote the controller path as text, so 18 cases failed after
+    the move. It now uses `CONTROLLER`, and a new coverage test refuses any `src/.../*.py` path
+    written in a test. The `__file__` guard covers only `src/`, which is why it missed this.
+  - Checks: full suite 692 passed, 14 skipped; 9 rules kept (3 ignores); Mycelium 0.4.5: 101
+    boxes, 13 warnings, repeat export identical.
 - **Slice 3b: done** (2026-11-23). `workspace/ports.py` holds `LocalRepositories`, `Worktrees`,
   `WorktreeProblem` and `WorktreeReadError`; the Git adapters moved to
   `workspace/adapters/git/{repositories,worktrees}.py`. No legacy adapter imported them, so no

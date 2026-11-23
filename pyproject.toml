@@ -29,6 +29,7 @@ source-include = ["tests/*.py", "tests/fixtures/*.md", "tests/fixtures/*.ts"]
 
 [tool.importlinter]
 root_package = "forgetful_factory"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 id = "domain-independent"
@@ -68,6 +69,7 @@ source_modules = ["forgetful_factory.shared"]
 forbidden_modules = [
     "forgetful_factory.__main__",
     "forgetful_factory.adapters",
+    "forgetful_factory.agents",
     "forgetful_factory.application",
     "forgetful_factory.cli",
     "forgetful_factory.configuration",
@@ -84,6 +86,7 @@ id = "inside-each-area"
 name = "Inside a context, imports go down: adapters, services, ports, model"
 type = "layers"
 containers = [
+    "forgetful_factory.agents",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.ticketing",
@@ -111,6 +114,7 @@ name = "Adapter packages do not import each other"
 type = "independence"
 modules = [
     "forgetful_factory.adapters",
+    "forgetful_factory.agents.adapters",
     "forgetful_factory.forge.adapters",
     "forgetful_factory.planning.adapters",
     "forgetful_factory.ticketing.adapters",
@@ -118,8 +122,9 @@ modules = [
 ]
 # Until slice 4b splits ForemanProfile. The checker fails once an ignore no longer matches.
 ignore_imports = [
-    "forgetful_factory.adapters.filesystem.foreman_profile -> forgetful_factory.planning.adapters.forgetful.authentication",
-    "forgetful_factory.adapters.filesystem.foreman_profile -> forgetful_factory.planning.adapters.forgetful.connection",
+    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.adapters.host_dependencies",
+    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.planning.adapters.forgetful.authentication",
+    "forgetful_factory.agents.adapters.pi.foreman_profile -> forgetful_factory.planning.adapters.forgetful.connection",
 ]
 
 [[tool.importlinter.contracts]]
@@ -140,6 +145,30 @@ forbidden_modules = [
     "forgetful_factory.deadlines",
     "forgetful_factory.domain",
 ]
+
+[[tool.importlinter.contracts]]
+id = "agentshell-in-agents"
+name = "Only the agents adapter imports AgentShell"
+type = "forbidden"
+source_modules = [
+    "forgetful_factory.__main__",
+    "forgetful_factory.adapters",
+    "forgetful_factory.agents.model",
+    "forgetful_factory.agents.ports",
+    "forgetful_factory.application",
+    "forgetful_factory.cli",
+    "forgetful_factory.configuration",
+    "forgetful_factory.deadlines",
+    "forgetful_factory.domain",
+    "forgetful_factory.forge",
+    "forgetful_factory.planning",
+    "forgetful_factory.shared",
+    "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
+]
+forbidden_modules = ["agent_shell"]
+# Composition reaches AgentShell through the agents adapter; a direct import still fails.
+allow_indirect_imports = true
 
 [tool.ruff]
 line-length = 100

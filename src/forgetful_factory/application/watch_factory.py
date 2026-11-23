@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 
+from forgetful_factory.agents.ports import ForemanTerminal
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.ports.foreman_terminal import ForemanTerminal
 from forgetful_factory.application.scaffold_issue import ScaffoldIssue
 from forgetful_factory.application.watcher_problems import (
     IntakeProblem,

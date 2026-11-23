@@ -2,11 +2,11 @@ import shlex
 import sys
 from pathlib import Path
 
-from forgetful_factory.adapters.agentshell.terminal import AgentShellTerminal
 from forgetful_factory.adapters.filesystem.cleanup_receipts import FileCleanupReceipts
-from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
 from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
 from forgetful_factory.adapters.watch_status import ObservedTerminal
+from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
+from forgetful_factory.agents.adapters.pi.foreman_profile import ForemanProfile
 from forgetful_factory.application.cleanup_completed import CleanupCompleted
 from forgetful_factory.application.configuration import FactoryConfiguration
 from forgetful_factory.application.initialise_factory import InitialiseFactory

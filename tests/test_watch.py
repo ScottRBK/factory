@@ -18,7 +18,8 @@ from profile_support import install_commands, install_grill_skill
 from test_init import GH as INIT_GH
 from test_init import INIT_SETTINGS
 
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.deadlines import DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 

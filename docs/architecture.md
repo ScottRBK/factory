@@ -58,7 +58,8 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `forge/` | Repositories and change requests: the `Forge` port, with the GitHub adapter. |
 | `planning/` | Plans and tasks: the `PlanStore` port, Forgetful settings and adapters. |
 | `workspace/` | Local checkouts and worktrees: `LocalRepositories`, `Worktrees` and Git adapters. |
-| `adapters/` | Integrate GitHub, Forgetful CLI, Git/files, installers and AgentShell. |
+| `agents/` | The agent team: choices, `ForemanTerminal`, AgentShell and Pi adapters. |
+| `adapters/` | Legacy: factory files (config, lease, receipts), watch status, tool installs. |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, safe file writes. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
 | `deadlines.py` | Define immutable, finite-positive command and AgentShell deadline policies. |
@@ -325,8 +326,8 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
-  with their own ports and adapters. Slices 0–3b are done: `shared/`, `ticketing/`, `forge/`,
-  `planning/` and `workspace/`.
+  with their own ports and adapters. Slices 0–4a are done: `shared/`, `ticketing/`, `forge/`,
+  `planning/`, `workspace/` and `agents/` (moved only).
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -349,10 +350,10 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 911; init: line 690; project choice: line 475;
-  numbered choices: line 220; worker setup: line 635; completion/skill folders: line 650;
-  optional manual launch: line 715; standalone Foreman: line 385.
-  New-setup orchestration: line 829; memory choices: line 593; REST eligibility: line 628.
+- CLI entry: `cli/main.py`, line 913; init: line 692; project choice: line 477;
+  numbered choices: line 220; worker setup: line 637; completion/skill folders: line 652;
+  optional manual launch: line 717; standalone Foreman: line 385.
+  New-setup orchestration: line 831; memory choices: line 595; REST eligibility: line 630.
   DoD selection/confirmation and deployment draft: `cli/definition_of_done.py`, lines 9 and 57.
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 768 in main.
   Adapter wiring: `cli/bootstrap.py`, lines 29 and 52; ticketing registry and source checks:
@@ -360,7 +361,7 @@ Paths below are relative to `src/forgetful_factory/`:
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 14, 18, 79 and 98. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
-  Deadline policies: `deadlines.py`, lines 12 and 29.
+  Deadline policies: `deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
 - Workflows: `application/initialise_factory.py`, line 20;
   `application/watch_factory.py`, line 59; private run state: line 37;
   `application/scaffold_issue.py`, line 37.
@@ -385,28 +386,28 @@ Paths below are relative to `src/forgetful_factory/`:
   preserve stop intent if a finalizer discards KeyboardInterrupt; bounded close remains unguarded.
 - Authentication notice: `planning/adapters/forgetful/authentication.py`, line 10; public
   metadata only.
-- Profiles: `adapters/filesystem/foreman_profile.py`, line 53; selected guidance: line 313;
+- Profiles: `agents/adapters/pi/foreman_profile.py`, line 53; selected guidance: line 313;
   consent persistence: line 192; unselected-memory notice: line 341.
-  `adapters/filesystem/coordinator_profiles.py`, line 30; memory preferences: line 88;
-  `adapters/filesystem/worker_profiles.py`, line 16. Starter templates live under `resources/`.
+  `agents/adapters/pi/coordinator_profiles.py`, line 30; memory preferences: line 88;
+  `agents/adapters/pi/worker_profiles.py`, line 16. Starter templates live under `resources/`.
   Profile contract: `application/ports/foreman_profile.py`, line 9.
-  Bundle reads/update: `adapters/filesystem/role_resources.py`, lines 23, 48 and 80;
+  Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80;
   update command: `cli/resource_update.py`, line 22; stale-file check: line 115 in profile.
   Managed Pi readiness: `adapters/host_dependencies.py`, line 54.
-- Transient wizard choices: `application/initial_agent_choices.py`, line 9.
-  Root definition schema/paths: `adapters/filesystem/agent_definitions.py`, lines 73 and 86.
+- Transient wizard choices: `agents/model.py`, line 9.
+  Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
-  lines 18 and 46; selected guidance walk: `adapters/filesystem/selected_skills.py`, line 31.
+  lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
-- Model discovery: `adapters/agentshell/model_catalog.py`, line 10;
-  controller: `adapters/agentshell/controller.py`, line 298; live worker pinning: line 74;
+- Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10;
+  controller: `agents/adapters/agentshell/controller.py`, line 298; live worker pinning: line 74;
   child launch validation: line 147. Files and modules started by path or module name:
-  `adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
-- Setup lifecycle: `adapters/agentshell/owner.py`, line 104;
+  `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
+- Setup lifecycle: `agents/adapters/agentshell/owner.py`, line 104;
   synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;
-  client: `adapters/agentshell/owner_client.py`, line 111;
-  borrowed terminal: `adapters/agentshell/borrowed_terminal.py`, line 10;
-  private runtime directory: `adapters/filesystem/foreman_runtime.py`, line 10.
+  client: `agents/adapters/agentshell/owner_client.py`, line 111;
+  borrowed terminal: `agents/adapters/agentshell/borrowed_terminal.py`, line 10;
+  private runtime directory: `agents/adapters/agentshell/foreman_runtime.py`, line 10.
 - Lifecycle status: `cli/main.py`, lines 310, 341, 373 and 422;
   `adapters/watch_status.py`, lines 92, 129, 230 and 252. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
