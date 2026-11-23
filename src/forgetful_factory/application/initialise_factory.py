@@ -11,13 +11,14 @@ from forgetful_factory.application.ports.configuration_store import Configuratio
 from forgetful_factory.application.ports.foreman_profile import ForemanProfile
 from forgetful_factory.application.ports.local_repositories import LocalRepositories
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
-from forgetful_factory.domain.models import Label, RepositoryReference, WorkSource
-from forgetful_factory.domain.services.work_tracking import WorkTrackingService
+from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.model import Label, TicketSource
+from forgetful_factory.ticketing.ports import Ticketing
 
 
 class InitialiseFactory:
-    def __init__(self, tracking: WorkTrackingService, storage: ConfigurationStore,
+    def __init__(self, tracking: Ticketing, storage: ConfigurationStore,
                  repositories: LocalRepositories, sources: WorkSourceResolver,
                  profile: ForemanProfile):
         self.tracking = tracking
@@ -98,7 +99,7 @@ class InitialiseFactory:
         references = self.inspect(paths)
         return FactoryConfiguration(unique_labels(labels), agent_file, tuple(references.values()))
 
-    def _preflight(self, config: FactoryConfiguration) -> dict[WorkSource, tuple[Label, ...]]:
+    def _preflight(self, config: FactoryConfiguration) -> dict[TicketSource, tuple[Label, ...]]:
         validate(config)
         for repository in config.repository:
             remote = self.repositories.origin(Path(repository.local_dir))
@@ -123,7 +124,7 @@ class InitialiseFactory:
             self.tracking.check_access(source)
         return {source: self.tracking.list_labels(source) for source in sources}
 
-    def _ensure_label(self, source: WorkSource, name: str, existing: set[str]) -> str:
+    def _ensure_label(self, source: TicketSource, name: str, existing: set[str]) -> str:
         if name == '*':
             return f'Wildcard {source.reference}: watch all labels'
         if name.casefold() in existing:

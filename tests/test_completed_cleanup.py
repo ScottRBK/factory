@@ -146,7 +146,7 @@ class CompletedCleanupTests(CompletedCleanupFixture):
         self.save(message, record)
         plan = self.planning_call('get_plan', plan_id=message['plan_id'])
         context = json.loads(plan['context'])
-        context['issue']['number'] = 44
+        context['issue']['key'] = '44'
         self.planning_call('update_plan', plan_id=message['plan_id'], context=json.dumps(context))
         # Act
         process = self.start('--new-only')
@@ -446,7 +446,7 @@ class CompletedCleanupTests(CompletedCleanupFixture):
         self.assertNotIn('Traceback', errors)
         self.assertTrue(Path(original_path).exists())
         self.assertTrue(self.branch_exists(mapping, remote=True))
-        self.assertEqual([m['number'] for m in self._messages()], [3])
+        self.assertEqual([m['key'] for m in self._messages()], ['3'])
 
     def test_unreadable_new_merge_target_is_retryable_intake_not_an_uncertain_write(self):
         # Arrange: a detached main checkout has no unambiguous starting merge target.

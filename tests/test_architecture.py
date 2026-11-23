@@ -30,6 +30,7 @@ MODULES = (
     'adapters.provider',
     'cli.bootstrap',
     'configuration',
+    'ticketing.model',
     'boundary_probe.bridge',
 )
 
@@ -70,6 +71,7 @@ REJECTED = (
     ('shared-independent', 'shared', 'adapters.provider'),
     ('shared-independent', 'shared', 'cli.bootstrap'),
     ('shared-independent', 'shared', 'configuration'),
+    ('shared-independent', 'shared', 'ticketing.model'),
 )
 
 

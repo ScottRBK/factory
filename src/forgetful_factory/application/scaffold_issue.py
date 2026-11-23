@@ -1,4 +1,5 @@
 import json
+import re
 from dataclasses import asdict
 from pathlib import Path
 
@@ -22,8 +23,15 @@ from forgetful_factory.application.watcher_problems import (
     ScaffoldReadProblem,
     UncertainScaffold,
 )
-from forgetful_factory.domain.models import Issue, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.model import Ticket, TicketSource
+
+
+def worktree_name(ticket: Ticket) -> str:
+    """Name of the branch suffix and folder. Characters Git or paths refuse become '-'."""
+    key = re.sub(r'[^A-Za-z0-9._-]', '-', ticket.key)
+    return ticket.source.reference.replace('/', '-') + f'-{key}'
 
 
 class ScaffoldIssue:
@@ -42,7 +50,7 @@ class ScaffoldIssue:
     def check_repository(self, repository: RepositoryReference) -> None:
         self.records.check_repository(repository)
 
-    def prepare(self, issue: Issue) -> dict | None:
+    def prepare(self, issue: Ticket) -> dict | None:
         plan_id = self.lookup(issue)
         if plan_id is not None:
             result = self.recover(plan_id, issue.id, issue=issue)
@@ -61,22 +69,22 @@ class ScaffoldIssue:
             raise UncertainScaffold('scaffold_operation_uncertain', str(error),
                                     plan_id=plan['id']) from error
 
-    def _repository(self, source: WorkSource) -> RepositoryReference:
+    def _repository(self, source: TicketSource) -> RepositoryReference:
         return next(r for r in self.config.repository
                     if r.work_source.provider == source.provider
                     and r.work_source.reference.casefold() == source.reference.casefold())
 
-    def _initial_mappings(self, issue: Issue) -> list[dict]:
+    def _initial_mappings(self, issue: Ticket) -> list[dict]:
         if issue.epic:
             return []
         repository = self._repository(issue.source)
-        name = issue.source.reference.replace('/', '-') + f'-{issue.number}'
+        name = worktree_name(issue)
         return [{'repository': issue.source.reference, 'local_dir': repository.local_dir,
                  'branch': f'factory/{name}',
                  'path': str(Path(repository.local_dir) / '.factory/worktrees' / name),
                  'target_branch': self.worktrees.target_branch(repository.local_dir)}]
 
-    def preflight(self, issue: Issue) -> list[dict]:
+    def preflight(self, issue: Ticket) -> list[dict]:
         self.records.check_repository(self._repository(issue.source))
         try:
             mappings = self._initial_mappings(issue)
@@ -95,7 +103,7 @@ class ScaffoldIssue:
 
         return mappings
 
-    def _prepare_plan(self, issue: Issue, plan: dict,
+    def _prepare_plan(self, issue: Ticket, plan: dict,
                       initial_mappings: list[dict]) -> dict | None:
         context = self.records.context(plan)
         if not self.records.active(plan):
@@ -108,7 +116,7 @@ class ScaffoldIssue:
         return {'plan_id': plan['id'], 'ownership_task_id': task['id'], 'worktrees': mappings,
                 'epic': issue.epic, 'repositories': [asdict(r) for r in self.config.repository]}
 
-    def _setup_ownership(self, plan_id: int, issue: Issue,
+    def _setup_ownership(self, plan_id: int, issue: Ticket,
                          context: dict, initial_mappings: list[dict]
                          ) -> tuple[list[dict], list[dict]]:
         tasks = self.records.ownership(plan_id, issue.id)
@@ -164,7 +172,7 @@ class ScaffoldIssue:
                 'The create-intent is saved; no automatic retry is permitted.')
         return tasks
 
-    def lookup(self, issue: Issue) -> int | None:
+    def lookup(self, issue: Ticket) -> int | None:
         """Read-only identity lookup; no create has been attempted on this path."""
         try:
             plans = self.planning.plans(issue.id)
@@ -176,11 +184,11 @@ class ScaffoldIssue:
                                   plan_ids=tuple(sorted(plan['id'] for plan in plans)))
         return plans[0]['id'] if plans else None
 
-    def _create_plan(self, issue: Issue) -> dict:
+    def _create_plan(self, issue: Ticket) -> dict:
         snapshot = asdict(issue)
         snapshot['body'] = (
             f'This is a placeholder description for {issue.source.provider} '
-            f'issue #{issue.number}: {issue.title}. '
+            f'issue #{issue.key}: {issue.title}. '
             'The feature owner will update it after reviewing the issue/plan.')
         try:
             self.planning.create_plan(
@@ -216,12 +224,12 @@ class ScaffoldIssue:
         return plan
 
     def unfinished(self) -> list[dict]:
-        sources = {r.work_source.reference.casefold() for r in self.config.repository}
+        prefixes = {r.work_source.id_prefix for r in self.config.repository}
         return [p for p in self.planning.plans()
-                if self._is_unfinished_factory_plan(p, sources)]
+                if self._is_unfinished_factory_plan(p, prefixes)]
 
-    def recover(self, plan_id: int, external_ref: str, *, issue: Issue | None = None,
-                task_ids: tuple[int, ...] | None = None) -> tuple[Issue, dict] | None:
+    def recover(self, plan_id: int, external_ref: str, *, issue: Ticket | None = None,
+                task_ids: tuple[int, ...] | None = None) -> tuple[Ticket, dict] | None:
         """Read known identities only. Missing records never fall back to scaffolding."""
         try:
             plan = self._recovery_plan(plan_id, external_ref)
@@ -295,7 +303,7 @@ class ScaffoldIssue:
         raise ScaffoldProblem('setup_incomplete',
                               'Saved ownership is missing or ambiguous; reconcile it.')
 
-    def _is_unfinished_factory_plan(self, summary: dict, sources: set[str]) -> bool:
+    def _is_unfinished_factory_plan(self, summary: dict, prefixes: set[str]) -> bool:
         project_id = summary.get('project_id')
         status = summary.get('status')
         if (type(project_id) is int and project_id != self.config.forgetful.project_id
@@ -305,7 +313,7 @@ class ScaffoldIssue:
         reference = summary.get('external_ref') or ''
         if not isinstance(reference, str):
             raise FactoryError('Factory plan inventory has invalid references; reconcile it.')
-        return any(reference.startswith(f'github:{source}#') for source in sources)
+        return any(reference.startswith(prefix) for prefix in prefixes)
 
     def _ensure_worktrees(self, mappings: list[dict], *, recorded: bool) -> None:
         seen = set()

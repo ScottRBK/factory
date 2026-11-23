@@ -1,7 +1,6 @@
 """Completed-plan discovery and disposal, independent of issue intake and DoD prose."""
 import json
 import os
-import re
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +11,7 @@ from forgetful_factory.application.ports.planning import PlanningReadError
 from forgetful_factory.application.ports.worktrees import Worktrees
 from forgetful_factory.application.watcher_problems import ScaffoldProblem, WatcherAlerts
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.ports import Ticketing
 
 _TARGET_KEYS = ('target', 'common-target', 'remote-target')
 _RECEIPTS_ALERT_SUBJECT = 'cleanup:receipts'
@@ -35,8 +35,10 @@ def _claim_path(value: str) -> str:
 
 
 class CleanupCompleted:
-    def __init__(self, records: FactoryRecords, worktrees: Worktrees, receipts: CleanupReceipts):
+    def __init__(self, records: FactoryRecords, worktrees: Worktrees, receipts: CleanupReceipts,
+                 ticketing: Ticketing):
         self.records = records
+        self.ticketing = ticketing
         self.worktrees = worktrees
         self.owners: dict[int, int] = {}
         self.receipts = receipts
@@ -190,9 +192,12 @@ class CleanupCompleted:
                 or plan.get('status') != 'completed'):
             return False
         reference = plan.get('external_ref')
-        return isinstance(reference, str) and any(
-            re.fullmatch(r'github:' + re.escape(r.work_source.reference.casefold()) + r'#[1-9]\d*',
-                         reference) for r in self.records.config.repository)
+        if not isinstance(reference, str):
+            return False
+        prefixes = {r.work_source.id_prefix for r in self.records.config.repository}
+        return any(reference.startswith(prefix)
+                   and self.ticketing.is_key(reference.removeprefix(prefix))
+                   for prefix in prefixes)
 
     def _repository_identities(self, alerts: WatcherAlerts) -> dict[str, str] | None:
         identities = {}

@@ -1,17 +1,21 @@
+"""GitHub Issues as a ticketing provider, through the GitHub CLI."""
 import hashlib
 import json
 import re
 
-from forgetful_factory.domain.models import Issue, Label, WorkSource
 from forgetful_factory.shared.command import run_command
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.model import Label, Ticket, TicketSource
+
+_SOURCE = re.compile(r'[A-Za-z0-9-]+/[A-Za-z0-9_.-]+')
+_KEY = re.compile(r'[1-9][0-9]*')
 
 
-class GitHubWorkTracking:
+class GitHubTicketing:
     def __init__(self, command_timeout: float = 30):
         self.command_timeout = command_timeout
 
-    def check_cli(self) -> None:
+    def check_ready(self) -> None:
         """Check local pagination support without authentication or an API request."""
         try:
             help_text = run_command(['gh', 'api', '--help'], timeout=self.command_timeout)
@@ -21,17 +25,16 @@ class GitHubWorkTracking:
             raise FactoryError('GitHub CLI must support gh api --paginate --slurp. '
                                'Install or upgrade gh on PATH, then restart watch.')
 
-    def source_from_remote(self, remote: str) -> WorkSource:
-        match = re.fullmatch(
-            r'(?:git@github\.com:|https://github\.com/)([A-Za-z0-9-]+/[A-Za-z0-9_.-]+)',
-            remote,
-        )
-        reference = match.group(1).removesuffix('.git') if match else ''
-        if not reference or reference.split('/')[-1] in ('', '.', '..'):
-            raise FactoryError(f'Unsupported origin {remote!r}; use a github.com SSH or HTTPS URL.')
-        return WorkSource('github', reference.casefold())
+    def validate_source(self, source: TicketSource) -> None:
+        reference = source.reference
+        if (_SOURCE.fullmatch(reference) is None or reference.endswith('.git')
+                or reference.split('/')[-1] in ('.', '..')):
+            raise FactoryError(f'Invalid GitHub work source {reference!r}.')
 
-    def _api(self, source: WorkSource, suffix: str = '', *arguments: str) -> object:
+    def is_key(self, text: str) -> bool:
+        return _KEY.fullmatch(text) is not None
+
+    def _api(self, source: TicketSource, suffix: str = '', *arguments: str) -> object:
         try:
             output = run_command(['gh', 'api', f'repos/{source.reference}{suffix}',
                                   '--hostname', 'github.com', *arguments],
@@ -42,12 +45,12 @@ class GitHubWorkTracking:
                 f'GitHub {source.reference}{suffix}: {error}. Check gh auth status and access.'
             ) from error
 
-    def check_access(self, source: WorkSource) -> None:
+    def check_access(self, source: TicketSource) -> None:
         result = self._api(source)
         if not isinstance(result, dict) or not isinstance(result.get('full_name'), str):
             raise FactoryError(f'GitHub {source.reference}: malformed repository JSON response.')
 
-    def list_labels(self, source: WorkSource) -> tuple[Label, ...]:
+    def list_labels(self, source: TicketSource) -> tuple[Label, ...]:
         pages = self._api(source, '/labels?per_page=100', '--paginate', '--slurp')
         if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
             raise FactoryError(f'GitHub {source.reference}: malformed label pages JSON.')
@@ -59,7 +62,7 @@ class GitHubWorkTracking:
             raise FactoryError(f'GitHub {source.reference}: malformed label JSON response.')
         return tuple(Label(item['name']) for item in result)
 
-    def create_label(self, source: WorkSource, label: Label) -> None:
+    def create_label(self, source: TicketSource, label: Label) -> None:
         result = self._api(source, '/labels', '--method', 'POST',
                   '-f', f'name={label.name}', '-f', 'color=ededed',
                   '-f', 'description=Factory work')
@@ -70,7 +73,7 @@ class GitHubWorkTracking:
         if result['name'].casefold() != label.name.casefold():
             raise FactoryError(f'GitHub {source.reference}: unexpected created label name.')
 
-    def list_issues(self, source: WorkSource, labels: tuple[str, ...]) -> tuple[Issue, ...]:
+    def list_open(self, source: TicketSource, labels: tuple[str, ...]) -> tuple[Ticket, ...]:
         pages = self._api(source, '/issues?state=open&per_page=100', '--paginate', '--slurp')
         if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
             raise FactoryError(f'GitHub {source.reference}: malformed issue pages JSON.')
@@ -87,9 +90,9 @@ class GitHubWorkTracking:
                                             for label in item['labels'])
             if item['state'] == 'open' and matches:
                 eligible.append(item)
-        return tuple(self._issue(source, item) for item in eligible)
+        return tuple(self._ticket(source, item) for item in eligible)
 
-    def _issue(self, source: WorkSource, item: dict) -> Issue:
+    def _ticket(self, source: TicketSource, item: dict) -> Ticket:
         fields = {
             'title': item['title'], 'body': item.get('body') or '',
             'state': item['state'], 'state_reason': item.get('state_reason'),
@@ -101,11 +104,11 @@ class GitHubWorkTracking:
         }
         data = json.dumps(fields, sort_keys=True, ensure_ascii=True, separators=(',', ':'))
         revision = hashlib.sha256(data.encode()).hexdigest()
-        return Issue(source, item['number'], item['title'], item['html_url'],
+        return Ticket(source, str(item['number']), item['title'], item['html_url'],
                      item.get('body') or '', revision,
                      any(label['name'].casefold() == 'epic' for label in item['labels']))
 
-    def _comments(self, source: WorkSource, number: int) -> list[tuple[int, str, str]]:
+    def _comments(self, source: TicketSource, number: int) -> list[tuple[int, str, str]]:
         pages = self._api(source, f'/issues/{number}/comments?per_page=100',
                           '--paginate', '--slurp')
         if not isinstance(pages, list) or not pages or any(
@@ -138,7 +141,7 @@ class GitHubWorkTracking:
         return {key: item.get(key) for key in ('number', 'title', 'description', 'due_on', 'state')}
 
     @staticmethod
-    def _validate_issue(source: WorkSource, item: dict) -> None:
+    def _validate_issue(source: TicketSource, item: dict) -> None:
         valid = (type(item.get('number')) is int and item['number'] > 0
                  and isinstance(item.get('title'), str)
                  and isinstance(item.get('html_url'), str)

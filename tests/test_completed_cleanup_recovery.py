@@ -255,7 +255,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.save(message, record)
         plan = self.planning_call('get_plan', plan_id=message['plan_id'])
         context = json.loads(plan['context'])
-        context['issue']['number'] = 2
+        context['issue']['key'] = '2'
         broken = self.planning_call('create_plan', project_id=12, status='completed',
                                     external_ref='github:team/app#2', context=json.dumps(context))
         self.script({'team/app': [[[self.issue(3)]]]})
@@ -267,7 +267,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.stop(process)
         # Assert
         self.assert_disposed(mapping)
-        self.assertEqual([m['number'] for m in self._messages()], [3])
+        self.assertEqual([m['key'] for m in self._messages()], ['3'])
         self.assertEqual(self.planning_call('get_plan', plan_id=broken['id'])['status'],
                          'completed')
         self.assertEqual(self.planning_call('query_tasks', plan_id=broken['id'])['tasks'], [])
@@ -388,7 +388,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.save(message, record)
         plan = self.planning_call('get_plan', plan_id=message['plan_id'])
         context = json.loads(plan['context'])
-        context['issue']['number'] = 2
+        context['issue']['key'] = '2'
         broken = self.planning_call('create_plan', project_id=12, status='completed',
                                     external_ref='github:team/app#2', context=json.dumps(context))
         task = self.planning_call('create_task', plan_id=broken['id'], title='Feature ownership',
@@ -494,7 +494,7 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
     def competing_plan(self, record, mapping, *, source='team/app'):
         plan = self.planning_call('get_plan', plan_id=1)
         context = json.loads(plan['context'])
-        context['issue']['number'] = 2
+        context['issue']['key'] = '2'
         context['issue']['source']['reference'] = source
         other = self.planning_call('create_plan', project_id=12, status='archived',
                                    external_ref=f'github:{source}#2', context=json.dumps(context))

@@ -198,7 +198,7 @@ class CleanupBatchTests(CleanupPerformanceFixture):
             refs = [ref for turn, ref in attempts if turn == poll]
             self.assertLessEqual(len(refs), 3, attempts)
             self.assertEqual(len(refs), len(set(refs)), attempts)
-        self.assertEqual([m['number'] for m in self._messages()], [9])
+        self.assertEqual([m['key'] for m in self._messages()], ['9'])
         self.assertTrue(all(self.branch_exists(m, remote=True) for m in mappings))
 
     def log_deletions(self):

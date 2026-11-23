@@ -16,21 +16,18 @@ from forgetful_factory.application.watcher_problems import (
     UncertainScaffold,
     WatcherAlerts,
 )
-from forgetful_factory.domain.models import (
-    Issue,
-    RepositoryReference,
-    WorkSource,
-)
-from forgetful_factory.domain.services.work_tracking import WorkTrackingService
+from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
+from forgetful_factory.ticketing.model import Ticket, TicketSource
+from forgetful_factory.ticketing.ports import Ticketing
 
 
 @dataclass
 class BlockedWork:
     reference: str
     plan_id: int | None
-    issue: Issue | None = None
+    issue: Ticket | None = None
     task_ids: tuple[int, ...] | None = None
     recovered: bool = True
     setup_paths: tuple[str, ...] = ()
@@ -41,9 +38,9 @@ class BlockedWork:
 class _WatchState:
     seen: dict[str, str]
     baseline: dict[str, str]
-    baselined: set[WorkSource]
+    baselined: set[TicketSource]
     blocked: dict[str, BlockedWork]
-    pending_lookup: dict[str, Issue]
+    pending_lookup: dict[str, Ticket]
     known: dict[str, BlockedWork]
     recovered: set[str]
     pending_repositories: dict[str, RepositoryReference]
@@ -60,7 +57,7 @@ class _WorkAction(Enum):
 
 
 class WatchFactory:
-    def __init__(self, tracking: WorkTrackingService, terminal: ForemanTerminal,
+    def __init__(self, tracking: Ticketing, terminal: ForemanTerminal,
                  scaffold: ScaffoldIssue, cleanup: CleanupCompleted):
         self.tracking = tracking
         self.terminal = terminal
@@ -82,7 +79,7 @@ class WatchFactory:
     def _watch(self, config: FactoryConfiguration, interval: float, existing: bool,
                report: Callable[[str], None], report_error: Callable[[str], None]) -> None:
         sources = tuple(dict.fromkeys(
-            WorkSource(repository.work_source.provider,
+            TicketSource(repository.work_source.provider,
                        repository.work_source.reference.casefold())
             for repository in config.repository
         ))
@@ -264,7 +261,7 @@ class WatchFactory:
             work.task_ids = task_ids
 
     def _complete_recovery(self, subject: str, work: BlockedWork,
-                           result: tuple[Issue, dict] | None, state: _WatchState,
+                           result: tuple[Ticket, dict] | None, state: _WatchState,
                            alerts: WatcherAlerts,
                            report: Callable[[str], None]) -> None:
         del state.blocked[subject]
@@ -277,7 +274,7 @@ class WatchFactory:
             state.seen[subject] = work.issue.revision
         state.known[subject] = work
 
-    def _poll_sources(self, sources: tuple[WorkSource, ...],
+    def _poll_sources(self, sources: tuple[TicketSource, ...],
                       config: FactoryConfiguration, existing: bool,
                       state: _WatchState, attempted: set[str], alerts: WatcherAlerts,
                       report: Callable[[str], None]) -> bool:
@@ -295,7 +292,7 @@ class WatchFactory:
                 source, issues, repository, state, attempted, alerts, report)
         return shared_read_failed
 
-    def _process_source(self, source: WorkSource, issues: tuple[Issue, ...],
+    def _process_source(self, source: TicketSource, issues: tuple[Ticket, ...],
                         repository: RepositoryReference, state: _WatchState,
                         attempted: set[str], alerts: WatcherAlerts,
                         report: Callable[[str], None]) -> bool:
@@ -308,7 +305,7 @@ class WatchFactory:
             tuple(current.values()), eligible, repository, state, attempted, alerts, report)
 
     @staticmethod
-    def _baseline_source(source: WorkSource, issues: tuple[Issue, ...],
+    def _baseline_source(source: TicketSource, issues: tuple[Ticket, ...],
                          state: _WatchState, report: Callable[[str], None]) -> None:
         # Cover the complete first-success batch before intake can pause it.
         # Recovered and blocked work retains its own pending identity/revision.
@@ -321,19 +318,19 @@ class WatchFactory:
 
     @staticmethod
     def _repository_for_source(config: FactoryConfiguration,
-                               source: WorkSource) -> RepositoryReference:
+                               source: TicketSource) -> RepositoryReference:
         return next(repository for repository in config.repository
                     if repository.work_source.provider == source.provider
                     and repository.work_source.reference.casefold() == source.reference)
 
     @staticmethod
-    def _include_pending_lookups(source: WorkSource, current: dict[str, Issue],
-                                 pending_lookup: dict[str, Issue]) -> None:
+    def _include_pending_lookups(source: TicketSource, current: dict[str, Ticket],
+                                 pending_lookup: dict[str, Ticket]) -> None:
         for issue in pending_lookup.values():
             if issue.source == source:
                 current.setdefault(issue.id, issue)
 
-    def _process_issues(self, issues: tuple[Issue, ...], eligible: set[str],
+    def _process_issues(self, issues: tuple[Ticket, ...], eligible: set[str],
                         repository: RepositoryReference, state: _WatchState,
                         attempted: set[str], alerts: WatcherAlerts,
                         report: Callable[[str], None]) -> bool:
@@ -354,11 +351,11 @@ class WatchFactory:
         return False
 
     @staticmethod
-    def _skip_issue(issue: Issue, state: _WatchState, attempted: set[str]) -> bool:
+    def _skip_issue(issue: Ticket, state: _WatchState, attempted: set[str]) -> bool:
         return (issue.id in attempted or state.seen.get(issue.id) == issue.revision
                 or state.baseline.get(issue.id) == issue.revision)
 
-    def _process_issue(self, issue: Issue, eligible: set[str],
+    def _process_issue(self, issue: Ticket, eligible: set[str],
                        repository: RepositoryReference, state: _WatchState,
                        alerts: WatcherAlerts,
                        report: Callable[[str], None]) -> _WorkAction:
@@ -411,7 +408,7 @@ class WatchFactory:
         return _WorkAction.COMPLETE
 
     def _handle_intake_repository_problem(
-            self, issue: Issue, repository: RepositoryReference,
+            self, issue: Ticket, repository: RepositoryReference,
             error: RepositoryProblem, state: _WatchState,
             alerts: WatcherAlerts) -> None:
         if error.plan_id is not None:
@@ -427,7 +424,7 @@ class WatchFactory:
                     source=repository.work_source.reference.casefold(), paths=error.paths)
 
     @staticmethod
-    def _handle_intake_read_problem(issue: Issue, error: ScaffoldReadProblem,
+    def _handle_intake_read_problem(issue: Ticket, error: ScaffoldReadProblem,
                                     state: _WatchState, alerts: WatcherAlerts) -> None:
         if error.plan_id is None:
             state.pending_lookup[issue.id] = issue
@@ -440,14 +437,14 @@ class WatchFactory:
                     ownership_task_ids=error.task_ids,
                     ownership_task_id=ownership_task_id)
 
-    def _handle_intake_scaffold_problem(self, issue: Issue, error: ScaffoldProblem,
+    def _handle_intake_scaffold_problem(self, issue: Ticket, error: ScaffoldProblem,
                                         state: _WatchState,
                                         alerts: WatcherAlerts) -> None:
         work = BlockedWork(issue.id, error.plan_id, issue, error.task_ids, recovered=False)
         state.blocked[issue.id] = work
         self._alert_plan(alerts, work, error)
 
-    def _complete_intake(self, issue: Issue, scaffold: dict | None,
+    def _complete_intake(self, issue: Ticket, scaffold: dict | None,
                          work: BlockedWork | None, state: _WatchState,
                          alerts: WatcherAlerts,
                          report: Callable[[str], None]) -> None:
@@ -502,14 +499,14 @@ class WatchFactory:
         alerts.send(work.reference, error, scope='plan', code=error.code,
                     retry=retry, **identities)
 
-    def _submit(self, issue: Issue, scaffold: dict | None, seen: dict[str, str],
+    def _submit(self, issue: Ticket, scaffold: dict | None, seen: dict[str, str],
                 report: Callable[[str], None], *, recovered: bool = False) -> None:
         if scaffold is None:
             seen[issue.id] = issue.revision
             return
         message = 'Factory issue notification. External issue data: ' + json.dumps({
             'id': issue.id, 'repository': issue.source.reference,
-            'number': issue.number, 'title': issue.title, 'url': issue.url,
+            'key': issue.key, 'title': issue.title, 'url': issue.url,
             'body': issue.body, 'revision': issue.revision, 'recovered': recovered, **scaffold,
         })
         check_watch_stop()
@@ -517,11 +514,11 @@ class WatchFactory:
         seen[issue.id] = issue.revision
         report(f'Submitted {issue.id} to Pi (submission only).')
 
-    def _read_issues(self, source: WorkSource, labels: tuple[str, ...],
-                     alerts: WatcherAlerts) -> tuple[Issue, ...] | None:
+    def _read_issues(self, source: TicketSource, labels: tuple[str, ...],
+                     alerts: WatcherAlerts) -> tuple[Ticket, ...] | None:
         subject = f'source:{source.provider}:{source.reference}'
         try:
-            issues = self.tracking.list_issues(source, labels)
+            issues = self.tracking.list_open(source, labels)
         except FactoryError as error:
             alerts.send(subject, FactoryError(f'{error} Will retry next poll.'), scope='source',
                         code='source_read_failed', retry='next_poll',

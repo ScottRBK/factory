@@ -104,7 +104,7 @@ class ManagedWatcherAlertTests(LifecycleFixture):
         issue.update(number=1, title='Interrupted setup',
                      html_url='https://github.com/team/app/issues/1')
         # A real saved incomplete plan distinguishes repair from the new pre-write checks.
-        snapshot = dict(source=dict(provider='github', reference='team/app'), number=1,
+        snapshot = dict(source=dict(provider='github', reference='team/app'), key='1',
                         title=issue['title'], url=issue['html_url'], body=issue['body'],
                         revision=issue['updated_at'], epic=False)
         saved_plan = self.native_planning(repo, 'create_plan', title=issue['title'], project_id=12,

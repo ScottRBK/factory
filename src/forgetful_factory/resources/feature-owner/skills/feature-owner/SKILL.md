@@ -94,9 +94,10 @@ the selected definition/resources and native parent launch record for any suppor
 
 ## Plan and working copies
 
-Use the existing plan; `external_ref` is the lowercase canonical `github:owner/repo#number`. The
-plan source_url is the issue URL. Read all plan tasks through query_tasks and then get_task before
-adding work. Preserve the factory fields in the plan's JSON context and ownership task's JSON
+Use the existing plan; `external_ref` is the canonical `provider:source#key` with a lowercase
+source, such as `github:owner/repo#42`. The plan source_url is the issue URL. Read all plan tasks
+through query_tasks and then get_task before adding work. Preserve the factory fields in the
+plan's JSON context and ownership task's JSON
 description. Preserve workspace, issue snapshot, ownership_create_started, kind, external_ref
 and worktrees. Keep plan context valid JSON within Forgetful's 2000-character default limit,
 including JSON escaping. Keep any added notes and links brief; never copy the full issue into

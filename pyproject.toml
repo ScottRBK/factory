@@ -73,6 +73,7 @@ forbidden_modules = [
     "forgetful_factory.configuration",
     "forgetful_factory.deadlines",
     "forgetful_factory.domain",
+    "forgetful_factory.ticketing",
 ]
 
 [tool.ruff]

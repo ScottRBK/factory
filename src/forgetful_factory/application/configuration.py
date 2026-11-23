@@ -4,8 +4,9 @@ from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from forgetful_factory.domain.models import RepositoryReference, WorkSource
+from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.model import TicketSource
 
 
 @dataclass(frozen=True)
@@ -147,7 +148,7 @@ def from_mapping(data: dict) -> FactoryConfiguration:
             raise FactoryError(f'repository[{index}] must be a repository table.')
         references.append(RepositoryReference(
             item.get('local_dir'), item.get('remote'),
-            WorkSource(item.get('provider'), item.get('source')),
+            TicketSource(item.get('provider'), item.get('source')),
         ))
     configuration = FactoryConfiguration(
         tuple(labels), data.get('foreman_agent_file'), tuple(references),

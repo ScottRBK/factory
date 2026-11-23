@@ -7,8 +7,9 @@ from forgetful_factory.application.ports.local_repositories import LocalReposito
 from forgetful_factory.application.ports.planning import Planning
 from forgetful_factory.application.ports.work_source_resolver import WorkSourceResolver
 from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
-from forgetful_factory.domain.models import Issue, RepositoryReference, WorkSource
+from forgetful_factory.domain.models import RepositoryReference
 from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.ticketing.model import Ticket, TicketSource
 
 
 class FactoryRecords:
@@ -40,18 +41,18 @@ class FactoryRecords:
             raise RepositoryProblem('repository_source_mismatch', str(error),
                                     paths=(repository.local_dir,)) from error
         expected = repository.work_source
-        if source != WorkSource(expected.provider, expected.reference.casefold()):
+        if source != TicketSource(expected.provider, expected.reference.casefold()):
             raise RepositoryProblem('repository_source_mismatch',
                                     f'Origin/source mapping differs for {repository.local_dir}.',
                                     paths=(repository.local_dir,))
 
-    def snapshot(self, context: dict, external_ref: str) -> Issue:
+    def snapshot(self, context: dict, external_ref: str) -> Ticket:
         try:
             snapshot = dict(context['issue'])
-            source = WorkSource(**snapshot.pop('source'))
-            issue = Issue(source, **snapshot)
+            source = TicketSource(**snapshot.pop('source'))
+            issue = Ticket(source, **snapshot)
             if (not isinstance(source.provider, str) or not isinstance(source.reference, str)
-                    or type(issue.number) is not int or issue.number < 1
+                    or not isinstance(issue.key, str) or not issue.key
                     or any(not isinstance(field, str) for field in (
                         issue.title, issue.url, issue.body, issue.revision))
                     or type(issue.epic) is not bool or issue.id != external_ref):

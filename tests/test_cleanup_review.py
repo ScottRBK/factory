@@ -47,7 +47,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         self.stop(process)
         # Assert
         self.assert_preserved(mapping)
-        self.assertEqual(self._messages()[0]['number'], 3)
+        self.assertEqual(self._messages()[0]['key'], '3')
         self.assertTrue(any(a['scope'] == 'cleanup' for a in self.alerts()))
 
     def test_unreadable_competing_plan_withholds_cleanup_and_recovers(self):
@@ -328,7 +328,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         self.finish_mapping(other_mapping)
         plan = self.planning_call('get_plan', plan_id=message['plan_id'])
         context = json.loads(plan['context'])
-        context['issue']['number'] = 2
+        context['issue']['key'] = '2'
         self.rival(record, other_mapping, project_id=12, status='completed',
                    external_ref='github:team/app#2', context=json.dumps(context))
         command = self.bin / 'forgetful'

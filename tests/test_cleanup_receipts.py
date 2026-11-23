@@ -75,7 +75,7 @@ class CleanupReceiptTests(CleanupReceiptFixture):
         # Assert
         self.assertTrue(Path(mapping['path']).exists())
         self.assertTrue(self.branch_exists(mapping, remote=True))
-        self.assertEqual(self._messages()[0]['number'], 3)
+        self.assertEqual(self._messages()[0]['key'], '3')
         self.assertTrue(any(a['code'] == 'cleanup_receipt_failed' for a in self.alerts()))
         self.assertEqual(receipt.read_text(), '{broken authority')
 

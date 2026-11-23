@@ -36,7 +36,7 @@ class ForemanSetupRepairTests(PlanningWatchFixture):
                                       external_ref=plan['external_ref'], worktrees=mappings)))
 
     def native_plan(self, number=1):
-        issue = dict(source=dict(provider='github', reference='team/app'), number=number,
+        issue = dict(source=dict(provider='github', reference='team/app'), key=str(number),
                      title='Interrupted setup', url=f'https://github.com/team/app/issues/{number}',
                      body='Requirements', revision='unchanged', epic=False)
         return self.planning_call('create_plan', title=issue['title'], project_id=12,
