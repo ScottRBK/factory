@@ -1,0 +1,22 @@
+{
+  "title": "Add a 🦕 habitat",
+  "project_id": 12,
+  "external_ref": "github:team/app#1",
+  "source_url": "https://github.com/team/app/issues/1",
+  "context": {
+    "workspace": "<workspace>",
+    "issue": {
+      "source": {
+        "provider": "github",
+        "reference": "team/app"
+      },
+      "number": 1,
+      "title": "Add a 🦕 habitat",
+      "url": "https://github.com/team/app/issues/1",
+      "body": "This is a placeholder description for github issue #1: Add a 🦕 habitat. The feature owner will update it after reviewing the issue/plan.",
+      "revision": "b7dbc6e55b8a3b652444555987b679c15353234bd4c64bbeffe8cf396b7b25fd",
+      "epic": false
+    },
+    "ownership_create_started": true
+  }
+}

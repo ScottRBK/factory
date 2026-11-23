@@ -63,6 +63,13 @@ Coverage checks in the same file guard what the checker cannot see by itself:
   path (`controller.py`, `model_catalog.py`) and the owner module name are constants there, and
   a test checks that each resolves in the source tree.
 
+`tests/test_saved_data.py` pins the bytes Factory stores or sends to agents: plan record and
+context, ownership task, issue notification, watcher alert, cleanup receipts, init's
+`factory.toml` and cleanup-marker decisions. It runs the public `watch` CLI with fake `gh` and
+`forgetful` programs and compares against `tests/fixtures/saved_data/`. Only host paths and the
+default branch name are normalized. Each stored JSON value must also re-serialize to its exact
+bytes. A deliberate change is recorded with `UPDATE_SAVED_DATA=1` and reviewed as a fixture diff.
+
 CI installs through `uv sync --locked` and runs Ruff, the real-source architecture check,
 and the full test suite through `uv run --locked` on Python 3.12/3.13. CI also runs
 `uv build` followed by `uv run --locked python tests/check_package.py dist/*.whl` to verify

@@ -1,0 +1,35 @@
+{
+  "prefix": "Factory issue notification. External issue data: ",
+  "data": {
+    "id": "github:team/app#1",
+    "repository": "team/app",
+    "number": 1,
+    "title": "Add a 🦕 habitat",
+    "url": "https://github.com/team/app/issues/1",
+    "body": "Requirements",
+    "revision": "b7dbc6e55b8a3b652444555987b679c15353234bd4c64bbeffe8cf396b7b25fd",
+    "recovered": false,
+    "plan_id": 1,
+    "ownership_task_id": 1,
+    "worktrees": [
+      {
+        "repository": "team/app",
+        "local_dir": "<workspace>",
+        "branch": "factory/team-app-1",
+        "path": "<workspace>/.factory/worktrees/team-app-1",
+        "target_branch": "<target-branch>"
+      }
+    ],
+    "epic": false,
+    "repositories": [
+      {
+        "local_dir": "<workspace>",
+        "remote": "git@github.com:team/app.git",
+        "work_source": {
+          "provider": "github",
+          "reference": "team/app"
+        }
+      }
+    ]
+  }
+}

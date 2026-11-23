@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "finished": [
+    {
+      "workspace": "<workspace>",
+      "backend": "server:https://memory.example/custom-endpoint",
+      "plan_id": 1,
+      "external_ref": "github:team/app#1",
+      "repository": "team/app",
+      "local_dir": "<workspace>",
+      "branch": "factory/team-app-1",
+      "path": "<workspace>/.factory/worktrees/team-app-1"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "prefix": "Factory watcher alert. External problem data: ",
+  "data": {
+    "scope": "plan",
+    "code": "worktree_mismatch",
+    "retry": "read_only",
+    "summary": "The recorded worktree does not match its Git registration or identity.",
+    "recovery": "Discuss the problem with the user. Inspect the plan, ownership records and current Git/PR evidence, including intended post-merge cleanup. Do not reset, recreate, prune or discard work. Read-only checks continue. This alert does not authorize dispatch or replacement.",
+    "issue_id": "github:team/app#1",
+    "plan_id": 1,
+    "paths": [
+      "<workspace>/.factory/worktrees/team-app-1"
+    ],
+    "ownership_task_ids": [
+      1
+    ],
+    "ownership_task_id": 1
+  }
+}
