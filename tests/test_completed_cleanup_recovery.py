@@ -238,7 +238,8 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         git.chmod(0o755)
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: self.polls() >= 2)
+        # Each Git call starts the Python wrapper, which is slow on busy parallel runners.
+        self.wait_until(process, lambda: self.polls() >= 2, timeout=15)
         _, output, _ = self.stop(process)
         # Assert
         self.assertFalse(Path(mapping['path']).exists())
@@ -470,7 +471,9 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         git.chmod(0o755)
         # Act
         process = self.start('--new-only')
-        self.wait_until(process, lambda: bool(self.alerts()) and self.polls() >= 2)
+        # Each Git call starts the Python wrapper, which is slow on busy parallel runners.
+        self.wait_until(process, lambda: bool(self.alerts()) and self.polls() >= 2,
+                        timeout=15)
         _, output, errors = self.stop(process)
         # Assert: actual absence, not the failed acknowledgement or a marker, proves completion.
         self.assert_disposed(mapping)

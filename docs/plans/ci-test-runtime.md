@@ -1,8 +1,8 @@
 # CI test runtime
 
-Status: the [parallel runner](#parallel-runner) is implemented and validated locally on branch
-`test/parallel-runner`. Hosted CI for its commit is not yet verified. The job limit remains 15
-minutes. Earlier sections are historical.
+Status: the [parallel runner](#parallel-runner) is on `main` (`9336859`). Hosted CI then failed
+one wait budget in every run; [fix 4](#fixes-found-during-validation) addresses it. The job limit
+remains 15 minutes. Earlier sections are historical.
 
 Back to [current status](../plan.md#current-status) and
 [development checks](../adrs/development-checks.md).
@@ -58,6 +58,16 @@ Agreed with an independent Fable 5.2 review, then approved by Scott:
 Both races existed before this change. Serial timing hid them; each test synchronized on an
 earlier signal than the state it asserted. The ADR now states that rule.
 
+4. **Git wrapper wait budget** (`tests/test_completed_cleanup_recovery.py:241-242` and
+   `:474-476`). Two tests replace `git` with a Python wrapper, so each Git call starts an
+   interpreter. Hosted CI failed this test in 6 of 7 jobs:
+   `test_lost_remote_delete_acknowledgement_rechecks_absence_without_pushing_twice`
+   ([45071435522][r1], [45073295535][r2], [45074586886][r3], [45085666208][r4]). The second
+   poll had not started within the 5 s default wait. Alone and locally, that wait took 1.9 s;
+   the other wrapper test's wait took 1.6 s. Red: four workers on one CPU failed both tests.
+   Green: both waits allow 15 s, as `tests/test_cleanup_performance.py:187` does. The same check passed 3 of 3 runs; timed waits
+   under that load were 4.3 s and 3.7 s. Local rounds missed it because local CPUs are faster.
+
 ### Validation
 
 Local full-suite runs, one at a time on a 24-core machine. "4 CPUs" means `taskset -c 0-3`,
@@ -98,6 +108,15 @@ Other checks:
 
 - After commit/push approval: hosted CI for the exact commit, both Pythons, three runs. Record
   hosted test seconds here for each later slice.
+- Torn JSON-line reads: tests read a log while a fake command is still writing a line
+  (`tests/test_watch.py:321`, `tests/test_watcher_alerts.py:765`). Seen once, Python 3.13 in
+  [45074586886][r3]: `test_saved_plan_malformed_detail_requires_approved_native_completion` and
+  `test_full_plan_boolean_identity_cannot_prove_recovery`. Not yet reproduced or fixed.
+
+[r1]: https://github.com/ScottRBK/factory/actions/runs/45071435522
+[r2]: https://github.com/ScottRBK/factory/actions/runs/45073295535
+[r3]: https://github.com/ScottRBK/factory/actions/runs/45074586886
+[r4]: https://github.com/ScottRBK/factory/actions/runs/45085666208
 
 [limit-ci]: https://github.com/ScottRBK/factory/actions/runs/45049755719
 [runner]: ../adrs/development-checks.md#test-runner
