@@ -5,9 +5,9 @@ from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
-from forgetful_factory.application.factory_records import FactoryRecords
-from forgetful_factory.application.ports.cleanup_receipts import CleanupReceipts, CleanupSet
-from forgetful_factory.application.watcher_problems import ScaffoldProblem, WatcherAlerts
+from forgetful_factory.factory.model.watcher_problems import ScaffoldProblem, WatcherAlerts
+from forgetful_factory.factory.ports import CleanupReceipts, CleanupSet
+from forgetful_factory.factory.services.factory_records import FactoryRecords
 from forgetful_factory.planning.ports import PlanningReadError
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.ports import Ticketing

@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.factory.model.repositories import RepositoryReference
 from forgetful_factory.planning.model import ForgetfulConnection, connection_from_mapping
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.validation import nonblank

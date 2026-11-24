@@ -5,10 +5,9 @@ from enum import Enum, auto
 from pathlib import Path
 
 from forgetful_factory.agents.ports import ForemanTerminal
-from forgetful_factory.application.cleanup_completed import CleanupCompleted
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.scaffold_issue import ScaffoldIssue
-from forgetful_factory.application.watcher_problems import (
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.model.repositories import RepositoryReference
+from forgetful_factory.factory.model.watcher_problems import (
     IntakeProblem,
     RepositoryProblem,
     ScaffoldProblem,
@@ -16,7 +15,8 @@ from forgetful_factory.application.watcher_problems import (
     UncertainScaffold,
     WatcherAlerts,
 )
-from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
+from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
 from forgetful_factory.ticketing.model import Ticket, TicketSource

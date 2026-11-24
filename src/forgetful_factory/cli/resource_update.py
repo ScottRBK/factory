@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.shared.errors import FactoryError
 
 
@@ -21,13 +21,13 @@ def _report(update, force: bool) -> None:
 
 def update_resources(args: argparse.Namespace, workspace: Path,
                      deadlines: DeadlinePolicy) -> int:
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
     from forgetful_factory.agents.adapters.agentshell.runtime_install import (
         AgentShellRuntimeInstall,
     )
     from forgetful_factory.agents.adapters.pi.role_resources import apply_update, plan_update
     from forgetful_factory.cli.bootstrap import build_team
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     directory = workspace / '.factory/resources'
     if not directory.is_dir():

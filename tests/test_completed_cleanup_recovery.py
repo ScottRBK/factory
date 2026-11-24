@@ -5,7 +5,7 @@ from pathlib import Path
 
 from test_completed_cleanup import CompletedCleanupFixture
 
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 class CompletedCleanupRecoveryTests(CompletedCleanupFixture):

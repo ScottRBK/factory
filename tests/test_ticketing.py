@@ -2,10 +2,10 @@
 import unittest
 from types import SimpleNamespace
 
-from forgetful_factory.application.factory_records import FactoryRecords
-from forgetful_factory.application.scaffold_issue import worktree_name
-from forgetful_factory.application.watcher_problems import ScaffoldProblem
 from forgetful_factory.cli.bootstrap import select_ticketing
+from forgetful_factory.factory.model.watcher_problems import ScaffoldProblem
+from forgetful_factory.factory.services.factory_records import FactoryRecords
+from forgetful_factory.factory.services.scaffold_issue import worktree_name
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.model import Ticket, TicketSource

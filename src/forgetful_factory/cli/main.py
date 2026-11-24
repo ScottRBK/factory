@@ -15,13 +15,13 @@ from forgetful_factory.agents.model import (
     InitialAgentChoices,
     validate_initial_agents,
 )
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.initialise_factory import InitialiseFactory
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.cli.resource_update import update_resources
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.services.initialise_factory import InitialiseFactory
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
 
@@ -308,8 +308,8 @@ def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
 
 
 def _managed_watch_status(workspace: Path) -> dict | None:
-    from forgetful_factory.adapters.watch_status import unknown_status
     from forgetful_factory.agents.adapters.agentshell.owner_client import read_state, request
+    from forgetful_factory.factory.adapters.watch_status import unknown_status
 
     try:
         state = read_state(workspace)
@@ -341,9 +341,9 @@ def _managed_watch_status(workspace: Path) -> dict | None:
 def _watch_status(workspace: Path) -> int:
     import json
 
-    from forgetful_factory.adapters.watch_status import plain_watch_status, unknown_status
     from forgetful_factory.cli.bootstrap import build_team
     from forgetful_factory.configuration import load_configuration
+    from forgetful_factory.factory.adapters.watch_status import plain_watch_status, unknown_status
 
     plain = plain_watch_status(workspace)
     if plain and plain['observation'] == 'live':
@@ -378,7 +378,7 @@ def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy)
     if args.status:
         return _watch_status(workspace)
 
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     with WorkspaceWatchLease(workspace).hold():
         return _watch_locked(args, workspace, deadlines)
@@ -387,7 +387,6 @@ def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy)
 def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     import uuid
 
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.agents.adapters.agentshell.owner_client import (
         read_state,
         request,
@@ -395,6 +394,7 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
     )
     from forgetful_factory.cli.bootstrap import build_channel, build_host, prepare_foreman_launch
     from forgetful_factory.configuration import load_configuration
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     if args.attach:
         state = request(workspace, 'status')
@@ -423,12 +423,12 @@ def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolic
 def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     from contextlib import nullcontext
 
-    from forgetful_factory.adapters.watch_status import observe_plain_watch
     from forgetful_factory.agents.adapters.agentshell.borrowed_terminal import (
         BorrowedForemanTerminal,
     )
     from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
     from forgetful_factory.configuration import load_configuration
+    from forgetful_factory.factory.adapters.watch_status import observe_plain_watch
     from forgetful_factory.shared.watch_stop import watch_stop_scope
 
     if not math.isfinite(args.interval) or args.interval <= 0:
@@ -692,9 +692,9 @@ def _complete_setup(application: InitialiseFactory, config: FactoryConfiguration
 
 
 def _initialise(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
     from forgetful_factory.agents.adapters.agentshell.owner_client import request
     from forgetful_factory.cli.bootstrap import build_channel
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     if args.attach:
         state = request(workspace, 'status')

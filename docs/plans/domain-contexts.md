@@ -1,8 +1,9 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–4d implemented** (see [Progress](#progress)). Fable reviewed
-the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
-to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
+**Status: Approved 2026-11-23; slices 0–4d and 5a implemented** (see [Progress](#progress)). Fable
+reviewed the first draft on 2026-11-23; see the [review record](#review-record). The design parts
+still need to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for
+now.
 
 ## Goal
 
@@ -478,10 +479,45 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** slices 5 and 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is
-kept and may be reused); then SonarQube and the two reviews. Trials use a throwaway private
+**Next steps:** slice 5b (watch status, Foreman start and DoD logic into `factory/services/`), then
+slice 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is kept and may be reused);
+then SonarQube and the two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Slice 5a: done** (2026-11-24), move and final rules. No behaviour change.
+  - The legacy folders are gone. `factory/model/` holds `configuration.py`, `repositories.py`
+    (`RepositoryReference`, was `domain/models.py`) and `watcher_problems.py`; `factory/ports.py`
+    holds `ConfigurationStore`, `WatchLease`, `CleanupSet`/`CleanupReceipts` and `ToolInstaller`;
+    `factory/services/` holds the workflows, `factory_records.py` and `cleanup_marker.py` (both
+    call ports, so they are services, not model); `factory/adapters/` holds the TOML store, the
+    lease, the receipts and watch status. `DeadlinePolicy` is in `cli/deadlines.py`. Files moved
+    with `git mv`; only import lines changed (Ruff merged two port imports into one line).
+  - Deviation from the layout sketch: `factory/model/` is a package, not one `model.py`, so each
+    moved file keeps its history. The `top-level` layers put `cli` and `configuration` on one line
+    with `:`, which (Context7, import-linter docs) lets siblings import each other; `|` would make
+    them independent. The CLI imports the facade, so `:` is required.
+  - Rules: 6 contracts. New `top-level` (exhaustive) and `core-no-processes` (no indirect
+    allowance). `factory` joins `inside-each-area` and `adapters-independent`; `*.services` is back
+    in `adapters-from-composition`. `domain-independent`, `application-contracts`,
+    `adapters-no-cli`, `contexts-not-legacy` and `shared-independent` are gone; `top-level` covers
+    them (shared is its lowest layer).
+  - Tests first: the proof tables were rewritten for the final layout (red: 17 failures), then the
+    move made them pass. The fixture lets only `top-level` ignore `boundary_probe`. Only one
+    fixture adapter starts processes, so a core probe that targets another adapter breaks only the
+    composition rule. Two rows also break `adapters-independent` (the factory adapter reaches the
+    probed factory port or model) and name it. New checks: an unclassified top-level module and
+    an unclassified module in `factory/` fail; `top-level` lists every top-level module;
+    `core-no-processes` keeps its wildcards and no indirect allowance.
+  - Mutations in a scratch copy, each caught: `top-level` not exhaustive; `factory` beside the
+    contexts; `core-no-processes` with indirect imports allowed or without `*.services`;
+    `adapters-from-composition` without `*.services`; `inside-each-area` without `factory`;
+    `adapters-independent` without `factory.adapters`.
+  - Provider-name scan now covers `factory/` and `model/` packages. One known leak is recorded in
+    the test: init's failure text after label writes says "check GitHub and the config file"
+    (`factory/services/initialise_factory.py`). It stays: changing it changes behaviour and needs
+    Scott's approval.
+  - Checks: full suite 721 passed, 14 skipped; 6 contracts kept; Ruff clean.
 
 - **Slice 4d: done** (2026-11-23). No behaviour change.
   - New `channels` context: `Channel` port (`how_to_reach`, `open`) and

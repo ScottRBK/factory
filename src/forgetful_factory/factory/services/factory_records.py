@@ -2,9 +2,9 @@
 import json
 from pathlib import Path
 
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.watcher_problems import RepositoryProblem, ScaffoldProblem
-from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.model.repositories import RepositoryReference
+from forgetful_factory.factory.model.watcher_problems import RepositoryProblem, ScaffoldProblem
 from forgetful_factory.forge.model import RepositoryRef
 from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanStore

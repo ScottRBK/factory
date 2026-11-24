@@ -22,15 +22,14 @@ RULES = {rule['id']: rule for rule in
 MODULES = (
     '__main__',
     'shared.errors',
-    'deadlines',
-    'domain.models',
-    'application.ports.tracking',
-    'application.workflow',
-    'adapters.shared',
-    'adapters.provider',
+    'shared.command',
     'cli.bootstrap',
     'cli.prompts',
     'configuration',
+    'factory.model',
+    'factory.ports',
+    'factory.services.workflow',
+    'factory.adapters.filesystem',
     'ticketing.model',
     'ticketing.ports',
     'ticketing.adapters.github',
@@ -55,54 +54,62 @@ MODULES = (
 
 # Allowed imports (importer, imported). Together they are the known-good fixture: ports, shared
 # adapter code and both composition entry points. With every rule on, it must pass.
+# Only factory.adapters.filesystem starts processes: a core probe that targets any other adapter
+# then breaks the composition rule alone, not core-no-processes too.
 ALLOWED = (
     ('__main__', 'cli.prompts'),
-    ('deadlines', 'shared.errors'),
-    ('domain.models', 'shared.errors'),
-    ('domain.models', 'ticketing.model'),
-    ('application.ports.tracking', 'domain.models'),
-    ('application.workflow', 'shared.errors'),
-    ('application.workflow', 'application.ports.tracking'),
-    ('application.workflow', 'ticketing.ports'),
-    ('application.workflow', 'forge.ports'),
-    ('adapters.provider', 'application.ports.tracking'),
-    ('adapters.provider', 'adapters.shared'),
-    ('adapters.provider', 'shared.errors'),
-    ('adapters.provider', 'ticketing.model'),
+    ('shared.command', 'shared.errors'),
+    ('shared.command', 'subprocess'),
+    ('factory.model', 'shared.errors'),
+    ('factory.model', 'ticketing.model'),
+    ('factory.model', 'planning.model'),
+    ('factory.ports', 'factory.model'),
+    ('factory.services.workflow', 'shared.errors'),
+    ('factory.services.workflow', 'factory.ports'),
+    ('factory.services.workflow', 'factory.model'),
+    ('factory.services.workflow', 'ticketing.ports'),
+    ('factory.services.workflow', 'forge.ports'),
+    ('factory.services.workflow', 'planning.ports'),
+    ('factory.services.workflow', 'workspace.ports'),
+    ('factory.services.workflow', 'agents.ports'),
+    ('factory.services.workflow', 'channels.ports'),
+    ('factory.adapters.filesystem', 'factory.ports'),
+    ('factory.adapters.filesystem', 'agents.ports'),
+    ('factory.adapters.filesystem', 'shared.command'),
+    ('factory.adapters.filesystem', 'socket'),
     ('ticketing.ports', 'ticketing.model'),
     ('ticketing.adapters.github', 'ticketing.ports'),
     ('ticketing.adapters.github', 'shared.errors'),
     ('forge.ports', 'forge.model'),
     ('forge.adapters.github', 'forge.ports'),
     ('forge.adapters.github', 'shared.errors'),
-    ('cli.bootstrap', 'forge.adapters.github'),
     ('planning.ports', 'planning.model'),
     ('planning.adapters.forgetful.plan_store', 'planning.ports'),
     ('planning.adapters.forgetful.plan_store', 'planning.adapters.forgetful.connection'),
-    ('application.workflow', 'planning.ports'),
-    ('cli.bootstrap', 'planning.adapters.forgetful.plan_store'),
     ('workspace.adapters.git.worktrees', 'workspace.ports'),
     ('workspace.adapters.git.worktrees', 'shared.errors'),
-    ('application.workflow', 'workspace.ports'),
-    ('cli.bootstrap', 'workspace.adapters.git.worktrees'),
     ('agents.ports', 'agents.model'),
     ('agents.adapters.agentshell.controller', 'agent_shell'),
-    ('application.workflow', 'agents.ports'),
-    ('cli.bootstrap', 'agents.adapters.agentshell.controller'),
+    ('agents.adapters.agentshell.controller', 'runtime.ports'),
+    ('agents.adapters.agentshell.controller', 'channels.ports'),
     ('runtime.adapters.tmux', 'runtime.ports'),
     ('runtime.adapters.tmux', 'shared.errors'),
-    ('agents.adapters.agentshell.controller', 'runtime.ports'),
-    ('cli.bootstrap', 'runtime.adapters.tmux'),
     ('channels.ports', 'runtime.ports'),
     ('channels.adapters.terminal', 'channels.ports'),
     ('channels.adapters.terminal', 'runtime.ports'),
-    ('agents.adapters.agentshell.controller', 'channels.ports'),
-    ('cli.bootstrap', 'channels.adapters.terminal'),
-    ('cli.bootstrap', 'adapters.provider'),
-    ('cli.bootstrap', 'application.workflow'),
-    ('cli.bootstrap', 'shared.errors'),
+    ('cli.bootstrap', 'configuration'),
+    ('cli.bootstrap', 'factory.adapters.filesystem'),
+    ('cli.bootstrap', 'factory.services.workflow'),
     ('cli.bootstrap', 'ticketing.adapters.github'),
-    ('configuration', 'adapters.provider'),
+    ('cli.bootstrap', 'forge.adapters.github'),
+    ('cli.bootstrap', 'planning.adapters.forgetful.plan_store'),
+    ('cli.bootstrap', 'workspace.adapters.git.worktrees'),
+    ('cli.bootstrap', 'agents.adapters.agentshell.controller'),
+    ('cli.bootstrap', 'runtime.adapters.tmux'),
+    ('cli.bootstrap', 'channels.adapters.terminal'),
+    ('cli.bootstrap', 'shared.errors'),
+    ('configuration', 'factory.adapters.filesystem'),
+    ('configuration', 'factory.model'),
     ('configuration', 'shared.errors'),
 )
 
@@ -111,28 +118,30 @@ ALLOWED = (
 # runs direct and indirect. Only its own rule may reject it, unless the row names the other rules
 # that must also reject it; step 1 then turns those off too (the skill's isolation).
 REJECTED = (
-    ('domain-independent', 'domain', 'application.workflow'),
-    ('domain-independent', 'domain', 'adapters.provider'),
-    ('domain-independent', 'domain', 'cli.prompts'),
-    ('domain-independent', 'domain', 'configuration'),
-    ('application-contracts', 'application', 'adapters.provider'),
-    ('application-contracts', 'application', 'cli.prompts'),
-    ('application-contracts', 'application', 'configuration'),
-    ('adapters-no-cli', 'adapters', 'cli.prompts'),
-    ('shared-independent', 'shared', '__main__'),
-    ('shared-independent', 'shared', 'deadlines'),
-    ('shared-independent', 'shared', 'domain.models'),
-    ('shared-independent', 'shared', 'application.workflow'),
-    ('shared-independent', 'shared', 'adapters.provider'),
-    ('shared-independent', 'shared', 'cli.prompts'),
-    ('shared-independent', 'shared', 'configuration'),
-    ('shared-independent', 'shared', 'ticketing.model'),
-    ('shared-independent', 'shared', 'forge.model'),
-    ('shared-independent', 'shared', 'planning.model'),
-    ('shared-independent', 'shared', 'workspace.ports'),
-    ('shared-independent', 'shared', 'agents.model'),
-    ('shared-independent', 'shared', 'runtime.ports'),
-    ('shared-independent', 'shared', 'channels.ports'),
+    # Top level, downwards only: __main__, then cli and configuration, factory, the contexts
+    # and shared.
+    ('top-level', 'shared', '__main__'),
+    ('top-level', 'shared', 'cli.prompts'),
+    ('top-level', 'shared', 'factory.model'),
+    ('top-level', 'shared', 'ticketing.model'),
+    ('top-level', 'shared', 'agents.ports'),
+    # The configuration facade imports a factory adapter, so the composition rule also applies.
+    ('top-level', 'shared', 'configuration', ('adapters-from-composition',)),
+    ('top-level', 'cli', '__main__'),
+    ('top-level', 'factory.services', 'cli.prompts'),
+    ('top-level', 'factory.model', 'cli.prompts'),
+    ('top-level', 'factory.adapters', 'cli.prompts'),
+    ('top-level', 'ticketing.model', 'factory.model'),
+    ('top-level', 'ticketing.adapters', 'cli.prompts'),
+    ('top-level', 'forge.adapters', 'factory.ports'),
+    ('top-level', 'planning.adapters', 'cli.prompts'),
+    ('top-level', 'workspace.adapters', 'factory.model'),
+    ('top-level', 'agents.model', 'factory.model'),
+    ('top-level', 'agents.adapters', 'cli.prompts'),
+    ('top-level', 'runtime.adapters', 'factory.ports'),
+    ('top-level', 'channels.adapters', 'cli.prompts'),
+    ('inside-each-area', 'factory.model', 'factory.ports'),
+    ('inside-each-area', 'factory.ports', 'factory.services.workflow'),
     ('inside-each-area', 'ticketing.model', 'ticketing.ports'),
     ('inside-each-area', 'forge.model', 'forge.ports'),
     ('inside-each-area', 'planning.model', 'planning.ports'),
@@ -141,17 +150,24 @@ REJECTED = (
     # agents adapter's use of the port it also links two adapter packages.
     ('inside-each-area', 'runtime.ports', 'runtime.adapters.tmux',
      ('adapters-from-composition', 'adapters-independent')),
-    ('adapters-from-composition', 'application', 'ticketing.adapters.github'),
-    ('adapters-from-composition', 'application', 'forge.adapters.github'),
-    ('adapters-from-composition', 'application', 'workspace.adapters.git.worktrees'),
-    ('adapters-from-composition', 'application', 'agents.adapters.agentshell.controller'),
-    ('adapters-from-composition', 'domain', 'ticketing.adapters.github'),
-    ('adapters-from-composition', 'application', 'runtime.adapters.tmux'),
-    ('adapters-from-composition', 'application', 'channels.adapters.terminal'),
+    ('adapters-from-composition', 'factory.services', 'ticketing.adapters.github'),
+    ('adapters-from-composition', 'factory.services', 'forge.adapters.github'),
+    ('adapters-from-composition', 'factory.services', 'workspace.adapters.git.worktrees'),
+    ('adapters-from-composition', 'factory.services', 'agents.adapters.agentshell.controller'),
+    ('adapters-from-composition', 'factory.services', 'runtime.adapters.tmux'),
+    ('adapters-from-composition', 'factory.services', 'channels.adapters.terminal'),
+    # The factory adapter imports the factory port and model, so independence also rejects these.
+    ('adapters-from-composition', 'factory.model', 'planning.adapters.forgetful.plan_store',
+     ('adapters-independent',)),
+    ('adapters-from-composition', 'factory.ports', 'ticketing.adapters.github',
+     ('adapters-independent',)),
+    ('adapters-from-composition', 'shared', 'ticketing.adapters.github',
+     ('top-level',)),
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
      ('adapters-independent',)),
-    ('adapters-independent', 'adapters', 'ticketing.adapters.github'),
+    ('adapters-independent', 'factory.adapters', 'ticketing.adapters.github'),
+    ('adapters-independent', 'factory.adapters', 'planning.adapters.forgetful.plan_store'),
     ('adapters-independent', 'forge.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'planning.adapters', 'forge.adapters.github'),
     ('adapters-independent', 'workspace.adapters', 'ticketing.adapters.github'),
@@ -160,23 +176,15 @@ REJECTED = (
     ('adapters-independent', 'runtime.adapters', 'agents.adapters.agentshell.controller'),
     # A channel reaches the host through its port; composition supplies the adapter.
     ('adapters-independent', 'channels.adapters', 'runtime.adapters.tmux'),
-    ('adapters-independent', 'adapters.shared', 'planning.adapters.forgetful.plan_store'),
-    # Legacy adapters and configuration are left out: application and domain import the
-    # ticketing port and model, so from any ticketing module those imports break a second rule.
-    ('contexts-not-legacy', 'ticketing.adapters', 'cli.prompts'),
-    ('contexts-not-legacy', 'ticketing.adapters', 'application.workflow'),
-    ('contexts-not-legacy', 'ticketing.ports', 'domain.models'),
-    ('contexts-not-legacy', 'ticketing.model', 'deadlines'),
-    ('contexts-not-legacy', 'forge.adapters', 'cli.prompts'),
-    ('contexts-not-legacy', 'planning.adapters', 'cli.prompts'),
-    ('contexts-not-legacy', 'workspace.adapters', 'application.workflow'),
-    ('contexts-not-legacy', 'agents.adapters', 'application.workflow'),
-    ('contexts-not-legacy', 'agents.model', 'deadlines'),
-    ('contexts-not-legacy', 'runtime.adapters', 'cli.prompts'),
-    ('contexts-not-legacy', 'channels.adapters', 'cli.prompts'),
-    # The slice 4a imports from agents adapters into legacy adapters: both rules reject them.
-    ('contexts-not-legacy', 'agents.adapters', 'adapters.shared', ('adapters-independent',)),
+    ('core-no-processes', 'factory.services', 'subprocess'),
+    ('core-no-processes', 'factory.services', 'socket'),
+    ('core-no-processes', 'factory.ports', 'subprocess'),
+    ('core-no-processes', 'factory.model', 'socket'),
+    ('core-no-processes', 'ticketing.model', 'subprocess'),
+    ('core-no-processes', 'agents.ports', 'subprocess'),
+    ('core-no-processes', 'runtime.ports', 'socket'),
     # allow_indirect_imports: only direct imports are rejected; the indirect run must pass.
+    ('agentshell-in-agents', 'factory.services', 'agent_shell'),
     ('agentshell-in-agents', 'ticketing.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'agents.model', 'agent_shell'),
     ('agentshell-in-agents', 'runtime.adapters', 'agent_shell'),
@@ -185,7 +193,7 @@ REJECTED = (
 )
 
 # Rows and imports name modules relative to the package, except these external packages.
-EXTERNAL = {'agent_shell'}
+EXTERNAL = {'agent_shell', 'socket', 'subprocess'}
 
 
 def absolute(module: str) -> str:
@@ -235,7 +243,12 @@ class ArchitectureTests(unittest.TestCase):
             while parent != workspace / 'src':
                 (parent / '__init__.py').touch()
                 parent = parent.parent
-        (workspace / 'pyproject.toml').write_text((ROOT / 'pyproject.toml').read_text())
+        # The probe package sits outside every layer on purpose; only exhaustiveness ignores it.
+        rules = (ROOT / 'pyproject.toml').read_text()
+        marker = 'id = "top-level"\n'
+        self.assertEqual(rules.count(marker), 1)
+        rules = rules.replace(marker, marker + 'exhaustive_ignores = ["boundary_probe"]\n')
+        (workspace / 'pyproject.toml').write_text(rules)
 
     def check(self, workspace, contracts=()):
         command = [str(LINTER), '--config', 'pyproject.toml', '--no-cache', '--no-logo']
@@ -314,22 +327,31 @@ class ArchitectureTests(unittest.TestCase):
                     bridge.write_text('')
                     self.assert_passes(self.check(workspace))
 
-    def test_unclassified_module_in_a_context_is_rejected(self):
-        # Arrange: every module in a context must be one of its layers.
+    def assert_unclassified_rejected(self, rule_id, module):
+        # Arrange: every module in the rule's containers must be one of its layers.
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary)
             self.fixture(workspace)
-            (workspace / 'src' / PACKAGE / 'ticketing' / 'helpers.py').write_text('')
-            others = [rule for rule in RULES if rule != 'inside-each-area']
+            (workspace / 'src' / PACKAGE / source(module)).write_text('')
+            others = [rule for rule in RULES if rule != rule_id]
             self.assert_passes(self.check(workspace, contracts=others))
             # Act
             result = self.check(workspace)
             # Assert
             self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
             output = ' '.join(result.stdout.split())
-            self.assertIn(f'{RULES["inside-each-area"]["name"]} BROKEN', output)
+            self.assertIn(f'{RULES[rule_id]["name"]} BROKEN', output)
             self.assertIn('not listed as layers', output)
-            self.assertIn(f'{PACKAGE}.ticketing.helpers', output)
+            self.assertIn(f'{PACKAGE}.{module}', output)
+
+    def test_unclassified_module_in_a_context_is_rejected(self):
+        self.assert_unclassified_rejected('inside-each-area', 'ticketing.helpers')
+
+    def test_unclassified_module_in_the_factory_is_rejected(self):
+        self.assert_unclassified_rejected('inside-each-area', 'factory.helpers')
+
+    def test_unclassified_top_level_module_is_rejected(self):
+        self.assert_unclassified_rejected('top-level', 'helpers')
 
     def test_allowed_imports_pass_every_rule(self):
         # Arrange
@@ -389,15 +411,22 @@ class CoverageTests(unittest.TestCase):
                     with self.subTest(rule=rule['id'], name=name):
                         self.assertTrue(any(matches(name, module) for module in modules))
 
-    def test_shared_forbids_every_other_top_level_module(self):
-        # Arrange: top-level modules and packages of the real source tree.
+    def test_top_level_rule_classifies_every_package(self):
+        # The checker enforces this too (exhaustive); a direct check names the gap clearly.
         top_level = {path.stem for path in SOURCE.glob('*.py')} | {
             path.parent.name for path in SOURCE.glob('*/__init__.py')}
-        # Act
-        forbidden = {module.removeprefix(f'{PACKAGE}.')
-                     for module in RULES['shared-independent']['forbidden_modules']}
-        # Assert
-        self.assertEqual(forbidden, top_level - {'__init__', 'shared'})
+        rule = RULES['top-level']
+        layers = {name.strip() for layer in rule['layers'] for name in re.split('[:|]', layer)}
+        self.assertEqual(rule['containers'], [PACKAGE])
+        self.assertTrue(rule['exhaustive'])
+        self.assertEqual(layers, top_level - {'__init__'})
+
+    def test_core_rule_covers_every_context(self):
+        # A wildcard covers a new context's services, ports and model without an edit.
+        rule = RULES['core-no-processes']
+        self.assertEqual(rule['source_modules'], [f'{PACKAGE}.*.services', f'{PACKAGE}.*.ports',
+                                                  f'{PACKAGE}.*.model'])
+        self.assertNotIn('allow_indirect_imports', rule)
 
     def test_package_folders_find_files_in_one_place(self):
         # Arrange: a file found relative to source breaks silently when a module moves.
@@ -414,13 +443,16 @@ class CoverageTests(unittest.TestCase):
     def test_ports_and_models_name_no_provider(self):
         # Import rules cannot see a hard-coded provider name, URL or pattern in core code.
         files = [*SOURCE.glob('*/ports.py'), *SOURCE.glob('*/model.py'),
-                 *SOURCE.glob('factory/**/*.py')]
-        self.assertTrue(files)
+                 *SOURCE.glob('*/model/*.py'), *SOURCE.glob('factory/**/*.py')]
+        self.assertTrue(any(path.parts[-3] == 'factory' for path in files))
         names = re.compile(r'github|gitlab|codeberg|linear|tmux|herdr|agent_shell', re.IGNORECASE)
-        found = {str(path.relative_to(SOURCE)): sorted({name.casefold() for name in
-                                                        names.findall(path.read_text())})
-                 for path in files}
-        self.assertEqual({path: hits for path, hits in found.items() if hits}, {})
+        found = {str(path.relative_to(SOURCE)): sorted(name.casefold() for name in
+                                                       names.findall(path.read_text()))
+                 for path in set(files)}
+        # One known leak: init's failure text after label writes says "check GitHub". It is kept
+        # unchanged because the refactor must not change behaviour; changing it needs Scott.
+        known = {'factory/services/initialise_factory.py': ['github']}
+        self.assertEqual({path: hits for path, hits in found.items() if hits}, known)
 
     def test_tests_find_source_files_through_constants(self):
         # A source path written in a test breaks silently when the module moves (slice 4a).

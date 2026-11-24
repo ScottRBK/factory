@@ -18,7 +18,7 @@ started by assisted first init or standalone `foreman`, retains Foreman independ
 a watcher that borrows its delivery channel. `foreman --attach` enters that existing terminal.
 Neither standalone Foreman command starts a watcher. Reuse that
 session; never silently replace or duplicate it. Keep polling behind the `Ticketing` port and
-terminal delivery behind an application port. GitHub and AgentShell adapters perform external I/O.
+terminal delivery behind a port. GitHub and AgentShell adapters perform external I/O.
 
 All notification delivery goes through AgentShell, not Factory-owned tmux input commands. Native
 tmux client attach/switch only navigates the user's UI. The persistent owner's public captured
@@ -149,8 +149,9 @@ screenshots or infer that a submitted issue was completed.
 
 ```text
 src/forgetful_factory/
-├── application/
-│   └── watch_factory.py             # Polling, baseline, revisions, notifications
+├── factory/
+│   ├── services/watch_factory.py    # Polling, baseline, revisions, notifications
+│   └── adapters/watch_lease.py      # CLI-owned workspace and legacy factory-directory locks
 ├── ticketing/
 │   ├── model.py                     # Provider-independent Ticket
 │   ├── ports.py                     # Ticketing: matching-open-ticket reads
@@ -167,11 +168,9 @@ src/forgetful_factory/
 ├── runtime/
 │   ├── ports.py                     # SessionHost: launch data, attach text, terminal entry
 │   └── adapters/tmux.py             # The tmux host and its install recipe
-├── channels/
-│   ├── ports.py                     # Channel: how a person reaches the Foreman
-│   └── adapters/terminal.py         # The person's own terminal, through the session host
-└── adapters/
-    └── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
+└── channels/
+    ├── ports.py                     # Channel: how a person reaches the Foreman
+    └── adapters/terminal.py         # The person's own terminal, through the session host
 ```
 
 GitHub fetches all pages of open issues and applies label matching locally: any configured label

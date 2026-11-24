@@ -1,11 +1,11 @@
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 def programmatic_factory(policy: DeadlinePolicy) -> list[str]:
     lifecycle = policy.agentshell
     code = (
         'from forgetful_factory.cli.main import main;'
-        'from forgetful_factory.deadlines import DeadlinePolicy;'
+        'from forgetful_factory.cli.deadlines import DeadlinePolicy;'
         'from forgetful_factory.agents.model import AgentShellLifecycleDeadlines;'
         'policy=DeadlinePolicy('
         f'external_command={policy.external_command!r},'

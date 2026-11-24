@@ -149,7 +149,7 @@ health check or proof of agent receipt.
 
 ### Durable terminal authority
 
-`CleanupReceipts` is an application port. The CLI wires `FileCleanupReceipts` to the separate
+`CleanupReceipts` is a factory port. The CLI wires `FileCleanupReceipts` to the separate
 cleanup workflow. The Git adapter only handles Git state. `.factory/cleanup-finished.json` stores
 versioned identities for confirmed sets. Each identity includes the canonical
 workspace, configured native backend target, native plan ID and external reference, canonical work

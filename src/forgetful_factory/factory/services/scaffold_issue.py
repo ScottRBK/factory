@@ -3,19 +3,19 @@ import re
 from dataclasses import asdict
 from pathlib import Path
 
-from forgetful_factory.application.cleanup_marker import (
-    CleanupMarkerError,
-    validate_cleanup_marker,
-)
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.factory_records import FactoryRecords
-from forgetful_factory.application.watcher_problems import (
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.model.repositories import RepositoryReference
+from forgetful_factory.factory.model.watcher_problems import (
     IntakeProblem,
     ScaffoldProblem,
     ScaffoldReadProblem,
     UncertainScaffold,
 )
-from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.factory.services.cleanup_marker import (
+    CleanupMarkerError,
+    validate_cleanup_marker,
+)
+from forgetful_factory.factory.services.factory_records import FactoryRecords
 from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanningReadError, PlanStore
 from forgetful_factory.shared.errors import FactoryError

@@ -24,59 +24,61 @@ style (see [test runner](#test-runner)). Ruff infers Python 3.12 from `requires-
 repeating the setting. Formatting is not required or added.
 Ruff's line-length rule has documented exceptions; it is not a strict Markdown-width validator.
 
-Import Linter's nine contracts in `pyproject.toml` enforce:
+Import Linter's six contracts in `pyproject.toml` enforce:
 
-- Domain cannot depend on application, adapters, CLI, or the public configuration loader.
-- Application cannot depend on adapters, CLI, or the public configuration loader.
-- Adapters cannot depend on CLI.
-- `shared/` (errors, watch stop, command runners, safe file writes, resource root) imports no
-  other top-level module. Every area may import it.
-- `inside-each-area`: inside a context (`agents/`, `channels/`, `forge/`, `planning/`,
-  `runtime/`, `ticketing/`, `workspace/`), imports go down only: adapters, services, ports,
-  model. It is exhaustive, so a module outside those layers fails.
-- `adapters-from-composition`: shared, context ports and models, application and domain do not
-  import a context's adapters. Only CLI composition and the configuration facade do.
-- `adapters-independent`: legacy `adapters/` and each context's adapters do not import each other.
-  It has no ignored imports. Composition gives the agent team what it needs from planning: the
-  role environment and the missing-tools check are functions passed in by `cli/bootstrap.py`.
+- `top-level`: imports go down only: `__main__`, then `cli` and the `configuration.py` facade,
+  then `factory`, then the contexts (`agents`, `channels`, `forge`, `planning`, `runtime`,
+  `ticketing`, `workspace`), then `shared`. Siblings on one line may import each other (`:`):
+  the CLI uses the facade, and contexts use each other's ports and models. It is exhaustive, so a
+  new top-level module fails until it is classified. Every area may import `shared`.
+- `inside-each-area`: inside `factory/` and each context, imports go down only: adapters,
+  services, ports, model. It is exhaustive, so a module outside those layers fails.
+- `adapters-from-composition`: shared, services, ports and models do not import any adapters.
+  Only CLI composition and the configuration facade do.
+- `adapters-independent`: adapter packages (`factory/adapters/` and each context's) do not import
+  each other. Composition gives the agent team what it needs from planning: the role environment
+  and the missing-tools check are functions passed in by `cli/bootstrap.py`.
+- `core-no-processes`: services, ports and models do not import `subprocess` or `socket`, directly
+  or through another module. Process and socket work stays in adapters and `shared/`.
 - `agentshell-in-agents`: only `agents.adapters` imports `agent_shell` directly. It needs
   `include_external_packages = true`. It sets `allow_indirect_imports`, because composition reaches
   AgentShell through the agents adapter; its indirect proof rows must pass.
-- `contexts-not-legacy` (until slice 5 of the [domain contexts plan](../plans/domain-contexts.md)):
-  contexts, `agents` included, do not import the legacy `adapters`, `application`, `domain` or
-  `deadlines`, or the CLI and configuration facade. These checks include submodules and indirect
-  paths. Application may use domain contracts and its own ports. Adapters may use application/domain
-  types and shared adapter utilities. Bootstrap and the public configuration loader are composition
-  entry points and may construct adapters. The rules are coarse layer checks, not an allowlist
-  limiting adapters to application ports; adapter-to-workflow imports and external integration
-  imports are not separately restricted. Dynamic imports and runtime operations such as built-in
-  file access remain outside these checks. `tests/test_architecture.py` invokes the real checker on
-  temporary, importable fixture packages, using the repository's actual contracts. Two tables drive
-  it. `ALLOWED` lists the permitted imports; together they form the known-good fixture, which must
-  pass every rule. `REJECTED` lists (rule, area, target) rows; the area is a package (the probe is a
-  new module) or a module (the probe line is added to it). Each configured rule gets its own test,
-  which fails if the rule has no rows. Only the row's own rule may reject it, so `cli` rows target
-  `cli.prompts`, which imports nothing. Where that cannot hold, the row names the other rules that
-  must also reject it, and step 1 turns those off too; for example, any import from `forge` to
-  `ticketing.adapters` is also an indirect `forge.adapters` to `ticketing.adapters` import. The
-  checker's report must name the rule's own units, worked out for forbidden, layers and independence
-  rules. Each row proves direct and indirect rejection, checks that disabling the target rule
-  permits the violation, and checks that removing it passes again. Assertions identify the exact
-  forbidden area pair, not merely a target appearing somewhere in a longer rejected path. Indirect
-  helpers live outside both endpoint areas. Rule isolation uses CLI contract selection, preserving
-  all global settings. No intentional violations are written into the actual source tree. These
-  repeatable proofs guard against later weakening of the configuration, rather than mocking an
-  import-analysis library. Coverage checks in the same file guard what the checker cannot see by
-  itself:
+
+These checks include submodules and indirect paths. Bootstrap and the public configuration loader
+are composition entry points and may construct adapters. The rules are coarse layer checks, not an
+allowlist limiting adapters to ports; adapter-to-service imports and external integration imports
+are not separately restricted. Dynamic imports and runtime operations such as built-in file access
+remain outside these checks. `tests/test_architecture.py` invokes the real checker on temporary,
+importable fixture packages, using the repository's actual contracts. Two tables drive it. `ALLOWED`
+lists the permitted imports; together they form the known-good fixture, which must pass every rule.
+`REJECTED` lists (rule, area, target) rows; the area is a package (the probe is a new module) or a
+module (the probe line is added to it). Each configured rule gets its own test, which fails if the
+rule has no rows. Only the row's own rule may reject it, so `cli` rows target `cli.prompts`, which
+imports nothing. Where that cannot hold, the row names the other rules that must also reject it, and
+step 1 turns those off too; for example, any import from `forge` to `ticketing.adapters` is also an
+indirect `forge.adapters` to `ticketing.adapters` import. The checker's report must name the rule's
+own units, worked out for forbidden, layers and independence rules. Each row proves direct and
+indirect rejection, checks that disabling the target rule permits the violation, and checks that
+removing it passes again. Assertions identify the exact forbidden area pair, not merely a target
+appearing somewhere in a longer rejected path. Indirect helpers live outside both endpoint areas.
+Rule isolation uses CLI contract selection, preserving all global settings. No intentional
+violations are written into the actual source tree. These repeatable proofs guard against later
+weakening of the configuration, rather than mocking an import-analysis library. Coverage checks in
+the same file guard what the checker cannot see by itself:
 - Every source folder with Python files has `__init__.py`; a missing marker hides modules.
 - Every internal name in a rule matches a real module. Import Linter skips a wildcard that
   matches nothing, which turns a rule off silently. The check fails on a contract type it does
   not yet read, so a new type extends it.
-- The `shared` rule forbids every other top-level module, so a new top-level module needs a
-  decision.
-- Every `ports.py`, `model.py` and `factory/` file names no provider or host (`github`,
-  `gitlab`, `codeberg`, `linear`, `tmux`, `herdr`, `agent_shell`). Import rules cannot see a
-  hard-coded name or URL.
+- The `top-level` rule lists every top-level module and is exhaustive; a proof shows an
+  unclassified top-level module and an unclassified module in `factory/` or a context fail. The
+  fixture lets only the top-level rule ignore its `boundary_probe` package.
+- `core-no-processes` uses wildcards for services, ports and models, so a new context is covered
+  without an edit, and it does not allow indirect imports.
+- Every `ports.py`, `model.py`, `model/` and `factory/` file names no provider or host
+  (`github`, `gitlab`, `codeberg`, `linear`, `tmux`, `herdr`, `agent_shell`). Import rules cannot
+  see a hard-coded name or URL. One known exception is recorded in the test: init's failure text
+  after label writes says "check GitHub" (`factory/services/initialise_factory.py`). It is kept
+  because the refactor must not change behaviour; changing it needs Scott's approval.
 - No test writes a source file path (`src/forgetful_factory/.../*.py`); tests use the launch
   constants instead.
 - Only `shared/resources.py`, `agents/adapters/agentshell/launch.py` and the controller use
@@ -214,11 +216,11 @@ without inference; they do not prove provider access, OAuth refresh or autonomou
 
 ## Explicit deadline composition
 
-`deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each
+`cli/deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each
 value must be finite and positive. Public `cli.main.main(policy)` and bootstrap composition pass
 command deadlines, owned-process TERM grace, and lifecycle deadlines to the relevant adapters.
 Owned owner/controller startup transports the lifecycle values as JSON; the controller validates
-all fields before opening a session. Application workflows retain their existing port contracts.
+all fields before opening a session. Factory services retain their existing port contracts.
 
 Ordinary CLI execution uses the original production values. There is no timeout flag, environment
 variable, saved setting, global multiplier or fake clock. Existing installer/access deadlines and

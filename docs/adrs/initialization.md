@@ -42,7 +42,9 @@ behavior.
 ## Package layout
 
 The following shows the original repository/label components. Watcher additions are in the
-[watcher ADR](issue-watcher.md).
+[watcher ADR](issue-watcher.md). Since the domain contexts refactor, the workflow, configuration
+and TOML storage live in `factory/`; tracking, remotes and Git live in `ticketing/`, `forge/` and
+`workspace/` (see the [architecture overview](../architecture.md)).
 
 ```text
 src/forgetful_factory/

@@ -6,7 +6,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from uuid import uuid4
 
-from forgetful_factory.application.configuration import FactoryConfiguration, from_mapping
+from forgetful_factory.factory.model.configuration import FactoryConfiguration, from_mapping
 from forgetful_factory.shared.errors import FactoryError
 
 

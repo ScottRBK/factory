@@ -2,14 +2,13 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from forgetful_factory.agents.ports import AgentTeam
-from forgetful_factory.application.configuration import (
+from forgetful_factory.factory.model.configuration import (
     FactoryConfiguration,
     unique_labels,
     validate,
 )
-from forgetful_factory.application.ports.configuration_store import ConfigurationStore
-from forgetful_factory.application.ports.tool_installer import ToolInstaller
-from forgetful_factory.domain.models import RepositoryReference
+from forgetful_factory.factory.model.repositories import RepositoryReference
+from forgetful_factory.factory.ports import ConfigurationStore, ToolInstaller
 from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.planning.ports import PlanningSetup

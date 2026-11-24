@@ -1,8 +1,8 @@
 """Public workspace configuration loading API."""
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
-from forgetful_factory.application.configuration import FactoryConfiguration
+from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
 from forgetful_factory.shared.errors import FactoryError
 
 

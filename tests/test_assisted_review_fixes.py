@@ -14,7 +14,7 @@ from lifecycle_support import LifecycleFixture, pidfd_open, pidfd_send_signal
 from test_init import INIT_SETTINGS
 
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 class AssistedReviewFixes(LifecycleFixture):

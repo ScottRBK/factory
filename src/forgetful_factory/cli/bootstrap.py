@@ -3,20 +3,20 @@ import sys
 from functools import partial
 from pathlib import Path
 
-from forgetful_factory.adapters.filesystem.cleanup_receipts import FileCleanupReceipts
-from forgetful_factory.adapters.filesystem.toml_configuration import TomlConfigurationStore
-from forgetful_factory.adapters.watch_status import ObservedTerminal
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
 from forgetful_factory.agents.adapters.pi.agent_team import PiAgentTeam
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
-from forgetful_factory.application.cleanup_completed import CleanupCompleted
-from forgetful_factory.application.configuration import FactoryConfiguration
-from forgetful_factory.application.initialise_factory import InitialiseFactory, missing_tools
-from forgetful_factory.application.scaffold_issue import ScaffoldIssue
-from forgetful_factory.application.watch_factory import WatchFactory
 from forgetful_factory.channels.adapters.terminal import TerminalChannel
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
+from forgetful_factory.factory.adapters.cleanup_receipts import FileCleanupReceipts
+from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
+from forgetful_factory.factory.adapters.watch_status import ObservedTerminal
+from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
+from forgetful_factory.factory.services.initialise_factory import InitialiseFactory, missing_tools
+from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
+from forgetful_factory.factory.services.watch_factory import WatchFactory
 from forgetful_factory.forge.adapters.github import GitHubForge
 from forgetful_factory.planning.adapters.forgetful.connection import role_environment
 from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInstall

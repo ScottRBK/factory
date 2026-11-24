@@ -32,55 +32,20 @@ root_package = "forgetful_factory"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
-id = "domain-independent"
-name = "Domain stays independent"
-type = "forbidden"
-source_modules = ["forgetful_factory.domain"]
-forbidden_modules = [
-    "forgetful_factory.application",
-    "forgetful_factory.adapters",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
-]
-
-[[tool.importlinter.contracts]]
-id = "application-contracts"
-name = "Application uses contracts, not adapters"
-type = "forbidden"
-source_modules = ["forgetful_factory.application"]
-forbidden_modules = [
-    "forgetful_factory.adapters",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
-]
-
-[[tool.importlinter.contracts]]
-id = "adapters-no-cli"
-name = "Adapters cannot depend on the CLI"
-type = "forbidden"
-source_modules = ["forgetful_factory.adapters"]
-forbidden_modules = ["forgetful_factory.cli"]
-
-[[tool.importlinter.contracts]]
-id = "shared-independent"
-name = "Shared imports nothing above it"
-type = "forbidden"
-source_modules = ["forgetful_factory.shared"]
-forbidden_modules = [
-    "forgetful_factory.__main__",
-    "forgetful_factory.adapters",
-    "forgetful_factory.agents",
-    "forgetful_factory.application",
-    "forgetful_factory.channels",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
-    "forgetful_factory.deadlines",
-    "forgetful_factory.domain",
-    "forgetful_factory.forge",
-    "forgetful_factory.planning",
-    "forgetful_factory.runtime",
-    "forgetful_factory.ticketing",
-    "forgetful_factory.workspace",
+id = "top-level"
+name = "Top level, downwards only: entry, composition, factory, contexts, shared"
+type = "layers"
+containers = ["forgetful_factory"]
+# A new top-level package fails until it is classified here.
+exhaustive = true
+# ":" lets siblings import each other: the CLI uses the configuration facade, and contexts use
+# each other's ports and models.
+layers = [
+    "__main__",
+    "cli : configuration",
+    "factory",
+    "agents : channels : forge : planning : runtime : ticketing : workspace",
+    "shared",
 ]
 
 [[tool.importlinter.contracts]]
@@ -90,6 +55,7 @@ type = "layers"
 containers = [
     "forgetful_factory.agents",
     "forgetful_factory.channels",
+    "forgetful_factory.factory",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.runtime",
@@ -105,10 +71,9 @@ name = "Only composition imports context adapters"
 type = "forbidden"
 source_modules = [
     "forgetful_factory.shared",
+    "forgetful_factory.*.services",
     "forgetful_factory.*.ports",
     "forgetful_factory.*.model",
-    "forgetful_factory.application",
-    "forgetful_factory.domain",
 ]
 forbidden_modules = ["forgetful_factory.*.adapters"]
 
@@ -117,9 +82,9 @@ id = "adapters-independent"
 name = "Adapter packages do not import each other"
 type = "independence"
 modules = [
-    "forgetful_factory.adapters",
     "forgetful_factory.agents.adapters",
     "forgetful_factory.channels.adapters",
+    "forgetful_factory.factory.adapters",
     "forgetful_factory.forge.adapters",
     "forgetful_factory.planning.adapters",
     "forgetful_factory.runtime.adapters",
@@ -128,26 +93,15 @@ modules = [
 ]
 
 [[tool.importlinter.contracts]]
-id = "contexts-not-legacy"
-name = "Contexts do not import legacy areas or composition (until slice 5)"
+id = "core-no-processes"
+name = "Core code, ports and models start no processes and open no sockets"
 type = "forbidden"
 source_modules = [
-    "forgetful_factory.agents",
-    "forgetful_factory.channels",
-    "forgetful_factory.forge",
-    "forgetful_factory.planning",
-    "forgetful_factory.runtime",
-    "forgetful_factory.ticketing",
-    "forgetful_factory.workspace",
+    "forgetful_factory.*.services",
+    "forgetful_factory.*.ports",
+    "forgetful_factory.*.model",
 ]
-forbidden_modules = [
-    "forgetful_factory.adapters",
-    "forgetful_factory.application",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
-    "forgetful_factory.deadlines",
-    "forgetful_factory.domain",
-]
+forbidden_modules = ["subprocess", "socket"]
 
 [[tool.importlinter.contracts]]
 id = "agentshell-in-agents"
@@ -155,15 +109,12 @@ name = "Only the agents adapter imports AgentShell"
 type = "forbidden"
 source_modules = [
     "forgetful_factory.__main__",
-    "forgetful_factory.adapters",
     "forgetful_factory.agents.model",
     "forgetful_factory.agents.ports",
-    "forgetful_factory.application",
     "forgetful_factory.channels",
     "forgetful_factory.cli",
     "forgetful_factory.configuration",
-    "forgetful_factory.deadlines",
-    "forgetful_factory.domain",
+    "forgetful_factory.factory",
     "forgetful_factory.forge",
     "forgetful_factory.planning",
     "forgetful_factory.runtime",

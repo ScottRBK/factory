@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from forgetful_factory.application.cleanup_marker import (
+from forgetful_factory.factory.services.cleanup_marker import (
     CleanupMarkerError,
     validate_cleanup_marker,
 )

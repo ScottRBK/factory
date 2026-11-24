@@ -15,8 +15,8 @@ from profile_support import install_commands, install_grill_skill
 
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.configuration import load_configuration
-from forgetful_factory.deadlines import DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 INIT_SETTINGS = ('--label', 'factory', '--foreman-model', 'provider/model',

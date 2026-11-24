@@ -298,7 +298,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
 
     def test_noninteractive_network_read_timeout_is_not_an_uncertain_write(self):
         # Arrange
-        from forgetful_factory.deadlines import DeadlinePolicy
+        from forgetful_factory.cli.deadlines import DeadlinePolicy
 
         _, _, mapping = self.prepared()
         native = shutil.which('git')

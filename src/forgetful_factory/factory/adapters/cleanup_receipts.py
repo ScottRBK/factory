@@ -5,7 +5,7 @@ import stat
 from dataclasses import asdict, fields
 from pathlib import Path
 
-from forgetful_factory.application.ports.cleanup_receipts import CleanupSet
+from forgetful_factory.factory.ports import CleanupSet
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import (
     check_real_path,
