@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from pathlib import Path
 
+from forgetful_factory.agents.model import unknown_status
 from forgetful_factory.agents.ports import ForemanTerminal
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import (
@@ -81,12 +82,6 @@ def _read_discovery(workspace: Path) -> dict:
             or not value['process_started']):
         raise ValueError('Invalid observation identity')
     return value
-
-
-def unknown_status(source: str = 'none', observation: str = 'unavailable') -> dict:
-    return {'source': source, 'observation': observation, 'process': 'unknown', 'phase': 'unknown',
-            'foreman': 'unknown', 'watcher': 'unknown', 'target': None, 'health': 'not_checked',
-            'evidence': 'not_observed'}
 
 
 def plain_watch_status(workspace: Path) -> dict | None:

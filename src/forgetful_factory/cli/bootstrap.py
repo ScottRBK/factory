@@ -3,20 +3,25 @@ import sys
 from functools import partial
 from pathlib import Path
 
+from forgetful_factory.agents.adapters.agentshell.owner_client import AgentShellOwner
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
 from forgetful_factory.agents.adapters.pi.agent_team import PiAgentTeam
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
 from forgetful_factory.channels.adapters.terminal import TerminalChannel
 from forgetful_factory.cli.deadlines import DeadlinePolicy
+from forgetful_factory.configuration import load_configuration
 from forgetful_factory.factory.adapters.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
-from forgetful_factory.factory.adapters.watch_status import ObservedTerminal
+from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
+from forgetful_factory.factory.adapters.watch_status import ObservedTerminal, plain_watch_status
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.initialise_factory import InitialiseFactory, missing_tools
 from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
+from forgetful_factory.factory.services.start_foreman import StartForeman
 from forgetful_factory.factory.services.watch_factory import WatchFactory
+from forgetful_factory.factory.services.watch_status import WatchStatus
 from forgetful_factory.forge.adapters.github import GitHubForge
 from forgetful_factory.planning.adapters.forgetful.connection import role_environment
 from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInstall
@@ -42,6 +47,12 @@ def build_host() -> TmuxHost:
 def build_channel() -> TerminalChannel:
     """People reach the Foreman in their own terminal, through the session host."""
     return TerminalChannel(build_host())
+
+
+def build_owner(workspace: Path, python: str,
+                deadlines: DeadlinePolicy = DeadlinePolicy()) -> AgentShellOwner:
+    """The persistent owner that keeps the Foreman open between commands."""
+    return AgentShellOwner(workspace, python, deadlines.agentshell, host=build_host())
 
 
 def build_tools(workspace: Path, connection: ForgetfulConnection, term_grace: float = 3):
@@ -128,3 +139,22 @@ def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, com
     environment['FACTORY_FOREMAN_AGENT_FILE'] = str(
         Path(config.foreman_agent_file).absolute())
     return profile, environment, launch
+
+
+def build_watch_status(workspace: Path, python: str,
+                       deadlines: DeadlinePolicy = DeadlinePolicy()) -> WatchStatus:
+    return WatchStatus(partial(plain_watch_status, workspace),
+                       build_owner(workspace, python, deadlines),
+                       TomlConfigurationStore(workspace), build_team(workspace))
+
+
+def build_start_foreman(workspace: Path, python: str,
+                        deadlines: DeadlinePolicy = DeadlinePolicy()) -> StartForeman:
+    def prepare():
+        config = load_configuration(workspace)
+        team, environment, launch = prepare_foreman_launch(
+            config, workspace, term_grace=deadlines.owned_process_term_grace)
+        return team.managed_memory_notice(), environment, launch
+
+    return StartForeman(WorkspaceWatchLease(workspace), build_owner(workspace, python, deadlines),
+                        build_channel(), prepare)

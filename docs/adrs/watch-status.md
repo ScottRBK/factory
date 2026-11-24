@@ -60,6 +60,12 @@ observation, warning and recorded values. The combined observation is saved when
 saved evidence, otherwise unavailable. An old stopped owner cannot turn a timed-out plain process
 into a current stop. Single-source saved-stop reporting likewise retains stopped only as history.
 
+Code (since slice 5 of the [domain contexts plan](../plans/domain-contexts.md)): the factory
+service `factory/services/watch_status.py` makes this choice and adds the setup state. The owner
+adapter (`AgentShellOwner.report` in `agents/adapters/agentshell/owner_client.py`) reads the owner
+record, because its recovery text names the owner's own files. `factory/adapters/watch_status.py`
+reads the plain watcher. Golden transcripts in `tests/test_operator_transcripts.py` pin the output.
+
 Offline records cannot establish current watcher presence or absence. In particular, a saved
 Foreman stop does not establish watcher stop: owner snapshots can precede watcher cleanup and
 watcher transitions are not all persisted. A saved confirmed Foreman stop remains labeled saved;

@@ -1,4 +1,4 @@
-"""What the factory's own workflows need from storage and tool installs."""
+"""What the factory's own workflows need from storage, the agreement and tool installs."""
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Protocol
@@ -40,6 +40,20 @@ class CleanupReceipts(Protocol):
     def load(self) -> set[CleanupSet]: ...
 
     def confirm(self, resource: CleanupSet) -> None: ...
+
+
+class AgreementStore(Protocol):
+    """The workspace's Definition of Done agreement: plain text that people edit."""
+
+    location: str
+
+    def found(self) -> bool:
+        """True when an agreement exists; fails when it is not a safe regular file."""
+
+    def write(self, text: str) -> None:
+        """Save a new agreement; never replace an existing one."""
+
+    def read(self) -> str: ...
 
 
 class ToolInstaller(Protocol):

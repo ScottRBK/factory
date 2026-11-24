@@ -12,7 +12,7 @@ from pathlib import Path
 
 from forgetful_factory.agents.adapters.agentshell.foreman_runtime import runtime_directory
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
-from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines, unknown_status
 from forgetful_factory.runtime.ports import SessionHost
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import read_generated_json
@@ -175,3 +175,53 @@ def start_owner(
                                        'No replacement was started.') from None
         # Before adoption the owner treats handover EOF as cancellation, closing its controller.
         # After adoption it deliberately ignores init's descriptor/process lifetime.
+
+
+class AgentShellOwner:
+    """The persistent owner process, reached through its private control socket."""
+
+    def __init__(self, workspace: Path, python: str,
+                 deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
+                 host: SessionHost):
+        self.workspace = workspace
+        self.python = python
+        self.deadlines = deadlines
+        self.host = host
+
+    def saved(self) -> dict | None:
+        return read_state(self.workspace)
+
+    def status(self) -> dict:
+        return request(self.workspace, 'status')
+
+    def start(self, environment: dict[str, str], launch: dict) -> dict:
+        return start_owner(self.workspace, self.python, environment, launch, self.deadlines,
+                           host=self.host)
+
+    def report(self) -> dict | None:
+        workspace = self.workspace
+        try:
+            state = read_state(workspace)
+        except FactoryError as error:
+            return {**unknown_status('managed_owner'), 'warning': str(error)}
+        if state is None:
+            return None
+        try:
+            state = {**request(workspace, 'status'), 'source': 'managed_owner',
+                     'observation': 'live', 'process': 'present', 'process_role': 'foreman_owner',
+                     'evidence': 'owner_report', 'health': 'not_checked'}
+            state['phase'] = 'watching' if state['watcher'] == 'running' else state['watcher']
+        except FactoryError as error:
+            state = {**state, **unknown_status('managed_owner', 'saved'),
+                     'target': state.get('target'), 'recorded_foreman': state.get('foreman'),
+                     'recorded_watcher': state.get('watcher'), 'evidence': 'saved_record'}
+            if state['recorded_foreman'] != 'stopped':
+                state['warning'] = str(error)
+                state['recovery'] = (
+                    'Saved state is not a live observation. Inspect the recorded socket/pane '
+                    'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
+                    'Only after independently confirming the original Foreman and owner '
+                    'have exited, archive owner.json and control.sock from '
+                    '.factory/runtime/foreman, then retry foreman '
+                    f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
+        return state

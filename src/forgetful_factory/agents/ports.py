@@ -18,6 +18,22 @@ class ForemanTerminal(Protocol):
     def close(self) -> None: ...
 
 
+class PersistentForeman(Protocol):
+    """The process that keeps the Foreman session open between Factory commands."""
+
+    def saved(self) -> dict | None:
+        """The owner's saved state, or None when no owner was started."""
+
+    def status(self) -> dict:
+        """The live owner's state; fails when the owner does not answer."""
+
+    def report(self) -> dict | None:
+        """The owner's lifecycle report: live, saved or unknown; None without an owner."""
+
+    def start(self, environment: dict[str, str], launch: dict) -> dict:
+        """Start an owner and its Foreman session; return the owner's state."""
+
+
 class AgentTeam(Protocol):
     """The agent team: role files, the shared native home, models and setup completion."""
 

@@ -1,6 +1,6 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–4d and 5a implemented** (see [Progress](#progress)). Fable
+**Status: Approved 2026-11-23; slices 0–5 implemented** (see [Progress](#progress)). Fable
 reviewed the first draft on 2026-11-23; see the [review record](#review-record). The design parts
 still need to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for
 now.
@@ -479,11 +479,42 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** slice 5b (watch status, Foreman start and DoD logic into `factory/services/`), then
-slice 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is kept and may be reused);
-then SonarQube and the two reviews. Trials use a throwaway private
+**Next steps:** slice 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is kept and
+may be reused); then SonarQube and the two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Slice 5b: done** (2026-11-24), thin CLI. No behaviour change.
+  - Tests first: `tests/test_operator_transcripts.py` pins, as raw text, what these paths print:
+    the agreement prompts and output for every answer (first setup, finalize, existing file), the
+    `foreman` refusals, and `watch --status` JSON with no records, a saved or live owner, an
+    unreadable owner record, both saved sources and complete setup. Recorded at `8d715d2`
+    (`tests/fixtures/transcripts.json`); the same fixture also passes at `cff2499`, before
+    slice 5. Only the `discuss` answer drops stderr: setup then starts a Foreman, which depends on
+    the host.
+  - Moves: Foreman start is `StartForeman` (`factory/services/start_foreman.py`), watch status
+    is `WatchStatus` (`factory/services/watch_status.py`), and the agreement steps are
+    `factory/services/definition_of_done.py` (moved with `git mv`; `print`/`input` became the
+    `say`/`ask` functions the CLI passes in, and the file became the `AgreementStore` port with
+    the `MarkdownAgreement` adapter). The CLI functions are now a few lines each.
+  - New port `PersistentForeman` (`agents/ports.py`: `saved`, `status`, `report`, `start`) with
+    `AgentShellOwner` in `owner_client.py`. The owner report (live, saved or unknown, with its
+    recovery text) moved there verbatim from the CLI: the text names the owner's own files, so it
+    belongs to the adapter. `unknown_status` moved to `agents/model.py`, because the owner adapter
+    needs it and `agents` may not import `factory`. The port was first called `ForemanOwner`; that
+    is the owner process class in `owner.py`, so it was renamed.
+  - Contracts: `PersistentForemanContract` (`AgentShellOwner`, no live owners) and
+    `AgreementStoreContract` (`MarkdownAgreement`).
+  - Mutations in a scratch copy, each caught: the agreement file replaced on a second write; a
+    stopped owner given a recovery warning; changed refusal and prompt text; the memory notice
+    dropped from `foreman` (`test_normalized_lifecycle.py`). Swapping two keys in the combined
+    report is not a change: they already exist in the owner report, so their position is kept.
+  - Still in the CLI: `watch --start/--stop` (argument checks, one owner request) and the plain
+    watcher's composition (`_watch_locked`: signals, observer and the saved-owner refusal). They
+    are composition, so they stay.
+  - Docs: the class diagram marks ports with one-line `<<interface>> Name` statements (Mermaid
+    docs, through Context7), which keeps the overview under 500 lines.
+  - Checks: full suite 740 passed, 14 skipped; 6 contracts kept; Ruff clean.
 
 - **Slice 5a: done** (2026-11-24), move and final rules. No behaviour change.
   - The legacy folders are gone. `factory/model/` holds `configuration.py`, `repositories.py`

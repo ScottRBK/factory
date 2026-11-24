@@ -84,8 +84,8 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 - Prepare a package release. No release is recorded. The corrected licensing wording does not
   impose an internal-use-only restriction; retain applicable notices when distributing code.
 - Split the package into domain contexts (ticketing, forge, planning, workspace, agents, runtime,
-  channels) with their own ports and adapters. See the
-  [domain contexts plan](plans/domain-contexts.md); slices 0–4d and 5a are done; 5b and 6 remain.
+  channels) with their own ports and adapters. See the [domain contexts
+  plan](plans/domain-contexts.md); slices 0–5 are done; the final trial (6) remains.
 
 ### Recent delivered changes
 

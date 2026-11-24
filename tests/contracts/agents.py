@@ -35,3 +35,52 @@ class AgentTeamContract:
 
     def test_no_memory_notice_before_a_launch_is_selected(self):
         self.assertIsNone(self.team().managed_memory_notice())
+
+
+class PersistentForemanContract:
+    """Mix into unittest.TestCase. The subclass supplies the owner and ways to save its records.
+
+    Starting a real owner needs a live session; the lifecycle tests cover start and status.
+    """
+
+    def owner(self):
+        raise NotImplementedError
+
+    def save_unreadable_record(self):
+        raise NotImplementedError
+
+    def save_silent_owner(self, foreman: str):
+        """Save an owner record whose owner does not answer."""
+        raise NotImplementedError
+
+    def test_no_owner_gives_no_record_no_report_and_no_status(self):
+        owner = self.owner()
+        self.assertIsNone(owner.saved())
+        self.assertIsNone(owner.report())
+        with self.assertRaises(FactoryError):
+            owner.status()
+
+    def test_unreadable_record_is_reported_unknown_with_a_warning(self):
+        self.save_unreadable_record()
+        report = self.owner().report()
+        self.assertEqual(report['observation'], 'unavailable')
+        self.assertEqual(report['foreman'], 'unknown')
+        self.assertTrue(report['warning'])
+        with self.assertRaises(FactoryError):
+            self.owner().saved()
+
+    def test_silent_owner_is_history_never_a_live_observation(self):
+        self.save_silent_owner('ready')
+        report = self.owner().report()
+        self.assertEqual(report['observation'], 'saved')
+        self.assertEqual(report['process'], 'unknown')
+        self.assertEqual(report['recorded_foreman'], 'ready')
+        self.assertTrue(report['warning'])
+        self.assertEqual(self.owner().saved()['foreman'], 'ready')
+
+    def test_silent_stopped_owner_needs_no_recovery(self):
+        self.save_silent_owner('stopped')
+        report = self.owner().report()
+        self.assertEqual(report['observation'], 'saved')
+        self.assertNotIn('warning', report)
+        self.assertNotIn('recovery', report)

@@ -17,10 +17,11 @@ from forgetful_factory.agents.model import (
 )
 from forgetful_factory.cli.bootstrap import build_initialiser, build_watcher
 from forgetful_factory.cli.deadlines import DeadlinePolicy
-from forgetful_factory.cli.definition_of_done import agree_definition_of_done
 from forgetful_factory.cli.numbered_selection import parse_numbered_selection
 from forgetful_factory.cli.resource_update import update_resources
+from forgetful_factory.factory.adapters.markdown_agreement import MarkdownAgreement
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.services.definition_of_done import agree_definition_of_done
 from forgetful_factory.factory.services.initialise_factory import InitialiseFactory
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.shared.errors import FactoryError
@@ -307,68 +308,13 @@ def _change_managed_watch(args: argparse.Namespace, workspace: Path) -> int:
     return 0
 
 
-def _managed_watch_status(workspace: Path) -> dict | None:
-    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state, request
-    from forgetful_factory.factory.adapters.watch_status import unknown_status
-
-    try:
-        state = read_state(workspace)
-    except FactoryError as error:
-        return {**unknown_status('managed_owner'), 'warning': str(error)}
-    if state is None:
-        return None
-    try:
-        state = {**request(workspace, 'status'), 'source': 'managed_owner',
-                 'observation': 'live', 'process': 'present', 'process_role': 'foreman_owner',
-                 'evidence': 'owner_report', 'health': 'not_checked'}
-        state['phase'] = 'watching' if state['watcher'] == 'running' else state['watcher']
-    except FactoryError as error:
-        state = {**state, **unknown_status('managed_owner', 'saved'),
-                 'target': state.get('target'), 'recorded_foreman': state.get('foreman'),
-                 'recorded_watcher': state.get('watcher'), 'evidence': 'saved_record'}
-        if state['recorded_foreman'] != 'stopped':
-            state['warning'] = str(error)
-            state['recovery'] = (
-                'Saved state is not a live observation. Inspect the recorded socket/pane '
-                'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
-                'Only after independently confirming the original Foreman and owner '
-                'have exited, archive owner.json and control.sock from '
-                '.factory/runtime/foreman, then retry foreman '
-                f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
-    return state
-
-
-def _watch_status(workspace: Path) -> int:
+def _watch_status(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
     import json
 
-    from forgetful_factory.cli.bootstrap import build_team
-    from forgetful_factory.configuration import load_configuration
-    from forgetful_factory.factory.adapters.watch_status import plain_watch_status, unknown_status
+    from forgetful_factory.cli.bootstrap import build_watch_status
 
-    plain = plain_watch_status(workspace)
-    if plain and plain['observation'] == 'live':
-        state = plain
-    else:
-        managed = _managed_watch_status(workspace)
-        if managed and managed['observation'] == 'live':
-            state = managed
-        elif plain and managed:
-            state = {**managed, 'source': 'combined', 'foreman': 'unknown', 'watcher': 'unknown',
-                     'phase': 'unknown', 'process': 'unknown', 'health': 'not_checked',
-                     'observation': ('saved' if 'saved' in (plain['observation'],
-                                                          managed['observation'])
-                                     else 'unavailable'),
-                     'evidence': 'multiple_records', 'plain_watch': plain}
-        else:
-            state = plain or managed or unknown_status()
-    try:
-        # Setup counts as complete only when the configuration also loads.
-        load_configuration(workspace)
-        build_team(workspace).validate_completion()
-        state['setup'] = 'complete'
-    except (FactoryError, OSError):
-        state['setup'] = 'incomplete'
-    print(json.dumps(state))
+    report = build_watch_status(workspace, args.agentshell_python, deadlines).report()
+    print(json.dumps(report))
     return 0
 
 
@@ -376,7 +322,7 @@ def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy)
     if args.start or args.stop:
         return _change_managed_watch(args, workspace)
     if args.status:
-        return _watch_status(workspace)
+        return _watch_status(args, workspace, deadlines)
 
     from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
@@ -385,38 +331,10 @@ def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy)
 
 
 def _foreman(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
-    import uuid
+    from forgetful_factory.cli.bootstrap import build_start_foreman
 
-    from forgetful_factory.agents.adapters.agentshell.owner_client import (
-        read_state,
-        request,
-        start_owner,
-    )
-    from forgetful_factory.cli.bootstrap import build_channel, build_host, prepare_foreman_launch
-    from forgetful_factory.configuration import load_configuration
-    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
-
-    if args.attach:
-        state = request(workspace, 'status')
-    else:
-        with WorkspaceWatchLease(workspace).hold():
-            state = read_state(workspace)
-            if state and state.get('foreman') != 'stopped':
-                raise FactoryError('Foreman already exists or is uncertain; use foreman --attach '
-                                   'or watch --status. The existing owner was preserved.')
-            config = load_configuration(workspace)
-            profile, environment, launch = prepare_foreman_launch(
-                config, workspace, term_grace=deadlines.owned_process_term_grace)
-            notice = profile.managed_memory_notice()
-            if notice is not None:
-                print(notice, flush=True)
-            state = start_owner(workspace, args.agentshell_python, environment, {
-                **launch, 'session_name': f'factory-foreman-{uuid.uuid4().hex[:12]}',
-                'prompt': None}, deadlines.agentshell, host=build_host())
-    if state['foreman'] != 'ready':
-        raise FactoryError(state.get('warning', 'Foreman is not ready.') +
-                           ' Foreman was preserved; inspect watch --status.')
-    build_channel().open(state['target'])
+    build_start_foreman(workspace, args.agentshell_python, deadlines).run(
+        attach=args.attach, notify=lambda notice: print(notice, flush=True))
     return 0
 
 
@@ -780,7 +698,7 @@ def _finish_existing_setup(application: InitialiseFactory, config: FactoryConfig
     application.team.selected_launch(config.foreman_agent_file, config.forgetful)
     for message in application.initialise(config, before_writes=lambda: None, save=False):
         print(message)
-    if agree_definition_of_done(workspace, config):
+    if agree_definition_of_done(MarkdownAgreement(workspace), config, input, print):
         state = read_state(workspace)
         if state and state.get('foreman') != 'stopped':
             raise FactoryError('Use init --attach to discuss with the existing Foreman. '
@@ -868,7 +786,8 @@ def _start_initial_setup(application: InitialiseFactory, args: argparse.Namespac
     if args.assisted:
         return _launch_setup_foreman(
             application, state.config, workspace, args, deadlines)
-    if agree_definition_of_done(workspace, state.config):
+    if agree_definition_of_done(MarkdownAgreement(workspace), state.config, input,
+                                print):
         return _launch_setup_foreman(application, state.config, workspace, args, deadlines)
     _complete_setup(application, state.config, workspace, login=args.login, initial=True)
     print('\nFactory setup complete.')

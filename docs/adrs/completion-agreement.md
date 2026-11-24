@@ -31,6 +31,11 @@ an unrun check passed. New plans use the updated workspace agreement.
 
 ## Setup and recovery
 
+Code (since slice 5 of the [domain contexts plan](../plans/domain-contexts.md)): the steps are a
+factory service (`factory/services/definition_of_done.py`). The CLI gives it the terminal prompts
+and the Markdown file adapter (`factory/adapters/markdown_agreement.py`). Golden transcripts in
+`tests/test_operator_transcripts.py` pin the text.
+
 First manual setup offers three starting points and a discussion route:
 
 1. Independent review, required repository/PR checks and confirmed merge.

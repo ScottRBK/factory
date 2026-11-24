@@ -106,11 +106,16 @@ tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the host
 plain data with a kind, its attach text names the session, and entry without a terminal only prints
 how to enter; it runs against `TmuxHost`. `ChannelContract` states that the way to reach a session
 names it and that opening without a terminal only prints how; it runs against `TerminalChannel` on
-`TmuxHost`. `tests/test_runtime_host.py` also sends launch frames to the real controller: an unknown
-host kind is refused before a session opens, and a frame without a host is invalid. The ticketing
-and forge mixins run against the GitHub adapter (with a stateful `gh` stub for ticketing) and a
-non-GitHub fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state in a JSON file) and
-`FakeForge` (`forge.example`, `/changes/N`). A new adapter is done when it passes its mixin.
+`TmuxHost`. `PersistentForemanContract` states that without an owner there is no record, report or
+status, an unreadable record is reported unknown with a warning, and a silent owner is history,
+never a live observation; it runs against `AgentShellOwner` without live owners.
+`AgreementStoreContract` states that an empty workspace has no agreement, a written agreement reads
+back, and writing again never replaces it; it runs against `MarkdownAgreement`.
+`tests/test_runtime_host.py` also sends launch frames to the real controller: an unknown host kind
+is refused before a session opens, and a frame without a host is invalid. The ticketing and forge
+mixins run against the GitHub adapter (with a stateful `gh` stub for ticketing) and a non-GitHub
+fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state in a JSON file) and `FakeForge`
+(`forge.example`, `/changes/N`). A new adapter is done when it passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan

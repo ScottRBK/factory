@@ -1,4 +1,4 @@
-"""The agent team: one-time starter choices and AgentShell lifecycle deadlines."""
+"""The agent team: starter choices, AgentShell lifecycle deadlines and lifecycle reports."""
 from dataclasses import dataclass, fields
 
 from forgetful_factory.shared.errors import FactoryError
@@ -142,3 +142,13 @@ class AgentShellLifecycleDeadlines:
     def __post_init__(self) -> None:
         for item in fields(self):
             positive_duration(item.name, getattr(self, item.name))
+
+
+def unknown_status(source: str = 'none', observation: str = 'unavailable') -> dict:
+    """A lifecycle report that observed nothing.
+
+    The plain watcher and the Foreman owner report in this shape; watch status combines them.
+    """
+    return {'source': source, 'observation': observation, 'process': 'unknown', 'phase': 'unknown',
+            'foreman': 'unknown', 'watcher': 'unknown', 'target': None, 'health': 'not_checked',
+            'evidence': 'not_observed'}
