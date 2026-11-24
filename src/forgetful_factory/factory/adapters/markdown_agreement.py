@@ -7,7 +7,10 @@ from forgetful_factory.shared.resource_files import check_skill_file, write_new
 class MarkdownAgreement:
     def __init__(self, workspace: Path):
         self.path = workspace / '.factory/definition_of_done.md'
-        self.location = str(self.path)
+
+    @property
+    def location(self) -> str:
+        return str(self.path)
 
     def found(self) -> bool:
         if self.path.exists() or self.path.is_symlink():

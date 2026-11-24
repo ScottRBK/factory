@@ -357,7 +357,7 @@ Paths below are relative to `src/forgetful_factory/`:
   Adapter wiring: `cli/bootstrap.py`, lines 72 and 98; ticketing registry and source checks:
   lines 39 and 83; GitHub CLI preflight: line 105; selected root launch: line 127.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
-  `ticketing/adapters/github.py`, lines 14, 18, 79 and 98. Forge port: `forge/ports.py`, line 6;
+  `ticketing/adapters/github.py`, lines 15, 19, 80 and 99. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
   Deadline policies: `cli/deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
 - Workflows: `factory/services/initialise_factory.py`, line 37; `factory/services/watch_factory.py`,
@@ -393,7 +393,7 @@ Paths below are relative to `src/forgetful_factory/`:
   `PlanningSetup` in `planning/ports.py`, line 38 (`planning/adapters/forgetful/setup.py`, line 9).
   Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80; update command:
   `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
-- Tool installs: `ToolInstaller` in `factory/ports.py`, line 59; one installer per
+- Tool installs: `ToolInstaller` in `factory/ports.py`, line 61; one installer per
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones

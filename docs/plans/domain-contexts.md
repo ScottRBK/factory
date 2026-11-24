@@ -475,14 +475,28 @@ any further change of behaviour needs his approval first.
     "GitHub PR URL".
 - **Not reachable with GitHub only:** mixed ticketing providers are refused; the remote-matches-
   source check is skipped when forge and ticketing differ; cleanup scope accepts any provider's
-  key format through `is_key` (`[1-9][0-9]*` for GitHub; the old pattern `[1-9]\d*` also
-  accepted non-ASCII digits, which Factory never writes).
+  key format through `is_key`. For GitHub, `is_key` uses the old pattern `[1-9]\d*` (restored
+  after the SonarQube scan; slice 1 had used `[1-9][0-9]*`, which refused non-ASCII digits).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
 **Next steps:** slice 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is kept and
 may be reused); then SonarQube and the two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **SonarQube** (2026-11-24, local Community Build, gate "Sonar way sans code coverage"). The
+  server cannot analyse branches, so the scan script's `SONAR_MAIN_BRANCH` override scanned each
+  commit as the project's one branch: first current `main` (`ff5bc18`), then this branch.
+  - `main`: 1 issue, `cli/resource_update.py:22` (S3516, "always returns the same value"); 0%
+    duplication; no hotspots. The gate fails on it (new since the stored 15 Nov analysis).
+  - Branch at `9867804`: 5 new issues, all fixed with no behaviour change: `watch_status.py`
+    `report` cognitive complexity 16 > 15 (two helpers); argument-type warnings on the
+    `agree_definition_of_done` calls (the port's `location` is now a property); `[0-9]` instead
+    of `\d` in `GitHubTicketing._KEY` (now `[1-9]\d*`, the pattern `main` used); a test hook
+    read as an unused helper (`# NOSONAR(S5899)`, the form the sonar-python docs give through
+    Context7).
+  - After the fixes: only the `main` issue remains (pre-existing, unchanged: fixing it would
+    change code outside this refactor). 0% duplication, no hotspots, no bugs or vulnerabilities.
 
 - **Slice 5b: done** (2026-11-24), thin CLI. No behaviour change.
   - Tests first: `tests/test_operator_transcripts.py` pins, as raw text, what these paths print:

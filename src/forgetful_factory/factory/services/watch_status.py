@@ -25,25 +25,29 @@ class WatchStatus:
         if plain and plain['observation'] == 'live':
             state = plain
         else:
-            managed = self.owner.report()
-            if managed and managed['observation'] == 'live':
-                state = managed
-            elif plain and managed:
-                state = {**managed, 'source': 'combined', 'foreman': 'unknown',
-                         'watcher': 'unknown', 'phase': 'unknown', 'process': 'unknown',
-                         'health': 'not_checked',
-                         'observation': ('saved' if 'saved' in (plain['observation'],
-                                                              managed['observation'])
-                                         else 'unavailable'),
-                         'evidence': 'multiple_records', 'plain_watch': plain}
-            else:
-                state = plain or managed or unknown_status()
-        try:
-            # Setup counts as complete only when the configuration also loads.
-            complete = self.storage.load() is not None
-            if complete:
-                self.team.validate_completion()
-        except (FactoryError, OSError):
-            complete = False
-        state['setup'] = 'complete' if complete else 'incomplete'
+            state = self._without_live_plain(plain)
+        state['setup'] = self._setup()
         return state
+
+    def _without_live_plain(self, plain: dict | None) -> dict:
+        managed = self.owner.report()
+        if managed and managed['observation'] == 'live':
+            return managed
+        if plain and managed:
+            return {**managed, 'source': 'combined', 'foreman': 'unknown', 'watcher': 'unknown',
+                    'phase': 'unknown', 'process': 'unknown', 'health': 'not_checked',
+                    'observation': ('saved' if 'saved' in (plain['observation'],
+                                                         managed['observation'])
+                                    else 'unavailable'),
+                    'evidence': 'multiple_records', 'plain_watch': plain}
+        return plain or managed or unknown_status()
+
+    def _setup(self) -> str:
+        """Setup counts as complete only when the configuration also loads."""
+        try:
+            if self.storage.load() is None:
+                return 'incomplete'
+            self.team.validate_completion()
+        except (FactoryError, OSError):
+            return 'incomplete'
+        return 'complete'

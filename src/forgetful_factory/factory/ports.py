@@ -45,7 +45,9 @@ class CleanupReceipts(Protocol):
 class AgreementStore(Protocol):
     """The workspace's Definition of Done agreement: plain text that people edit."""
 
-    location: str
+    @property
+    def location(self) -> str:
+        """Where the agreement lives, for messages."""
 
     def found(self) -> bool:
         """True when an agreement exists; fails when it is not a safe regular file."""

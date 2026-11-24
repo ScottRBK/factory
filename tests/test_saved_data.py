@@ -58,7 +58,8 @@ def assert_fixture(test, name, value):
 
 
 class SavedDataTests(CompletedCleanupFixture):
-    def initialize_profile(self):
+    # Sonar reads this override as an unused helper; the fixture's setUp calls it.
+    def initialize_profile(self):  # NOSONAR(S5899)
         super().initialize_profile()
         # Capture init's configuration before the fixture replaces it.
         self.init_configuration = (self.workspace / '.factory/factory.toml').read_text()
