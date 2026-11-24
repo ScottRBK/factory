@@ -453,7 +453,7 @@ Each slice is vertical. It keeps every test passing, and it updates the rules,
   `cli/`. The legacy folders are empty and removed.
   Proof: `top-level` and `core-no-processes` rules with proofs; full suite.
 
-- **6. Final trial.** Full DinoLand trial on the final commit (see below).
+- **6. Final trial.** Full trial (on the throwaway repo, not DinoLand; see below).
 
 ### Progress
 
@@ -478,7 +478,8 @@ any further change of behaviour needs his approval first.
   checks saved keys with `is_key` (for GitHub: ASCII digits, no leading zero, readable as an int).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** Scott's decisions on the known limits below; the branch is not pushed. Trials use
+**Next steps:** Scott's decisions (damaged saved contexts, the `json`/`_ctypes` order, the known
+limits below); the branch is not pushed. Trials use
 a throwaway private GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted
 afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
 
@@ -512,7 +513,7 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
     resolves its own path, as before. Test: `test_launch_paths_keep_the_installed_spelling`.
   - **Packaging (Astra).** The sdist missed `tests/contracts/` and the JSON fixtures, so its
     tests could not be collected. Patterns added; a test checks every test file is covered.
-    The rebuilt sdist collects every test (772 at the final commit).
+    The rebuilt sdist collects every test (775 at the last commit).
   - **Rule gaps (Astra, Fable).** `__main__` could import an adapter directly: new rule
     `entry-through-cli` (direct imports only). An `agents.services` module could import
     AgentShell: `agentshell-in-agents` now takes every services, ports and model package. The
@@ -546,6 +547,26 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
   the `__init__` guard reads the AST. Fable's round-3 run failed to start (AgentShell exit 1),
   so it has no round-3 report. Still open for Scott: with both `_ctypes` and `json` missing, the
   controller names `json` first (`main` named `_ctypes`).
+- **Reviews, round 4** (Fable at `045f2f4` on `2b41d1c..045f2f4`, re-run after its round-3 run
+  failed; Astra at `045f2f4`). Fable: "no blocker", no new behaviour change against `ff5bc18`,
+  every earlier finding resolved except three small items. Astra: the round-3 case is fixed, and
+  it built more damaged records (below). Fixed, test-first:
+  - A minus sign before an over-long saved number now fails when the context is read, as the old
+    JSON integer did (both reviewers).
+  - That check now applies only to keys the provider calls key-shaped (`could_be_key`, GitHub
+    only today): another provider's long text keys are read as before (Astra).
+  - A test now shows the host file's own imports still cache (a global switch failed it) (Fable).
+  - Doc slips: the re-run record, the test count, a line citation (Fable).
+- **Decision for Scott: damaged saved plan contexts.** Decision 6 turned the saved integer
+  `number` into the text `key`. `main` refused some damaged records only because Python's JSON
+  parser failed on the integer. The branch now matches that for the realistic damage (zero,
+  leading zeros, non-ASCII digits, numbers longer than Python reads, with or without a sign).
+  Astra found two hand-built records that still differ: a context that repeats the `key` field
+  with an over-long value first and a sound one last (`main` refused it; the branch reads the
+  sound last value and, for a completed plan, cleans up), and an archived context that holds both
+  the old `number` and an over-long text `key` (`main` skipped it; the branch reports it). Factory
+  never writes either; matching them would mean re-running integer parsing on every repeated
+  field. Recommendation: accept them as part of decision 6 and stop here.
 
 - **Known limits (not changed; behaviour-neutral, for Scott to decide).**
   - `AgentTeam` names Pi (`choose_pi_home`, `pi_home`, `harness='pi'`) and four methods take
@@ -1033,6 +1054,10 @@ Findings:
   kept in the session scratchpad). The repo keeps `main` only.
 - New observation for later (not the refactor): the reviewer's sandbox has no network, so every
   review needs a user decision or an owner workaround (F4 again).
+- Smoke on the last code (`01b57f9`, wheel `86d0e609…`, 117 checksums), because later commits
+  change how the controller starts: fresh setup with project 29, launched with "n": "Foreman
+  session ready" and "Baseline scottrbk/factory-smoke-20261123: 0 matching issues". Stopped with
+  Ctrl-C; project 29, its Pi session and the workspace removed.
 
 ## Decisions
 

@@ -114,3 +114,17 @@ class ControllerPreflightTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(sorted(path.name for path in folder.iterdir()),
                              sorted((CONTROLLER.name, TMUX_HOST.name)))
+
+    def test_modules_the_host_checks_import_still_cache_as_before(self):
+        # Arrange: a pure-Python ctypes stand-in, which the old controller imported and cached.
+        with tempfile.TemporaryDirectory() as temporary:
+            stand_in = Path(temporary, 'ctypes')
+            stand_in.mkdir()
+            (stand_in / '__init__.py').write_text('')
+            # Act
+            result = self.run_python(['-c', 'import runpy, sys; runpy.run_path(sys.argv[1], '
+                                      "run_name='controller')['load_host']('tmux')",
+                                      str(CONTROLLER)], path=temporary)
+            # Assert
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue((stand_in / '__pycache__').is_dir())

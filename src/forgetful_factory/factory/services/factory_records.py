@@ -84,10 +84,14 @@ class FactoryRecords:
                 raise ValueError('Missing association')
             issue = context.get('issue')
             key = issue.get('key') if isinstance(issue, dict) else None
-            if isinstance(key, str) and key.isascii() and key.isdigit():
-                # Saved numeric keys were JSON integers before keys became text. One longer
-                # than Python reads failed here, so the plan was refused before any write.
-                int(key)
+            if isinstance(key, str):
+                digits = key.removeprefix('-')
+                if (digits.isascii() and digits.isdigit()
+                        and self.ticketing.could_be_key(digits)):
+                    # Numeric keys were saved as JSON integers before keys became text. One
+                    # longer than Python reads failed here, so the plan was refused before
+                    # any write.
+                    int(key)
         except (TypeError, ValueError) as error:
             raise ScaffoldProblem(
                 'plan_context_invalid', 'Factory plan has invalid context; reconcile its workspace '

@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+from contracts.ticketing import FakeTicketing
+
 from forgetful_factory.cli.bootstrap import select_ticketing
 from forgetful_factory.factory.model.watcher_problems import ScaffoldProblem
 from forgetful_factory.factory.services.factory_records import FactoryRecords
@@ -61,11 +63,23 @@ class SavedTicketTests(unittest.TestCase):
         sys.set_int_max_str_digits(4300)
         self.addCleanup(sys.set_int_max_str_digits, limit)
         records = FactoryRecords(None, Path('/workspace'), None, None, None, GitHubTicketing())
+        for key in ('1' * 4301, '-' + '1' * 4301):
+            with self.subTest(length=len(key)):
+                context = {'workspace': '/workspace', 'issue': {'key': key}}
+                with self.assertRaises(ScaffoldProblem) as raised:
+                    records.context({'context': json.dumps(context)})
+                self.assertEqual(raised.exception.code, 'plan_context_invalid')
+        context = {'workspace': '/workspace', 'issue': {'key': '1' * 4300}}
+        self.assertEqual(records.context({'context': json.dumps(context)}), context)
+
+    def test_long_text_keys_of_another_provider_are_read(self):
+        # Only GitHub keys were saved as numbers before; another provider's keys stay text.
+        limit = sys.get_int_max_str_digits()
+        sys.set_int_max_str_digits(4300)
+        self.addCleanup(sys.set_int_max_str_digits, limit)
+        records = FactoryRecords(None, Path('/workspace'), None, None, None,
+                                 FakeTicketing(Path('/unused')))
         context = {'workspace': '/workspace', 'issue': {'key': '1' * 4301}}
-        with self.assertRaises(ScaffoldProblem) as raised:
-            records.context({'context': json.dumps(context)})
-        self.assertEqual(raised.exception.code, 'plan_context_invalid')
-        context['issue']['key'] = '1' * 4300
         self.assertEqual(records.context({'context': json.dumps(context)}), context)
 
     def test_saved_key_the_provider_never_writes_needs_reconciliation(self):

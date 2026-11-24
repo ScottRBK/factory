@@ -367,7 +367,7 @@ Paths below are relative to `src/forgetful_factory/`:
   file: `factory/adapters/markdown_agreement.py`, line 7.
   Public cleanup validation: `factory/services/cleanup_marker.py`, line 15; error type: line 11.
   Problem types and formatting: `factory/model/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `factory/services/factory_records.py`, lines 17–125;
+  Shared identity/repository checks: `factory/services/factory_records.py`, lines 17–135;
   pre-create checks: `factory/services/scaffold_issue.py`, line 89; read-only lookup/recovery:
   lines 177 and 233; placeholder creation: line 189; worktree names: line 32.
   Cleanup: `factory/services/cleanup_completed.py`, lines 48–117, 292–387; ticket scope: line 190;

@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 5498. Type relationships removed: 113.
+Calls removed by test filtering: 5506. Type relationships removed: 113.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -85,12 +85,12 @@ Calls removed by test filtering: 5498. Type relationships removed: 113.
 - `tests/test_research_configuration.py`: 8 source occurrences (test-path).
 - `tests/test_resource_update.py`: 18 source occurrences (test-path).
 - `tests/test_review_regressions.py`: 54 source occurrences (test-path).
-- `tests/test_runtime_host.py`: 13 source occurrences (test-path).
+- `tests/test_runtime_host.py`: 14 source occurrences (test-path).
 - `tests/test_saved_data.py`: 14 source occurrences (test-path).
 - `tests/test_second_provider.py`: 8 source occurrences (test-path).
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 24 source occurrences (test-path).
-- `tests/test_ticketing.py`: 20 source occurrences (test-path).
+- `tests/test_ticketing.py`: 22 source occurrences (test-path).
 - `tests/test_ticketing_contract.py`: 18 source occurrences (test-path).
 - `tests/test_tool_installer_contract.py`: 24 source occurrences (test-path).
 - `tests/test_watch.py`: 63 source occurrences (test-path).
@@ -1582,7 +1582,7 @@ classDiagram
     c0069 ..> c0082 : type in __init__
     c0069 ..> c0087 : ownership() calls tasks()
     c0069 ..> c0092 : type in __init__
-    c0069 ..> c0109 : snapshot() calls is_key()
+    c0069 ..> c0109 : 2 relationships (see list)
     c0069 ..> c0111 : 2 relationships (see list)
     c0069 ..> c0112 : snapshot() constructs TicketSource
     c0069 ..> c0113 : type in __init__
@@ -2786,6 +2786,7 @@ classDiagram
 - c0069 ..> c0082: `type in __init__`
 - c0069 ..> c0087: `ownership() calls tasks()`
 - c0069 ..> c0092: `type in __init__`
+- c0069 ..> c0109: `context() calls could_be_key()`
 - c0069 ..> c0109: `snapshot() calls is_key()`
 - c0069 ..> c0111: `snapshot() constructs Ticket`
 - c0069 ..> c0111: `type in snapshot`
