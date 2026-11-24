@@ -478,8 +478,8 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** delete the smoke repo once Scott grants `delete_repo`; slices 5 and 6 (final
-trial); then SonarQube and the two reviews. Trials use a throwaway private
+**Next steps:** slices 5 and 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is
+kept and may be reused); then SonarQube and the two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
 
@@ -807,8 +807,8 @@ Findings:
   outside the rules. Intake took about one minute (new project, so F2 did not apply).
 - Cleanup: Forgetful project 26 deleted (plan 16 went with it); the two Pi session folders the
   trial made in `~/.pi/forgetful-agent/sessions` removed; workspace, tmux session and local
-  branch removed. The remote had only `main` and no PRs. Deleting the GitHub repo needs the
-  `delete_repo` token scope, which only Scott can grant; until then the private repo remains.
+  branch removed. The remote had only `main` and no PRs. Scott (2026-11-24): keep the private
+  repo for now; later trials may reuse it. Deleting it needs the `delete_repo` token scope.
 
 ## Decisions
 
