@@ -580,6 +580,7 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
     Context7).
   - After the fixes: only the `main` issue remains (pre-existing, unchanged: fixing it would
     change code outside this refactor). 0% duplication, no hotspots, no bugs or vulnerabilities.
+    Rescanned after each review round; the same result at `045f2f4` (6,943 lines of code).
 
 - **Slice 5b: done** (2026-11-24), thin CLI. No behaviour change.
   - Tests first: `tests/test_operator_transcripts.py` pins, as raw text, what these paths print:
@@ -1001,6 +1002,37 @@ Findings:
 - Cleanup: project 27 deleted (plan 17 went with it); the two Pi session folders removed; the
   workspace and tmux session removed. The repo is kept with its CI workflow; only `main` remains.
 - The review fixes came after this build; see the re-run below.
+
+### Final trial re-run (passed)
+
+- Build: commit `2b41d1c` (first review fixes), wheel SHA256
+  `310d85712e4e59fd15b3b993559262721c7d0b889e255681b5baba22094d13cd` (117 checksums), built to the
+  scratchpad. Later commits (`9cf35d6`, `045f2f4`) change only edge cases on damaged saved data
+  and controller start without `ctypes`; their tests cover them.
+- Same repo, cloned fresh. Issue [#3](https://github.com/ScottRBK/factory-smoke-20261123/issues/3)
+  ("Add goodbye.txt with a farewell") created by the user at 01:33 UTC before setup.
+- Setup 01:34–01:39: same choices; Forgetful project 28 created; label reused; DoD "After
+  merge"; launched from init with "e". 01:39: "Submitted github:scottrbk/factory-smoke-20261123#3
+  to Pi"; plan 18, ownership task 231, worktree `factory/scottrbk-factory-smoke-20261123-3`.
+- 01:45: [PR #4](https://github.com/ScottRBK/factory-smoke-20261123/pull/4) (only
+  `goodbye.txt`), head `f05323a`; CI run 45307284863 passed.
+- 01:48: the Foreman asked the user to decide: the review worker's sandbox had no network (F4),
+  so it could not read the issue or post a review, and the Foreman would not let the owner post
+  for it (in the first trial the owner did). The user (this trial's operator, through the
+  Foreman's terminal) chose the owner's recommended option: a one-time `auto_approve` for that
+  review dispatch only. This is a normal user answer inside the rules.
+- 01:51: review 6032434549 on `f05323a`, COMMENTED, no blocking findings. 01:52:17: merged as
+  `ad7be1c` (`--match-head-commit`); issue #3 closed; post-merge CI run 45308219094 passed.
+- The Foreman verified the DoD and completed plan 18 (tasks 231–234 done). The watcher then
+  confirmed cleanup for plan 18: worktree, local and remote branch removed.
+- Later, while idle, two polls failed with "error connecting to api.github.com" and were retried
+  as designed (a network problem on this host; GitHub answered again afterwards).
+- Result: every stage passed; the only user action was the answer above. Stopped with Ctrl-C;
+  the Foreman closed and no Pi was left. Cleanup: project 28 deleted; the two Pi session folders,
+  the workspace and the agents' evidence folder `/tmp/fo-evidence-18` removed (its handoff was
+  kept in the session scratchpad). The repo keeps `main` only.
+- New observation for later (not the refactor): the reviewer's sandbox has no network, so every
+  review needs a user decision or an owner workaround (F4 again).
 
 ## Decisions
 
