@@ -478,8 +478,8 @@ any further change of behaviour needs his approval first.
   accepted non-ASCII digits, which Factory never writes).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** the smoke trial, then slices 5 and 6 (final trial); then SonarQube and the
-two reviews. Trials use a throwaway private
+**Next steps:** delete the smoke repo once Scott grants `delete_repo`; slices 5 and 6 (final
+trial); then SonarQube and the two reviews. Trials use a throwaway private
 GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
 baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
 
@@ -780,6 +780,35 @@ Findings:
   servers (`listen EPERM`, `spawnSync git EPERM`), so its local `npm test` failed. It relied on
   the CI run for the exact head. The feature-owner posted the review for it. The review found no
   blocking issues.
+
+### Smoke results (passed)
+
+- Build: commit `32338e0` (slice 4d), wheel SHA256
+  `47cb0397f1928ef0044186a31ba23a5ba8eb5b03aee373c93a0f6d9e5a1d41db`, built to the scratchpad
+  (118 checksums verified). `dist/` was not rebuilt.
+- Throwaway private repo `ScottRBK/factory-smoke-20261123` (Scott, 2026-11-23), cloned into the
+  session scratchpad. `init` with the baseline's choices (Pi profile `~/.pi/forgetful-agent`,
+  server `http://localhost:8022/mcp`, label `factory`, the same models, execution enabled, DoD
+  "After merge"). Init offered the Forgetful CLI install, then the AgentShell runtime install
+  (Pi and tmux were present), the order kept by slice 4b. It created Forgetful project 26
+  (`factory-smoke-20261123`) and the `factory` label. F3 appeared unchanged.
+- Launched from init with "e" (the repo had no issues, which avoids F1). The startup line was
+  "Watcher owns Pi and closes it on stop. Attach during startup: tmux attach-session -t
+  factory-foreman-8c8ccdc0124f", now made by the channel and the session host.
+- Issue [#1](https://github.com/ScottRBK/factory-smoke-20261123/issues/1) created 00:03:46 UTC
+  (2026-11-24). The watcher printed "Submitted github:scottrbk/factory-smoke-20261123#1 to Pi"
+  and the Foreman's session log shows the notification by 00:04:44: `"id":
+  "github:scottrbk/factory-smoke-20261123#1"`, `"key": "1"` (decision 6), plan 16, ownership
+  task 225, worktree branch `factory/scottrbk-factory-smoke-20261123-1` (same format as before).
+  The Foreman began dispatching a feature owner.
+- Stopped with Ctrl-C at 00:05:09: "Error: Watch interrupted."; the Foreman session closed and
+  no Pi process or pane was left. Plan 16 was a draft with task 225 still to do.
+- Result: fresh setup to the first notification reaching the Foreman passed, with no action
+  outside the rules. Intake took about one minute (new project, so F2 did not apply).
+- Cleanup: Forgetful project 26 deleted (plan 16 went with it); the two Pi session folders the
+  trial made in `~/.pi/forgetful-agent/sessions` removed; workspace, tmux session and local
+  branch removed. The remote had only `main` and no PRs. Deleting the GitHub repo needs the
+  `delete_repo` token scope, which only Scott can grant; until then the private repo remains.
 
 ## Decisions
 
