@@ -82,6 +82,12 @@ class FactoryRecords:
             context = json.loads(plan.get('context') or '{}')
             if not isinstance(context, dict) or 'workspace' not in context:
                 raise ValueError('Missing association')
+            issue = context.get('issue')
+            key = issue.get('key') if isinstance(issue, dict) else None
+            if isinstance(key, str) and key.isascii() and key.isdigit():
+                # Saved numeric keys were JSON integers before keys became text. One longer
+                # than Python reads failed here, so the plan was refused before any write.
+                int(key)
         except (TypeError, ValueError) as error:
             raise ScaffoldProblem(
                 'plan_context_invalid', 'Factory plan has invalid context; reconcile its workspace '

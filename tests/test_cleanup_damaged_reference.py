@@ -66,8 +66,9 @@ class DamagedReferenceTests(unittest.TestCase):
         # Before keys were text, the scope took any digits and the saved number then failed.
         self.assertEqual(self.poll('1٢'), (0, ['plan_recovery_invalid']))
 
-    def test_number_python_cannot_read_is_never_cleaned_up(self):
-        # The old saved number failed to load past Python's digit limit; it was never disposed.
-        disposed, alerts = self.poll('1' * (sys.get_int_max_str_digits() + 1))
-        self.assertEqual(disposed, 0)
-        self.assertEqual(len(alerts), 1)
+    def test_number_python_cannot_read_is_refused_as_bad_context(self):
+        # Before keys were text, a saved number past Python's digit limit failed to parse.
+        limit = sys.get_int_max_str_digits()
+        sys.set_int_max_str_digits(4300)
+        self.addCleanup(sys.set_int_max_str_digits, limit)
+        self.assertEqual(self.poll('1' * 4301), (0, ['plan_context_invalid']))

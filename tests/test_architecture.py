@@ -1,5 +1,6 @@
 """Exercise the real Import Linter CLI against disposable packages and repository rules."""
 
+import ast
 import importlib.util
 import os
 import re
@@ -402,7 +403,8 @@ class CoverageTests(unittest.TestCase):
     def test_package_initializers_import_nothing(self):
         # A rule that names a package's children cannot see imports in its __init__.py.
         found = {str(path.relative_to(SOURCE)) for path in SOURCE.rglob('__init__.py')
-                 if re.search(r'^\s*(import|from)\s', path.read_text(), re.MULTILINE)}
+                 if any(isinstance(node, (ast.Import, ast.ImportFrom))
+                        for node in ast.walk(ast.parse(path.read_text())))}
         self.assertEqual(found, set())
 
     def test_rule_names_match_real_modules(self):

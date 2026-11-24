@@ -538,9 +538,14 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
   - **Forgetful lookups (Astra).** The executable is looked up twice again, as on `main`.
   - **Rule gap through `__init__.py` (Astra)** and **CRLF / literal branch token in the saved
     TOML check (Astra)**: new guard test; the TOML is read as bytes.
-  - **For Scott:** one difference remains. For a saved key longer than 4,300 digits, `main`
-    raised `plan_context_invalid` (its JSON integer failed to parse); the branch raises
-    `plan_recovery_invalid`. Neither cleans up. It follows from decision 6 (keys are text).
+- **Reviews, round 3** (at `9cf35d6`). Astra confirmed the round-2 fixes and found intake could
+  still write a plan whose saved key is longer than Python reads (`main` refused it as bad
+  context). `FactoryRecords.context` now fails such an all-digit key with `plan_context_invalid`,
+  as `main` did, before any write; cleanup reports the same code as `main`. Also: the over-long
+  key test sets Python's digit limit itself; the branch golden compares with the real branch;
+  the `__init__` guard reads the AST. Fable's round-3 run failed to start (AgentShell exit 1),
+  so it has no round-3 report. Still open for Scott: with both `_ctypes` and `json` missing, the
+  controller names `json` first (`main` named `_ctypes`).
 
 - **Known limits (not changed; behaviour-neutral, for Scott to decide).**
   - `AgentTeam` names Pi (`choose_pi_home`, `pi_home`, `harness='pi'`) and four methods take

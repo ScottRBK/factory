@@ -72,9 +72,10 @@ class SavedDataTests(CompletedCleanupFixture):
             # The default branch name depends on the host's Git settings; any other value stays.
             branch = subprocess.run(['git', '-C', str(self.workspace), 'branch', '--show-current'],
                                     capture_output=True, text=True, check=True).stdout.strip()
-            self.assertNotEqual(value.get('target_branch'), '<target-branch>')
-            return {key: '<target-branch>' if key == 'target_branch' and item == branch
-                    else self.normalize(item) for key, item in value.items()}
+            if 'target_branch' in value:
+                self.assertEqual(value['target_branch'], branch)
+            return {key: '<target-branch>' if key == 'target_branch' else self.normalize(item)
+                    for key, item in value.items()}
         if isinstance(value, list):
             return [self.normalize(item) for item in value]
         if isinstance(value, str):

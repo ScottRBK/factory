@@ -1,5 +1,8 @@
 """Ticket identity, GitHub key and source rules, and ticketing selection in composition."""
+import json
+import sys
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 
 from forgetful_factory.cli.bootstrap import select_ticketing
@@ -50,6 +53,20 @@ class SavedTicketTests(unittest.TestCase):
                 with self.assertRaises(ScaffoldProblem) as raised:
                     self.snapshot(**issue)
                 self.assertEqual(raised.exception.code, 'plan_recovery_invalid')
+
+    def test_saved_number_python_cannot_read_is_bad_context(self):
+        # Before keys were text, the saved number was a JSON integer; one past Python's digit
+        # limit failed when the plan context was read, before any intake or cleanup write.
+        limit = sys.get_int_max_str_digits()
+        sys.set_int_max_str_digits(4300)
+        self.addCleanup(sys.set_int_max_str_digits, limit)
+        records = FactoryRecords(None, Path('/workspace'), None, None, None, GitHubTicketing())
+        context = {'workspace': '/workspace', 'issue': {'key': '1' * 4301}}
+        with self.assertRaises(ScaffoldProblem) as raised:
+            records.context({'context': json.dumps(context)})
+        self.assertEqual(raised.exception.code, 'plan_context_invalid')
+        context['issue']['key'] = '1' * 4300
+        self.assertEqual(records.context({'context': json.dumps(context)}), context)
 
     def test_saved_key_the_provider_never_writes_needs_reconciliation(self):
         # Before keys were text, a saved number had to be a positive integer, so its reference
