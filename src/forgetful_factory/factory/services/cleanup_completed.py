@@ -196,7 +196,7 @@ class CleanupCompleted:
             return False
         prefixes = {r.work_source.id_prefix for r in self.records.config.repository}
         return any(reference.startswith(prefix)
-                   and self.ticketing.is_key(reference.removeprefix(prefix))
+                   and self.ticketing.could_be_key(reference.removeprefix(prefix))
                    for prefix in prefixes)
 
     def _repository_identities(self, alerts: WatcherAlerts) -> dict[str, str] | None:

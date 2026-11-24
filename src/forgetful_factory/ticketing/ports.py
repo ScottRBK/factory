@@ -13,7 +13,13 @@ class Ticketing(Protocol):
         """Refuse a source reference this provider cannot use."""
 
     def is_key(self, text: str) -> bool:
-        """Whether text is a ticket key in this provider's format."""
+        """Whether text is a ticket key exactly as this provider writes it."""
+
+    def could_be_key(self, text: str) -> bool:
+        """Whether text has the rough shape of a key. Every key passes; a damaged one may too.
+
+        Cleanup uses it to find a plan's reference, so a damaged record is reported, not skipped.
+        """
 
     def check_access(self, source: TicketSource) -> None: ...
 

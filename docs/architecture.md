@@ -357,7 +357,7 @@ Paths below are relative to `src/forgetful_factory/`:
   Adapter wiring: `cli/bootstrap.py`, lines 71 and 99; ticketing registry and source checks:
   lines 38 and 82; GitHub CLI preflight: line 106; selected root launch: line 129.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
-  `ticketing/adapters/github.py`, lines 15, 19, 80 and 99. Forge port: `forge/ports.py`, line 6;
+  `ticketing/adapters/github.py`, lines 17, 21, 92 and 111. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
   Deadline policies: `cli/deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
 - Workflows: `factory/services/initialise_factory.py`, line 37; `factory/services/watch_factory.py`,
@@ -404,8 +404,8 @@ Paths below are relative to `src/forgetful_factory/`:
   lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10; controller:
-  `agents/adapters/agentshell/controller.py`, line 278; host choice: line 97; child launch
-  validation: line 124; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
+  `agents/adapters/agentshell/controller.py`, line 285; host choice: line 106; child launch
+  validation: line 131; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
   Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`, line 28. Channel:
   `channels/ports.py`, line 4; terminal: `channels/adapters/terminal.py`, line 8. Started by path or
   module name: `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.

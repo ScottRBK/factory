@@ -94,41 +94,45 @@ the same file guard what the checker cannot see by itself:
   are constants in `launch.py`, and a test checks that each resolves in the source tree. The
   controller runs in AgentShell's interpreter, where Factory cannot be imported, so it loads its
   host checks (`tmux_host.py`) from beside itself; `launch.TMUX_HOST` and a test check that file
-  is there and that the controller's `HOST_FILES` names it. The controller's `--check` loads every
-  host file, as the old single script imported them, and loading writes no bytecode cache. Launch
-  paths keep the installed spelling (symlinks unresolved), as before; the AgentShell terminal
-  resolves its own path.
+  is there and that the controller's `HOST_FILES` names it. The controller loads every host file
+  at start, before `--check` or any protocol reply, as the old single script imported their
+  modules; a missing module stops it with a traceback, as before. The loader writes no bytecode
+  cache beside the files. Launch paths keep the installed spelling (symlinks unresolved), as
+  before; the AgentShell terminal resolves its own path.
+- No package `__init__.py` imports anything: a rule that names a package's children cannot see an
+  import in the package itself.
 
 `tests/contracts/` holds `unittest` mixins for ten ports. `Worktrees`, `LocalRepositories`,
 `ConfigurationStore`, `WatchLease`, `CleanupReceipts` and `ForemanTerminal` have none; real-Git,
 init, lease, receipt and lifecycle tests cover their adapters instead. `TicketingContract` states
 what every `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that
-pass `is_key`, content-only revisions, source checks (including another provider's source) and
-labels. `ForgeContract` states that every accepted remote form names one repository, unsupported
-remotes fail, and change-request URLs belong to their repository. `PlanStoreContract` states that a
-created plan is in the store's project and found by reference, another project's plan is not owned,
-plans and tasks update, and the backend identity is stable text; it runs against
-`ForgetfulPlanStore` with the stateful native planning program. `PlanningSetupContract` states that
-a created project is listed, the check confirms access to a selected project and refuses none,
-prepare can repeat, and the browser-login need is yes or no; it runs against `ForgetfulSetup` with
-the profile command double. `AgentTeamContract` states that declined home consent saves nothing,
-accepted consent is kept once saved, setup is incomplete until recorded, and no memory notice exists
-before a launch is selected. `ToolInstallerContract` states that a bare host misses the tool, an
-installed tool is not missing, and other tools are neither described nor installed; it runs against
-each installer (Pi, tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the
-host's launch data is plain data with a kind, its attach text names the session, and entry without a
-terminal only prints how to enter; it runs against `TmuxHost`. `ChannelContract` states that the way
-to reach a session names it and that opening without a terminal only prints how; it runs against
-`TerminalChannel` on `TmuxHost`. `PersistentForemanContract` states that without an owner there is
-no record, report or status, an unreadable record is reported unknown with a warning, and a silent
-owner is history, never a live observation; it runs against `AgentShellOwner` without live owners.
-`AgreementStoreContract` states that an empty workspace has no agreement, a written agreement reads
-back, and writing again never replaces it; it runs against `MarkdownAgreement`.
-`tests/test_runtime_host.py` also sends launch frames to the real controller: an unknown host kind
-is refused before a session opens, and a frame without a host is invalid. The ticketing and forge
-mixins run against the GitHub adapter (with a stateful `gh` stub for ticketing) and a non-GitHub
-fake: `FakeTicketing` (`tracker`, keys such as `ENG-123`, state in a JSON file) and `FakeForge`
-(`forge.example`, `/changes/N`). A new adapter is done when it passes its mixin.
+pass `is_key` and `could_be_key`, content-only revisions, source checks (including another
+provider's source) and labels. `ForgeContract` states that every accepted remote form names one
+repository, unsupported remotes fail, and change-request URLs belong to their repository.
+`PlanStoreContract` states that a created plan is in the store's project and found by reference,
+another project's plan is not owned, plans and tasks update, and the backend identity is stable
+text; it runs against `ForgetfulPlanStore` with the stateful native planning program.
+`PlanningSetupContract` states that a created project is listed, the check confirms access to a
+selected project and refuses none, prepare can repeat, and the browser-login need is yes or no; it
+runs against `ForgetfulSetup` with the profile command double. `AgentTeamContract` states that
+declined home consent saves nothing, accepted consent is kept once saved, setup is incomplete until
+recorded, and no memory notice exists before a launch is selected. `ToolInstallerContract` states
+that a bare host misses the tool, an installed tool is not missing, and other tools are neither
+described nor installed; it runs against each installer (Pi, tmux, Forgetful, AgentShell runtime).
+`SessionHostContract` states that the host's launch data is plain data with a kind, its attach text
+names the session, and entry without a terminal only prints how to enter; it runs against
+`TmuxHost`. `ChannelContract` states that the way to reach a session names it and that opening
+without a terminal only prints how; it runs against `TerminalChannel` on `TmuxHost`.
+`PersistentForemanContract` states that without an owner there is no record, report or status, an
+unreadable record is reported unknown with a warning, and a silent owner is history, never a live
+observation; it runs against `AgentShellOwner` without live owners. `AgreementStoreContract` states
+that an empty workspace has no agreement, a written agreement reads back, and writing again never
+replaces it; it runs against `MarkdownAgreement`. `tests/test_runtime_host.py` also sends launch
+frames to the real controller: an unknown host kind is refused before a session opens, and a frame
+without a host is invalid. The ticketing and forge mixins run against the GitHub adapter (with a
+stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as
+`ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is
+done when it passes its mixin.
 
 `tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
 GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan

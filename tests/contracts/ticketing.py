@@ -69,6 +69,14 @@ class TicketingContract:
             with self.subTest(text=text):
                 self.assertFalse(adapter.is_key(text))
 
+    def test_every_key_could_be_a_key(self):
+        # Cleanup finds references by shape; a valid key must never fall outside it.
+        adapter = self.adapter()
+        for key in self.keys:
+            with self.subTest(key=key):
+                self.assertTrue(adapter.could_be_key(key))
+        self.assertFalse(adapter.could_be_key(''))
+
     def test_revision_changes_with_content_only(self):
         a, _, _ = self.keys
         adapter = self.adapter()
@@ -135,6 +143,9 @@ class FakeTicketing:
 
     def is_key(self, text: str) -> bool:
         return re.fullmatch(r'[A-Z][A-Z0-9]*-[1-9][0-9]*', text) is not None
+
+    def could_be_key(self, text: str) -> bool:
+        return self.is_key(text)
 
     def check_access(self, source: TicketSource) -> None:
         self.validate_source(source)

@@ -474,9 +474,8 @@ any further change of behaviour needs his approval first.
     "GitHub PR URL".
 - **Not reachable with GitHub only:** mixed ticketing providers are refused; the remote-matches-
   source check is skipped when forge and ticketing differ; cleanup scope accepts any provider's
-  key format through `is_key`. For GitHub, `is_key` takes ASCII digits with no leading zero; the
-  old scope pattern `[1-9]\d*` also took non-ASCII digits, which Factory never writes (such a
-  reference was then refused when its saved number was read).
+  key format through `could_be_key` (for GitHub, `main`'s pattern `[1-9]\d*`), and recovery
+  checks saved keys with `is_key` (for GitHub: ASCII digits, no leading zero, readable as an int).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
 **Next steps:** Scott's decisions on the known limits below; the branch is not pushed. Trials use
@@ -490,8 +489,8 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
   - **Blocker (Astra): saved ticket keys.** Recovery accepted any non-empty saved key, so `0` or
     `1٢` (ASCII 1, Arabic-Indic 2) passed. With the SonarQube change to `\d`, a completed plan
     with `#1٢` was cleaned up; `main` raised `plan_recovery_invalid`. Recovery now asks the ticket
-    provider (`FactoryRecords` takes the `Ticketing` port), and GitHub keys are ASCII again
-    (`re.ASCII`). Tests: `tests/test_ticketing.py`.
+    provider (`FactoryRecords` takes the `Ticketing` port). Tests: `tests/test_ticketing.py`.
+    Round 2 finished this (below).
   - **Controller preflight (both).** `main`'s controller imported `ctypes` and `select` at the
     start, so `--check` failed on an interpreter without them. Now `--check` loads every host
     file. Loading also wrote `__pycache__` beside the installed files; it no longer does.
@@ -513,7 +512,7 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
     resolves its own path, as before. Test: `test_launch_paths_keep_the_installed_spelling`.
   - **Packaging (Astra).** The sdist missed `tests/contracts/` and the JSON fixtures, so its
     tests could not be collected. Patterns added; a test checks every test file is covered.
-    The rebuilt sdist collects 764 tests.
+    The rebuilt sdist collects every test (772 at the final commit).
   - **Rule gaps (Astra, Fable).** `__main__` could import an adapter directly: new rule
     `entry-through-cli` (direct imports only). An `agents.services` module could import
     AgentShell: `agentshell-in-agents` now takes every services, ports and model package. The
@@ -521,6 +520,27 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
   - **Golden tests (Astra).** `target_branch` is replaced only when it is the fixture repo's real
     branch; the saved TOML must end in one newline.
   - Docs: the ADR now names which ports have contract mixins (ten) and which rely on other tests.
+- **Reviews, round 2** (same reviewers, at `2b41d1c`). Fable: "no blocker remains". Astra: one
+  blocker left. Both confirmed the earlier fixes and showed each new test fails on `edb84a2`.
+  Fixed, again test-first, restoring `main`:
+  - **Blocker (Astra): a saved key longer than Python reads (4,301 digits)** was cleaned up;
+    `main` failed to read the saved number and refused the plan. GitHub `is_key` now also needs
+    the key to read as an int.
+  - **Damaged reference reported again (both).** `2b41d1c` skipped a completed plan with `#1٢`
+    silently; `main` reported `plan_recovery_invalid`. The `Ticketing` port gains
+    `could_be_key` (the rough shape; every key passes, a damaged one may too); cleanup finds
+    references with it (for GitHub, `main`'s `[1-9]\d*`), and recovery then refuses the damaged
+    key. Tests: `tests/test_cleanup_damaged_reference.py` polls cleanup with a recording
+    worktree double: sound key cleaned up, `#1٢` reported, the long key never cleaned up.
+  - **Controller without `ctypes` (both).** A plain launch (no preflight) now stops at start
+    with a traceback and no reply, as `main` did; the host files load first, with a loader that
+    writes no cache for them only (their own imports cache as before).
+  - **Forgetful lookups (Astra).** The executable is looked up twice again, as on `main`.
+  - **Rule gap through `__init__.py` (Astra)** and **CRLF / literal branch token in the saved
+    TOML check (Astra)**: new guard test; the TOML is read as bytes.
+  - **For Scott:** one difference remains. For a saved key longer than 4,300 digits, `main`
+    raised `plan_context_invalid` (its JSON integer failed to parse); the branch raises
+    `plan_recovery_invalid`. Neither cleans up. It follows from decision 6 (keys are text).
 
 - **Known limits (not changed; behaviour-neutral, for Scott to decide).**
   - `AgentTeam` names Pi (`choose_pi_home`, `pi_home`, `harness='pi'`) and four methods take
@@ -534,6 +554,9 @@ afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C o
   - The plan text still says `AgentSession` (the code has `ForemanTerminal` with
     `startup_hint`), lists `runtime/model.py` (none exists) and gives `how_to_attach(target)`
     (the code takes the session name).
+  - `watch --status` builds the owner, storage and team before its first read, and `foreman
+    --attach` builds a lease it does not use. The constructors only store fields, so nothing
+    visible changes.
   - Golden gaps: the `discuss` agreement transcript drops stderr and the exit code (they depend
     on the host's tmux); full init stdout, the launch frame and a live plain watcher are not
     pinned; the Ubuntu 24.04 tmux recipe tests skip on this host.

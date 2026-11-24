@@ -1,6 +1,7 @@
 """Run by the selected AgentShell interpreter using this installed file's absolute path."""
 import asyncio
 import contextlib
+import importlib.machinery
 import importlib.util
 import json
 import math
@@ -13,6 +14,7 @@ from pathlib import Path
 # Host kind -> the file beside this one with that host's checks. AgentShell supports interactive
 # sessions on tmux only, so the controller knows only tmux.
 HOST_FILES = {'tmux': 'tmux_host.py'}
+_HOSTS: dict = {}
 
 
 async def ready(session) -> None:
@@ -94,22 +96,27 @@ def runtime():
     return agent_type, session_resources, agent_shell, tmux_execution_host, tmux_placement
 
 
+class _UncachedLoader(importlib.machinery.SourceFileLoader):
+    """Loads a host file like the controller script itself: no bytecode cache beside it."""
+
+    def set_data(self, path, data, *, _mode=0o666):
+        """Write nothing; the host file's own imports still cache as usual."""
+
+
 def load_host(kind: str):
     """Load the host's checks from the file beside this one; refuse a kind it does not know."""
     if kind not in HOST_FILES:
         raise ValueError(f'Unsupported Foreman host {kind!r}; AgentShell supports interactive '
                          'sessions on tmux only.')
-    spec = importlib.util.spec_from_file_location(
-        f'factory_{kind}_host', Path(__file__).resolve().with_name(HOST_FILES[kind]))
-    module = importlib.util.module_from_spec(spec)
-    # Like the controller script itself, leave no bytecode cache beside the installed files.
-    previous = sys.dont_write_bytecode
-    sys.dont_write_bytecode = True
-    try:
+    if kind not in _HOSTS:
+        name = f'factory_{kind}_host'
+        path = str(Path(__file__).resolve().with_name(HOST_FILES[kind]))
+        spec = importlib.util.spec_from_file_location(name, path,
+                                                      loader=_UncachedLoader(name, path))
+        module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-    finally:
-        sys.dont_write_bytecode = previous
-    return module
+        _HOSTS[kind] = module
+    return _HOSTS[kind]
 
 
 @dataclass
@@ -341,11 +348,12 @@ async def main(reply) -> int:
 
 
 if __name__ == '__main__':
+    # Load the host checks first, outside any error reply: they need modules (such as ctypes)
+    # that some interpreters lack, and the controller stopped at start before they moved.
+    for host_kind in HOST_FILES:
+        load_host(host_kind)
     if sys.argv[1:] == ['--check']:
         try:
-            # The host checks need modules (such as ctypes) that some interpreters lack.
-            for host_kind in HOST_FILES:
-                load_host(host_kind)
             runtime()
         except Exception as error:
             print(str(error), file=sys.stderr)

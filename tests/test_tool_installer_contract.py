@@ -96,12 +96,15 @@ class ProbeTimingTests(HostFixture):
         install = ForgetfulInstall(self.workspace, ForgetfulConnection())
         managed = str(self.workspace / '.factory/runtime/forgetful/bin/forgetful')
         module = 'forgetful_factory.planning.adapters.forgetful.install'
-        with (patch(f'{module}.shutil.which', side_effect=[None, managed]),
-              patch(f'{module}.runtime_ready', return_value=False)):
+        with (patch(f'{module}.shutil.which', side_effect=[None, managed]) as which,
+              patch(f'{module}.runtime_ready', return_value=False) as ready):
             # Act
             missing = missing_tools([install])
-        # Assert: one offer, as the old check skipped the probe for a missing executable.
+        # Assert: one offer, as the old check skipped the probe for a missing executable;
+        # it still looked the executable up twice.
         self.assertEqual(missing, ['forgetful'])
+        self.assertEqual(which.call_count, 2)
+        ready.assert_not_called()
 
     def test_managed_pi_probe_reads_the_saved_home_again(self):
         # Arrange: the old check read the saved home once for the folder, once for the probe.

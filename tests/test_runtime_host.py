@@ -85,6 +85,21 @@ class ControllerPreflightTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertNotIn('Factory AgentShell ready', result.stdout)
 
+    def test_launch_fails_at_start_when_the_host_checks_cannot_load(self):
+        # Arrange: as preflight, but a plain launch (a watcher's terminal runs no preflight).
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, 'ctypes.py').write_text("raise ImportError('No ctypes here.')\n")
+            env = {key: value for key, value in os.environ.items() if key != 'PYTHONPATH'}
+            # Act
+            result = subprocess.run([sys.executable, '-u', str(CONTROLLER)],
+                                    env=dict(env, PYTHONPATH=temporary), capture_output=True,
+                                    text=True, timeout=30,
+                                    input=json.dumps(ControllerHostTests.frame(self)) + '\n')
+        # Assert: the old controller stopped on import, before any protocol reply.
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, '')
+        self.assertIn('Traceback', result.stderr)
+
     def test_loading_the_host_checks_writes_no_bytecode_beside_them(self):
         # Arrange: a copy of the controller and its host file, as installed together.
         with tempfile.TemporaryDirectory() as temporary:

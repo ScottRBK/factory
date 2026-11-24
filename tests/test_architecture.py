@@ -399,6 +399,12 @@ class CoverageTests(unittest.TestCase):
                          if not (folder / '__init__.py').is_file())
         self.assertEqual(missing, [])
 
+    def test_package_initializers_import_nothing(self):
+        # A rule that names a package's children cannot see imports in its __init__.py.
+        found = {str(path.relative_to(SOURCE)) for path in SOURCE.rglob('__init__.py')
+                 if re.search(r'^\s*(import|from)\s', path.read_text(), re.MULTILINE)}
+        self.assertEqual(found, set())
+
     def test_rule_names_match_real_modules(self):
         # Import Linter silently skips a wildcard that matches nothing, which turns a rule off.
         modules = real_modules()

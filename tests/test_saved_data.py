@@ -63,7 +63,8 @@ class SavedDataTests(CompletedCleanupFixture):
     def initialize_profile(self):  # NOSONAR(S5899)
         super().initialize_profile()
         # Capture init's configuration before the fixture replaces it.
-        self.init_configuration = (self.workspace / '.factory/factory.toml').read_text()
+        # Bytes, so a changed line ending is not hidden by text-mode reading.
+        self.init_configuration = (self.workspace / '.factory/factory.toml').read_bytes().decode()
 
     def normalize(self, value):
         """Replace values that change between runs and hosts."""
@@ -71,6 +72,7 @@ class SavedDataTests(CompletedCleanupFixture):
             # The default branch name depends on the host's Git settings; any other value stays.
             branch = subprocess.run(['git', '-C', str(self.workspace), 'branch', '--show-current'],
                                     capture_output=True, text=True, check=True).stdout.strip()
+            self.assertNotEqual(value.get('target_branch'), '<target-branch>')
             return {key: '<target-branch>' if key == 'target_branch' and item == branch
                     else self.normalize(item) for key, item in value.items()}
         if isinstance(value, list):

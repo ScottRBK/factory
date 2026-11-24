@@ -46,8 +46,9 @@ class ForgetfulInstall:
 
         A CLI that the last absent() call missed is not probed, even if it has appeared since.
         """
-        if (self._required() and not self._was_absent
-                and self._selected() == str(self.directory / 'bin/forgetful')
+        selected = self._selected()
+        if (self._required() and selected == str(self.directory / 'bin/forgetful')
+                and not self._was_absent
                 and not runtime_ready(self.directory, (self.directory / FORGETFUL_REQUIREMENTS,),
                                       FORGETFUL_PROBE, self.term_grace)):
             return ['forgetful']

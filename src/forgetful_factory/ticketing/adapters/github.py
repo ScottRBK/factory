@@ -10,6 +10,8 @@ from forgetful_factory.ticketing.model import Label, Ticket, TicketSource
 _SOURCE = re.compile(r'[A-Za-z0-9-]+/[A-Za-z0-9_.-]+')
 # Issue numbers as GitHub writes them: ASCII digits, no leading zero.
 _KEY = re.compile(r'[1-9]\d*', re.ASCII)
+# What cleanup took as an issue number before keys were text: any digits, any length.
+_KEY_SHAPE = re.compile(r'[1-9]\d*')
 
 
 class GitHubTicketing:
@@ -36,7 +38,17 @@ class GitHubTicketing:
             raise FactoryError(f'Invalid GitHub work source {reference!r}.')
 
     def is_key(self, text: str) -> bool:
-        return _KEY.fullmatch(text) is not None
+        if _KEY.fullmatch(text) is None:
+            return False
+        try:
+            # Saved numbers were integers, so one longer than Python reads was never valid.
+            int(text)
+        except ValueError:
+            return False
+        return True
+
+    def could_be_key(self, text: str) -> bool:
+        return _KEY_SHAPE.fullmatch(text) is not None
 
     def _api(self, source: TicketSource, suffix: str = '', *arguments: str) -> object:
         try:
