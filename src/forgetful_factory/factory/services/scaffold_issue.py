@@ -20,6 +20,7 @@ from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanningReadError, PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
+from forgetful_factory.ticketing.ports import Ticketing
 from forgetful_factory.workspace.ports import (
     LocalRepositories,
     WorktreeProblem,
@@ -37,12 +38,13 @@ def worktree_name(ticket: Ticket) -> str:
 class ScaffoldIssue:
     def __init__(self, planning: PlanStore, worktrees: Worktrees, workspace: Path,
                  config: FactoryConfiguration, repositories: LocalRepositories,
-                 forge: Forge):
+                 forge: Forge, ticketing: Ticketing):
         self.planning = planning
         self.worktrees = worktrees
         self.workspace = workspace
         self.config = config
-        self.records = FactoryRecords(planning, workspace, config, repositories, forge)
+        self.records = FactoryRecords(planning, workspace, config, repositories, forge,
+                                      ticketing)
 
     def check(self) -> None:
         self.planning.check()

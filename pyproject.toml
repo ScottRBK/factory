@@ -25,7 +25,14 @@ forgetful-factory = "forgetful_factory.cli.main:main"
 required-version = ">=0.13.5"
 
 [tool.uv.build-backend]
-source-include = ["tests/*.py", "tests/fixtures/*.md", "tests/fixtures/*.ts"]
+source-include = [
+    "tests/*.py",
+    "tests/contracts/*.py",
+    "tests/fixtures/*.json",
+    "tests/fixtures/*.md",
+    "tests/fixtures/*.ts",
+    "tests/fixtures/saved_data/*.json",
+]
 
 [tool.importlinter]
 root_package = "forgetful_factory"
@@ -78,6 +85,15 @@ source_modules = [
 forbidden_modules = ["forgetful_factory.*.adapters"]
 
 [[tool.importlinter.contracts]]
+id = "entry-through-cli"
+name = "The entry point imports no adapter directly"
+type = "forbidden"
+source_modules = ["forgetful_factory.__main__"]
+forbidden_modules = ["forgetful_factory.*.adapters"]
+# The entry point runs the CLI, which composes adapters; only a direct import fails.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 id = "adapters-independent"
 name = "Adapter packages do not import each other"
 type = "independence"
@@ -109,8 +125,9 @@ name = "Only the agents adapter imports AgentShell"
 type = "forbidden"
 source_modules = [
     "forgetful_factory.__main__",
-    "forgetful_factory.agents.model",
-    "forgetful_factory.agents.ports",
+    "forgetful_factory.*.model",
+    "forgetful_factory.*.ports",
+    "forgetful_factory.*.services",
     "forgetful_factory.channels",
     "forgetful_factory.cli",
     "forgetful_factory.configuration",

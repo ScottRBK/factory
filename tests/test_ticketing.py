@@ -36,8 +36,8 @@ class SavedTicketTests(unittest.TestCase):
         saved = dict(source={'provider': 'github', 'reference': 'team/app'}, title='Title',
                      url='https://github.com/team/app/issues/7', body='', revision='r1',
                      epic=False, **issue)
-        records = FactoryRecords(None, None, None, None, None)
-        return records.snapshot({'issue': saved}, 'github:team/app#7')
+        records = FactoryRecords(None, None, None, None, None, GitHubTicketing())
+        return records.snapshot({'issue': saved}, f'github:team/app#{issue.get("key", 7)}')
 
     def test_saved_text_key_restores_the_ticket(self):
         self.assertEqual(self.snapshot(key='7').key, '7')
@@ -51,6 +51,15 @@ class SavedTicketTests(unittest.TestCase):
                     self.snapshot(**issue)
                 self.assertEqual(raised.exception.code, 'plan_recovery_invalid')
 
+    def test_saved_key_the_provider_never_writes_needs_reconciliation(self):
+        # Before keys were text, a saved number had to be a positive integer, so its reference
+        # had ASCII digits and no leading zero. A completed plan must not authorize cleanup else.
+        for key in ('0', '07', '1\u0662', 'ENG-1'):
+            with self.subTest(key=key):
+                with self.assertRaises(ScaffoldProblem) as raised:
+                    self.snapshot(key=key)
+                self.assertEqual(raised.exception.code, 'plan_recovery_invalid')
+
 
 class GitHubTicketingRulesTests(unittest.TestCase):
     def test_keys_are_positive_issue_numbers(self):
@@ -58,7 +67,7 @@ class GitHubTicketingRulesTests(unittest.TestCase):
         for key in ('1', '42', '1000'):
             with self.subTest(key=key):
                 self.assertTrue(github.is_key(key))
-        for key in ('', '0', '01', '-1', ' 1', '1 ', 'ENG-1', '٣'):
+        for key in ('', '0', '01', '-1', ' 1', '1 ', 'ENG-1', '٣', '1\u0662'):
             with self.subTest(key=key):
                 self.assertFalse(github.is_key(key))
 
@@ -89,6 +98,14 @@ class TicketingSelectionTests(unittest.TestCase):
                                     "Unsupported work-tracking provider 'linear'; "
                                     'watch supports github only.'):
             select_ticketing(self.config('github', 'linear'), 30)
+
+    def test_repositories_are_checked_in_order_provider_then_source(self):
+        # The first repository's fault is reported, as before the ticketing registry.
+        config = SimpleNamespace(repository=[
+            SimpleNamespace(work_source=TicketSource('github', 'team/app.git')),
+            SimpleNamespace(work_source=TicketSource('gitlab', 'team/b'))])
+        with self.assertRaisesRegex(FactoryError, "Invalid GitHub work source 'team/app.git'"):
+            select_ticketing(config, 30)
 
     def test_invalid_source_is_refused_before_watching(self):
         config = SimpleNamespace(repository=[

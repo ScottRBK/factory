@@ -102,7 +102,13 @@ def load_host(kind: str):
     spec = importlib.util.spec_from_file_location(
         f'factory_{kind}_host', Path(__file__).resolve().with_name(HOST_FILES[kind]))
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # Like the controller script itself, leave no bytecode cache beside the installed files.
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
     return module
 
 
@@ -337,6 +343,9 @@ async def main(reply) -> int:
 if __name__ == '__main__':
     if sys.argv[1:] == ['--check']:
         try:
+            # The host checks need modules (such as ctypes) that some interpreters lack.
+            for host_kind in HOST_FILES:
+                load_host(host_kind)
             runtime()
         except Exception as error:
             print(str(error), file=sys.stderr)

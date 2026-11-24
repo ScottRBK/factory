@@ -33,8 +33,11 @@ class PiInstall:
         managed = self.directory / 'node_modules/.bin/pi'
         if shutil.which('pi', path=executable_path(self.workspace)) != str(managed):
             return []
-        home = saved_pi_home(self.workspace)
-        return ['pi'] if Path(home).is_dir() and not self.ready(home) else []
+        # Two reads, as before: the folder check and the probe each use the saved choice.
+        if (Path(saved_pi_home(self.workspace)).is_dir()
+                and not self.ready(saved_pi_home(self.workspace))):
+            return ['pi']
+        return []
 
     def ready(self, pi_home: str) -> bool:
         try:

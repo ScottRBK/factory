@@ -92,9 +92,10 @@ class AgentShellTerminal:
         return reply
 
     def start(self) -> None:
+        helper = CONTROLLER.resolve()
         try:
             self.process = subprocess.Popen(
-                [self.python, '-u', str(CONTROLLER)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                [self.python, '-u', str(helper)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                 # Library diagnostics stay on stderr, separate from the protocol and user stdin.
                 stderr=None, start_new_session=True, env=self.environment,
             )

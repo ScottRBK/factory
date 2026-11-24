@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 5466. Type relationships removed: 111.
+Calls removed by test filtering: 5483. Type relationships removed: 113.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -35,7 +35,7 @@ Calls removed by test filtering: 5466. Type relationships removed: 111.
 - `tests/test_agent_definitions.py`: 21 source occurrences (test-path).
 - `tests/test_agent_team_contract.py`: 5 source occurrences (test-path).
 - `tests/test_agreement_contract.py`: 4 source occurrences (test-path).
-- `tests/test_architecture.py`: 30 source occurrences (test-path).
+- `tests/test_architecture.py`: 33 source occurrences (test-path).
 - `tests/test_assisted_lifecycle.py`: 16 source occurrences (test-path).
 - `tests/test_assisted_review_fixes.py`: 20 source occurrences (test-path).
 - `tests/test_assisted_setup.py`: 14 source occurrences (test-path).
@@ -61,6 +61,7 @@ Calls removed by test filtering: 5466. Type relationships removed: 111.
 - `tests/test_github_issue_changes.py`: 4 source occurrences (test-path).
 - `tests/test_init.py`: 47 source occurrences (test-path).
 - `tests/test_init_launch.py`: 13 source occurrences (test-path).
+- `tests/test_init_sources.py`: 2 source occurrences (test-path).
 - `tests/test_installer_onboarding.py`: 20 source occurrences (test-path).
 - `tests/test_local_skills.py`: 21 source occurrences (test-path).
 - `tests/test_managed_watcher_alerts.py`: 10 source occurrences (test-path).
@@ -83,14 +84,14 @@ Calls removed by test filtering: 5466. Type relationships removed: 111.
 - `tests/test_research_configuration.py`: 8 source occurrences (test-path).
 - `tests/test_resource_update.py`: 18 source occurrences (test-path).
 - `tests/test_review_regressions.py`: 54 source occurrences (test-path).
-- `tests/test_runtime_host.py`: 8 source occurrences (test-path).
+- `tests/test_runtime_host.py`: 12 source occurrences (test-path).
 - `tests/test_saved_data.py`: 14 source occurrences (test-path).
 - `tests/test_second_provider.py`: 8 source occurrences (test-path).
 - `tests/test_setup_completion.py`: 29 source occurrences (test-path).
 - `tests/test_shared_pi.py`: 24 source occurrences (test-path).
-- `tests/test_ticketing.py`: 18 source occurrences (test-path).
+- `tests/test_ticketing.py`: 20 source occurrences (test-path).
 - `tests/test_ticketing_contract.py`: 18 source occurrences (test-path).
-- `tests/test_tool_installer_contract.py`: 21 source occurrences (test-path).
+- `tests/test_tool_installer_contract.py`: 24 source occurrences (test-path).
 - `tests/test_watch.py`: 63 source occurrences (test-path).
 - `tests/test_watch_issue_changes.py`: 3 source occurrences (test-path).
 - `tests/test_watch_lock.py`: 6 source occurrences (test-path).
@@ -572,7 +573,7 @@ classDiagram
         <<class>>
         -__init__(workspace: Path) unknown
         +path: unknown
-        +location: unknown
+        +location: str
         +found() bool
         +write(text: str) None
         +read() str
@@ -795,6 +796,7 @@ classDiagram
         +config: unknown
         +repositories: unknown
         +forge: unknown
+        +ticketing: unknown
         +check_repository(repository: RepositoryReference) None
         +check_source(repository: RepositoryReference) RepositoryRef
         +snapshot(context: dict, external_ref: str) Ticket
@@ -947,6 +949,8 @@ classDiagram
         +storage: unknown
         +team: unknown
         +report() dict
+        -_without_live_plain(plain: Type5) dict
+        -_setup() str
     }
     class c0079["GitHubForge"] {
         <<class>>
@@ -993,6 +997,7 @@ classDiagram
         +connection: unknown
         +directory: unknown
         +term_grace: unknown
+        -_was_absent: unknown
         -_required() bool
         -_selected() Type3
         +absent() list[str]
@@ -1569,8 +1574,10 @@ classDiagram
     c0068 ..> c0081 : type in __init__
     c0068 ..> c0086 : ownership() calls tasks()
     c0068 ..> c0091 : type in __init__
+    c0068 ..> c0108 : snapshot() calls is_key()
     c0068 ..> c0110 : 2 relationships (see list)
     c0068 ..> c0111 : snapshot() constructs TicketSource
+    c0068 ..> c0112 : type in __init__
     c0068 ..> c0113 : check_repository() calls origin()
     c0068 ..> c0117 : type in __init__
     c0069 ..> c0005 : initialise() calls save()
@@ -1619,6 +1626,7 @@ classDiagram
     c0071 ..> c0099 : _is_unfinished_factory_plan() constructs FactoryError
     c0071 ..> c0110 : 8 relationships (see list)
     c0071 ..> c0111 : type in _repository
+    c0071 ..> c0112 : type in __init__
     c0071 ..> c0115 : 3 relationships (see list)
     c0071 ..> c0117 : type in __init__
     c0071 ..> c0120 : type in __init__
@@ -1659,13 +1667,13 @@ classDiagram
     c0076 --> c0074 : 2 relationships (see list)
     c0076 --> c0110 : field pending_lookup
     c0076 --> c0111 : field baselined
-    c0078 ..> c0007 : report() calls report()
-    c0078 ..> c0013 : report() calls validate_completion()
-    c0078 ..> c0024 : report() calls unknown_status()
+    c0078 ..> c0013 : _setup() calls validate_completion()
+    c0078 ..> c0024 : _without_live_plain() calls unknown_status()
     c0078 ..> c0025 : type in __init__
     c0078 ..> c0027 : type in __init__
-    c0078 ..> c0037 : report() calls load()
+    c0078 ..> c0037 : _setup() calls load()
     c0078 ..> c0059 : type in __init__
+    c0078 ..> c0078 : 3 relationships (see list)
     c0079 ..> c0080 : 3 relationships (see list)
     c0079 ..> c0099 : repository() constructs FactoryError
     c0081 ..> c0080 : 2 relationships (see list)
@@ -1765,7 +1773,7 @@ classDiagram
 
 - c0000: `BorrowedForemanTerminal` —
   `src/forgetful_factory/agents/adapters/agentshell/borrowed_terminal.py`:10
-- c0001: `SessionState` — `src/forgetful_factory/agents/adapters/agentshell/controller.py`:110
+- c0001: `SessionState` — `src/forgetful_factory/agents/adapters/agentshell/controller.py`:116
 - c0002: `src/forgetful_factory/agents/adapters/agentshell/controller.py` —
   `src/forgetful_factory/agents/adapters/agentshell/controller.py`:1
 - c0003: `src/forgetful_factory/agents/adapters/agentshell/foreman_runtime.py` —
@@ -1845,7 +1853,7 @@ classDiagram
 - c0057: `CleanupReceipts` — `src/forgetful_factory/factory/ports.py`:37
 - c0058: `CleanupSet` — `src/forgetful_factory/factory/ports.py`:20
 - c0059: `ConfigurationStore` — `src/forgetful_factory/factory/ports.py`:9
-- c0060: `ToolInstaller` — `src/forgetful_factory/factory/ports.py`:59
+- c0060: `ToolInstaller` — `src/forgetful_factory/factory/ports.py`:61
 - c0061: `WatchLease` — `src/forgetful_factory/factory/ports.py`:15
 - c0062: `CleanupCompleted` — `src/forgetful_factory/factory/services/cleanup_completed.py`:37
 - c0063: `CompletedWork` — `src/forgetful_factory/factory/services/cleanup_completed.py`:22
@@ -1856,11 +1864,11 @@ classDiagram
   `src/forgetful_factory/factory/services/cleanup_marker.py`:1
 - c0067: `src/forgetful_factory/factory/services/definition_of_done.py` —
   `src/forgetful_factory/factory/services/definition_of_done.py`:1
-- c0068: `FactoryRecords` — `src/forgetful_factory/factory/services/factory_records.py`:16
+- c0068: `FactoryRecords` — `src/forgetful_factory/factory/services/factory_records.py`:17
 - c0069: `InitialiseFactory` — `src/forgetful_factory/factory/services/initialise_factory.py`:37
 - c0070: `src/forgetful_factory/factory/services/initialise_factory.py` —
   `src/forgetful_factory/factory/services/initialise_factory.py`:1
-- c0071: `ScaffoldIssue` — `src/forgetful_factory/factory/services/scaffold_issue.py`:37
+- c0071: `ScaffoldIssue` — `src/forgetful_factory/factory/services/scaffold_issue.py`:38
 - c0072: `src/forgetful_factory/factory/services/scaffold_issue.py` —
   `src/forgetful_factory/factory/services/scaffold_issue.py`:1
 - c0073: `StartForeman` — `src/forgetful_factory/factory/services/start_foreman.py`:14
@@ -1909,7 +1917,7 @@ classDiagram
 - c0106: `WatchStop` — `src/forgetful_factory/shared/watch_stop.py`:8
 - c0107: `src/forgetful_factory/shared/watch_stop.py` —
   `src/forgetful_factory/shared/watch_stop.py`:1
-- c0108: `GitHubTicketing` — `src/forgetful_factory/ticketing/adapters/github.py`:14
+- c0108: `GitHubTicketing` — `src/forgetful_factory/ticketing/adapters/github.py`:15
 - c0109: `Label` — `src/forgetful_factory/ticketing/model.py`:17
 - c0110: `Ticket` — `src/forgetful_factory/ticketing/model.py`:22
 - c0111: `TicketSource` — `src/forgetful_factory/ticketing/model.py`:6
@@ -2768,9 +2776,11 @@ classDiagram
 - c0068 ..> c0081: `type in __init__`
 - c0068 ..> c0086: `ownership() calls tasks()`
 - c0068 ..> c0091: `type in __init__`
+- c0068 ..> c0108: `snapshot() calls is_key()`
 - c0068 ..> c0110: `snapshot() constructs Ticket`
 - c0068 ..> c0110: `type in snapshot`
 - c0068 ..> c0111: `snapshot() constructs TicketSource`
+- c0068 ..> c0112: `type in __init__`
 - c0068 ..> c0113: `check_repository() calls origin()`
 - c0068 ..> c0117: `type in __init__`
 - c0069 ..> c0005: `initialise() calls save()`
@@ -2914,6 +2924,7 @@ classDiagram
 - c0071 ..> c0110: `type in prepare`
 - c0071 ..> c0110: `type in recover`
 - c0071 ..> c0111: `type in _repository`
+- c0071 ..> c0112: `type in __init__`
 - c0071 ..> c0115: `_ensure_mapping() calls ensure()`
 - c0071 ..> c0115: `_ensure_mapping() calls verify_removed()`
 - c0071 ..> c0115: `_initial_mappings() calls target_branch()`
@@ -3105,13 +3116,15 @@ classDiagram
 - c0076 --> c0074: `field known`
 - c0076 --> c0110: `field pending_lookup`
 - c0076 --> c0111: `field baselined`
-- c0078 ..> c0007: `report() calls report()`
-- c0078 ..> c0013: `report() calls validate_completion()`
-- c0078 ..> c0024: `report() calls unknown_status()`
+- c0078 ..> c0013: `_setup() calls validate_completion()`
+- c0078 ..> c0024: `_without_live_plain() calls unknown_status()`
 - c0078 ..> c0025: `type in __init__`
 - c0078 ..> c0027: `type in __init__`
-- c0078 ..> c0037: `report() calls load()`
+- c0078 ..> c0037: `_setup() calls load()`
 - c0078 ..> c0059: `type in __init__`
+- c0078 ..> c0078: `_without_live_plain() calls report()`
+- c0078 ..> c0078: `report() calls _setup()`
+- c0078 ..> c0078: `report() calls _without_live_plain()`
 - c0079 ..> c0080: `repository() constructs RepositoryRef`
 - c0079 ..> c0080: `type in is_change_request`
 - c0079 ..> c0080: `type in repository`
@@ -3565,12 +3578,13 @@ classDiagram
 - Signature44: `+agree_definition_of_done(agreement: AgreementStore, config: FactoryConfiguration,
   ask: Callable[[str], str], say: Callable[[str], None]) bool`
 - Signature45: `-__init__(planning: PlanStore, workspace: Path, config: FactoryConfiguration,
-  repositories: LocalRepositories, forge: Forge) unknown`
+  repositories: LocalRepositories, forge: Forge, ticketing: Ticketing) unknown`
 - Signature46: `-__init__(tracking: Ticketing, storage: ConfigurationStore, repositories:
   LocalRepositories, forge: Forge, team: AgentTeam, planning: PlanningSetup, tools:
   Callable[[ForgetfulConnection], Sequence[ToolInstaller]]) unknown`
 - Signature47: `-__init__(planning: PlanStore, worktrees: Worktrees, workspace: Path, config:
-  FactoryConfiguration, repositories: LocalRepositories, forge: Forge) unknown`
+  FactoryConfiguration, repositories: LocalRepositories, forge: Forge, ticketing: Ticketing)
+  unknown`
 - Signature48: `-_setup_ownership(plan_id: int, issue: Ticket, context: dict, initial_mappings:
   list[dict]) tuple[list[dict], list[dict]]`
 - Signature49: `-_create_ownership(plan_id: int, external_ref: str, context: dict, mappings:

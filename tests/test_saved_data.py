@@ -6,6 +6,7 @@ fixture diff before committing.
 """
 import json
 import os
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -67,8 +68,11 @@ class SavedDataTests(CompletedCleanupFixture):
     def normalize(self, value):
         """Replace values that change between runs and hosts."""
         if isinstance(value, dict):
-            return {key: '<target-branch>' if key == 'target_branch' else self.normalize(item)
-                    for key, item in value.items()}
+            # The default branch name depends on the host's Git settings; any other value stays.
+            branch = subprocess.run(['git', '-C', str(self.workspace), 'branch', '--show-current'],
+                                    capture_output=True, text=True, check=True).stdout.strip()
+            return {key: '<target-branch>' if key == 'target_branch' and item == branch
+                    else self.normalize(item) for key, item in value.items()}
         if isinstance(value, list):
             return [self.normalize(item) for item in value]
         if isinstance(value, str):
@@ -141,8 +145,10 @@ class SavedDataTests(CompletedCleanupFixture):
         assert_fixture(self, 'cleanup_receipts', self.normalize(json.loads(raw)))
 
     def test_init_configuration(self):
-        assert_fixture(self, 'factory_toml', self.normalize(
-            self.init_configuration).splitlines())
+        text = self.normalize(self.init_configuration)
+        # The fixture stores lines; the file has Unix line ends and one final newline.
+        self.assertEqual(text, '\n'.join(text.splitlines()) + '\n')
+        assert_fixture(self, 'factory_toml', text.splitlines())
 
 
 

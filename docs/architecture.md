@@ -326,7 +326,7 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
 - [Watcher problems and Foreman escalation](adrs/watcher-problems.md): scoped pause-and-alert
   behaviour, approved native repair and unchanged delivery/ownership limits; follow-up in progress.
 - [Domain contexts](plans/domain-contexts.md): approved plan to split the package into contexts
-  with their own ports and adapters. Slices 0–5 are done; the final trial (6) remains.
+  with their own ports and adapters. All slices (0–6) and the reviews are done.
 - [Development checks](adrs/development-checks.md): Ruff, import contracts and their proof tests,
   public testing boundaries, the parallel test runner, CI, and local static analysis.
 - [uv dependency management](adrs/uv-dependency-management.md): manifest, dev groups, lockfile,
@@ -354,22 +354,22 @@ Paths below are relative to `src/forgetful_factory/`:
   optional manual launch: line 638.
   New-setup orchestration: line 755; memory choices: line 514; REST eligibility: line 549.
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 689 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 72 and 98; ticketing registry and source checks:
-  lines 39 and 83; GitHub CLI preflight: line 105; selected root launch: line 127.
+  Adapter wiring: `cli/bootstrap.py`, lines 71 and 99; ticketing registry and source checks:
+  lines 38 and 82; GitHub CLI preflight: line 106; selected root launch: line 129.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 15, 19, 80 and 99. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
   Deadline policies: `cli/deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
 - Workflows: `factory/services/initialise_factory.py`, line 37; `factory/services/watch_factory.py`,
-  line 59; private run state: line 37; `factory/services/scaffold_issue.py`, line 37.
+  line 59; private run state: line 37; `factory/services/scaffold_issue.py`, line 38.
   Standalone Foreman: `factory/services/start_foreman.py`, line 14. DoD selection, confirmation
   and deployment draft: `factory/services/definition_of_done.py`, lines 9 and 57; the agreement
   file: `factory/adapters/markdown_agreement.py`, line 7.
   Public cleanup validation: `factory/services/cleanup_marker.py`, line 15; error type: line 11.
   Problem types and formatting: `factory/model/watcher_problems.py`, lines 119 and 151;
-  Shared identity/repository checks: `factory/services/factory_records.py`, lines 16–123;
-  pre-create checks: `factory/services/scaffold_issue.py`, line 87; read-only lookup/recovery:
-  lines 175 and 231; placeholder creation: line 187; worktree names: line 31.
+  Shared identity/repository checks: `factory/services/factory_records.py`, lines 17–125;
+  pre-create checks: `factory/services/scaffold_issue.py`, line 89; read-only lookup/recovery:
+  lines 177 and 233; placeholder creation: line 189; worktree names: line 32.
   Cleanup: `factory/services/cleanup_completed.py`, lines 48–117, 292–387; ticket scope: line 190;
   receipt contract: `factory/ports.py`, lines 20–42; durable storage:
   `factory/adapters/cleanup_receipts.py`, lines 40–100.
@@ -397,15 +397,15 @@ Paths below are relative to `src/forgetful_factory/`:
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones
-  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 58.
+  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 57.
 - Transient wizard choices: `agents/model.py`, line 9.
   Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
   lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10; controller:
-  `agents/adapters/agentshell/controller.py`, line 272; host choice: line 97; child launch
-  validation: line 118; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
+  `agents/adapters/agentshell/controller.py`, line 278; host choice: line 97; child launch
+  validation: line 124; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
   Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`, line 28. Channel:
   `channels/ports.py`, line 4; terminal: `channels/adapters/terminal.py`, line 8. Started by path or
   module name: `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.

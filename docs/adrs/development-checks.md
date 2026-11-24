@@ -24,7 +24,7 @@ style (see [test runner](#test-runner)). Ruff infers Python 3.12 from `requires-
 repeating the setting. Formatting is not required or added.
 Ruff's line-length rule has documented exceptions; it is not a strict Markdown-width validator.
 
-Import Linter's six contracts in `pyproject.toml` enforce:
+Import Linter's seven contracts in `pyproject.toml` enforce:
 
 - `top-level`: imports go down only: `__main__`, then `cli` and the `configuration.py` facade,
   then `factory`, then the contexts (`agents`, `channels`, `forge`, `planning`, `runtime`,
@@ -40,9 +40,12 @@ Import Linter's six contracts in `pyproject.toml` enforce:
   and the missing-tools check are functions passed in by `cli/bootstrap.py`.
 - `core-no-processes`: services, ports and models do not import `subprocess` or `socket`, directly
   or through another module. Process and socket work stays in adapters and `shared/`.
-- `agentshell-in-agents`: only `agents.adapters` imports `agent_shell` directly. It needs
-  `include_external_packages = true`. It sets `allow_indirect_imports`, because composition reaches
-  AgentShell through the agents adapter; its indirect proof rows must pass.
+- `entry-through-cli`: `__main__` imports no adapter directly. It sets `allow_indirect_imports`,
+  because the entry point runs the CLI, which composes adapters; its indirect rows must pass.
+- `agentshell-in-agents`: only `agents.adapters` imports `agent_shell` directly. Every services,
+  ports and model package is a source (by wildcard), with the CLI, shared and other areas. It
+  needs `include_external_packages = true`. It sets `allow_indirect_imports`, because composition
+  reaches AgentShell through the agents adapter; its indirect proof rows must pass.
 
 These checks include submodules and indirect paths. Bootstrap and the public configuration loader
 are composition entry points and may construct adapters. The rules are coarse layer checks, not an
@@ -75,10 +78,15 @@ the same file guard what the checker cannot see by itself:
 - `core-no-processes` uses wildcards for services, ports and models, so a new context is covered
   without an edit, and it does not allow indirect imports.
 - Every `ports.py`, `model.py`, `model/` and `factory/` file names no provider or host
-  (`github`, `gitlab`, `codeberg`, `linear`, `tmux`, `herdr`, `agent_shell`). Import rules cannot
-  see a hard-coded name or URL. One known exception is recorded in the test: init's failure text
-  after label writes says "check GitHub" (`factory/services/initialise_factory.py`). It is kept
-  because the refactor must not change behaviour; changing it needs Scott's approval.
+  (`github`, `gitlab`, `codeberg`, `linear`, `tmux`, `herdr`, `agent_shell` or `AgentShell`).
+  Import rules cannot see a hard-coded name or URL. Known exceptions are recorded in the test and
+  kept because the refactor must not change behaviour (changing them needs Scott's approval):
+  init's failure text after label writes says "check GitHub"; `agents/model.py` holds
+  `AgentShellLifecycleDeadlines` and two role-validation messages that name AgentShell. Pi and
+  Forgetful are not in the list: the plan makes Forgetful the planning model and Pi the harness
+  (see the known limits in the [plan](../plans/domain-contexts.md)).
+- Every file under `tests/` matches a `source-include` pattern, so the source distribution can
+  collect its tests.
 - No test writes a source file path (`src/forgetful_factory/.../*.py`); tests use the launch
   constants instead.
 - Only `shared/resources.py`, `agents/adapters/agentshell/launch.py` and the controller use
@@ -86,29 +94,34 @@ the same file guard what the checker cannot see by itself:
   are constants in `launch.py`, and a test checks that each resolves in the source tree. The
   controller runs in AgentShell's interpreter, where Factory cannot be imported, so it loads its
   host checks (`tmux_host.py`) from beside itself; `launch.TMUX_HOST` and a test check that file
-  is there.
+  is there and that the controller's `HOST_FILES` names it. The controller's `--check` loads every
+  host file, as the old single script imported them, and loading writes no bytecode cache. Launch
+  paths keep the installed spelling (symlinks unresolved), as before; the AgentShell terminal
+  resolves its own path.
 
-`tests/contracts/` holds one `unittest` mixin per port. `TicketingContract` states what every
-`Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that pass
-`is_key`, content-only revisions, source checks (including another provider's source) and labels.
-`ForgeContract` states that every accepted remote form names one repository, unsupported remotes
-fail, and change-request URLs belong to their repository. `PlanStoreContract` states that a created
-plan is in the store's project and found by reference, another project's plan is not owned, plans
-and tasks update, and the backend identity is stable text; it runs against `ForgetfulPlanStore` with
-the stateful native planning program. `PlanningSetupContract` states that a created project is
-listed, the check confirms access to a selected project and refuses none, prepare can repeat, and
-the browser-login need is yes or no; it runs against `ForgetfulSetup` with the profile command
-double. `AgentTeamContract` states that declined home consent saves nothing, accepted consent is
-kept once saved, setup is incomplete until recorded, and no memory notice exists before a launch is
-selected. `ToolInstallerContract` states that a bare host misses the tool, an installed tool is not
-missing, and other tools are neither described nor installed; it runs against each installer (Pi,
-tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the host's launch data is
-plain data with a kind, its attach text names the session, and entry without a terminal only prints
-how to enter; it runs against `TmuxHost`. `ChannelContract` states that the way to reach a session
-names it and that opening without a terminal only prints how; it runs against `TerminalChannel` on
-`TmuxHost`. `PersistentForemanContract` states that without an owner there is no record, report or
-status, an unreadable record is reported unknown with a warning, and a silent owner is history,
-never a live observation; it runs against `AgentShellOwner` without live owners.
+`tests/contracts/` holds `unittest` mixins for ten ports. `Worktrees`, `LocalRepositories`,
+`ConfigurationStore`, `WatchLease`, `CleanupReceipts` and `ForemanTerminal` have none; real-Git,
+init, lease, receipt and lifecycle tests cover their adapters instead. `TicketingContract` states
+what every `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that
+pass `is_key`, content-only revisions, source checks (including another provider's source) and
+labels. `ForgeContract` states that every accepted remote form names one repository, unsupported
+remotes fail, and change-request URLs belong to their repository. `PlanStoreContract` states that a
+created plan is in the store's project and found by reference, another project's plan is not owned,
+plans and tasks update, and the backend identity is stable text; it runs against
+`ForgetfulPlanStore` with the stateful native planning program. `PlanningSetupContract` states that
+a created project is listed, the check confirms access to a selected project and refuses none,
+prepare can repeat, and the browser-login need is yes or no; it runs against `ForgetfulSetup` with
+the profile command double. `AgentTeamContract` states that declined home consent saves nothing,
+accepted consent is kept once saved, setup is incomplete until recorded, and no memory notice exists
+before a launch is selected. `ToolInstallerContract` states that a bare host misses the tool, an
+installed tool is not missing, and other tools are neither described nor installed; it runs against
+each installer (Pi, tmux, Forgetful, AgentShell runtime). `SessionHostContract` states that the
+host's launch data is plain data with a kind, its attach text names the session, and entry without a
+terminal only prints how to enter; it runs against `TmuxHost`. `ChannelContract` states that the way
+to reach a session names it and that opening without a terminal only prints how; it runs against
+`TerminalChannel` on `TmuxHost`. `PersistentForemanContract` states that without an owner there is
+no record, report or status, an unreadable record is reported unknown with a warning, and a silent
+owner is history, never a live observation; it runs against `AgentShellOwner` without live owners.
 `AgreementStoreContract` states that an empty workspace has no agreement, a written agreement reads
 back, and writing again never replaces it; it runs against `MarkdownAgreement`.
 `tests/test_runtime_host.py` also sends launch frames to the real controller: an unknown host kind

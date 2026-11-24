@@ -129,17 +129,21 @@ class InitialiseFactory:
             remote = self.repositories.origin(Path(repository.local_dir))
             hosted = self.forge.repository(remote)
             source = repository.work_source
+            # The remote names the ticket source only when one service is both forge and ticketing.
+            same_service = hosted.forge == source.provider
+            changed = remote != repository.remote or (same_service and hosted.reference
+                                                      != source.reference)
             try:
                 self.tracking.validate_source(source)
             except FactoryError as error:
-                raise FactoryError(
-                    f'{error} Correct .factory/factory.toml, then use init --finalize for '
-                    'incomplete saved setup, or restart watch or foreman for completed setup.'
-                ) from error
-            # The remote names the ticket source only when one service is both forge and ticketing.
-            same_service = hosted.forge == source.provider
-            if remote != repository.remote or (same_service and hosted.reference
-                                               != source.reference):
+                # A source the forge derived from this origin is accepted, as before the
+                # ticketing port; the check names the fault only for a source that differs.
+                if changed or not same_service:
+                    raise FactoryError(
+                        f'{error} Correct .factory/factory.toml, then use init --finalize for '
+                        'incomplete saved setup, or restart watch or foreman for completed setup.'
+                    ) from error
+            if changed:
                 raise FactoryError(f'Origin/source changed for {repository.local_dir}; '
                                    'review the origin and correct .factory/factory.toml if saved. '
                                    'Use init --finalize for incomplete saved setup, or restart '

@@ -9,6 +9,7 @@ from contracts.tools import ToolInstallerContract
 
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
+from forgetful_factory.factory.services.initialise_factory import missing_tools
 from forgetful_factory.planning.adapters.forgetful.install import ForgetfulInstall
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.runtime.adapters.tmux import TmuxInstall
@@ -85,3 +86,34 @@ class AgentShellRuntimeInstallContractTests(ToolInstallerContract, HostFixture):
         python = runtime / 'bin/python'
         python.write_text('#!/bin/sh\nexit 0\n')
         python.chmod(0o755)
+
+
+class ProbeTimingTests(HostFixture):
+    """Probes keep the old timing when the host changes between two lookups."""
+
+    def test_forgetful_found_absent_is_not_also_offered_as_unready(self):
+        # Arrange: the first lookup misses; the second finds a half-installed managed CLI.
+        install = ForgetfulInstall(self.workspace, ForgetfulConnection())
+        managed = str(self.workspace / '.factory/runtime/forgetful/bin/forgetful')
+        module = 'forgetful_factory.planning.adapters.forgetful.install'
+        with (patch(f'{module}.shutil.which', side_effect=[None, managed]),
+              patch(f'{module}.runtime_ready', return_value=False)):
+            # Act
+            missing = missing_tools([install])
+        # Assert: one offer, as the old check skipped the probe for a missing executable.
+        self.assertEqual(missing, ['forgetful'])
+
+    def test_managed_pi_probe_reads_the_saved_home_again(self):
+        # Arrange: the old check read the saved home once for the folder, once for the probe.
+        install = PiInstall(self.workspace)
+        managed = str(self.workspace / '.factory/runtime/pi/node_modules/.bin/pi')
+        module = 'forgetful_factory.agents.adapters.pi.runtime_install'
+        homes = [str(self.workspace), str(self.workspace / 'later')]
+        with (patch(f'{module}.shutil.which', return_value=managed),
+              patch(f'{module}.saved_pi_home', side_effect=homes),
+              patch.object(PiInstall, 'ready', return_value=False) as ready):
+            # Act
+            missing = install.unready()
+        # Assert
+        self.assertEqual(missing, ['pi'])
+        ready.assert_called_once_with(homes[1])

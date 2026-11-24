@@ -1,9 +1,8 @@
 # Domain contexts: base architecture and taxonomy
 
-**Status: Approved 2026-11-23; slices 0–5 implemented** (see [Progress](#progress)). Fable
-reviewed the first draft on 2026-11-23; see the [review record](#review-record). The design parts
-still need to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for
-now.
+**Status: Approved 2026-11-23; slices 0–6 implemented** (see [Progress](#progress)). Fable reviewed
+the first draft on 2026-11-23; see the [review record](#review-record). The design parts still need
+to move to `docs/adrs/domain-contexts.md`; `docs/architecture.md` links to this plan for now.
 
 ## Goal
 
@@ -475,14 +474,69 @@ any further change of behaviour needs his approval first.
     "GitHub PR URL".
 - **Not reachable with GitHub only:** mixed ticketing providers are refused; the remote-matches-
   source check is skipped when forge and ticketing differ; cleanup scope accepts any provider's
-  key format through `is_key`. For GitHub, `is_key` uses the old pattern `[1-9]\d*` (restored
-  after the SonarQube scan; slice 1 had used `[1-9][0-9]*`, which refused non-ASCII digits).
+  key format through `is_key`. For GitHub, `is_key` takes ASCII digits with no leading zero; the
+  old scope pattern `[1-9]\d*` also took non-ASCII digits, which Factory never writes (such a
+  reference was then refused when its saved number was read).
 - **Wire order only:** `create_plan` sends `project_id` last in the CLI JSON; stored records match.
 
-**Next steps:** slice 6 (final trial; the smoke repo `ScottRBK/factory-smoke-20261123` is kept and
-may be reused); then SonarQube and the two reviews. Trials use a throwaway private
-GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted afterwards. The DinoLand
-baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+**Next steps:** Scott's decisions on the known limits below; the branch is not pushed. Trials use
+a throwaway private GitHub repo and a new Forgetful project (Scott, 2026-11-23), deleted
+afterwards. The DinoLand baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
+
+- **Reviews** (2026-11-24, through AgentShell `AgentShell.execute`, each in its own scratch
+  worktree at `edb84a2`): Fable 5.2 (`claude-fable-5-2`, Claude Code) said "no blocker"; Astra
+  (`gpt-6.2-astra`, Codex) said "block merge". Every claim was checked against `ff5bc18` before
+  it was fixed. Each fix restores `main`'s behaviour, and its test failed first:
+  - **Blocker (Astra): saved ticket keys.** Recovery accepted any non-empty saved key, so `0` or
+    `1٢` (ASCII 1, Arabic-Indic 2) passed. With the SonarQube change to `\d`, a completed plan
+    with `#1٢` was cleaned up; `main` raised `plan_recovery_invalid`. Recovery now asks the ticket
+    provider (`FactoryRecords` takes the `Ticketing` port), and GitHub keys are ASCII again
+    (`re.ASCII`). Tests: `tests/test_ticketing.py`.
+  - **Controller preflight (both).** `main`'s controller imported `ctypes` and `select` at the
+    start, so `--check` failed on an interpreter without them. Now `--check` loads every host
+    file. Loading also wrote `__pycache__` beside the installed files; it no longer does.
+    Tests: `tests/test_runtime_host.py`.
+  - **Install probes (Astra).** If the Forgetful CLI appeared between the two lookups, init
+    offered it twice; `main` had a guard. The guard is back, and the managed Pi probe reads the
+    saved home twice again, as `main` did. Tests: `ProbeTimingTests`.
+  - **Init with an origin ending `.git.git` (Astra).** `main` set up with the derived source
+    `team/app.git`; the branch refused it. `validate_source` now names a fault only when the
+    provider differs or the saved source no longer matches the origin (the accepted message
+    change still applies there). Test: `tests/test_init_sources.py`, which also passes on
+    `ff5bc18`.
+  - **Watch check order (both).** `main` checked each repository in turn, provider then source;
+    the branch checked all providers first. Order restored. Test in `tests/test_ticketing.py`.
+  - **`--help` without `fcntl` (Astra).** Composition imported the lease at start. It is
+    imported lazily again. Test: `test_help_works_without_the_lock_module`.
+  - **Launch paths (Fable).** `main` started the owner's controller and the model catalog by
+    the path as installed; the branch resolved symlinks. Restored; the AgentShell terminal
+    resolves its own path, as before. Test: `test_launch_paths_keep_the_installed_spelling`.
+  - **Packaging (Astra).** The sdist missed `tests/contracts/` and the JSON fixtures, so its
+    tests could not be collected. Patterns added; a test checks every test file is covered.
+    The rebuilt sdist collects 764 tests.
+  - **Rule gaps (Astra, Fable).** `__main__` could import an adapter directly: new rule
+    `entry-through-cli` (direct imports only). An `agents.services` module could import
+    AgentShell: `agentshell-in-agents` now takes every services, ports and model package. The
+    provider scan now also matches `AgentShell`; the five uses in `agents/model.py` are recorded.
+  - **Golden tests (Astra).** `target_branch` is replaced only when it is the fixture repo's real
+    branch; the saved TOML must end in one newline.
+  - Docs: the ADR now names which ports have contract mixins (ten) and which rely on other tests.
+
+- **Known limits (not changed; behaviour-neutral, for Scott to decide).**
+  - `AgentTeam` names Pi (`choose_pi_home`, `pi_home`, `harness='pi'`) and four methods take
+    `ForgetfulConnection`; `FactoryConfiguration` has a `forgetful` section (saved TOML shape).
+  - The owner client validates a tmux-shaped target (`%` pane id, socket path, process fields).
+  - The CLI's init paths still call `owner_client` directly (`cli/main.py`), and
+    `_launch_setup_foreman` repeats the launch dict that `StartForeman` builds.
+  - `unknown_status` (a watch-status shape) sits in `agents/model.py` because the owner adapter
+    needs it. `adapters-independent` works between contexts; inside `agents`, the Pi adapter uses
+    the AgentShell launch constants. `core-no-processes` forbids `subprocess` and `socket` only.
+  - The plan text still says `AgentSession` (the code has `ForemanTerminal` with
+    `startup_hint`), lists `runtime/model.py` (none exists) and gives `how_to_attach(target)`
+    (the code takes the session name).
+  - Golden gaps: the `discuss` agreement transcript drops stderr and the exit code (they depend
+    on the host's tmux); full init stdout, the launch frame and a live plain watcher are not
+    pinned; the Ubuntu 24.04 tmux recipe tests skip on this host.
 
 - **SonarQube** (2026-11-24, local Community Build, gate "Sonar way sans code coverage"). The
   server cannot analyse branches, so the scan script's `SONAR_MAIN_BRANCH` override scanned each
@@ -492,7 +546,8 @@ baseline watcher and Foreman were stopped with Ctrl-C on 2026-11-23.
   - Branch at `9867804`: 5 new issues, all fixed with no behaviour change: `watch_status.py`
     `report` cognitive complexity 16 > 15 (two helpers); argument-type warnings on the
     `agree_definition_of_done` calls (the port's `location` is now a property); `[0-9]` instead
-    of `\d` in `GitHubTicketing._KEY` (now `[1-9]\d*`, the pattern `main` used); a test hook
+    of `\d` in `GitHubTicketing._KEY` (first changed to `[1-9]\d*`, which Astra showed let a
+    non-ASCII key through; now `[1-9]\d*` with `re.ASCII`); a test hook
     read as an unused helper (`# NOSONAR(S5899)`, the form the sonar-python docs give through
     Context7).
   - After the fixes: only the `main` issue remains (pre-existing, unchanged: fixing it would
@@ -890,6 +945,34 @@ Findings:
   trial made in `~/.pi/forgetful-agent/sessions` removed; workspace, tmux session and local
   branch removed. The remote had only `main` and no PRs. Scott (2026-11-24): keep the private
   repo for now; later trials may reuse it. Deleting it needs the `delete_repo` token scope.
+
+### Final trial results (passed)
+
+- Build: commit `9867804` (slice 5b), wheel SHA256
+  `f0b51ace56977a3d212287cd3115684ff0e6c102255bf29cbf9d44c68b3df2ad` (117 checksums), built to
+  the scratchpad. `dist/` was not rebuilt.
+- Repo: the kept `ScottRBK/factory-smoke-20261123`, cloned fresh. Before the run, a minimal CI
+  workflow was added to its `main` (`f8850b1`, `actions/checkout` pinned to the `v4.2.2` SHA), so
+  the "checks on the exact commit" stage is real. Open issue #1 ("Add hello.txt with a greeting").
+- Setup (00:54–01:01 UTC, 2026-11-24): `init` with the smoke trial's choices. Init offered the
+  Forgetful CLI install, then the AgentShell runtime install; it created Forgetful project 27 and
+  reused the `factory` label; DoD "After merge". Launched from init with "e".
+- 01:02: "Submitted github:scottrbk/factory-smoke-20261123#1 to Pi"; worktree
+  `factory/scottrbk-factory-smoke-20261123-1`; plan 17, ownership task 226.
+- 01:06: [PR #2](https://github.com/ScottRBK/factory-smoke-20261123/pull/2) (only `hello.txt`),
+  head `f22c728`; CI run 45302435387 passed on that head.
+- 01:10:44: independent review 6032104432 on `f22c728`, COMMENTED, no findings. The reviewer's
+  sandbox could not reach GitHub, so the feature owner posted its pinned payload (as F4).
+- 01:11:23: merged as `a90f1ad`; issue #1 closed; post-merge CI run 45303135941 passed.
+- The Foreman checked the DoD itself (PR, merge commit, review, checks on the exact revisions)
+  and completed plan 17 with tasks 226–230 done; evidence in `.factory/delivery/plan-17.md`.
+- 01:22: the watcher removed the worktree, the local branch and the remote branch: "Cleanup
+  confirmed for completed plan 17".
+- Result: every stage of step 6 passed with no action outside the rules. Stopped with Ctrl-C
+  ("Error: Watch interrupted."); the Foreman session closed and no Pi process was left.
+- Cleanup: project 27 deleted (plan 17 went with it); the two Pi session folders removed; the
+  workspace and tmux session removed. The repo is kept with its CI workflow; only `main` remains.
+- The review fixes came after this build; see the re-run below.
 
 ## Decisions
 

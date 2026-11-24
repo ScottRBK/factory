@@ -13,7 +13,6 @@ from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.configuration import load_configuration
 from forgetful_factory.factory.adapters.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
-from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 from forgetful_factory.factory.adapters.watch_status import ObservedTerminal, plain_watch_status
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
@@ -82,17 +81,19 @@ def build_initialiser(workspace: Path, deadlines: DeadlinePolicy = DeadlinePolic
 
 def select_ticketing(config: FactoryConfiguration, command_timeout: float) -> Ticketing:
     """Choose the ticketing adapter for the configured sources, and check every source."""
-    providers = [repository.work_source.provider for repository in config.repository]
-    for provider in providers:
+    adapters = {}
+    # One repository at a time, provider then source, so the first fault is the one reported.
+    for repository in config.repository:
+        provider = repository.work_source.provider
         if provider not in TICKETING:
             raise FactoryError(f'Unsupported work-tracking provider {provider!r}; '
                                f'watch supports {", ".join(sorted(TICKETING))} only.')
-    if len(set(providers)) != 1:
+        if provider not in adapters:
+            adapters[provider] = TICKETING[provider](command_timeout)
+        adapters[provider].validate_source(repository.work_source)
+    if len(adapters) != 1:
         raise FactoryError('All repositories must use the same work-tracking provider.')
-    ticketing = TICKETING[providers[0]](command_timeout)
-    for repository in config.repository:
-        ticketing.validate_source(repository.work_source)
-    return ticketing
+    return next(iter(adapters.values()))
 
 
 def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
@@ -118,7 +119,8 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                                  term_grace=deadlines.owned_process_term_grace)
     worktrees = GitWorktrees(deadlines.external_command)
     scaffold = ScaffoldIssue(planning, worktrees, workspace, config,
-                             GitRepositories(deadlines.external_command), GitHubForge())
+                             GitRepositories(deadlines.external_command), GitHubForge(),
+                             ticketing)
     return WatchFactory(ticketing, terminal, scaffold,
                         CleanupCompleted(scaffold.records, scaffold.worktrees,
                                          FileCleanupReceipts(workspace), ticketing))
@@ -155,6 +157,9 @@ def build_start_foreman(workspace: Path, python: str,
         team, environment, launch = prepare_foreman_launch(
             config, workspace, term_grace=deadlines.owned_process_term_grace)
         return team.managed_memory_notice(), environment, launch
+
+    # The lease needs fcntl; import it only for the commands that take it.
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     return StartForeman(WorkspaceWatchLease(workspace), build_owner(workspace, python, deadlines),
                         build_channel(), prepare)

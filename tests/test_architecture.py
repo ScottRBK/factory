@@ -3,6 +3,7 @@
 import importlib.util
 import os
 import re
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -42,6 +43,7 @@ MODULES = (
     'planning.adapters.forgetful.plan_store',
     'agents.model',
     'agents.ports',
+    'agents.services.dispatch',
     'agents.adapters.agentshell.controller',
     'workspace.ports',
     'workspace.adapters.git.worktrees',
@@ -166,6 +168,9 @@ REJECTED = (
     # Every forge module is reachable from forge.adapters, so independence also rejects this.
     ('adapters-from-composition', 'forge.ports', 'ticketing.adapters.github',
      ('adapters-independent',)),
+    # The entry point runs the CLI; it does not build adapters itself. Indirect runs pass.
+    ('entry-through-cli', '__main__', 'ticketing.adapters.github'),
+    ('entry-through-cli', '__main__', 'agents.adapters.agentshell.controller'),
     ('adapters-independent', 'factory.adapters', 'ticketing.adapters.github'),
     ('adapters-independent', 'factory.adapters', 'planning.adapters.forgetful.plan_store'),
     ('adapters-independent', 'forge.adapters', 'ticketing.adapters.github'),
@@ -187,6 +192,7 @@ REJECTED = (
     ('agentshell-in-agents', 'factory.services', 'agent_shell'),
     ('agentshell-in-agents', 'ticketing.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'agents.model', 'agent_shell'),
+    ('agentshell-in-agents', 'agents.services', 'agent_shell'),
     ('agentshell-in-agents', 'runtime.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'channels.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'cli', 'agent_shell'),
@@ -445,14 +451,31 @@ class CoverageTests(unittest.TestCase):
         files = [*SOURCE.glob('*/ports.py'), *SOURCE.glob('*/model.py'),
                  *SOURCE.glob('*/model/*.py'), *SOURCE.glob('factory/**/*.py')]
         self.assertTrue(any(path.parts[-3] == 'factory' for path in files))
-        names = re.compile(r'github|gitlab|codeberg|linear|tmux|herdr|agent_shell', re.IGNORECASE)
+        names = re.compile(r'github|gitlab|codeberg|linear|tmux|herdr|agent_?shell', re.IGNORECASE)
         found = {str(path.relative_to(SOURCE)): sorted(name.casefold() for name in
                                                        names.findall(path.read_text()))
                  for path in set(files)}
-        # One known leak: init's failure text after label writes says "check GitHub". It is kept
-        # unchanged because the refactor must not change behaviour; changing it needs Scott.
-        known = {'factory/services/initialise_factory.py': ['github']}
+        # Known leaks, kept because the refactor must not change behaviour (changes need Scott):
+        # init's failure text after label writes says "check GitHub"; the agents model holds
+        # AgentShellLifecycleDeadlines (placed there by the plan) and two role-validation
+        # messages that name AgentShell.
+        known = {'factory/services/initialise_factory.py': ['github'],
+                 'agents/model.py': ['agentshell'] * 5}
         self.assertEqual({path: hits for path, hits in found.items() if hits}, known)
+
+    def test_source_distribution_carries_every_test_file(self):
+        # The sdist ships the tests; a file outside these patterns breaks collection there.
+        build = tomllib.loads((ROOT / 'pyproject.toml').read_text())['tool']['uv']
+        patterns = build['build-backend']['source-include']
+
+        def included(path: str) -> bool:
+            return any(re.fullmatch(re.escape(pattern).replace(r'\*', '[^/]*'), path)
+                       for pattern in patterns)
+
+        files = [path.relative_to(ROOT).as_posix() for path in (ROOT / 'tests').rglob('*')
+                 if path.is_file() and '__pycache__' not in path.parts]
+        self.assertTrue(files)
+        self.assertEqual([path for path in files if not included(path)], [])
 
     def test_tests_find_source_files_through_constants(self):
         # A source path written in a test breaks silently when the module moves (slice 4a).
@@ -481,6 +504,35 @@ class CoverageTests(unittest.TestCase):
         owner = importlib.util.find_spec(launch.OWNER_MODULE)
         self.assertIsNotNone(owner)
         self.assertTrue(Path(owner.origin).is_relative_to(SOURCE))
+        # The controller picks its host file by name; the constant must name the same file.
+        from forgetful_factory.agents.adapters.agentshell import controller
+        self.assertEqual(controller.HOST_FILES['tmux'], launch.TMUX_HOST.name)
+
+    def test_help_works_without_the_lock_module(self):
+        # Arrange: fcntl is needed only when a command takes the workspace lease.
+        with tempfile.TemporaryDirectory() as temporary:
+            Path(temporary, 'sitecustomize.py').write_text(
+                "import sys\nsys.modules['fcntl'] = None\n")
+            env = dict(os.environ, PYTHONPATH=os.pathsep.join((str(SOURCE.parent), temporary)))
+            # Act
+            result = subprocess.run([sys.executable, '-m', PACKAGE, '--help'], env=env,
+                                    capture_output=True, text=True, timeout=30)
+        # Assert
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('usage:', result.stdout)
+
+    def test_launch_paths_keep_the_installed_spelling(self):
+        # Arrange: the package reached through a symlinked folder, as some installs are.
+        from forgetful_factory.agents.adapters.agentshell import launch
+
+        with tempfile.TemporaryDirectory() as temporary:
+            link = Path(temporary) / 'agentshell'
+            link.symlink_to(Path(launch.__file__).parent, target_is_directory=True)
+            # Act
+            names = runpy.run_path(str(link / 'launch.py'))
+        # Assert: the owner and the model catalog were started by the path as given.
+        self.assertEqual(names['CONTROLLER'], link / 'controller.py')
+        self.assertEqual(names['MODEL_CATALOG'], link / 'model_catalog.py')
 
 
 def _rejection_test(rule_id):

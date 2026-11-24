@@ -29,6 +29,7 @@ class ForgetfulInstall:
         self.connection = connection
         self.directory = workspace / '.factory/runtime/forgetful'
         self.term_grace = term_grace
+        self._was_absent = False
 
     def _required(self) -> bool:
         return self.connection.method == 'cli' or self.connection.instance == 'local'
@@ -37,13 +38,16 @@ class ForgetfulInstall:
         return shutil.which(self.connection.executable, path=executable_path(self.workspace))
 
     def absent(self) -> list[str]:
-        if self._required() and self._selected() is None:
-            return [self.connection.executable]
-        return []
+        self._was_absent = self._required() and self._selected() is None
+        return [self.connection.executable] if self._was_absent else []
 
     def unready(self) -> list[str]:
-        """Only the managed CLI is checked; another executable belongs to the user."""
-        if (self._required() and self._selected() == str(self.directory / 'bin/forgetful')
+        """Only the managed CLI is checked; another executable belongs to the user.
+
+        A CLI that the last absent() call missed is not probed, even if it has appeared since.
+        """
+        if (self._required() and not self._was_absent
+                and self._selected() == str(self.directory / 'bin/forgetful')
                 and not runtime_ready(self.directory, (self.directory / FORGETFUL_REQUIREMENTS,),
                                       FORGETFUL_PROBE, self.term_grace)):
             return ['forgetful']

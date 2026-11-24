@@ -10,17 +10,19 @@ from forgetful_factory.forge.ports import Forge
 from forgetful_factory.planning.ports import PlanStore
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Ticket, TicketSource
+from forgetful_factory.ticketing.ports import Ticketing
 from forgetful_factory.workspace.ports import LocalRepositories
 
 
 class FactoryRecords:
     def __init__(self, planning: PlanStore, workspace: Path, config: FactoryConfiguration,
-                 repositories: LocalRepositories, forge: Forge):
+                 repositories: LocalRepositories, forge: Forge, ticketing: Ticketing):
         self.planning = planning
         self.workspace = workspace
         self.config = config
         self.repositories = repositories
         self.forge = forge
+        self.ticketing = ticketing
 
     def check_repository(self, repository: RepositoryReference) -> None:
         try:
@@ -56,7 +58,7 @@ class FactoryRecords:
             source = TicketSource(**snapshot.pop('source'))
             issue = Ticket(source, **snapshot)
             if (not isinstance(source.provider, str) or not isinstance(source.reference, str)
-                    or not isinstance(issue.key, str) or not issue.key
+                    or not isinstance(issue.key, str) or not self.ticketing.is_key(issue.key)
                     or any(not isinstance(field, str) for field in (
                         issue.title, issue.url, issue.body, issue.revision))
                     or type(issue.epic) is not bool or issue.id != external_ref):

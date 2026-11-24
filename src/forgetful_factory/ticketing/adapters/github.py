@@ -8,8 +8,8 @@ from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.model import Label, Ticket, TicketSource
 
 _SOURCE = re.compile(r'[A-Za-z0-9-]+/[A-Za-z0-9_.-]+')
-# The same pattern the cleanup scope used before ticket keys became text.
-_KEY = re.compile(r'[1-9]\d*')
+# Issue numbers as GitHub writes them: ASCII digits, no leading zero.
+_KEY = re.compile(r'[1-9]\d*', re.ASCII)
 
 
 class GitHubTicketing:
