@@ -24,8 +24,8 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
-- ScottRBK/pi-forgetful-extension, base `574a4e8bfb2de368445036fb8e3ce89b08c58065`, with
-  local patch `f232245398a5d8dc362d24aafe507f788fbd6cd2825799bcf4a925157087adae`. The patch
+- ScottRBK/pi-forgetful-extension, base `d9a7c98c74b1ac5aafdd5eb887d994f6ddaf7a91`, with
+  local patch `94f36002c512cf1d82c935edbd373de1e8eb9f5097492381ae91d2a29581066c`. The patch
   hash is the SHA-256 of `git diff --cached --full-index --binary` in a checkout of the base after
   copying in the 40 bundled files and running `git add -A`. See the refreshes below.
   The original 40-file runtime closure was independently approved for inert internal inclusion.
@@ -99,6 +99,39 @@ mode. Local checks need an already provisioned model cache. Review and prepare m
 5. Rebuild the zip (sorted names, deflate, 2026-01-01 timestamps, mode 0600). Update the manifest
    revision, patch hash and file hashes. Append every new hash to the history file.
 6. Run the full suite and `update --dry-run` against real factories. Record the evidence here.
+
+## 2026-11-25 pi-forgetful refresh
+
+Moved from base `574a4e8` to `d9a7c98` (two upstream commits by Scott, unsigned). GitHub `main`
+and Scott's checkout are both at `d9a7c98`. The runtime closure stays at the same 40 files, with
+the same external imports. 8 files changed: `package.json`, `contracts.ts`, `capture.ts`,
+`capture-feedback.ts`, `capture-links.ts`, `capture-merge.ts`, `knowledge-write.ts` and
+`extension.ts`. `agentshell` and `hide-tools` bytes and the npm lock are unchanged.
+
+- `37ad7b2`: Forgetful's 404 answer to a dispatched write now counts as a rejection, like 400 and
+  422, so the error goes back to the model for correction. Before, the outcome was unknown. The
+  check moved into `rejectedHttpStatus` and `rejectedHttpError` in `contracts.ts`.
+  `capture-feedback.ts` already counted 404, so read errors do not change.
+- `d9a7c98`: `/forgetful project init` shows Forgetful's error text, and the missing-origin
+  message says that the origin must name owner/repo. `package.json` adds only a `check:real`
+  script.
+
+Runtime review: no new external imports, processes, network targets, file writes or environment
+reads. `extension.ts` also imports `ForgetfulHttpError` from the bundled `http.ts`.
+
+The old patch hash reproduced from the bundled files against `574a4e8`. The patch applied to
+`d9a7c98` with `git apply --3way` and no conflicts. Its changed and context lines are identical;
+only the blob hashes in its `index` lines changed, which changes the patch hash.
+
+Validation: strict `tsc --noEmit`, including `factory.ts`, passes. Upstream's 1356 tests give the
+same result on the patched and plain trees, test by test: 983 pass, 0 fail, 373 skipped. Dev
+dependencies came from Scott's clean upstream checkout at `d9a7c98`, whose package files match;
+nothing was installed. Upstream's architecture script gives the same findings on the old and new
+patched trees. The zip builder reproduced the old zip byte for byte before the swap. Factory's
+full suite: 761 passed, 14 skipped. With native tests on the Pi 1.6.0 SDK: 772 passed,
+3 skipped (the Ubuntu 24.04 tmux recipe). Ruff and the 7 import contracts pass. Read-only
+`update --dry-run` from the source tree, 0 edited and 0 to add in both: dark-business and
+DinoLand each plan the same 8 replacements.
 
 ## 2026-11-23 managed memory settings
 

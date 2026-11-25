@@ -117,6 +117,13 @@ The bundle moved to upstream `574a4e8`: history summaries keep Pi's full reply a
 Only `src/model-context.ts` changed; the Factory patch hash is unchanged. The audit and evidence
 are in [ROLE-SOURCES.md][refresh-574].
 
+### pi-forgetful `d9a7c98`
+
+The bundle moved to upstream `d9a7c98`. Forgetful's 404 answer to a dispatched write now goes
+back to the model as a rejection, and `/forgetful project init` shows Forgetful's error text.
+8 bundled files changed; the Factory patch applied without conflicts. The audit and evidence
+are in [ROLE-SOURCES.md][refresh-d9a].
+
 ## Not done
 
 - Hosted CI for the exact commit.
@@ -128,3 +135,5 @@ are in [ROLE-SOURCES.md][refresh-574].
   ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-22-pi-forgetful-refresh
 [refresh-574]:
   ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-23-pi-forgetful-refresh
+[refresh-d9a]:
+  ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-25-pi-forgetful-refresh
