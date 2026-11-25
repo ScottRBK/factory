@@ -1,0 +1,100 @@
+{
+  "agreement/declined": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): \nProposed agreement at <workspace>/declined/.factory/definition_of_done.md:\n# Definition of Done\n\nThis agreement covers these repositories in this Factory workspace:\n- team/app\n\nFeature-specific plan acceptance criteria must also be met.\nIndependent review, required repository/PR checks and confirmed merge are required.\nForeman checks the PR, actual merge commit, review and exact-final-revision check\nresults before completing the plan after the feature-owner handoff.\nDeployment and deployed E2E are not completion requirements.\n\nSave this Definition of Done agreement? [y/N]: ",
+    "returncode": 1,
+    "stderr": "Error: Definition of Done not saved. Discuss requirements with Foreman; setup is incomplete. Use init --finalize for saved setup.\n"
+  },
+  "agreement/deployed_e2e": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): Deployment environment name: Post-merge deployment workflow name (per repository if needed): This requires a usable post-merge deployment workflow and deployed-revision\nevidence in the named environment. Setup has not checked them. If missing or\nunclear, do not confirm: discuss prerequisites with Foreman first.\nDeployed E2E also needs an isolated test environment and a workflow stage\nafter deployment with evidence of the deployed combination it tested.\n\nProposed agreement at <workspace>/deployed_e2e/.factory/definition_of_done.md:\n# Definition of Done\n\nThis agreement covers these repositories in this Factory workspace:\n- team/app\n\nFeature-specific plan acceptance criteria must also be met.\nIndependent review, required repository/PR checks and confirmed merge are required.\nForeman checks the PR, actual merge commit, review and exact-final-revision check\nresults before completing the plan after the feature-owner handoff.\nDeployment to staging through Delivery is required. Foreman verifies\nsuccessful stages and revision evidence for the actual merged revision in each\naffected repository. Record workflow run/attempt and artifact links in tasks.\nMissing, failed, skipped, pending or inconclusive required evidence blocks\ncompletion. Keep the plan open and raise or reuse a linked follow-up issue.\nDeployed E2E must pass after deployment succeeds, against this isolated\nenvironment, not just a checkout server. Record run/attempt and artifact\nlinks identifying the actual deployed repository combination tested.\n\nSave this Definition of Done agreement? [y/N]: Saved Definition of Done: <workspace>/deployed_e2e/.factory/definition_of_done.md\n",
+    "returncode": 0,
+    "stderr": ""
+  },
+  "agreement/deployment": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): Deployment environment name: Post-merge deployment workflow name (per repository if needed): This requires a usable post-merge deployment workflow and deployed-revision\nevidence in the named environment. Setup has not checked them. If missing or\nunclear, do not confirm: discuss prerequisites with Foreman first.\n\nProposed agreement at <workspace>/deployment/.factory/definition_of_done.md:\n# Definition of Done\n\nThis agreement covers these repositories in this Factory workspace:\n- team/app\n\nFeature-specific plan acceptance criteria must also be met.\nIndependent review, required repository/PR checks and confirmed merge are required.\nForeman checks the PR, actual merge commit, review and exact-final-revision check\nresults before completing the plan after the feature-owner handoff.\nDeployment to staging through Delivery is required. Foreman verifies\nsuccessful stages and revision evidence for the actual merged revision in each\naffected repository. Record workflow run/attempt and artifact links in tasks.\nMissing, failed, skipped, pending or inconclusive required evidence blocks\ncompletion. Keep the plan open and raise or reuse a linked follow-up issue.\nDeployed E2E is not a completion requirement.\n\nSave this Definition of Done agreement? [y/N]: Saved Definition of Done: <workspace>/deployment/.factory/definition_of_done.md\n",
+    "returncode": 0,
+    "stderr": ""
+  },
+  "agreement/discuss": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): No agreement saved. Discuss requirements and prerequisites with Foreman, then\nconfirm and save this Markdown file before finalizing setup or handing off work.\n"
+  },
+  "agreement/finalize": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): \nProposed agreement at <workspace>/app/.factory/definition_of_done.md:\n# Definition of Done\n\nThis agreement covers these repositories in this Factory workspace:\n- team/app\n\nFeature-specific plan acceptance criteria must also be met.\nIndependent review, required repository/PR checks and confirmed merge are required.\nForeman checks the PR, actual merge commit, review and exact-final-revision check\nresults before completing the plan after the feature-owner handoff.\nDeployment and deployed E2E are not completion requirements.\n\nSave this Definition of Done agreement? [y/N]: Saved Definition of Done: <workspace>/app/.factory/definition_of_done.md\n",
+    "returncode": 0,
+    "stderr": ""
+  },
+  "agreement/invalid": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): ",
+    "returncode": 1,
+    "stderr": "Error: Select a Definition of Done starting point; there is no default.\n"
+  },
+  "agreement/merge": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): \nProposed agreement at <workspace>/merge/.factory/definition_of_done.md:\n# Definition of Done\n\nThis agreement covers these repositories in this Factory workspace:\n- team/app\n\nFeature-specific plan acceptance criteria must also be met.\nIndependent review, required repository/PR checks and confirmed merge are required.\nForeman checks the PR, actual merge commit, review and exact-final-revision check\nresults before completing the plan after the feature-owner handoff.\nDeployment and deployed E2E are not completion requirements.\n\nSave this Definition of Done agreement? [y/N]: Saved Definition of Done: <workspace>/merge/.factory/definition_of_done.md\n",
+    "returncode": 0,
+    "stderr": ""
+  },
+  "agreement/preserved": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nPreserved Definition of Done: <workspace>/app/.factory/definition_of_done.md. Foreman must read it before feature work.\n",
+    "returncode": 0,
+    "stderr": ""
+  },
+  "agreement/unnamed_deployment": {
+    "agreement": "Automatic cleanup deletes completed-plan worktrees, including changed, untracked and\nignored files, and recorded local/remote feature branches, including extra commits.\nCompletion authorizes disposal without another prompt or recoverable trash. Save\nrequired evidence outside worktrees first; never reuse completed-plan resources.\nDefinition of Done: a shared agreement, separate from feature acceptance criteria.\nStarting points (not a list of all possible agreements):\n  1. After merge\n  2. After merge and deployment\n  3. After merge, deployment and deployed E2E\n  4. Discuss with Foreman\nSelect Definition of Done number (no default): Deployment environment name: Post-merge deployment workflow name (per repository if needed): ",
+    "returncode": 1,
+    "stderr": "Error: Name the deployment environment and workflow, or discuss with Foreman. No agreement was saved.\n"
+  },
+  "foreman/attach_none": {
+    "returncode": 1,
+    "stderr": "Error: No Foreman owner; complete first setup with init --finalize if needed, then use foreman --workspace <workspace>. Use foreman --attach for an existing owner.\n",
+    "stdout": ""
+  },
+  "foreman/attach_not_ready_plain": {
+    "returncode": 1,
+    "stderr": "Error: Foreman is not ready. Foreman was preserved; inspect watch --status.\n",
+    "stdout": ""
+  },
+  "foreman/attach_not_ready_warning": {
+    "returncode": 1,
+    "stderr": "Error: Foreman exited. Foreman was preserved; inspect watch --status.\n",
+    "stdout": ""
+  },
+  "foreman/existing": {
+    "returncode": 1,
+    "stderr": "Error: Foreman already exists or is uncertain; use foreman --attach or watch --status. The existing owner was preserved.\n",
+    "stdout": ""
+  },
+  "status/combined": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"workspace\": \"<workspace>\", \"run_id\": \"0123456789abcdef0123456789abcdef\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"owner_pid\": 4242, \"source\": \"combined\", \"observation\": \"saved\", \"process\": \"unknown\", \"phase\": \"unknown\", \"health\": \"not_checked\", \"evidence\": \"multiple_records\", \"recorded_foreman\": \"ready\", \"recorded_watcher\": \"stopped\", \"warning\": \"Foreman owner unavailable; terminal state is uncertain. Do not replace it from saved PIDs. Inspect its terminal.\", \"recovery\": \"Saved state is not a live observation. Inspect the recorded socket/pane and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. Only after independently confirming the original Foreman and owner have exited, archive owner.json and control.sock from .factory/runtime/foreman, then retry foreman --workspace <workspace>. If uncertain, preserve them.\", \"plain_watch\": {\"source\": \"plain_watch\", \"observation\": \"saved\", \"process\": \"unknown\", \"phase\": \"unknown\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"health\": \"not_checked\", \"evidence\": \"not_observed\", \"run_id\": \"0123456789abcdef0123456789abcdef\", \"watcher_pid\": 4242, \"recorded_foreman\": \"ready\", \"recorded_watcher\": \"running\", \"recorded_phase\": \"watching\", \"recorded_evidence\": \"session_ready\", \"warning\": \"[Errno 111] Connection refused\"}, \"setup\": \"incomplete\"}\n"
+  },
+  "status/complete_setup": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"source\": \"none\", \"observation\": \"unavailable\", \"process\": \"unknown\", \"phase\": \"unknown\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"health\": \"not_checked\", \"evidence\": \"not_observed\", \"setup\": \"complete\"}\n"
+  },
+  "status/invalid_owner": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"source\": \"managed_owner\", \"observation\": \"unavailable\", \"process\": \"unknown\", \"phase\": \"unknown\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"health\": \"not_checked\", \"evidence\": \"not_observed\", \"warning\": \"Invalid owner state; preserve and reconcile manually.\", \"setup\": \"incomplete\"}\n"
+  },
+  "status/live_owner": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"run_id\": \"0123456789abcdef0123456789abcdef\", \"foreman\": \"ready\", \"watcher\": \"stopped\", \"target\": {\"socket_path\": \"/fixture\", \"pane_id\": \"%1\", \"server_pid\": 1, \"server_started\": 1, \"pane_pid\": 1}, \"source\": \"managed_owner\", \"observation\": \"live\", \"process\": \"present\", \"process_role\": \"foreman_owner\", \"evidence\": \"owner_report\", \"health\": \"not_checked\", \"phase\": \"stopped\", \"setup\": \"incomplete\"}\n"
+  },
+  "status/none": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"source\": \"none\", \"observation\": \"unavailable\", \"process\": \"unknown\", \"phase\": \"unknown\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"health\": \"not_checked\", \"evidence\": \"not_observed\", \"setup\": \"incomplete\"}\n"
+  },
+  "status/saved_owner_ready": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"workspace\": \"<workspace>\", \"run_id\": \"0123456789abcdef0123456789abcdef\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"owner_pid\": 4242, \"source\": \"managed_owner\", \"observation\": \"saved\", \"process\": \"unknown\", \"phase\": \"unknown\", \"health\": \"not_checked\", \"evidence\": \"saved_record\", \"recorded_foreman\": \"ready\", \"recorded_watcher\": \"stopped\", \"warning\": \"Foreman owner unavailable; terminal state is uncertain. Do not replace it from saved PIDs. Inspect its terminal.\", \"recovery\": \"Saved state is not a live observation. Inspect the recorded socket/pane and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. Only after independently confirming the original Foreman and owner have exited, archive owner.json and control.sock from .factory/runtime/foreman, then retry foreman --workspace <workspace>. If uncertain, preserve them.\", \"setup\": \"incomplete\"}\n"
+  },
+  "status/saved_owner_stopped": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "{\"workspace\": \"<workspace>\", \"run_id\": \"0123456789abcdef0123456789abcdef\", \"foreman\": \"unknown\", \"watcher\": \"unknown\", \"target\": null, \"owner_pid\": 4242, \"source\": \"managed_owner\", \"observation\": \"saved\", \"process\": \"unknown\", \"phase\": \"unknown\", \"health\": \"not_checked\", \"evidence\": \"saved_record\", \"recorded_foreman\": \"stopped\", \"recorded_watcher\": \"stopped\", \"setup\": \"incomplete\"}\n"
+  }
+}

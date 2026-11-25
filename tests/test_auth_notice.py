@@ -5,8 +5,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from test_init import INIT_SETTINGS, InitFixture
 
-from forgetful_factory.adapters.forgetful.authentication import uses_browser_login
-from forgetful_factory.application.configuration import ForgetfulConnection
+from forgetful_factory.planning.adapters.forgetful.authentication import uses_browser_login
+from forgetful_factory.planning.model import ForgetfulConnection
 
 
 class AuthNoticeTests(InitFixture):

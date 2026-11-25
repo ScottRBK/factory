@@ -1,8 +1,8 @@
 import argparse
 from pathlib import Path
 
-from forgetful_factory.deadlines import DeadlinePolicy
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.cli.deadlines import DeadlinePolicy
+from forgetful_factory.shared.errors import FactoryError
 
 
 def _report(update, force: bool) -> None:
@@ -21,10 +21,13 @@ def _report(update, force: bool) -> None:
 
 def update_resources(args: argparse.Namespace, workspace: Path,
                      deadlines: DeadlinePolicy) -> int:
-    from forgetful_factory.adapters.agentshell.owner_client import read_state
-    from forgetful_factory.adapters.filesystem.foreman_profile import ForemanProfile
-    from forgetful_factory.adapters.filesystem.role_resources import apply_update, plan_update
-    from forgetful_factory.adapters.filesystem.watch_lease import WorkspaceWatchLease
+    from forgetful_factory.agents.adapters.agentshell.owner_client import read_state
+    from forgetful_factory.agents.adapters.agentshell.runtime_install import (
+        AgentShellRuntimeInstall,
+    )
+    from forgetful_factory.agents.adapters.pi.role_resources import apply_update, plan_update
+    from forgetful_factory.cli.bootstrap import build_team
+    from forgetful_factory.factory.adapters.watch_lease import WorkspaceWatchLease
 
     directory = workspace / '.factory/resources'
     if not directory.is_dir():
@@ -45,16 +48,18 @@ def update_resources(args: argparse.Namespace, workspace: Path,
         backup = apply_update(update, workspace / '.factory/resource-backups')
         if backup is not None:
             print(f'Edited files were backed up under {backup}')
-        profile = ForemanProfile(workspace, deadlines.owned_process_term_grace)
-        profile.validate_bundled_resources(include_memory_extension=True)
+        term_grace = deadlines.owned_process_term_grace
+        build_team(workspace, term_grace).validate_bundled_resources(
+            include_memory_extension=True)
         print('Role resources match the installed Factory bundle.')
-        if not profile.role_runtime_ready():
+        runtime = AgentShellRuntimeInstall(workspace, term_grace)
+        if not runtime.ready():
             if args.no_install_role_runtime:
                 raise FactoryError('The AgentShell runtime does not match its bundled lock, so '
                                    'Foreman cannot start. Rerun update without '
                                    '--no-install-role-runtime to install the locked runtime.')
-            profile.install('agentshell-runtime')
-            if not profile.role_runtime_ready():
+            runtime.install('agentshell-runtime')
+            if not runtime.ready():
                 raise FactoryError('The AgentShell runtime is still not ready after installation.')
     print('Start Foreman or watch to load the updated resources.')
     return 0

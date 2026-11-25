@@ -1,6 +1,6 @@
 """Parse numbered menu answers without performing terminal input or output."""
 
-from forgetful_factory.domain.models import FactoryError
+from forgetful_factory.shared.errors import FactoryError
 
 
 def parse_numbered_selection(label: str, answer: str, choice_count: int) -> int:

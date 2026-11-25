@@ -1,0 +1,18 @@
+[
+  "watcher_label = [\"factory\"]",
+  "foreman_agent_file = \"agents/foreman/agent.json\"",
+  "execution_enabled = false",
+  "",
+  "[[repository]]",
+  "local_dir = \"<workspace>\"",
+  "remote = \"git@github.com:team/app.git\"",
+  "provider = \"github\"",
+  "source = \"team/app\"",
+  "",
+  "[forgetful]",
+  "method = \"cli\"",
+  "instance = \"server\"",
+  "executable = \"forgetful\"",
+  "server = \"https://memory.example/custom-endpoint\"",
+  "project_id = 12"
+]

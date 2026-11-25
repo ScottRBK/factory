@@ -1,0 +1,92 @@
+[
+  {
+    "mapping": {
+      "repository": "team/app"
+    },
+    "decision": null
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "pending",
+        "pull_request_url": "https://github.com/team/app/pull/7",
+        "merge_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "decision": "pending"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "removed",
+        "pull_request_url": "https://github.com/Team/App/pull/7",
+        "merge_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    "decision": "removed"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": "removed"
+    },
+    "decision": "rejected"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "done",
+        "pull_request_url": "https://github.com/team/app/pull/7",
+        "merge_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "decision": "rejected"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "pending",
+        "pull_request_url": "https://github.com/other/app/pull/7",
+        "merge_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "decision": "rejected"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "pending",
+        "pull_request_url": "https://github.com/team/app/pull/0",
+        "merge_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "decision": "rejected"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "pending",
+        "pull_request_url": "https://gitlab.com/team/app/-/merge_requests/7",
+        "merge_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    "decision": "rejected"
+  },
+  {
+    "mapping": {
+      "repository": "team/app",
+      "cleanup": {
+        "state": "pending",
+        "pull_request_url": "https://github.com/team/app/pull/7",
+        "merge_commit": "abc123"
+      }
+    },
+    "decision": "rejected"
+  }
+]

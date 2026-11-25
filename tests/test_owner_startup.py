@@ -13,7 +13,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OWNER_MODULE = 'forgetful_factory.adapters.agentshell.owner'
+OWNER_MODULE = 'forgetful_factory.agents.adapters.agentshell.owner'
 
 
 class OwnerStartupTests(unittest.TestCase):

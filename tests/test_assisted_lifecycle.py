@@ -9,7 +9,8 @@ import sys
 from lifecycle_support import LifecycleFixture, pidfd_open
 from test_init import INIT_SETTINGS
 
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 class AssistedLifecycleTests(LifecycleFixture):
@@ -30,8 +31,10 @@ class AssistedLifecycleTests(LifecycleFixture):
         # Assert
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Setup is incomplete', result.stdout)
-        self.assertIn('attach-session', result.stdout)
         status = self.status(repo)
+        target = status['target']
+        self.assertIn(f"Enter Foreman: tmux -S {target['socket_path']} attach-session -t "
+                      f"{target['pane_id']}\n", result.stdout)
         self.assertEqual(status['foreman'], 'ready')
         self.assertEqual(status['setup'], 'incomplete')
         self.assertEqual(status['watcher'], 'stopped')

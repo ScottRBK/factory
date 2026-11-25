@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from forgetful_factory.adapters.github.work_tracking import GitHubWorkTracking
-from forgetful_factory.domain.models import WorkSource
+from forgetful_factory.ticketing.adapters.github import GitHubTicketing
+from forgetful_factory.ticketing.model import TicketSource
 
 
 class GitHubIssueChangesTests(unittest.TestCase):
@@ -43,17 +43,17 @@ print(json.dumps(responses[endpoint]))
                     first_endpoint: [[comment(1, 'First')]],
                     second_endpoint: [[comment(2, 'Second')]]}
             responses.write_text(json.dumps(data))
-            adapter = GitHubWorkTracking()
-            source = WorkSource('github', 'team/app')
+            adapter = GitHubTicketing()
+            source = TicketSource('github', 'team/app')
             env = {'PATH': f'{root}:{os.environ["PATH"]}', 'GH_CALLS': str(calls),
                    'GH_RESPONSES': str(responses)}
             # Act: read both eligible issues, edit only the second, then exclude all.
             with patch.dict(os.environ, env):
-                first = adapter.list_issues(source, ('factory',))
+                first = adapter.list_open(source, ('factory',))
                 data[second_endpoint][0][0]['body'] = 'Edited second'
                 responses.write_text(json.dumps(data))
-                second = adapter.list_issues(source, ('factory',))
-                empty = adapter.list_issues(source, ('absent',))
+                second = adapter.list_open(source, ('factory',))
+                empty = adapter.list_open(source, ('absent',))
             # Assert: only issue 2 changes, and no unrelated comment request is made.
             self.assertEqual(len(first), 2)
             self.assertEqual(first[0].revision, second[0].revision)
@@ -80,32 +80,32 @@ print('[[]]' if '/comments?' in sys.argv[2]
             issue = {'number': 1, 'title': 'Feature', 'body': 'Original',
                      'html_url': 'https://github.com/team/app/issues/1', 'state': 'open',
                      'labels': [{'name': 'factory'}], 'updated_at': 'first'}
-            adapter = GitHubWorkTracking()
-            source = WorkSource('github', 'team/app')
+            adapter = GitHubTicketing()
+            source = TicketSource('github', 'team/app')
             with patch.dict(os.environ, {'PATH': f'{root}:{os.environ["PATH"]}',
                                         'GH_REPLY': str(reply)}):
                 # Act: compare timestamps, content, and assignee changes.
                 reply.write_text(json.dumps([[issue]]))
-                first, = adapter.list_issues(source, ('factory',))
+                first, = adapter.list_open(source, ('factory',))
                 issue['updated_at'] = 'second'
                 reply.write_text(json.dumps([[issue]]))
-                unchanged, = adapter.list_issues(source, ('factory',))
+                unchanged, = adapter.list_open(source, ('factory',))
                 issue['body'] = 'Changed'
                 issue['updated_at'] = 'third'
                 reply.write_text(json.dumps([[issue]]))
-                changed, = adapter.list_issues(source, ('factory',))
+                changed, = adapter.list_open(source, ('factory',))
                 issue['assignees'] = [{'login': 'alice'}]
                 reply.write_text(json.dumps([[issue]]))
-                assigned, = adapter.list_issues(source, ('factory',))
+                assigned, = adapter.list_open(source, ('factory',))
                 issue['title'] = 'New title'
                 reply.write_text(json.dumps([[issue]]))
-                titled, = adapter.list_issues(source, ('factory',))
+                titled, = adapter.list_open(source, ('factory',))
                 issue['labels'].append({'name': 'epic'})
                 reply.write_text(json.dumps([[issue]]))
-                epic, = adapter.list_issues(source, ('factory',))
+                epic, = adapter.list_open(source, ('factory',))
                 issue['labels'].reverse()
                 reply.write_text(json.dumps([[issue]]))
-                reordered, = adapter.list_issues(source, ('factory',))
+                reordered, = adapter.list_open(source, ('factory',))
             # Assert
             self.assertEqual(first.revision, unchanged.revision)
             self.assertNotEqual(first.revision, changed.revision)
@@ -116,7 +116,7 @@ print('[[]]' if '/comments?' in sys.argv[2]
             self.assertEqual(epic.revision, reordered.revision)
 
     def test_comments_are_paginated_order_independent_and_fail_closed(self):
-        from forgetful_factory.domain.models import FactoryError
+        from forgetful_factory.shared.errors import FactoryError
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -145,21 +145,21 @@ print(value)
                      'issue_url': 'https://api.github.com/repos/Team/App/issues/1'}
             second = {**first, 'id': 2, 'body': 'Two',
                       'user': {'login': 'robot[bot]', 'type': 'Bot'}}
-            adapter = GitHubWorkTracking()
-            source = WorkSource('github', 'team/app')
+            adapter = GitHubTicketing()
+            source = TicketSource('github', 'team/app')
             env = {'PATH': f'{root}:{os.environ["PATH"]}', 'GH_REPLY': str(reply),
                    'GH_COMMENTS': str(comments)}
             with patch.dict(os.environ, env):
                 # Act and assert: reordering is stable, editing changes the revision.
                 comments.write_text(json.dumps([[first], [second]]))
-                original, = adapter.list_issues(source, ('factory',))
+                original, = adapter.list_open(source, ('factory',))
                 comments.write_text(json.dumps([[second], [first]]))
-                reordered, = adapter.list_issues(source, ('factory',))
+                reordered, = adapter.list_open(source, ('factory',))
                 self.assertEqual(original.revision, reordered.revision)
                 second['body'] = 'Edited'
                 second['updated_at'] = 't2'
                 comments.write_text(json.dumps([[first], [second]]))
-                edited, = adapter.list_issues(source, ('factory',))
+                edited, = adapter.list_open(source, ('factory',))
                 self.assertNotEqual(original.revision, edited.revision)
                 wrong_issue = {**first, 'issue_url':
                                'https://api.github.com/repos/team/app/issues/9'}
@@ -167,7 +167,7 @@ print(value)
                                 json.dumps([[wrong_issue]])):
                     comments.write_text(invalid)
                     with self.assertRaises(FactoryError):
-                        adapter.list_issues(source, ('factory',))
+                        adapter.list_open(source, ('factory',))
                 comments.write_text(json.dumps([[first], [second]]))
-                retried, = adapter.list_issues(source, ('factory',))
+                retried, = adapter.list_open(source, ('factory',))
                 self.assertEqual(edited.revision, retried.revision)

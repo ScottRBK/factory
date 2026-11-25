@@ -24,27 +24,128 @@ style (see [test runner](#test-runner)). Ruff infers Python 3.12 from `requires-
 repeating the setting. Formatting is not required or added.
 Ruff's line-length rule has documented exceptions; it is not a strict Markdown-width validator.
 
-Import Linter's three forbidden contracts in `pyproject.toml` enforce:
+Import Linter's seven contracts in `pyproject.toml` enforce:
 
-- Domain cannot depend on application, adapters, CLI, or the public configuration loader.
-- Application cannot depend on adapters, CLI, or the public configuration loader.
-- Adapters cannot depend on CLI.
+- `top-level`: imports go down only: `__main__`, then `cli` and the `configuration.py` facade,
+  then `factory`, then the contexts (`agents`, `channels`, `forge`, `planning`, `runtime`,
+  `ticketing`, `workspace`), then `shared`. Siblings on one line may import each other (`:`):
+  the CLI uses the facade, and contexts use each other's ports and models. It is exhaustive, so a
+  new top-level module fails until it is classified. Every area may import `shared`.
+- `inside-each-area`: inside `factory/` and each context, imports go down only: adapters,
+  services, ports, model. It is exhaustive, so a module outside those layers fails.
+- `adapters-from-composition`: shared, services, ports and models do not import any adapters.
+  Only CLI composition and the configuration facade do.
+- `adapters-independent`: adapter packages (`factory/adapters/` and each context's) do not import
+  each other. Composition gives the agent team what it needs from planning: the role environment
+  and the missing-tools check are functions passed in by `cli/bootstrap.py`.
+- `core-no-processes`: services, ports and models do not import `subprocess` or `socket`, directly
+  or through another module. Process and socket work stays in adapters and `shared/`.
+- `entry-through-cli`: `__main__` imports no adapter directly. It sets `allow_indirect_imports`,
+  because the entry point runs the CLI, which composes adapters; its indirect rows must pass.
+- `agentshell-in-agents`: only `agents.adapters` imports `agent_shell` directly. Every services,
+  ports and model package is a source (by wildcard), with the CLI, shared and other areas. It
+  needs `include_external_packages = true`. It sets `allow_indirect_imports`, because composition
+  reaches AgentShell through the agents adapter; its indirect proof rows must pass.
 
-These checks include submodules and indirect paths. Application may use domain contracts and its
-own ports. Adapters may use application/domain types and shared adapter utilities. Bootstrap and
-the public configuration loader are composition entry points and may construct adapters.
-The rules are coarse layer checks, not an allowlist limiting adapters to application ports;
-adapter-to-workflow imports and external integration imports are not separately restricted.
-Dynamic imports and runtime operations such as built-in file access remain outside these checks.
+These checks include submodules and indirect paths. Bootstrap and the public configuration loader
+are composition entry points and may construct adapters. The rules are coarse layer checks, not an
+allowlist limiting adapters to ports; adapter-to-service imports and external integration imports
+are not separately restricted. Dynamic imports and runtime operations such as built-in file access
+remain outside these checks. `tests/test_architecture.py` invokes the real checker on temporary,
+importable fixture packages, using the repository's actual contracts. Two tables drive it. `ALLOWED`
+lists the permitted imports; together they form the known-good fixture, which must pass every rule.
+`REJECTED` lists (rule, area, target) rows; the area is a package (the probe is a new module) or a
+module (the probe line is added to it). Each configured rule gets its own test, which fails if the
+rule has no rows. Only the row's own rule may reject it, so `cli` rows target `cli.prompts`, which
+imports nothing. Where that cannot hold, the row names the other rules that must also reject it, and
+step 1 turns those off too; for example, any import from `forge` to `ticketing.adapters` is also an
+indirect `forge.adapters` to `ticketing.adapters` import. The checker's report must name the rule's
+own units, worked out for forbidden, layers and independence rules. Each row proves direct and
+indirect rejection, checks that disabling the target rule permits the violation, and checks that
+removing it passes again. Assertions identify the exact forbidden area pair, not merely a target
+appearing somewhere in a longer rejected path. Indirect helpers live outside both endpoint areas.
+Rule isolation uses CLI contract selection, preserving all global settings. No intentional
+violations are written into the actual source tree. These repeatable proofs guard against later
+weakening of the configuration, rather than mocking an import-analysis library. Coverage checks in
+the same file guard what the checker cannot see by itself:
+- Every source folder with Python files has `__init__.py`; a missing marker hides modules.
+- Every internal name in a rule matches a real module. Import Linter skips a wildcard that
+  matches nothing, which turns a rule off silently. The check fails on a contract type it does
+  not yet read, so a new type extends it.
+- The `top-level` rule lists every top-level module and is exhaustive; a proof shows an
+  unclassified top-level module and an unclassified module in `factory/` or a context fail. The
+  fixture lets only the top-level rule ignore its `boundary_probe` package.
+- `core-no-processes` uses wildcards for services, ports and models, so a new context is covered
+  without an edit, and it does not allow indirect imports.
+- Every `ports.py`, `model.py`, `model/` and `factory/` file names no provider or host
+  (`github`, `gitlab`, `codeberg`, `linear`, `tmux`, `herdr`, `agent_shell` or `AgentShell`).
+  Import rules cannot see a hard-coded name or URL. Known exceptions are recorded in the test and
+  kept because the refactor must not change behaviour (changing them needs Scott's approval):
+  init's failure text after label writes says "check GitHub"; `agents/model.py` holds
+  `AgentShellLifecycleDeadlines` and two role-validation messages that name AgentShell. Pi and
+  Forgetful are not in the list: the plan makes Forgetful the planning model and Pi the harness
+  (see the known limits in the [plan](../plans/domain-contexts.md)).
+- Every file under `tests/` matches a `source-include` pattern, so the source distribution can
+  collect its tests.
+- No test writes a source file path (`src/forgetful_factory/.../*.py`); tests use the launch
+  constants instead.
+- Only `shared/resources.py`, `agents/adapters/agentshell/launch.py` and the controller use
+  `__file__`. Files started by path (`controller.py`, `model_catalog.py`) and the owner module name
+  are constants in `launch.py`, and a test checks that each resolves in the source tree. The
+  controller runs in AgentShell's interpreter, where Factory cannot be imported, so it loads its
+  host checks (`tmux_host.py`) from beside itself; `launch.TMUX_HOST` and a test check that file
+  is there and that the controller's `HOST_FILES` names it. The controller loads every host file
+  at start, before `--check` or any protocol reply, as the old single script imported their
+  modules; a missing module stops it with a traceback, as before. The loader writes no bytecode
+  cache beside the files. Launch paths keep the installed spelling (symlinks unresolved), as
+  before; the AgentShell terminal resolves its own path.
+- No package `__init__.py` imports anything: a rule that names a package's children cannot see an
+  import in the package itself.
 
-`tests/test_architecture.py` invokes the real checker on temporary, importable fixture packages,
-using the repository's actual contracts. It proves direct and indirect rejection for every listed
-forbidden target, checks that disabling the target rule permits the violation, and verifies that
-clean ports/shared utilities/composition pass. Assertions identify the exact forbidden area pair,
-not merely a target appearing somewhere in a longer rejected path. Indirect helpers live outside
-both endpoint areas. Rule isolation uses CLI contract selection, preserving all global settings.
-No intentional violations are written into the actual source tree. These repeatable proofs guard
-against later weakening of the configuration, rather than mocking an import-analysis library.
+`tests/contracts/` holds `unittest` mixins for ten ports. `Worktrees`, `LocalRepositories`,
+`ConfigurationStore`, `WatchLease`, `CleanupReceipts` and `ForemanTerminal` have none; real-Git,
+init, lease, receipt and lifecycle tests cover their adapters instead. `TicketingContract` states
+what every `Ticketing` adapter promises: label matching ignoring case, `*`, epics, text keys that
+pass `is_key` and `could_be_key`, content-only revisions, source checks (including another
+provider's source) and labels. `ForgeContract` states that every accepted remote form names one
+repository, unsupported remotes fail, and change-request URLs belong to their repository.
+`PlanStoreContract` states that a created plan is in the store's project and found by reference,
+another project's plan is not owned, plans and tasks update, and the backend identity is stable
+text; it runs against `ForgetfulPlanStore` with the stateful native planning program.
+`PlanningSetupContract` states that a created project is listed, the check confirms access to a
+selected project and refuses none, prepare can repeat, and the browser-login need is yes or no; it
+runs against `ForgetfulSetup` with the profile command double. `AgentTeamContract` states that
+declined home consent saves nothing, accepted consent is kept once saved, setup is incomplete until
+recorded, and no memory notice exists before a launch is selected. `ToolInstallerContract` states
+that a bare host misses the tool, an installed tool is not missing, and other tools are neither
+described nor installed; it runs against each installer (Pi, tmux, Forgetful, AgentShell runtime).
+`SessionHostContract` states that the host's launch data is plain data with a kind, its attach text
+names the session, and entry without a terminal only prints how to enter; it runs against
+`TmuxHost`. `ChannelContract` states that the way to reach a session names it and that opening
+without a terminal only prints how; it runs against `TerminalChannel` on `TmuxHost`.
+`PersistentForemanContract` states that without an owner there is no record, report or status, an
+unreadable record is reported unknown with a warning, and a silent owner is history, never a live
+observation; it runs against `AgentShellOwner` without live owners. `AgreementStoreContract` states
+that an empty workspace has no agreement, a written agreement reads back, and writing again never
+replaces it; it runs against `MarkdownAgreement`. `tests/test_runtime_host.py` also sends launch
+frames to the real controller: an unknown host kind is refused before a session opens, and a frame
+without a host is invalid. The ticketing and forge mixins run against the GitHub adapter (with a
+stateful `gh` stub for ticketing) and a non-GitHub fake: `FakeTicketing` (`tracker`, keys such as
+`ENG-123`, state in a JSON file) and `FakeForge` (`forge.example`, `/changes/N`). A new adapter is
+done when it passes its mixin.
+
+`tests/test_second_provider.py` runs the public watch CLI with `FakeTicketing` composed in on a
+GitHub remote: intake, restart recovery with a GitHub PR cleanup marker, then completed-plan
+cleanup. It failed when the marker was checked against the ticket source, and when cleanup scope
+accepted only `github:` references. This is the leak check for GitHub strings, patterns and
+numeric keys in the core.
+
+`tests/test_saved_data.py` pins the bytes Factory stores or sends to agents: plan record and
+context, ownership task, issue notification, watcher alert, cleanup receipts, init's
+`factory.toml` and cleanup-marker decisions. It runs the public `watch` CLI with fake `gh` and
+`forgetful` programs and compares against `tests/fixtures/saved_data/`. Only host paths and the
+default branch name are normalized. Each stored JSON value must also re-serialize to its exact
+bytes. A deliberate change is recorded with `UPDATE_SAVED_DATA=1` and reviewed as a fixture diff.
 
 CI installs through `uv sync --locked` and runs Ruff, the real-source architecture check,
 and the full test suite through `uv run --locked` on Python 3.12/3.13. CI also runs
@@ -95,7 +196,7 @@ Use TDD at the public boundaries approved by Scott:
   worktree safety. Cover plan/task creation, uncertain outcomes, revisions, restart, notification,
   cleanup and exclusive workspace ownership. Run the real AgentShell lifecycle with Pi/tmux doubles.
 - **Planning adapter reads:** approved for the CI runtime follow-up. Exercise the real
-  `ForgetfulPlanning.plans()`, `get_plan()` and `tasks()` operations with a controlled external
+  `ForgetfulPlanStore.plans()`, `get_plan()` and `tasks()` operations with a controlled external
   Forgetful executable and real temporary files. Check complete malformed-input matrices here;
   retain watcher CLI proofs for each distinct inventory/detail pause, alert and recovery path.
   No private validation helpers or mocked internal calls replace either boundary.
@@ -137,11 +238,11 @@ without inference; they do not prove provider access, OAuth refresh or autonomou
 
 ## Explicit deadline composition
 
-`deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each
+`cli/deadlines.py` provides frozen `DeadlinePolicy` and `AgentShellLifecycleDeadlines` values. Each
 value must be finite and positive. Public `cli.main.main(policy)` and bootstrap composition pass
 command deadlines, owned-process TERM grace, and lifecycle deadlines to the relevant adapters.
 Owned owner/controller startup transports the lifecycle values as JSON; the controller validates
-all fields before opening a session. Application workflows retain their existing port contracts.
+all fields before opening a session. Factory services retain their existing port contracts.
 
 Ordinary CLI execution uses the original production values. There is no timeout flag, environment
 variable, saved setting, global multiplier or fake clock. Existing installer/access deadlines and

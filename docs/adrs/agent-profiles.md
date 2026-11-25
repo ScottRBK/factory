@@ -18,11 +18,11 @@ alone dispatches feature-owners. An owner conducts grill-me, may launch research
 prepares the task plan. Slice 6 adds optional implementation/review workers; its validation is
 recorded separately in [Slice 6](../plans/slice-6.md).
 
-Initialization uses application ports. The profile adapter prepares editable resources, delegates
-host provisioning and native Forgetful commands, and uses a process boundary for AgentShell model
-discovery. CLI gathers consent and selections. Domain/application code remains independent of Pi,
-AgentShell, concrete installers and token stores. See [issue planning](issue-planning.md) for
-ownership and recovery rules.
+Initialization uses factory and context ports. The profile adapter prepares editable resources,
+delegates host provisioning and native Forgetful commands, and uses a process boundary for
+AgentShell model discovery. CLI gathers consent and selections. Factory and context core code is
+independent of Pi, AgentShell, concrete installers and token stores. See [issue
+planning](issue-planning.md) for ownership and recovery rules.
 
 ## Why the approach changed
 

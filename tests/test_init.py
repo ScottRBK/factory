@@ -13,8 +13,10 @@ from pathlib import Path
 from deadline_support import programmatic_factory
 from profile_support import install_commands, install_grill_skill
 
+from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.configuration import load_configuration
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 INIT_SETTINGS = ('--label', 'factory', '--foreman-model', 'provider/model',
@@ -70,7 +72,7 @@ class DeadlinePolicyTests(unittest.TestCase):
                      for name in defaults)
         cases.extend({**defaults, 'controller_ready': value}
                      for value in (0, -1, float('nan'), float('inf'), True, '1'))
-        controller = ROOT / 'src/forgetful_factory/adapters/agentshell/controller.py'
+        controller = CONTROLLER
         for index, deadlines in enumerate(cases):
             with self.subTest(case=index):
                 config = {'cwd': str(ROOT), 'model': 'fixture/model', 'effort': 'high',

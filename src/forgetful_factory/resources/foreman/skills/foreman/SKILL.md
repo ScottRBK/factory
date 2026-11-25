@@ -258,10 +258,11 @@ Native auth status/logout do not accept target flags; logout requires the user's
 
 Read `get_plan(plan_id)`, `query_tasks(plan_id)` and full `get_task(task_id)` records. Verify the
 configured project access, workspace association and recorded mappings. Canonical external_ref is
-lowercase `github:owner/repo#number`; source_url is the issue URL. Never create a second plan or
-ownership task to bypass a conflict. A workspace lease is not a cross-factory lock. The plan context
-and ownership description contain factory JSON fields; preserve those fields. Keep plan context
-valid JSON within the 2000-character default limit, including escaping. Keep notes and PR links
+`provider:source#key` with a lowercase source, such as `github:owner/repo#42`; source_url is the
+issue URL. Never create a second plan or ownership task to bypass a conflict. A workspace lease is
+not a cross-factory lock. The plan context and ownership description contain factory JSON
+fields; preserve those fields. Keep plan context valid JSON within the 2000-character default
+limit, including escaping. Keep notes and PR links
 brief; use plan goal and task descriptions for planning detail, not a full issue copy in context.
 The saved issue body can be a placeholder. Require the owner to read the full current provider
 issue before enriching the plan; a placeholder is not enough to plan from.

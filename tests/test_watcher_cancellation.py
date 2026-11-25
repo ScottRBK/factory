@@ -11,7 +11,7 @@ import sys
 from lifecycle_support import pidfd_send_signal
 from test_watch import ROOT, WatchFixture
 
-from forgetful_factory.deadlines import DeadlinePolicy
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 class WatcherCancellationTests(WatchFixture):

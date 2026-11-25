@@ -1,0 +1,227 @@
+"""Bounded local control of the init-owned Foreman. No PID-based process control."""
+import json
+import os
+import shlex
+import socket
+import stat
+import struct
+import subprocess
+import sys
+from dataclasses import asdict
+from pathlib import Path
+
+from forgetful_factory.agents.adapters.agentshell.foreman_runtime import runtime_directory
+from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER, OWNER_MODULE
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines, unknown_status
+from forgetful_factory.runtime.ports import SessionHost
+from forgetful_factory.shared.errors import FactoryError
+from forgetful_factory.shared.resource_files import read_generated_json
+
+
+def _reply(stream) -> dict:
+    try:
+        line = stream.readline(65537)
+        if len(line) > 65536 or not line.endswith(b'\n'):
+            raise ValueError('Missing or oversized frame')
+        value = json.loads(line)
+        if not isinstance(value, dict):
+            raise ValueError('Expected an object')
+        if 'error' in value:
+            if not isinstance(value['error'], str):
+                raise ValueError('Expected an error message')
+        elif (not isinstance(value.get('run_id'), str)
+                or value.get('foreman') not in (
+                    'starting', 'ready', 'stopping', 'stopped', 'unknown')
+                or value.get('watcher') not in (
+                    'starting', 'running', 'stopping', 'stopped', 'failed')
+                or not isinstance(value.get('target'), (dict, type(None)))):
+            raise ValueError('Invalid state fields')
+        target = value.get('target')
+        if target is not None and (
+                not isinstance(target, dict) or not isinstance(target.get('socket_path'), str)
+                or not target['socket_path'].startswith('/')
+                or not isinstance(target.get('pane_id'), str)
+                or not target['pane_id'].startswith('%') or not target['pane_id'][1:].isdigit()
+                or any(type(target.get(key)) is not int or target[key] <= 0
+                       for key in ('server_pid', 'server_started', 'pane_pid'))):
+            raise ValueError('Invalid captured terminal identity')
+        if value.get('foreman') == 'ready' and target is None:
+            raise ValueError('Ready Foreman requires a captured target')
+        return value
+    except (ValueError, TypeError) as error:
+        raise FactoryError('Invalid Foreman control reply; operation unconfirmed. '
+                           'Preserve the recorded owner and terminal.') from error
+
+
+def read_state(workspace: Path) -> dict | None:
+    directory = runtime_directory(workspace)
+    path = directory / 'owner.json'
+    try:
+        state = read_generated_json(path)
+    except FileNotFoundError:
+        if (directory / 'control.sock').exists():
+            raise FactoryError('Unidentified Foreman socket; preserve it and reconcile manually.')
+        return None
+    except (ValueError, OSError) as error:
+        raise FactoryError('Invalid owner state; preserve and reconcile manually.') from error
+    if (not isinstance(state, dict) or state.get('workspace') != str(workspace)
+            or not isinstance(state.get('run_id'), str) or not state['run_id']):
+        raise FactoryError('Foreman owner identity mismatch; state was preserved.')
+    return state
+
+
+def request(workspace: Path, operation: str, **fields) -> dict:
+    state = read_state(workspace)
+    if state is None:
+        raise FactoryError('No Foreman owner; complete first setup with init --finalize if needed, '
+                           'then use foreman '
+                           f'--workspace {shlex.quote(str(workspace))}. '
+                           'Use foreman --attach for an existing owner.')
+    path = runtime_directory(workspace) / 'control.sock'
+    try:
+        info = path.lstat()
+        if (not stat.S_ISSOCK(info.st_mode) or info.st_uid != os.getuid()
+                or stat.S_IMODE(info.st_mode) & 0o077):
+            raise FactoryError('Foreman control socket identity is invalid; preserved.')
+        timeout = 5
+        if operation == 'start':
+            timeout = 40
+        elif operation == 'stop':
+            timeout = 15
+        with socket.socket(socket.AF_UNIX) as connection:
+            connection.settimeout(timeout)
+            connection.connect(str(path))
+            _, uid, _ = struct.unpack('3i', connection.getsockopt(
+                socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize('3i')))
+            if uid != os.getuid():
+                raise FactoryError('Foreman control peer is not the current user.')
+            connection.sendall((json.dumps({'operation': operation, 'run_id': state['run_id'],
+                                           'workspace': str(workspace), **fields}) + '\n').encode())
+            with connection.makefile('rb') as stream:
+                result = _reply(stream)
+    except (OSError, ValueError) as error:
+        raise FactoryError('Foreman owner unavailable; terminal state is uncertain. '
+                           'Do not replace it from saved PIDs. Inspect its terminal.') from error
+    if result.get('run_id') != state['run_id']:
+        raise FactoryError('Foreman owner changed; operation not confirmed.')
+    if 'error' in result:
+        raise FactoryError(result['error'])
+    return result
+
+
+def start_owner(
+        workspace: Path, python: str, environment: dict, launch: dict,
+        deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
+        host: SessionHost) -> dict:
+    try:
+        checked = subprocess.run([python, '-u', str(CONTROLLER),
+                                  '--check'], env=environment, stdin=subprocess.DEVNULL,
+                                 capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise FactoryError('AgentShell interpreter preflight failed; no Foreman launched. '
+                           'Correct --agentshell-python and retry foreman; '
+                           'use init --finalize for incomplete first setup.') from error
+    if checked.returncode or checked.stdout.strip() != 'Factory AgentShell ready':
+        raise FactoryError('AgentShell interpreter preflight failed; no Foreman launched. '
+                           'Select an installed compatible --agentshell-python and retry.')
+    directory = runtime_directory(workspace, create=True)
+    log_path = directory / 'owner.log'
+    descriptor = os.open(log_path, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    info = os.fstat(descriptor)
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+            or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) & 0o077):
+        os.close(descriptor)
+        raise FactoryError('Foreman log must be private with no additional hard links.')
+    parent, child = socket.socketpair()
+    process = None
+    adopted = False
+    try:
+        with os.fdopen(descriptor, 'ab', buffering=0) as log:
+            process = subprocess.Popen(
+                [sys.executable, '-m', OWNER_MODULE,
+                 str(workspace), python, str(child.fileno())], pass_fds=(child.fileno(),),
+                stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True,
+                env=environment)
+        child.close()
+        parent.settimeout(40)
+        parent.sendall((json.dumps({**launch, 'host': host.spec(),
+                                    'deadlines': asdict(deadlines)}) + '\n').encode())
+        with parent.makefile('rb') as stream:
+            result = _reply(stream)
+            if 'error' in result:
+                raise FactoryError(result['error'])
+            parent.sendall(b'adopt\n')
+            if stream.readline(100) != b'adopted\n':
+                raise FactoryError('Foreman handover failed; check its private owner log.')
+            adopted = True
+        return result
+    except (OSError, ValueError) as error:
+        raise FactoryError('Foreman startup failed; inspect .factory/runtime/foreman/owner.log.') \
+            from error
+    finally:
+        parent.close()
+        child.close()
+        if process is not None and not adopted:
+            try:
+                # Cover owner watcher-stop (up to 15s), controller-close (20s), and escalation
+                # (5s), leaving room for scheduling and the final saved-state/socket cleanup.
+                process.wait(timeout=deadlines.owner_pre_adoption_cleanup)
+            except subprocess.TimeoutExpired:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    raise FactoryError('Foreman cleanup is uncertain; inspect owner.log. '
+                                       'No replacement was started.') from None
+        # Before adoption the owner treats handover EOF as cancellation, closing its controller.
+        # After adoption it deliberately ignores init's descriptor/process lifetime.
+
+
+class AgentShellOwner:
+    """The persistent owner process, reached through its private control socket."""
+
+    def __init__(self, workspace: Path, python: str,
+                 deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
+                 host: SessionHost):
+        self.workspace = workspace
+        self.python = python
+        self.deadlines = deadlines
+        self.host = host
+
+    def saved(self) -> dict | None:
+        return read_state(self.workspace)
+
+    def status(self) -> dict:
+        return request(self.workspace, 'status')
+
+    def start(self, environment: dict[str, str], launch: dict) -> dict:
+        return start_owner(self.workspace, self.python, environment, launch, self.deadlines,
+                           host=self.host)
+
+    def report(self) -> dict | None:
+        workspace = self.workspace
+        try:
+            state = read_state(workspace)
+        except FactoryError as error:
+            return {**unknown_status('managed_owner'), 'warning': str(error)}
+        if state is None:
+            return None
+        try:
+            state = {**request(workspace, 'status'), 'source': 'managed_owner',
+                     'observation': 'live', 'process': 'present', 'process_role': 'foreman_owner',
+                     'evidence': 'owner_report', 'health': 'not_checked'}
+            state['phase'] = 'watching' if state['watcher'] == 'running' else state['watcher']
+        except FactoryError as error:
+            state = {**state, **unknown_status('managed_owner', 'saved'),
+                     'target': state.get('target'), 'recorded_foreman': state.get('foreman'),
+                     'recorded_watcher': state.get('watcher'), 'evidence': 'saved_record'}
+            if state['recorded_foreman'] != 'stopped':
+                state['warning'] = str(error)
+                state['recovery'] = (
+                    'Saved state is not a live observation. Inspect the recorded socket/pane '
+                    'and .factory/runtime/foreman/owner.log. Do not signal saved PIDs. '
+                    'Only after independently confirming the original Foreman and owner '
+                    'have exited, archive owner.json and control.sock from '
+                    '.factory/runtime/foreman, then retry foreman '
+                    f'--workspace {shlex.quote(str(workspace))}. If uncertain, preserve them.')
+        return state

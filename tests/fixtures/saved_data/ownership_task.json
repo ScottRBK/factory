@@ -1,0 +1,17 @@
+{
+  "title": "Feature ownership",
+  "description": {
+    "kind": "factory-ownership",
+    "workspace": "<workspace>",
+    "external_ref": "github:team/app#1",
+    "worktrees": [
+      {
+        "repository": "team/app",
+        "local_dir": "<workspace>",
+        "branch": "factory/team-app-1",
+        "path": "<workspace>/.factory/worktrees/team-app-1",
+        "target_branch": "<target-branch>"
+      }
+    ]
+  }
+}

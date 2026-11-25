@@ -18,7 +18,8 @@ from profile_support import install_commands, install_grill_skill
 from test_init import GH as INIT_GH
 from test_init import INIT_SETTINGS
 
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -324,8 +325,11 @@ class WatchFixture(unittest.TestCase):
         return [e for e in self.events() if e['kind'] == 'send'
                 and e['text'].startswith('Factory issue notification.')]
 
+    # The watcher command; a subclass may replace it to compose a test provider.
+    entrypoint = ('-m', 'forgetful_factory')
+
     def start(self, *arguments, input='', stdout=subprocess.PIPE, cwd=None, deadlines=None):
-        entrypoint = (['-m', 'forgetful_factory'] if deadlines is None
+        entrypoint = (self.entrypoint if deadlines is None
                       else programmatic_factory(deadlines))
         process = subprocess.Popen(
             [sys.executable, *entrypoint, 'watch', '--workspace',
@@ -647,7 +651,9 @@ class WatchCliTests(WatchFixture):
             process = self.start('--new-only', stdout=stream)
             self.wait_until(process, lambda: any(e['kind'] == 'launch' for e in self.events()))
             # Assert: launch and unrelated system events are not session readiness.
-            self.assertIn('tmux attach-session', output.read_text())
+            self.assertRegex(output.read_text(), r'Watcher owns Pi and closes it on stop\. '
+                             r'Attach during startup: tmux attach-session -t '
+                             r'factory-foreman-[0-9a-f]{12}\n')
             self.assertNotIn('Foreman session ready', output.read_text())
             # Act
             gate.touch()

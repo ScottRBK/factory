@@ -5,7 +5,8 @@ import shutil
 from lifecycle_support import LifecycleFixture
 from test_init import INIT_SETTINGS
 
-from forgetful_factory.deadlines import AgentShellLifecycleDeadlines, DeadlinePolicy
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.cli.deadlines import DeadlinePolicy
 
 
 class NormalizedLifecycleTests(LifecycleFixture):
@@ -138,7 +139,9 @@ class NormalizedLifecycleTests(LifecycleFixture):
         self.assertFalse((self.workspace / 'plans.json').exists())
         attached = self.foreman(repo, '--attach')
         self.assertEqual(attached.returncode, 0, attached.stderr)
-        self.assertIn('attach-session', attached.stdout)
+        target = original['target']
+        self.assertIn(f"Enter Foreman: tmux -S {target['socket_path']} attach-session -t "
+                      f"{target['pane_id']}\n", attached.stdout)
         self.assertEqual(self.status(repo)['target'], original['target'])
         duplicate = self.foreman(repo)
         self.assertNotEqual(duplicate.returncode, 0)

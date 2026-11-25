@@ -4,9 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from forgetful_factory.adapters.forgetful.planning import ForgetfulPlanning
-from forgetful_factory.application.configuration import ForgetfulConnection
-from forgetful_factory.application.ports.planning import PlanningReadError
+from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPlanStore
+from forgetful_factory.planning.model import ForgetfulConnection
+from forgetful_factory.planning.ports import PlanningReadError
 
 MISSING = object()
 INVALID_IDENTIFIERS = (
@@ -76,7 +76,7 @@ class PlanningAdapterTests(unittest.TestCase):
             server='https://memory.example/test',
             project_id=12,
         )
-        self.planning = ForgetfulPlanning(
+        self.planning = ForgetfulPlanStore(
             self.workspace,
             connection,
             execution_enabled=False,

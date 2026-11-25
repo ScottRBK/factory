@@ -1,0 +1,66 @@
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import Protocol
+
+from forgetful_factory.agents.model import InitialAgentChoices
+from forgetful_factory.planning.model import ForgetfulConnection
+
+
+class ForemanTerminal(Protocol):
+    def startup_hint(self) -> str: ...
+
+    def start(self) -> None: ...
+
+    def send(self, message: str) -> None: ...
+
+    def wait(self, interval: float) -> None: ...
+
+    def close(self) -> None: ...
+
+
+class PersistentForeman(Protocol):
+    """The process that keeps the Foreman session open between Factory commands."""
+
+    def saved(self) -> dict | None:
+        """The owner's saved state, or None when no owner was started."""
+
+    def status(self) -> dict:
+        """The live owner's state; fails when the owner does not answer."""
+
+    def report(self) -> dict | None:
+        """The owner's lifecycle report: live, saved or unknown; None without an owner."""
+
+    def start(self, environment: dict[str, str], launch: dict) -> dict:
+        """Start an owner and its Foreman session; return the owner's state."""
+
+
+class AgentTeam(Protocol):
+    """The agent team: role files, the shared native home, models and setup completion."""
+
+    def prepare(self) -> None: ...
+
+    def prepare_setup_guidance(self) -> None: ...
+
+    def choose_pi_home(self, requested: str | None, confirm: Callable[[str], bool]) -> str: ...
+
+    def save_pi_choice(self) -> None: ...
+
+    def pi_home(self) -> str: ...
+
+    def list_models(self, connection: ForgetfulConnection, *, harness: str = 'pi',
+                    cwd: Path | None = None) -> list[str]: ...
+
+    def prepare_roles(self, choices: InitialAgentChoices, *, execution_enabled: bool,
+                      repositories: Sequence[str], connection: ForgetfulConnection) -> None: ...
+
+    def selected_launch(self, agent_file: str, connection: ForgetfulConnection) -> dict: ...
+
+    def managed_memory_notice(self) -> str | None: ...
+
+    def begin_setup(self) -> None: ...
+
+    def record_completion(self, agent_file: str, connection: ForgetfulConnection) -> bool: ...
+
+    def validate_completion(self) -> None: ...
+
+    def validate_bundled_resources(self, *, include_memory_extension: bool = False) -> None: ...

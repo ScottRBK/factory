@@ -25,40 +25,123 @@ forgetful-factory = "forgetful_factory.cli.main:main"
 required-version = ">=0.13.5"
 
 [tool.uv.build-backend]
-source-include = ["tests/*.py", "tests/fixtures/*.md", "tests/fixtures/*.ts"]
+source-include = [
+    "tests/*.py",
+    "tests/contracts/*.py",
+    "tests/fixtures/*.json",
+    "tests/fixtures/*.md",
+    "tests/fixtures/*.ts",
+    "tests/fixtures/saved_data/*.json",
+]
 
 [tool.importlinter]
 root_package = "forgetful_factory"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
-id = "domain-independent"
-name = "Domain stays independent"
-type = "forbidden"
-source_modules = ["forgetful_factory.domain"]
-forbidden_modules = [
-    "forgetful_factory.application",
-    "forgetful_factory.adapters",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
+id = "top-level"
+name = "Top level, downwards only: entry, composition, factory, contexts, shared"
+type = "layers"
+containers = ["forgetful_factory"]
+# A new top-level package fails until it is classified here.
+exhaustive = true
+# ":" lets siblings import each other: the CLI uses the configuration facade, and contexts use
+# each other's ports and models.
+layers = [
+    "__main__",
+    "cli : configuration",
+    "factory",
+    "agents : channels : forge : planning : runtime : ticketing : workspace",
+    "shared",
 ]
 
 [[tool.importlinter.contracts]]
-id = "application-contracts"
-name = "Application uses contracts, not adapters"
+id = "inside-each-area"
+name = "Inside a context, imports go down: adapters, services, ports, model"
+type = "layers"
+containers = [
+    "forgetful_factory.agents",
+    "forgetful_factory.channels",
+    "forgetful_factory.factory",
+    "forgetful_factory.forge",
+    "forgetful_factory.planning",
+    "forgetful_factory.runtime",
+    "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
+]
+exhaustive = true
+layers = ["(adapters)", "(services)", "ports", "(model)"]
+
+[[tool.importlinter.contracts]]
+id = "adapters-from-composition"
+name = "Only composition imports context adapters"
 type = "forbidden"
-source_modules = ["forgetful_factory.application"]
-forbidden_modules = [
-    "forgetful_factory.adapters",
-    "forgetful_factory.cli",
-    "forgetful_factory.configuration",
+source_modules = [
+    "forgetful_factory.shared",
+    "forgetful_factory.*.services",
+    "forgetful_factory.*.ports",
+    "forgetful_factory.*.model",
+]
+forbidden_modules = ["forgetful_factory.*.adapters"]
+
+[[tool.importlinter.contracts]]
+id = "entry-through-cli"
+name = "The entry point imports no adapter directly"
+type = "forbidden"
+source_modules = ["forgetful_factory.__main__"]
+forbidden_modules = ["forgetful_factory.*.adapters"]
+# The entry point runs the CLI, which composes adapters; only a direct import fails.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+id = "adapters-independent"
+name = "Adapter packages do not import each other"
+type = "independence"
+modules = [
+    "forgetful_factory.agents.adapters",
+    "forgetful_factory.channels.adapters",
+    "forgetful_factory.factory.adapters",
+    "forgetful_factory.forge.adapters",
+    "forgetful_factory.planning.adapters",
+    "forgetful_factory.runtime.adapters",
+    "forgetful_factory.ticketing.adapters",
+    "forgetful_factory.workspace.adapters",
 ]
 
 [[tool.importlinter.contracts]]
-id = "adapters-no-cli"
-name = "Adapters cannot depend on the CLI"
+id = "core-no-processes"
+name = "Core code, ports and models start no processes and open no sockets"
 type = "forbidden"
-source_modules = ["forgetful_factory.adapters"]
-forbidden_modules = ["forgetful_factory.cli"]
+source_modules = [
+    "forgetful_factory.*.services",
+    "forgetful_factory.*.ports",
+    "forgetful_factory.*.model",
+]
+forbidden_modules = ["subprocess", "socket"]
+
+[[tool.importlinter.contracts]]
+id = "agentshell-in-agents"
+name = "Only the agents adapter imports AgentShell"
+type = "forbidden"
+source_modules = [
+    "forgetful_factory.__main__",
+    "forgetful_factory.*.model",
+    "forgetful_factory.*.ports",
+    "forgetful_factory.*.services",
+    "forgetful_factory.channels",
+    "forgetful_factory.cli",
+    "forgetful_factory.configuration",
+    "forgetful_factory.factory",
+    "forgetful_factory.forge",
+    "forgetful_factory.planning",
+    "forgetful_factory.runtime",
+    "forgetful_factory.shared",
+    "forgetful_factory.ticketing",
+    "forgetful_factory.workspace",
+]
+forbidden_modules = ["agent_shell"]
+# Composition reaches AgentShell through the agents adapter; a direct import still fails.
+allow_indirect_imports = true
 
 [tool.ruff]
 line-length = 100

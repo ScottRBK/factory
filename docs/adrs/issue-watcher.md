@@ -17,8 +17,8 @@ Plain `watch` launches and owns a fresh Pi using the selected root `agent.json`.
 started by assisted first init or standalone `foreman`, retains Foreman independently and manages
 a watcher that borrows its delivery channel. `foreman --attach` enters that existing terminal.
 Neither standalone Foreman command starts a watcher. Reuse that
-session; never silently replace or duplicate it. Keep polling behind `WorkTrackingService` and
-terminal delivery behind an application port. GitHub and AgentShell adapters perform external I/O.
+session; never silently replace or duplicate it. Keep polling behind the `Ticketing` port and
+terminal delivery behind a port. GitHub and AgentShell adapters perform external I/O.
 
 All notification delivery goes through AgentShell, not Factory-owned tmux input commands. Native
 tmux client attach/switch only navigates the user's UI. The persistent owner's public captured
@@ -74,10 +74,10 @@ read per eligible issue per poll; unrelated issues and pull requests are not rea
 GitHub's issue timestamp is not assumed to advance for comment edits. Snapshots are not atomic
 across GitHub's issue and comment requests; a later successful poll observes subsequent changes.
 
-`list_issues` validates issue pages and selects eligible issues before `_issue` builds each domain
-record and its revision. That conversion retains the same normalization, per-issue paginated comment
-reads and full comment validation. The tuple is returned only after every eligible conversion
-succeeds; extracting conversion does not add a cache, change transport or expose partial results.
+`list_open` validates issue pages and selects eligible issues before `_ticket` builds each `Ticket`
+and its revision. That conversion retains the same normalization, per-issue paginated comment reads
+and full comment validation. The tuple is returned only after every eligible conversion succeeds;
+extracting conversion does not add a cache, change transport or expose partial results.
 
 Alert suppression, blocked records and issue revisions remain separate. A corrected record can
 recover without an issue edit. No work is deleted on failure. Ordinary notifications carry
@@ -133,7 +133,8 @@ that protocol. The controller owns the interactive session lifetime; keeping it 
 also supports the optional interpreter override without mixing Python environments.
 It is an adapter detail, not a domain service or a general messaging framework.
 
-The controller uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
+The launch JSON names the session host (`{"kind": "tmux"}`); the controller refuses any other
+kind. It uses `AgentShell.open_interactive` with `TmuxExecutionHost`, waits for Pi's session
 start event before submitting text, and calls `session.terminal.send_text(..., submit=True)`. For a
 persistent Foreman, `ForemanOwner` retains that controller independently of init's terminal and
 stdin lifetime. A bounded handover separates startup cancellation from later init exit. The managed
@@ -148,22 +149,28 @@ screenshots or infer that a submitted issue was completed.
 
 ```text
 src/forgetful_factory/
-├── application/
-│   ├── watch_factory.py             # Polling, baseline, revisions, notifications
-│   └── ports/
-│       └── foreman_terminal.py      # Startup hint, launch, submit, wait, close
-├── domain/
-│   ├── models.py                    # Provider-independent Issue
-│   └── services/work_tracking.py    # Adds matching-open-issue reads
-└── adapters/
-    ├── filesystem/watch_lease.py    # CLI-owned workspace and legacy factory-directory locks
-    ├── github/work_tracking.py      # Paginated issue reads and label matching
-    └── agentshell/
-        ├── terminal.py              # Watcher-owned controller and acknowledgements
-        ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
-        ├── owner.py                 # Persistent Foreman and watcher child lifetime
-        ├── owner_client.py          # Local lifecycle commands and user terminal entry
-        └── controller.py            # AgentShell-owned interactive session
+├── factory/
+│   ├── services/watch_factory.py    # Polling, baseline, revisions, notifications
+│   └── adapters/watch_lease.py      # CLI-owned workspace and legacy factory-directory locks
+├── ticketing/
+│   ├── model.py                     # Provider-independent Ticket
+│   ├── ports.py                     # Ticketing: matching-open-ticket reads
+│   └── adapters/github.py           # Paginated issue reads and label matching
+├── agents/
+│   ├── ports.py                     # ForemanTerminal: startup hint, launch, submit, wait, close
+│   └── adapters/agentshell/
+│       ├── terminal.py              # Watcher-owned controller and acknowledgements
+│       ├── borrowed_terminal.py     # Managed watcher's private channel to its owner
+│       ├── owner.py                 # Persistent Foreman and watcher child lifetime
+│       ├── owner_client.py          # Local lifecycle commands
+│       ├── controller.py            # AgentShell-owned interactive session, host by kind
+│       └── tmux_host.py             # Pane identity checks, loaded by the controller
+├── runtime/
+│   ├── ports.py                     # SessionHost: launch data, attach text, terminal entry
+│   └── adapters/tmux.py             # The tmux host and its install recipe
+└── channels/
+    ├── ports.py                     # Channel: how a person reaches the Foreman
+    └── adapters/terminal.py         # The person's own terminal, through the session host
 ```
 
 GitHub fetches all pages of open issues and applies label matching locally: any configured label
