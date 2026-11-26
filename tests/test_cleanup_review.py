@@ -1,9 +1,14 @@
 """Review regressions through public watch, external CLI fixtures and disposable native Git."""
 import json
 import shutil
+import sys
 from pathlib import Path
 
 from test_completed_cleanup import CompletedCleanupFixture
+
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
 
 class CleanupReviewTests(CompletedCleanupFixture):
@@ -90,7 +95,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         _, _, mapping = self.prepared()
         native = shutil.which('git')
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport os, sys\n'
+        wrapper.write_text(SHEBANG + 'import os, sys\n'
                            f'if {str(second)!r} in sys.argv and "--git-common-dir" in sys.argv:\n'
                            '    sys.exit("fixture namespace unreadable")\n'
                            f'os.execv({native!r}, [{native!r}, *sys.argv[1:]])\n')
@@ -176,7 +181,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         native = shutil.which('git')
         count = self.workspace / 'target-reads'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport os, sys\nfrom pathlib import Path\n'
+        wrapper.write_text(SHEBANG + 'import os, sys\nfrom pathlib import Path\n'
                            'if sys.argv[-2:] == ["symbolic-ref", "HEAD"]:\n'
                            f'    path = Path({str(count)!r})\n'
                            '    n = int(path.read_text()) + 1 if path.exists() else 1\n'
@@ -199,7 +204,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         native = shutil.which('git')
         log = self.workspace / 'review-git.jsonl'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
+        wrapper.write_text(SHEBANG + 'import json, os, sys\n'
                            'from pathlib import Path\n'
                            f'state = Path({str(self.state_path)!r})\n'
                            'counts = json.loads(state.read_text()).get("counts", {})\n'
@@ -236,7 +241,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         native = shutil.which('git')
         log = self.workspace / 'network-input.jsonl'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport json, os, select, sys\n'
+        wrapper.write_text(SHEBANG + 'import json, os, select, sys\n'
                            'if "ls-remote" in sys.argv or "push" in sys.argv:\n'
                            '    ready = bool(select.select([sys.stdin], [], [], 0)[0])\n'
                            '    eof = ready and sys.stdin.read(1) == ""\n'
@@ -303,7 +308,7 @@ class CleanupReviewTests(CompletedCleanupFixture):
         _, _, mapping = self.prepared()
         native = shutil.which('git')
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport os, sys, time\n'
+        wrapper.write_text(SHEBANG + 'import os, sys, time\n'
                            'if "ls-remote" in sys.argv: time.sleep(2)\n'
                            f'os.execv({native!r}, [{native!r}, *sys.argv[1:]])\n')
         wrapper.chmod(0o755)

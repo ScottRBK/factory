@@ -1,9 +1,14 @@
 """Observe the cleanup work bound and fair retries at real Git/provider boundaries."""
 import json
 import shutil
+import sys
 from pathlib import Path
 
 from test_completed_cleanup import CompletedCleanupFixture
+
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
 
 def completed_attempts(log):
@@ -38,7 +43,7 @@ class CleanupSchedulingTests(CompletedCleanupFixture):
         native = shutil.which('git')
         log = self.workspace / 'attempts.jsonl'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
+        wrapper.write_text(SHEBANG + 'import json, os, sys\n'
                            'from pathlib import Path\n'
                            'if "push" in sys.argv and any(a.startswith(":refs/heads/") '
                            'for a in sys.argv):\n'
@@ -90,7 +95,7 @@ class CleanupSchedulingTests(CompletedCleanupFixture):
         native = shutil.which('git')
         log = self.workspace / 'push-attempts.jsonl'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
+        wrapper.write_text(SHEBANG + 'import json, os, sys\n'
                            'from pathlib import Path\n'
                            'if "push" in sys.argv and any(a.startswith(":refs/heads/") '
                            'for a in sys.argv):\n'

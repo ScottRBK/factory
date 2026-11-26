@@ -1,9 +1,14 @@
 """Durable terminal cleanup authority through public watch and real disposable Git."""
 import json
 import shutil
+import sys
 from pathlib import Path
 
 from test_completed_cleanup import CompletedCleanupFixture
+
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
 
 
 def prepare_completed_set(fixture):
@@ -42,7 +47,7 @@ class CleanupReceiptTests(CleanupReceiptFixture):
         native = shutil.which('git')
         log = self.workspace / 'restart-git-commands.jsonl'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport json, os, sys\n'
+        wrapper.write_text(SHEBANG + 'import json, os, sys\n'
                            f'with open({str(log)!r}, "a") as stream:\n'
                            '    stream.write(json.dumps(sys.argv[1:]) + "\\n")\n'
                            f'os.execv({native!r}, [{native!r}, *sys.argv[1:]])\n')
@@ -104,7 +109,7 @@ class CleanupReceiptTests(CleanupReceiptFixture):
         native = shutil.which('git')
         receipt = self.workspace / '.factory/cleanup-finished.json'
         wrapper = self.bin / 'git'
-        wrapper.write_text('#!/usr/bin/env python3\nimport os, sys\nfrom pathlib import Path\n'
+        wrapper.write_text(SHEBANG + 'import os, sys\nfrom pathlib import Path\n'
                            'if "push" in sys.argv and any(a.startswith(":refs/heads/") '
                            'for a in sys.argv):\n'
                            f'    Path({str(receipt)!r}).mkdir(exist_ok=True)\n'

@@ -15,6 +15,10 @@ from deadline_support import programmatic_factory
 from profile_support import COMMAND
 from test_init import GH, ROOT, InitFixture
 
+# Portability: the Nix build sandbox has no /bin/cat, so a pane that only has to
+# stay alive runs the interpreter already running the tests.
+IDLE = f'{shlex.quote(sys.executable)} -c "import time; time.sleep(86400)"'
+
 
 def pidfd_open(pid):
     if hasattr(os, 'pidfd_open'):
@@ -102,7 +106,11 @@ class LifecycleFixture(InitFixture):
         self.env = {key: value for key, value in self.env.items()
                     if key in ('PYTHONPATH', 'GH_STATE', 'PI_CODING_AGENT_DIR')}
         self.env.update(HOME=str(self.workspace), XDG_CONFIG_HOME=str(self.workspace / 'config'),
-                        PATH=f'{self.bin}:{os.path.dirname(sys.executable)}:/usr/bin:/bin',
+                        # Isolated PATH, but it must actually contain git: /usr/bin:/bin
+                        # is an FHS assumption, and on NixOS/Nix git lives in the store,
+                        # which made every native lifecycle test report 'git is missing'.
+                        PATH=(f'{self.bin}:{os.path.dirname(sys.executable)}'
+                              f':{os.path.dirname(shutil.which("git") or "/usr/bin")}'),
                         TMPDIR=str(self.workspace), PI_OFFLINE='1',
                         FAKE_PI_LOG=str(self.workspace / 'pi.jsonl'),
                         PLANNING_STATE=str(self.workspace / 'plans.json'))
@@ -145,7 +153,7 @@ class LifecycleFixture(InitFixture):
             "        print(json.dumps([state.get('issues', [])]))\n        sys.exit(0)\n"
             "    if endpoint.endswith('/labels'):"))
         subprocess.run([str(self.bin / 'tmux'), 'new-session', '-d', '-s', 'fixture',
-                        '/bin/cat'], env=self.env, check=True, capture_output=True)
+                        IDLE], env=self.env, check=True, capture_output=True)
         self.addCleanup(self.close_tmux)
 
     def close_tmux(self):
