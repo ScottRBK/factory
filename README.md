@@ -153,6 +153,8 @@ commit `uv.lock` with reviewed changes to `pyproject.toml`.
 - [Factory intent](FACTORY.md): Scott's intended behaviour. Older agent fields are superseded by
   the [agent definition contract](docs/adrs/agent-definitions.md).
 - [Architecture](docs/architecture.md): components, boundaries and links to design decisions.
+- [Nix](docs/nix.md): reproducible dev shell, build and checks from `uv.lock`, plus
+  `nix-build` entry points for Nix without flakes enabled.
 - [Implementation plan](docs/plan.md): progress, validation records and remaining work.
 - [Setup examples](docs/adrs/initialization.md#command-line-setup-example):
   local and server options.

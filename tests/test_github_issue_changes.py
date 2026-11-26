@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,6 +9,10 @@ from unittest.mock import patch
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.model import TicketSource
 
+# Portability: the Nix build sandbox has no /usr/bin/env, so stubs must name the
+# interpreter that is actually running the tests.
+SHEBANG = f'#!{sys.executable}\n'
+
 
 class GitHubIssueChangesTests(unittest.TestCase):
     def test_reads_comments_only_for_eligible_issues_and_attributes_them(self):
@@ -15,8 +20,7 @@ class GitHubIssueChangesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             gh = root / 'gh'
-            gh.write_text('''#!/usr/bin/env python3
-import json, os, sys
+            gh.write_text(SHEBANG + '''import json, os, sys
 from pathlib import Path
 endpoint = sys.argv[2]
 with Path(os.environ['GH_CALLS']).open('a') as calls:
@@ -68,8 +72,7 @@ print(json.dumps(responses[endpoint]))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             gh = root / 'gh'
-            gh.write_text('''#!/usr/bin/env python3
-import os
+            gh.write_text(SHEBANG + '''import os
 from pathlib import Path
 import sys
 print('[[]]' if '/comments?' in sys.argv[2]
@@ -122,8 +125,7 @@ print('[[]]' if '/comments?' in sys.argv[2]
             root = Path(directory)
             gh = root / 'gh'
             # Arrange: multiple comment pages contain human and bot comments.
-            gh.write_text('''#!/usr/bin/env python3
-import os
+            gh.write_text(SHEBANG + '''import os
 from pathlib import Path
 import sys
 if '/comments?' in sys.argv[2] and not {'--paginate', '--slurp'} <= set(sys.argv):

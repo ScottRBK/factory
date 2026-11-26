@@ -6,7 +6,7 @@ import signal
 import subprocess
 import sys
 
-from lifecycle_support import LifecycleFixture, pidfd_open
+from lifecycle_support import IDLE, LifecycleFixture, pidfd_open
 from test_init import INIT_SETTINGS
 
 from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
@@ -164,7 +164,7 @@ class AssistedLifecycleTests(LifecycleFixture):
 
         # Act: replace only the disposable fixture pane, retaining its numeric pane ID.
         changed = subprocess.run([self.tmux, '-S', str(self.socket), 'respawn-pane', '-k',
-                                  '-t', before['target']['pane_id'], '/bin/cat'],
+                                  '-t', before['target']['pane_id'], IDLE],
                                  env=self.env, capture_output=True, text=True, timeout=5)
         self.assertEqual(changed.returncode, 0, changed.stderr)
         self.assertTrue(select.select([descriptor], [], [], 15)[0],
