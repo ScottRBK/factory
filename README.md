@@ -68,18 +68,68 @@ First setup selects repositories, issue labels, a Forgetful project and the agen
 asks you to agree a Definition of Done. Choose manual setup or finish with Foreman's help.
 Use `init --planning-only` to omit implementation and review workers.
 
-Manual setup offers to launch the factory. If you decline, start it later with:
+## Two ways to run
+
+A factory has two parts: Foreman, the Pi agent you talk to, and the watcher, which polls GitHub
+and sends new issues to Foreman. You can run them together or separately.
+
+|  | Plain watch | Persistent Foreman |
+|---|---|---|
+| Start | `watch` | `foreman`, then `watch --start` |
+| Foreman stays open | while `watch` runs | until you exit it |
+| Stop the watcher | Ctrl-C, which also closes Foreman | `watch --stop`; Foreman stays open |
+| After first setup | manual setup offers to start it | assisted setup leaves it open |
+
+Both ways allow one watcher and one Foreman per workspace. If Foreman exits, its watcher stops
+and Factory does not start a new Foreman. `watch --status` shows the state in both ways.
+
+Run the commands below from the workspace folder, in the shell where you set `$wheel`.
+To run them from another folder, add `--workspace /absolute/path/to/workspace`.
+For all options, use `--help` after any command, for example `watch --help`.
+
+### Plain watch
+
+One command starts Foreman and the watcher together:
 
 ```bash
 uvx --refresh --from "$wheel" forgetful-factory watch
 ```
 
 Watch asks whether to include existing issues. Use `--existing` or `--new-only` to choose directly.
-Only one watcher can run per workspace. Ctrl-C stops this watcher and its Foreman.
+Ctrl-C stops the watcher and closes its Foreman.
 
-Assisted setup leaves a persistent Foreman open. Ask it to review the team and complete setup;
-then follow its finalization and reload steps before starting its watcher. See
-[assisted setup](docs/adrs/agent-onboarding.md#assisted-setup-and-persistent-foreman).
+### Persistent Foreman
+
+Foreman and the watcher start and stop separately. You can stop or restart the watcher and keep
+the same Foreman conversation. Setup must be complete.
+
+1. Start Foreman. This opens Foreman in tmux and puts you in it:
+
+   ```bash
+   uvx --refresh --from "$wheel" forgetful-factory foreman
+   ```
+
+2. Start its watcher from another terminal, or ask Foreman to start it. You must choose
+   `--new-only`, or `--existing` to include existing issues:
+
+   ```bash
+   uvx --refresh --from "$wheel" forgetful-factory watch --start --new-only
+   ```
+
+Other commands:
+
+```bash
+uvx --refresh --from "$wheel" forgetful-factory foreman --attach  # enter Foreman again
+uvx --refresh --from "$wheel" forgetful-factory watch --status    # Foreman and watcher state
+uvx --refresh --from "$wheel" forgetful-factory watch --stop      # stop watcher, keep Foreman
+```
+
+To stop everything, exit Pi in the Foreman terminal. This also stops its watcher.
+
+Assisted setup leaves a persistent Foreman open. Ask it to review the team and complete setup.
+Then follow its finalization and reload steps before you start its watcher. See
+[assisted setup](docs/adrs/agent-onboarding.md#assisted-setup-and-persistent-foreman). For
+recovery, see [watcher control](docs/adrs/agent-onboarding.md#operator-commands).
 
 ## Configuration and control
 
@@ -90,19 +140,6 @@ Repeated `init` preserves saved files; it does not refresh settings or repeat se
 Use `init --finalize` to complete or revalidate unfinished first setup. For later edits,
 see the [reload rules](docs/adrs/agent-onboarding.md#maintenance-and-selected-resources).
 You can also ask Foreman for help with `/skill:factory-maintenance`.
-
-To start a persistent Foreman after completed setup, or enter its existing terminal:
-
-```bash
-uvx --refresh --from "$wheel" forgetful-factory foreman --workspace /absolute/path/to/workspace
-uvx --refresh --from "$wheel" forgetful-factory foreman --attach \
-  --workspace /absolute/path/to/workspace
-```
-
-These commands do not start a watcher. In that Foreman conversation, ask it to start, check or stop
-its watcher. Stopping a managed watcher leaves Foreman open. Commands and recovery instructions
-are in [watcher control](docs/adrs/agent-onboarding.md#operator-commands).
-Use `init --help` or `watch --help` through the same `uvx` invocation for all options.
 
 After you install a newer Factory, update the bundled role resources in `.factory/resources`.
 Stop Foreman, watch and delegated work first. Preview the changes, then apply them:
@@ -150,7 +187,7 @@ commit `uv.lock` with reviewed changes to `pyproject.toml`.
 
 ## Documentation
 
-- [Factory intent](FACTORY.md): Scott's intended behaviour. Older agent fields are superseded by
+- [Factory intent](FACTORY.md): intended behaviour. Older agent fields are superseded by
   the [agent definition contract](docs/adrs/agent-definitions.md).
 - [Architecture](docs/architecture.md): components, boundaries and links to design decisions.
 - [Implementation plan](docs/plan.md): progress, validation records and remaining work.
