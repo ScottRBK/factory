@@ -28,6 +28,7 @@ class EnvFileTests(unittest.TestCase):
             'EQUALS=a=b',
             'not a setting',
             '1BAD=no',
+            'NAMÉ=no',
         )))
         # Act
         values = read_env_file(self.path)

@@ -16,7 +16,7 @@ from forgetful_factory.factory.model.watcher_problems import (
     UncertainScaffold,
     WatcherAlerts,
 )
-from forgetful_factory.factory.services.chat_relay import ChatRelay
+from forgetful_factory.factory.services.chat_relay import CHAT_INTERVAL, ChatRelay
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
 from forgetful_factory.shared.errors import FactoryError
@@ -61,12 +61,13 @@ class _WorkAction(Enum):
 class WatchFactory:
     def __init__(self, tracking: Ticketing, terminal: ForemanTerminal,
                  scaffold: ScaffoldIssue, cleanup: CleanupCompleted,
-                 chat: ChatChannel | None = None):
+                 chat: ChatChannel | None = None, chat_interval: float = CHAT_INTERVAL):
         self.tracking = tracking
-        self.terminal = terminal
+        self.relay = ChatRelay(terminal, chat, interval=chat_interval)
+        # Watch's own sends share the terminal with the chat thread.
+        self.terminal = self.relay.foreman
         self.scaffold = scaffold
         self.cleanup = cleanup
-        self.relay = ChatRelay(terminal, chat)
 
     def run(self, config: FactoryConfiguration, workspace: Path, interval: float,
             choose_existing: Callable[[], bool], report: Callable[[str], None],
@@ -136,7 +137,11 @@ class WatchFactory:
             raise
         finally:
             try:
-                self.terminal.close()
+                try:
+                    # The chat thread uses the terminal, so it ends first.
+                    self.relay.halt()
+                finally:
+                    self.terminal.close()
             except FactoryError as error:
                 report_error(str(error))
             finally:

@@ -25,7 +25,7 @@ ONLINE = '🟢 Foreman is ready. Watch is running.'
 LOST = ('🔴 Watch ended without a stop message; it may have been killed. '
         'Check the Factory machine.')
 MISSED = '📭 {count} came while watch was off. They were not sent to the Foreman.'
-MARKS = {'sent': '✅', 'uncertain': '⚠️', 'not_ready': '💤'}
+MARKS = {'seen': '👀', 'sent': '✅', 'uncertain': '⚠️', 'not_ready': '💤'}
 INSTALL_HINT = ('Discord is off: discord.py is not installed. Install Factory with its discord '
                 'extra; see "Discord" in docs/configuration.md. Watch continues without '
                 'Discord.')
@@ -67,10 +67,10 @@ def client_type(discord):
             self.relay = relay
 
         async def on_ready(self):
-            await self.relay.connected(self)
+            self.relay.connected(self)
 
         async def on_message(self, message):
-            await self.relay.received(message)
+            self.relay.received(message)
 
     return RelayClient
 
@@ -154,7 +154,7 @@ class Relay:
                 with contextlib.suppress(Exception):
                     await self.client.close()
 
-    async def connected(self, client) -> None:
+    def connected(self, client) -> None:
         self.channel = client.get_partial_messageable(self.channel_id)
         if not self.ready.is_set():
             self.ready_at = self.discord.utils.utcnow()
@@ -194,7 +194,7 @@ class Relay:
         return (not message.author.bot and message.author.id in self.allowed
                 and any(user.id == self.client.user.id for user in message.mentions))
 
-    async def received(self, message) -> None:
+    def received(self, message) -> None:
         if message.channel.id != self.channel_id or not self.addressed(message):
             return
         text = re.sub(rf'\s*<@!?{self.client.user.id}>\s*', ' ', message.content).strip()
@@ -204,6 +204,8 @@ class Relay:
             self.outbox.put_nowait(partial(self.react, message.id, MARKS['not_ready']))
             return
         self.unmarked.add(message.id)
+        # At once, so people know the bot has it while watch is busy; ✅ follows on delivery.
+        self.outbox.put_nowait(partial(self.react, message.id, MARKS['seen']))
         self.tell({'kind': 'message', 'id': str(message.id),
                    'author': message.author.display_name, 'text': text})
 

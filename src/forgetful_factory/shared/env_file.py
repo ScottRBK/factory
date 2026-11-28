@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 DEFAULT_ENV_FILE = Path('~/.config/forgetful-factory/.env')
-_NAME = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+_NAME = re.compile(r'[A-Za-z_]\w*', re.ASCII)
 
 
 def read_env_file(path: Path) -> dict[str, str]:

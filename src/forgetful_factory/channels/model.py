@@ -6,8 +6,8 @@ from enum import Enum
 from forgetful_factory.shared.errors import FactoryError
 
 DEFAULT_TOKEN_VARIABLE = 'DISCORD_BOT_TOKEN'
-_ID = re.compile(r'[0-9]{17,20}')
-_VARIABLE = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+_ID = re.compile(r'\d{17,20}', re.ASCII)
+_VARIABLE = re.compile(r'[A-Za-z_]\w*', re.ASCII)
 
 
 class Delivery(Enum):

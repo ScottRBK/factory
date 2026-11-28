@@ -9,6 +9,7 @@ import signal
 import time
 
 from fake_discord import BOT_ID
+from poll_support import PollGate
 from test_discord_link import install_fake_discord, read_log
 from test_watch import WatchFixture
 
@@ -102,7 +103,44 @@ class DiscordWatchTests(WatchFixture):
         sends = [event['text'] for event in self.events() if event['kind'] == 'send']
         self.assertEqual(sends, ['[Discord] Scott: status please'])
         self.assertEqual([(call['id'], call['emoji']) for call in self.discord('react')],
-                         [('42', '✅')])
+                         [('42', '👀'), ('42', '✅')])
+
+    def test_the_foreman_answers_while_a_poll_is_held(self):
+        # Arrange: the first issue read waits at a gate, so watch is inside a poll.
+        gate = PollGate(self, 'issues')
+        self.script({'team/app': [gate.reply([[]])]})
+        self.env['WATCH_PI_ECHO'] = '1'
+        process = self.start('--new-only', '--chat-interval', '0.2')
+        gate.wait(process)
+        # Act: the mention comes while the read is still held.
+        self.inbox.write_text(json.dumps({'id': '42', 'author': USER, 'name': 'Scott',
+                                          'content': f'<@{BOT_ID}> status please',
+                                          'mentions': [BOT_ID]}) + '\n')
+        self.wait_until(process, lambda: 'Echo: [Discord] Scott: status please' in self.posts(),
+                        timeout=4)
+        code, _, stderr = self.stop(process)
+        # Assert: Ctrl-C during the held poll still ends the chat thread, Pi and the relay.
+        self.assertEqual(code, 130, stderr)
+        self.assertEqual(self.posts()[-1],
+                         '🔴 Watch stopped: Watch was stopped with Ctrl-C or a stop signal.')
+        self.assertEqual(self.events()[-1]['kind'], 'close')
+
+    def test_chat_interval_is_checked_and_only_for_plain_watch(self):
+        refused = '--chat-interval must be more than 0 and at most 60 seconds.'
+        cases = ((('--new-only', '--chat-interval', '0'), refused),
+                 (('--new-only', '--chat-interval', '61'), refused),
+                 (('--start', '--new-only', '--chat-interval', '2'),
+                  '--chat-interval works with plain watch only'))
+        for arguments, problem in cases:
+            with self.subTest(arguments=arguments):
+                # Act
+                process = self.start(*arguments)
+                _, stderr = process.communicate(timeout=10)
+                # Assert
+                self.assertEqual(process.returncode, 1, stderr)
+                self.assertIn(problem, stderr)
+                self.assertNotIn('Traceback', stderr)
+                self.assertFalse(any(event['kind'] == 'launch' for event in self.events()))
 
     def test_no_discord_problem_stops_watch_or_the_foreman(self):
         # Arrange

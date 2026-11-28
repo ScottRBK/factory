@@ -349,19 +349,19 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   limits, exact-commit evidence, owner coordination and historical cleanup; live validation pending.
 - [Agent onboarding and maintenance](adrs/agent-onboarding.md): numbered choices, selected Foreman
   maintenance guidance and the boundary between implemented setup and the Foreman-first proposal.
-- [Discord channel](adrs/discord-channel.md): a relay child of plain `watch` posts Foreman status
-  and text and sends allowed people's @mentions to the Foreman; live Discord check pending.
+- [Discord channel](adrs/discord-channel.md): a relay child of plain `watch` and a chat thread
+  carry Foreman text and allowed @mentions, also during polls; live Discord check pending.
 ## Source navigation
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 840; init: line 614; project choice: line 398;
-  numbered choices: line 221; worker setup: line 558; completion/skill folders: line 573;
-  optional manual launch: line 638.
-  New-setup orchestration: line 755; memory choices: line 514; REST eligibility: line 549.
-  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 689 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 76 and 118; ticketing registry and source checks:
-  lines 42 and 87; GitHub CLI preflight: line 125; selected root launch: line 153.
+- CLI entry: `cli/main.py`, line 851; init: line 625; project choice: line 409;
+  numbered choices: line 224; worker setup: line 569; completion/skill folders: line 584;
+  optional manual launch: line 651.
+  New-setup orchestration: line 768; memory choices: line 527; REST eligibility: line 562.
+  Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 702 in main.
+  Adapter wiring: `cli/bootstrap.py`, lines 77 and 119; ticketing registry and source checks:
+  lines 43 and 88; GitHub CLI preflight: line 127; selected root launch: line 156.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 17, 21, 92 and 111. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
@@ -403,19 +403,19 @@ Paths below are relative to `src/forgetful_factory/`:
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones
-  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 61.
+  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 62.
 - Transient wizard choices: `agents/model.py`, line 17.
   Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
   lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10; controller:
-  `agents/adapters/agentshell/controller.py`, line 315; host choice: line 136; child launch
-  validation: line 161; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
+  `agents/adapters/agentshell/controller.py`, line 321; host choice: line 142; child launch
+  validation: line 167; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
   Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`, line 28. Channel:
   `channels/ports.py`, lines 6 and 16 (chat); terminal: `channels/adapters/terminal.py`, line 8.
   Discord: `channels/adapters/discord/link.py`, line 25, and `relay.py`, line 78; chat rules:
-  `factory/services/chat_relay.py`, line 22; Foreman replies: controller line 28. Started by path or
+  `factory/services/chat_relay.py`, line 29; Foreman replies: controller line 28. Started by path or
   module name: `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
 - Setup lifecycle: `agents/adapters/agentshell/owner.py`, line 104;
   synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;

@@ -217,8 +217,8 @@ class RelayTests(unittest.TestCase):
                         self.assertEqual(await link.read(), {'kind': 'ready'})
                         message = await link.read()
                         link.send({'kind': 'mark', 'id': message['id'], 'delivery': 'sent'})
-                        await until(lambda: any(call['kind'] == 'react'
-                                                for call in fake_discord.calls))
+                        await until(lambda: sum(call['kind'] == 'react'
+                                                for call in fake_discord.calls) == 2)
                         link.send({'kind': 'stopped', 'reason': 'Ctrl-C'})
                         await link.end()
                         return message
@@ -228,9 +228,10 @@ class RelayTests(unittest.TestCase):
                 # Assert: the mention is taken out and the display name goes with the text.
                 self.assertEqual(message, {'kind': 'message', 'id': '8', 'author': 'Scott',
                                            'text': 'status please'})
+                # 👀 says at once that the bot has it; ✅ that the Foreman got it.
                 reactions = [(call['id'], call['emoji']) for call in fake_discord.calls
                              if call['kind'] == 'react']
-                self.assertEqual(reactions, [('8', '✅')])
+                self.assertEqual(reactions, [('8', '👀'), ('8', '✅')])
 
     def test_messages_that_watch_did_not_send_are_marked_not_ready(self):
         # Arrange
@@ -244,15 +245,15 @@ class RelayTests(unittest.TestCase):
                 await asyncio.sleep(0.05)
                 self.deliver(to_bot('hello?', id='8'))
                 await until(lambda: sum(call['kind'] == 'react'
-                                        for call in fake_discord.calls) == 2)
+                                        for call in fake_discord.calls) == 3)
                 await link.end()
 
         # Act
         asyncio.run(scenario())
-        # Assert
+        # Assert: only a message that came while watch ran was seen.
         reactions = {(call['id'], call['emoji']) for call in fake_discord.calls
                      if call['kind'] == 'react'}
-        self.assertEqual(reactions, {('7', '💤'), ('8', '💤')})
+        self.assertEqual(reactions, {('7', '👀'), ('7', '💤'), ('8', '💤')})
 
     def test_messages_since_the_last_stop_are_counted_once_connected(self):
         # Arrange: newest first, as Discord returns history.

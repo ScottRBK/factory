@@ -47,6 +47,20 @@ async def forward_replies(session, reply) -> None:
 
 async def interact(session, reader, reply, name, deadlines, *, persistent=False,
                    startup_warning=None, replies=False) -> None:
+    await become_ready(session, name, deadlines)
+    reply({'kind': 'ready', **({'warning': startup_warning} if startup_warning else {})})
+    # Only a launch that asks gets replies: the persistent Foreman's owner rejects unknown kinds.
+    forwarding = asyncio.create_task(forward_replies(session, reply)) if replies else None
+    try:
+        while line := await reader.readline():
+            if await send_line(session, line, reply, deadlines, persistent=persistent):
+                reply({'kind': 'sent'})
+    finally:
+        if forwarding is not None:
+            await cancel_tasks([forwarding])
+
+
+async def become_ready(session, name, deadlines) -> None:
     try:
         async with asyncio.timeout(deadlines['controller_ready']):
             await ready(session)
@@ -56,32 +70,28 @@ async def interact(session, reader, reply, name, deadlines, *, persistent=False,
                            'Watcher is stopping. Check any cleanup errors before retrying. '
                            'Restart watch, then promptly use the new tmux attach-session '
                            'command shown at startup to resolve any trust dialog.') from error
-    reply({'kind': 'ready', **({'warning': startup_warning} if startup_warning else {})})
-    # Only a launch that asks gets replies: the persistent Foreman's owner rejects unknown kinds.
-    forwarding = asyncio.create_task(forward_replies(session, reply)) if replies else None
+
+
+async def send_line(session, line, reply, deadlines, *, persistent) -> bool:
+    """Send one request to Pi. False when a persistent Foreman was told that the send failed."""
     try:
-        while line := await reader.readline():
-            try:
-                request = json.loads(line)
-                if not isinstance(request, dict) or not isinstance(request.get('text'), str):
-                    raise ValueError('Invalid Foreman send request; expected text in an object.')
-                async with asyncio.timeout(deadlines['controller_send']):
-                    await session.terminal.send_text(request['text'], submit=True)
-            except Exception as error:
-                if persistent:
-                    reply({'kind': 'send_error', 'message':
-                           'Foreman send failed; delivery uncertain: '
-                           f'{str(error) or type(error).__name__}'})
-                    continue
-                if not isinstance(error, TimeoutError):
-                    raise
-                raise RuntimeError('Pi send timed out after '
-                                   f'{deadlines["controller_send"]:g} seconds; '
-                                   'submission is uncertain. Watcher stopped.') from error
-            reply({'kind': 'sent'})
-    finally:
-        if forwarding is not None:
-            await cancel_tasks([forwarding])
+        request = json.loads(line)
+        if not isinstance(request, dict) or not isinstance(request.get('text'), str):
+            raise ValueError('Invalid Foreman send request; expected text in an object.')
+        async with asyncio.timeout(deadlines['controller_send']):
+            await session.terminal.send_text(request['text'], submit=True)
+    except Exception as error:
+        if persistent:
+            reply({'kind': 'send_error', 'message':
+                   'Foreman send failed; delivery uncertain: '
+                   f'{str(error) or type(error).__name__}'})
+            return False
+        if not isinstance(error, TimeoutError):
+            raise
+        raise RuntimeError('Pi send timed out after '
+                           f'{deadlines["controller_send"]:g} seconds; '
+                           'submission is uncertain. Watcher stopped.') from error
+    return True
 
 
 async def worker_exited(descriptor) -> None:

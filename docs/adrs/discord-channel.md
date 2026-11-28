@@ -4,9 +4,10 @@
 
 Implemented on 2026-11-27 (slices 1 to 3), with fake Discord and fake AgentShell in tests. Scott
 agreed the shape on 2026-11-27. The first live run on 2026-11-28 led to three changes: every text
-block is posted, the bot reads only messages that mention it, and the Foreman sees who wrote. The
-rest of the live check is still to do. The [work plan](../plans/discord-channel.md) holds the
-slices, the audit and the validation.
+block is posted, the bot reads only messages that mention it, and the Foreman sees who wrote.
+Later that day a chat thread was added, so messages and replies no longer wait for a poll
+(decision 8). The rest of the live check is still to do. The
+[work plan](../plans/discord-channel.md) holds the slices, the audit and the validation.
 
 ## Context
 
@@ -27,8 +28,8 @@ The persistent Foreman is not in scope. Its owner rejects unknown controller eve
 `reply` event is sent only when the launch asks for it. The persistent Foreman is unchanged. A
 managed watcher with `[discord]` prints a warning that Discord works with plain watch only.
 
-`ChatRelay` (`factory/services/chat_relay.py`) holds the rules. While watch waits, it checks the
-chat at least once a second; during a GitHub poll, messages wait in the socket.
+`ChatRelay` (`factory/services/chat_relay.py`) holds the rules. Its thread moves messages and
+replies also while watch polls (decision 8).
 
 ### 2. The relay is a separate child process
 
@@ -120,14 +121,48 @@ error (`factory/model/configuration.py`).
 - Each message reaches the Foreman as `[Discord] <display name>: <text>`, without the mention,
   through the controller's existing send. Messages that come while the Foreman starts wait until
   it is ready.
-- Reactions show the result: ✅ sent, ⚠️ delivery uncertain, 💤 not sent because watch was
-  stopping. A failed send still stops `watch`, as for an issue notification.
+- Reactions show the result: 👀 at once when the relay has the message, then ✅ sent,
+  ⚠️ delivery uncertain, or 💤 not sent because watch was stopping. 👀 stays; removing it is one
+  more Discord call. A failed send still stops `watch`, as for an issue notification.
 - The bot asks for no privileged intent. Discord gives the text of messages that mention the bot
   without the Message Content intent (discord.py `Intents.message_content`).
 - Messages are never replayed later. This follows "reconcile, don't auto-replay". When the relay
   connects, it counts allowed people's messages to the bot after its last 🔴 post (in the last 100
   messages)
   and posts "📭 N messages came while watch was off. They were not sent to the Foreman."
+
+### 8. A chat thread (2026-11-28)
+
+In the first live run, a reply waited up to 2 minutes: watch read the chat only between polls,
+and one cycle made about 80 Forgetful calls. The cleanup fast path makes a quiet cycle short, but
+a new issue or a plan cleanup still takes tens of seconds.
+
+- With a chat, `ChatRelay.online` starts one thread. It sends new messages to the Foreman and
+  posts new replies, then waits `watch --chat-interval` seconds (default 1). The main thread
+  keeps the polls, the workspace lease and Ctrl-C. Without a chat there is no thread.
+- One lock covers the terminal. Watch's own sends (issue notices, alerts) go through
+  `ChatRelay.foreman` and stay synchronous, so a failed send still stops watch. The thread holds
+  the lock for a 0.05 second read and for each chat message it sends, until Pi accepts it. It
+  never holds the lock while it waits for the chat interval. A plain lock is not fair, so watch
+  also holds a second lock (`turn`) while it waits, and the thread passes `turn` before each
+  message. A watch send therefore waits for at most one chat send, never for the interval.
+- Only the thread uses the chat link after `online`; `close` comes after the thread ends. So
+  `DiscordLink` needs no lock.
+- A failed terminal use (Pi exits, an uncertain send) is kept before the lock is released. After
+  it, neither thread uses the terminal again. Watch raises the failure at its next wait or send
+  and stops as before.
+- Stop order: end the thread, close the terminal, post 🔴. The thread checks the stop under the
+  lock before each terminal use, so it takes no new message; it finishes the use in progress,
+  which has its own deadline (30 seconds at most for a send). A second Ctrl-C does not cut this
+  wait short. Messages it did not send get 💤.
+  The thread runs in a copy of watch's context, so it sees the Ctrl-C stop request.
+- `--chat-interval` is more than 0 and at most 60 seconds, because the thread's reads also notice
+  when Pi exits. It works with plain watch only. With `--start`, `--stop` or `--status` it is an
+  error, because a managed watcher does not use Discord.
+
+Not chosen: polls in the thread (issue notices would need a queue, which changes how a failed
+notice stops watch), chat checks between Forgetful calls (chat code in the planning adapter), and
+an asyncio rewrite.
 
 ## Security
 

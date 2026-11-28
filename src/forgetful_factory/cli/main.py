@@ -111,6 +111,9 @@ def _parse_arguments() -> argparse.Namespace:
                         help='Stop watcher, preserving setup Foreman')
     watch.add_argument('--owner-fd', type=int, help=argparse.SUPPRESS)
     watch.add_argument('--interval', type=float, default=30)
+    watch.add_argument('--chat-interval', type=float,
+                       help='Seconds between Discord checks, at most 60; plain watch '
+                            'only (default 1)')
     watch.add_argument('--agentshell-python', default=sys.executable,
                        help='Override AgentShell Python; defaults to the factory environment')
     choice = watch.add_mutually_exclusive_group()
@@ -319,6 +322,13 @@ def _watch_status(args: argparse.Namespace, workspace: Path, deadlines: Deadline
 
 
 def _watch(args: argparse.Namespace, workspace: Path, deadlines: DeadlinePolicy) -> int:
+    if args.chat_interval is not None:
+        if args.start or args.stop or args.status:
+            raise FactoryError('--chat-interval works with plain watch only; '
+                               'a managed watcher does not use Discord.')
+        # At most a minute: the chat thread's reads also notice when Pi exits.
+        if not 0 < args.chat_interval <= 60:
+            raise FactoryError('--chat-interval must be more than 0 and at most 60 seconds.')
     if args.start or args.stop:
         return _change_managed_watch(args, workspace)
     if args.status:
@@ -371,10 +381,11 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
         previous_int = signal.signal(signal.SIGINT, stop.interrupt)
         previous_term = signal.signal(signal.SIGTERM, stop.interrupt)
         try:
+            chat = {} if args.chat_interval is None else {'chat_interval': args.chat_interval}
             application = build_watcher(
                 args.agentshell_python, config, workspace, terminal, deadlines, observation,
                 lambda message: print('Warning: ' + _safe_diagnostic(message),
-                                      file=sys.stderr, flush=True))
+                                      file=sys.stderr, flush=True), **chat)
             application.run(config, workspace, args.interval, lambda: _choose_existing(args),
                             lambda message: print(message, flush=True),
                             lambda message: print(_safe_diagnostic(message),

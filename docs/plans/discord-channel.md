@@ -191,7 +191,61 @@ Changes after the run (Scott's choices), test first:
 
 1. Make a test bot (no privileged intent), invite it to a server and channel.
 2. Add `[discord]` to a factory and run plain `watch` with the `discord` extra.
-3. Check 🟢, Foreman text, an @mention from an allowed account (✅, the name and the answer), a
-   message without a mention and one from another account (both ignored), Ctrl-C (🔴 with the
-   reason), and a restart after an @mention (📭 count). Then stop the network for a minute and
-   check that watch keeps running.
+3. Check 🟢, Foreman text, an @mention from an allowed account (👀 at once, then ✅, the name
+   and the answer), a message without a mention and one from another account (both ignored),
+   Ctrl-C (🔴 with the reason), and a restart after an @mention (📭 count). Then stop the network
+   for a minute and check that watch keeps running.
+4. Send an @mention while watch polls (for example just after start with `--existing`). The
+   answer must come without waiting for the poll.
+
+## Chat thread (2026-11-28)
+
+Scott chose a chat thread (option A) and the 👀 reaction (option B), and asked for the chat check
+time as a flag like `--interval`. The decision is in ADR decision 8.
+
+- `ChatRelay` starts a thread at `online` when a chat is set. Watch's own sends go through
+  `ChatRelay.foreman`, which shares one lock with the thread. The thread holds it for a 0.05
+  second read and for each chat send. `WatchFactory` ends the thread before it closes the
+  terminal.
+- `watch --chat-interval` (default 1 second, at most 60) is checked like `--interval`. With
+  `--start`, `--stop` or `--status` it is an error.
+- The relay reacts 👀 when it has a message, before watch sends it on.
+- Tests, written first:
+  - `test_chat_relay.py`: replies and messages move while watch is busy; a 60 second interval
+    does not delay a watch send; watch and the thread never use the terminal at the same time
+    (this test fails with the lock removed); a thread failure stops watch at its next wait and
+    blocks later sends, also a send already waiting for the lock; after a failed watch send the
+    thread sends nothing; `halt` takes no new message and waits for the send in progress;
+    Ctrl-C reaches the thread; a 1e12 second wait still stops on a failure; a waiting watch send
+    goes after at most one chat send; a failure is raised from a zero wait; a second Ctrl-C
+    does not cut `halt` short; a thread that cannot start keeps its own error.
+  - `test_discord_watch.py`: the first GitHub read waits at a gate; an @mention written after
+    the read reached the gate is answered within 4 seconds, and Ctrl-C during the held read
+    still stops watch, Pi and the relay. On the old code this test fails. `--chat-interval 0`,
+    `61` and `--start --chat-interval` are refused.
+  - `test_discord_relay.py` and `test_discord_watch.py`: 👀 then ✅; 👀 then 💤 at a stop.
+- Codex review (gpt-6.2-astra) of the change, all fixed test first:
+  - a watch send that waited behind a failed chat send could still reach Pi: a failed terminal
+    use is now kept under the lock, and the other thread checks it under the same lock;
+  - `halt` could return while the thread still sent messages: the thread checks the stop under
+    the lock before each use, and `halt` waits for it to end;
+  - a very long chat interval hid a Pi exit: at most 60 seconds;
+  - `Event.wait` refuses timeouts above `threading.TIMEOUT_MAX`: watch waits in steps of at most
+    a minute;
+  - the end-to-end test now sends the message while the poll is held, not before start.
+- The same change clears the SonarQube findings in the Discord commit: cognitive complexity in
+  `controller.interact` (split into `become_ready` and `send_line`), two `async` functions with
+  no `await` in the relay, and `[0-9]`/`[A-Za-z0-9_]` written as `\d`/`\w` with `re.ASCII`.
+  New tests prove that other digits and letters are still refused.
+- A second Codex pass, all fixed test first:
+  - a burst of chat messages kept a waiting watch notice behind 20 sends (a lock is not fair):
+    watch now holds a `turn` lock while it waits, and the test fails without it;
+  - a second Ctrl-C cut `halt` short, so the terminal could close during a send: `halt` waits on;
+  - a thread that cannot start hid its error behind `halt`: `thread` is set only after start;
+  - a very short `--interval` skipped the failure check: `wait` always checks;
+  - source-navigation line numbers in the overview, some already 2 lines out.
+- The thread catches `Exception` and `KeyboardInterrupt` by name (SonarQube S5754), not
+  `BaseException`.
+- Validation on top of the cleanup commit: full suite 844 passed, 14 skipped; ruff clean; 8 import
+  rules kept; map regenerated and stable (22 warnings). SonarQube: no bugs, vulnerabilities or
+  hotspots; the only open issue is the older S3516 in `cli/resource_update.py`.

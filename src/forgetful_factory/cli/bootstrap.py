@@ -18,6 +18,7 @@ from forgetful_factory.factory.adapters.cleanup_receipts import FileCleanupRecei
 from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
 from forgetful_factory.factory.adapters.watch_status import ObservedTerminal, plain_watch_status
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.services.chat_relay import CHAT_INTERVAL
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.initialise_factory import InitialiseFactory, missing_tools
 from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
@@ -117,7 +118,8 @@ def build_chat(config: FactoryConfiguration,
 
 def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                   terminal=None, deadlines: DeadlinePolicy = DeadlinePolicy(),
-                  observation=None, warn: Callable[[str], None] = _warn) -> WatchFactory:
+                  observation=None, warn: Callable[[str], None] = _warn,
+                  chat_interval: float = CHAT_INTERVAL) -> WatchFactory:
     ticketing = select_ticketing(config, deadlines.external_command)
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; run init in a fresh factory. '
@@ -147,7 +149,8 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                              ticketing)
     return WatchFactory(ticketing, terminal, scaffold,
                         CleanupCompleted(scaffold.records, scaffold.worktrees,
-                                         FileCleanupReceipts(workspace), ticketing), chat)
+                                         FileCleanupReceipts(workspace), ticketing), chat,
+                        chat_interval)
 
 
 def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True,

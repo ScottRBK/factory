@@ -290,6 +290,10 @@ class ChatSettingsTests(unittest.TestCase):
             'channel as a number': ('', f'[discord]\nchannel_id = {CHANNEL}\n{users}'),
             'short channel': ('', f'[discord]\nchannel_id = "1234"\n{users}'),
             'channel with letters': ('', f'[discord]\nchannel_id = "12345678901234567a"\n{users}'),
+            # Only ASCII digits and names: Python's \d and \w also take other scripts.
+            'channel with other digits': ('', f'[discord]\nchannel_id = "{"١" * 18}"\n{users}'),
+            'variable with other letters': ('', f'[discord]\n{channel}{users}'
+                                                'token_variable = "TOKÉN"\n'),
             'missing channel': ('', f'[discord]\n{users}'),
             'empty users': ('', f'[discord]\n{channel}allowed_users = []\n'),
             'missing users': ('', f'[discord]\n{channel}'),

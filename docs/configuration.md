@@ -58,8 +58,11 @@ Plain watch can use one Discord channel for each factory. The channel shows:
 
 People on the allowlist write to Foreman by mentioning the bot, for example `@YourBot status
 please`. Foreman gets `[Discord] <display name>: status please`. Other messages are ignored. When
-you type `@`, pick the bot, not a role with the same name. Each message gets a reaction:
-✅ sent, ⚠️ delivery uncertain, 💤 not sent because watch was stopping.
+you type `@`, pick the bot, not a role with the same name. Each message gets 👀 when the bot has
+it, then ✅ sent, ⚠️ delivery uncertain, or 💤 not sent because watch was stopping.
+
+Messages and replies move while watch polls GitHub and Forgetful. Watch checks Discord every
+second; to change this, use `watch --chat-interval <seconds>` (at most 60).
 
 A Discord problem never stops watch. Watch prints a warning and continues without Discord, and
 the Foreman terminal works as before. The persistent Foreman does not use Discord yet.
