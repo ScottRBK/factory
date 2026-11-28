@@ -231,3 +231,90 @@ executable = "/tools/forgetful"
         # Act / Assert
         with self.assertRaisesRegex(FactoryError, 'method = "cli"'):
             self.load(section)
+
+
+CHANNEL = '123456789012345678'
+USER = '234567890123456789'
+
+
+class ChatSettingsTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.workspace = Path(temporary.name)
+        (self.workspace / '.factory').mkdir()
+
+    def load(self, top='', section=''):
+        # Top-level keys must come before the first table in TOML.
+        (self.workspace / '.factory/factory.toml').write_text(top + VALID + '\n' + section)
+        return load_configuration(self.workspace)
+
+    def test_existing_settings_load_without_chat(self):
+        # Act
+        config = self.load()
+        # Assert
+        self.assertIsNone(config.env_file)
+        self.assertIsNone(config.discord)
+
+    def test_discord_settings_load_with_the_default_token_variable(self):
+        # Arrange
+        section = f'[discord]\nchannel_id = "{CHANNEL}"\nallowed_users = ["{USER}"]\n'
+        # Act
+        config = self.load(section=section)
+        # Assert
+        self.assertEqual(config.discord.channel_id, CHANNEL)
+        self.assertEqual(config.discord.allowed_users, (USER,))
+        self.assertEqual(config.discord.token_variable, 'DISCORD_BOT_TOKEN')
+
+    def test_named_token_variable_and_env_file_paths(self):
+        # Arrange
+        section = (f'[discord]\nchannel_id = "{CHANNEL}"\nallowed_users = ["{USER}"]\n'
+                   'token_variable = "DARK_BUSINESS_DISCORD_TOKEN"\n')
+        cases = {'~/.config/factory.env': str(Path.home() / '.config/factory.env'),
+                 'secrets/factory.env': str(self.workspace / 'secrets/factory.env'),
+                 '/etc/factory.env': '/etc/factory.env'}
+        for written, expected in cases.items():
+            with self.subTest(env_file=written):
+                # Act
+                config = self.load(f'env_file = "{written}"\n', section)
+                # Assert
+                self.assertEqual(config.env_file, expected)
+                self.assertEqual(config.discord.token_variable, 'DARK_BUSINESS_DISCORD_TOKEN')
+
+    def test_invalid_chat_settings_are_refused(self):
+        # Arrange
+        users = f'allowed_users = ["{USER}"]\n'
+        channel = f'channel_id = "{CHANNEL}"\n'
+        cases = {
+            'not a table': ('discord = "yes"\n', ''),
+            'channel as a number': ('', f'[discord]\nchannel_id = {CHANNEL}\n{users}'),
+            'short channel': ('', f'[discord]\nchannel_id = "1234"\n{users}'),
+            'channel with letters': ('', f'[discord]\nchannel_id = "12345678901234567a"\n{users}'),
+            'missing channel': ('', f'[discord]\n{users}'),
+            'empty users': ('', f'[discord]\n{channel}allowed_users = []\n'),
+            'missing users': ('', f'[discord]\n{channel}'),
+            'bad user': ('', f'[discord]\n{channel}allowed_users = ["someone"]\n'),
+            'users not a list': ('', f'[discord]\n{channel}allowed_users = "{USER}"\n'),
+            'bad variable': ('', f'[discord]\n{channel}{users}token_variable = "BAD-NAME"\n'),
+            'unknown key': ('', f'[discord]\n{channel}{users}token = "secret-value"\n'),
+            'blank env_file': ('env_file = " "\n', ''),
+            'env_file not text': ('env_file = 3\n', ''),
+        }
+        for name, (top, section) in cases.items():
+            with self.subTest(name):
+                # Act / Assert
+                with self.assertRaises(FactoryError) as caught:
+                    self.load(top, section)
+                self.assertNotIn('secret-value', str(caught.exception))
+
+    def test_saved_chat_settings_load_again_unchanged(self):
+        # Arrange
+        from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
+        section = (f'[discord]\nchannel_id = "{CHANNEL}"\nallowed_users = ["{USER}"]\n'
+                   'token_variable = "FACTORY_TOKEN"\n')
+        config = self.load('env_file = "/secrets/factory.env"\n', section)
+        (self.workspace / '.factory/factory.toml').unlink()
+        # Act
+        TomlConfigurationStore(self.workspace).save(config)
+        # Assert
+        self.assertEqual(load_configuration(self.workspace), config)

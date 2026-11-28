@@ -2,7 +2,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Protocol
 
-from forgetful_factory.agents.model import InitialAgentChoices
+from forgetful_factory.agents.model import ForemanReply, InitialAgentChoices
 from forgetful_factory.planning.model import ForgetfulConnection
 
 
@@ -13,7 +13,8 @@ class ForemanTerminal(Protocol):
 
     def send(self, message: str) -> None: ...
 
-    def wait(self, interval: float) -> None: ...
+    def wait(self, interval: float) -> list[ForemanReply]:
+        """Wait; return the Foreman replies that came. Only a launch that asks gets replies."""
 
     def close(self) -> None: ...
 

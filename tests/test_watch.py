@@ -121,8 +121,13 @@ class Terminal:
     closed = False
     returncode = None
 
+    def __init__(self, session):
+        self.session = session
+
     async def send_text(self, text, *, submit=False):
         record('send', text=text, submit=submit)
+        if os.environ.get('WATCH_PI_ECHO'):
+            self.session.turns.put_nowait(text)
         if os.environ.get('WATCH_SEND_HANG'):
             await asyncio.Event().wait()
         if os.environ.get('WATCH_SEND_FAIL'):
@@ -135,11 +140,27 @@ class Terminal:
         await asyncio.Event().wait()
 
 
+def pi_event(**fields):
+    return SimpleNamespace(**{'content': '', 'error': None, 'session_id': 'pi', **fields})
+
+
 class Session:
     def __init__(self):
-        self.terminal = Terminal()
+        self.terminal = Terminal(self)
+        self.readers = 0
+        self.turns = asyncio.Queue()
 
     async def events(self):
+        # AgentShell continues a later reader where the last one stopped: here, after ready.
+        self.readers += 1
+        if self.readers > 1:
+            for fields in json.loads(os.environ.get('WATCH_PI_EVENTS', '[]')):
+                yield pi_event(**fields)
+            while True:
+                text = await self.turns.get()
+                yield pi_event(type='status', content='turn_started')
+                yield pi_event(type='text', content='Echo: ' + text)
+                yield pi_event(type='result', content='ok')
         yield SimpleNamespace(type='system', session_id=None)
         if os.environ.get('WATCH_NO_READY'):
             await asyncio.Event().wait()
@@ -182,7 +203,8 @@ class AgentShell:
                placement=self.host.placement, controller_pid=os.getpid(),
                agent_dir=os.environ.get('PI_CODING_AGENT_DIR'),
                config_home=os.environ.get('XDG_CONFIG_HOME'),
-               target=os.environ.get('FACTORY_FORGETFUL_METHOD'))
+               target=os.environ.get('FACTORY_FORGETFUL_METHOD'),
+               discord_variables=sorted(name for name in os.environ if 'DISCORD' in name))
         if os.environ.get('WATCH_SKILL_COMMANDS'):
             import subprocess
             for command in json.loads(os.environ['WATCH_SKILL_COMMANDS']):

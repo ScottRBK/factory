@@ -372,7 +372,9 @@ def _watch_locked(args: argparse.Namespace, workspace: Path, deadlines: Deadline
         previous_term = signal.signal(signal.SIGTERM, stop.interrupt)
         try:
             application = build_watcher(
-                args.agentshell_python, config, workspace, terminal, deadlines, observation)
+                args.agentshell_python, config, workspace, terminal, deadlines, observation,
+                lambda message: print('Warning: ' + _safe_diagnostic(message),
+                                      file=sys.stderr, flush=True))
             application.run(config, workspace, args.interval, lambda: _choose_existing(args),
                             lambda message: print(message, flush=True),
                             lambda message: print(_safe_diagnostic(message),

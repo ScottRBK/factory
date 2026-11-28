@@ -3,6 +3,7 @@ import json
 import selectors
 import socket
 
+from forgetful_factory.agents.model import ForemanReply
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.watch_stop import check_watch_stop
 
@@ -36,13 +37,15 @@ class BorrowedForemanTerminal:
     def send(self, message: str) -> None:
         self._request({'operation': 'send', 'text': message})
 
-    def wait(self, interval: float) -> None:
+    def wait(self, interval: float) -> list[ForemanReply]:
         check_watch_stop()
         with selectors.DefaultSelector() as selector:
             selector.register(self.connection, selectors.EVENT_READ)
             if selector.select(interval):
                 raise FactoryError('Foreman owner disconnected; watcher stopped.')
         check_watch_stop()
+        # The persistent Foreman's owner does not send replies.
+        return []
 
     def close(self) -> None:
         self.reader.close()

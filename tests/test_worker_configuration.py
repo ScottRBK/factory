@@ -21,7 +21,10 @@ class WorkerConfigurationTests(InitFixture):
         self.assertEqual(setup.returncode, 0, setup.stderr)
         config = load_configuration(repo)
         self.assertEqual(set(vars(config)), {'watcher_label', 'foreman_agent_file', 'repository',
-                                            'forgetful', 'execution_enabled'})
+                                            'forgetful', 'execution_enabled', 'env_file',
+                                            'discord'})
+        # Init does not set up a chat room; the person adds [discord] later.
+        self.assertEqual((config.env_file, config.discord), (None, None))
         implementation = self.agent(repo, 'implementation')
         self.assertEqual(implementation['model'], 'gpt-5.4')
         self.assertEqual(implementation['agent_type'], 'codex')

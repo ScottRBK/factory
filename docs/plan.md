@@ -251,6 +251,15 @@ upstream discussion. Factory's setup-owner integration does not use arbitrary-pa
 Connection cannot change an agent's settings or prove receipt; see the
 [attachment docs][attach-contract].
 
+### Slice 9: Discord channel (implemented; live check pending)
+
+Plain `watch` starts a Discord relay child. It posts 🟢 and 🔴 (with the stop reason) and every
+Foreman reply, so a stop is seen away from the machine. Allowed users can write to the Foreman
+from Discord, and a restart counts the messages that came while watch was off. Tests use fake
+Discord and fake AgentShell; a check on a real Discord server is still to do. See the
+[decision](adrs/discord-channel.md), the [work plan](plans/discord-channel.md) and the
+[discord.py audit](plans/discord-py-audit.md).
+
 ### Later slice: CLI-backed Foreman extension and local Forgetful support
 
 The extension currently uses server HTTP. A later slice may move its planning, recall and capture

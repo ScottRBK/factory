@@ -6,6 +6,14 @@ from forgetful_factory.shared.validation import nonblank, positive_duration
 
 
 @dataclass(frozen=True)
+class ForemanReply:
+    """What the Foreman said at the end of a turn: its text after the last tool call."""
+
+    text: str
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class InitialAgentChoices:
     foreman_agent_model: str
     foreman_agent_effort: str

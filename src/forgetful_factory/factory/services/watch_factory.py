@@ -5,6 +5,7 @@ from enum import Enum, auto
 from pathlib import Path
 
 from forgetful_factory.agents.ports import ForemanTerminal
+from forgetful_factory.channels.ports import ChatChannel
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
 from forgetful_factory.factory.model.repositories import RepositoryReference
 from forgetful_factory.factory.model.watcher_problems import (
@@ -15,6 +16,7 @@ from forgetful_factory.factory.model.watcher_problems import (
     UncertainScaffold,
     WatcherAlerts,
 )
+from forgetful_factory.factory.services.chat_relay import ChatRelay
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
 from forgetful_factory.shared.errors import FactoryError
@@ -58,11 +60,13 @@ class _WorkAction(Enum):
 
 class WatchFactory:
     def __init__(self, tracking: Ticketing, terminal: ForemanTerminal,
-                 scaffold: ScaffoldIssue, cleanup: CleanupCompleted):
+                 scaffold: ScaffoldIssue, cleanup: CleanupCompleted,
+                 chat: ChatChannel | None = None):
         self.tracking = tracking
         self.terminal = terminal
         self.scaffold = scaffold
         self.cleanup = cleanup
+        self.relay = ChatRelay(terminal, chat)
 
     def run(self, config: FactoryConfiguration, workspace: Path, interval: float,
             choose_existing: Callable[[], bool], report: Callable[[str], None],
@@ -94,10 +98,13 @@ class WatchFactory:
             pending_repositories={r.local_dir: r for r in config.repository},
         )
         alerts = WatcherAlerts(self.terminal, report_error)
+        stopped_by: BaseException | None = None
         try:
             check_watch_stop()
+            self.relay.start()
             self.terminal.start()
             check_watch_stop()
+            self.relay.online()
             report('Foreman session ready; model access unverified. '
                    'Resource loading unverified. Submission is not agent receipt.')
             while True:
@@ -105,30 +112,35 @@ class WatchFactory:
                 self._check_pending_repositories(state, alerts)
                 if not self._check_planning_access(state, alerts, report):
                     check_watch_stop()
-                    self.terminal.wait(interval)
+                    self.relay.wait(interval)
                     continue
                 self.cleanup.poll(alerts, report)
                 if not self._load_inventory(state, alerts):
                     check_watch_stop()
-                    self.terminal.wait(interval)
+                    self.relay.wait(interval)
                     continue
                 attempted, shared_read_failed = self._recover_blocked(
                     state, alerts, report)
                 if shared_read_failed:
                     check_watch_stop()
-                    self.terminal.wait(interval)
+                    self.relay.wait(interval)
                     continue
                 shared_read_failed = self._poll_sources(
                     sources, config, existing, state, attempted, alerts, report)
                 if not shared_read_failed and not state.pending_lookup:
                     alerts.clear('recovery_read')
                 check_watch_stop()
-                self.terminal.wait(interval)
+                self.relay.wait(interval)
+        except BaseException as error:
+            stopped_by = error
+            raise
         finally:
             try:
                 self.terminal.close()
             except FactoryError as error:
                 report_error(str(error))
+            finally:
+                self.relay.stop(stopped_by)
 
     def _check_pending_repositories(self, state: _WatchState,
                                     alerts: WatcherAlerts) -> None:

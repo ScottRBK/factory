@@ -59,7 +59,7 @@ those contracts for external systems. GitHub is the current provider, not the do
 | `workspace/` | Local checkouts and worktrees: `LocalRepositories`, `Worktrees` and Git adapters. |
 | `agents/` | The agent team: `AgentTeam`, `ForemanTerminal`, AgentShell and Pi adapters. |
 | `runtime/` | Where a session runs: the `SessionHost` port and the tmux adapter. |
-| `channels/` | How people reach the Foreman: the `Channel` port and the terminal channel. |
+| `channels/` | How people reach the Foreman: `Channel` (terminal) and `ChatChannel` (Discord). |
 | `shared/` | Plumbing without business rules: errors, watch stop, commands, files, installs. |
 | `configuration.py` | Expose validated configuration loading to package consumers. |
 
@@ -80,6 +80,9 @@ classDiagram
     WatchFactory --> ForemanTerminal
     WatchFactory --> ScaffoldIssue
     WatchFactory --> CleanupCompleted
+    WatchFactory --> ChatRelay
+    ChatRelay --> ChatChannel
+    DiscordLink ..|> ChatChannel
     CleanupCompleted --> FactoryRecords
     CleanupCompleted --> Worktrees
     CleanupCompleted --> Ticketing
@@ -111,6 +114,7 @@ classDiagram
     <<interface>> AgentTeam
     <<interface>> PlanningSetup
     <<interface>> PersistentForeman
+    <<interface>> ChatChannel
 ```
 
 `BorrowedForemanTerminal` communicates with the owner process through a private inherited channel;
@@ -345,23 +349,25 @@ The [development-checks ADR](adrs/development-checks.md) explains enforced impor
   limits, exact-commit evidence, owner coordination and historical cleanup; live validation pending.
 - [Agent onboarding and maintenance](adrs/agent-onboarding.md): numbered choices, selected Foreman
   maintenance guidance and the boundary between implemented setup and the Foreman-first proposal.
+- [Discord channel](adrs/discord-channel.md): a relay child of plain `watch` posts Foreman status
+  and text and sends allowed people's @mentions to the Foreman; live Discord check pending.
 ## Source navigation
 
 Paths below are relative to `src/forgetful_factory/`:
 
-- CLI entry: `cli/main.py`, line 838; init: line 612; project choice: line 396;
-  numbered choices: line 221; worker setup: line 556; completion/skill folders: line 571;
+- CLI entry: `cli/main.py`, line 840; init: line 614; project choice: line 398;
+  numbered choices: line 221; worker setup: line 558; completion/skill folders: line 573;
   optional manual launch: line 638.
   New-setup orchestration: line 755; memory choices: line 514; REST eligibility: line 549.
   Public numbered parser: `cli/numbered_selection.py`, line 6; finalization: line 689 in main.
-  Adapter wiring: `cli/bootstrap.py`, lines 71 and 99; ticketing registry and source checks:
-  lines 38 and 82; GitHub CLI preflight: line 106; selected root launch: line 129.
+  Adapter wiring: `cli/bootstrap.py`, lines 76 and 118; ticketing registry and source checks:
+  lines 42 and 87; GitHub CLI preflight: line 125; selected root launch: line 153.
   Tickets and port: `ticketing/model.py`, line 22; `ticketing/ports.py`, line 6. GitHub Issues:
   `ticketing/adapters/github.py`, lines 17, 21, 92 and 111. Forge port: `forge/ports.py`, line 6;
   GitHub remotes and pull request URLs: `forge/adapters/github.py`, lines 8 and 19.
-  Deadline policies: `cli/deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 131.
+  Deadline policies: `cli/deadlines.py`, line 9; AgentShell deadlines: `agents/model.py`, line 139.
 - Workflows: `factory/services/initialise_factory.py`, line 37; `factory/services/watch_factory.py`,
-  line 59; private run state: line 37; `factory/services/scaffold_issue.py`, line 38.
+  line 61; private run state: line 39; `factory/services/scaffold_issue.py`, line 38.
   Standalone Foreman: `factory/services/start_foreman.py`, line 14. DoD selection, confirmation
   and deployment draft: `factory/services/definition_of_done.py`, lines 9 and 57; the agreement
   file: `factory/adapters/markdown_agreement.py`, line 7.
@@ -375,8 +381,8 @@ Paths below are relative to `src/forgetful_factory/`:
   `factory/adapters/cleanup_receipts.py`, lines 40–100.
 - Planning: `planning/ports.py`, lines 7 and 11 (`PlanStore` adds `owns` and `backend_identity`);
   `planning/adapters/forgetful/plan_store.py`, line 13; read classification/validation: lines 26–81;
-  shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 13 and 124; project
-  listing/creation: lines 97 and 107.
+  shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 14 and 128; project
+  listing/creation: lines 101 and 111.
 - Worktrees: `workspace/ports.py`, line 27; read/safety failures: lines 14 and 18;
   `workspace/adapters/git/worktrees.py`, line 33; inspection: line 66; write boundary: line 106.
   Common identity: line 41; target: line 54; absence: line 83; disposal/checks: lines 200–359.
@@ -389,7 +395,7 @@ Paths below are relative to `src/forgetful_factory/`:
   persistence: line 140; unselected-memory notice: line 277; saved native home:
   `agents/adapters/pi/native_home.py`, line 11. `agents/adapters/pi/coordinator_profiles.py`,
   line 29; memory preferences: line 87; `agents/adapters/pi/worker_profiles.py`, line 16. Starter
-  templates live under `resources/`. Contracts: `AgentTeam` in `agents/ports.py`, line 37;
+  templates live under `resources/`. Contracts: `AgentTeam` in `agents/ports.py`, line 38;
   `PlanningSetup` in `planning/ports.py`, line 38 (`planning/adapters/forgetful/setup.py`, line 9).
   Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80; update command:
   `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
@@ -397,28 +403,30 @@ Paths below are relative to `src/forgetful_factory/`:
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones
-  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 57.
-- Transient wizard choices: `agents/model.py`, line 9.
+  (`factory/services/initialise_factory.py`, line 21), in the order of `cli/bootstrap.py`, line 61.
+- Transient wizard choices: `agents/model.py`, line 17.
   Root definition schema/paths: `agents/adapters/pi/agent_definitions.py`, lines 73 and 86.
   File checks and conflict-safe definition writes: `shared/resource_files.py`,
   lines 18 and 46; selected guidance walk: `agents/adapters/pi/selected_skills.py`, line 31.
   `tests/test_local_skills.py` covers preservation, not native loading or discovery.
 - Model discovery: `agents/adapters/agentshell/model_catalog.py`, line 10; controller:
-  `agents/adapters/agentshell/controller.py`, line 285; host choice: line 106; child launch
-  validation: line 131; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
+  `agents/adapters/agentshell/controller.py`, line 315; host choice: line 136; child launch
+  validation: line 161; pane identity and worker pinning: `tmux_host.py` beside it, lines 9 and 28.
   Session host: `runtime/ports.py`, line 4; tmux: `runtime/adapters/tmux.py`, line 28. Channel:
-  `channels/ports.py`, line 4; terminal: `channels/adapters/terminal.py`, line 8. Started by path or
+  `channels/ports.py`, lines 6 and 16 (chat); terminal: `channels/adapters/terminal.py`, line 8.
+  Discord: `channels/adapters/discord/link.py`, line 25, and `relay.py`, line 78; chat rules:
+  `factory/services/chat_relay.py`, line 22; Foreman replies: controller line 28. Started by path or
   module name: `agents/adapters/agentshell/launch.py`; bundled resources: `shared/resources.py`.
 - Setup lifecycle: `agents/adapters/agentshell/owner.py`, line 104;
   synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;
   client: `agents/adapters/agentshell/owner_client.py`, line 112;
-  borrowed terminal: `agents/adapters/agentshell/borrowed_terminal.py`, line 10;
+  borrowed terminal: `agents/adapters/agentshell/borrowed_terminal.py`, line 11;
   private runtime directory: `agents/adapters/agentshell/foreman_runtime.py`, line 10.
 - Lifecycle status: `factory/services/watch_status.py`, line 10; owner report:
   `agents/adapters/agentshell/owner_client.py`, line 201; plain watcher:
   `factory/adapters/watch_status.py`, lines 87, 124, 225 and 247. Optional observer startup follows
   admission; observation wraps terminal calls without changing owned/borrowed cleanup.
-- Configuration: `factory/model/configuration.py`, lines 11 and 44; Forgetful settings:
+- Configuration: `factory/model/configuration.py`, lines 12 and 50; Forgetful settings:
   `planning/model.py`, lines 13 and 72; public loader: `configuration.py`, line 9.
 - Public-boundary tests: `tests/test_init.py`, `tests/test_planning_setup.py`,
   `tests/test_planning_watch.py`, `tests/test_owner_profiles.py`, `tests/test_setup_completion.py`
@@ -482,7 +490,7 @@ archives are not expanded by this map.
 - Check filtering notices and warnings. Missing edges do not establish independence.
 - Verify important relationships against source; static call matching is heuristic.
 
-The map reports thirteen unresolved external-base warnings (`Protocol`, `Exception`, `ValueError`
+The map reports 22 unresolved external-base warnings (`Protocol`, `Exception`, `ValueError`
 and `Enum`). Some
 same-name call edges are incorrect: command execution's `run` is associated with `ForemanOwner.run`,
 and external session/file `close` calls with `BorrowedForemanTerminal.close`. Use source and import
