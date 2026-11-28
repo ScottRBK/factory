@@ -52,6 +52,7 @@ MODULES = (
     'runtime.adapters.tmux',
     'channels.ports',
     'channels.adapters.terminal',
+    'channels.adapters.discord.relay',
     'boundary_probe.bridge',
 )
 
@@ -100,6 +101,8 @@ ALLOWED = (
     ('channels.ports', 'runtime.ports'),
     ('channels.adapters.terminal', 'channels.ports'),
     ('channels.adapters.terminal', 'runtime.ports'),
+    ('channels.adapters.discord.relay', 'discord'),
+    ('channels.adapters.discord.relay', 'channels.ports'),
     ('cli.bootstrap', 'configuration'),
     ('cli.bootstrap', 'factory.adapters.filesystem'),
     ('cli.bootstrap', 'factory.services.workflow'),
@@ -197,10 +200,17 @@ REJECTED = (
     ('agentshell-in-agents', 'runtime.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'channels.adapters', 'agent_shell'),
     ('agentshell-in-agents', 'cli', 'agent_shell'),
+    # allow_indirect_imports: only direct imports are rejected; the indirect run must pass.
+    ('discord-in-its-adapter', 'factory.services', 'discord'),
+    ('discord-in-its-adapter', 'channels.ports', 'discord'),
+    ('discord-in-its-adapter', 'channels.adapters.terminal', 'discord'),
+    ('discord-in-its-adapter', 'agents.adapters', 'discord'),
+    ('discord-in-its-adapter', 'shared', 'discord'),
+    ('discord-in-its-adapter', 'cli', 'discord'),
 )
 
 # Rows and imports name modules relative to the package, except these external packages.
-EXTERNAL = {'agent_shell', 'socket', 'subprocess'}
+EXTERNAL = {'agent_shell', 'discord', 'socket', 'subprocess'}
 
 
 def absolute(module: str) -> str:
@@ -470,6 +480,13 @@ class CoverageTests(unittest.TestCase):
         known = {'factory/services/initialise_factory.py': ['github'],
                  'agents/model.py': ['agentshell'] * 5}
         self.assertEqual({path: hits for path, hits in found.items() if hits}, known)
+
+    def test_services_and_ports_name_no_chat_provider(self):
+        # The chat rules and ports suit any chat room; settings and adapters name Discord.
+        files = [*SOURCE.glob('*/ports.py'), *SOURCE.glob('*/services/*.py')]
+        found = sorted(str(path.relative_to(SOURCE)) for path in files
+                       if re.search('discord|slack', path.read_text(), re.IGNORECASE))
+        self.assertEqual(found, [])
 
     def test_source_distribution_carries_every_test_file(self):
         # The sdist ships the tests; a file outside these patterns breaks collection there.

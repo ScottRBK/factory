@@ -24,10 +24,10 @@ Reviewed sources:
 - ScottRBK/pi-hide-tools-extension, commit `a811fd2a2fcdb2ab94bf11b4ce4d6c0c9e210029`
   (package 0.1.0). Imports Node built-ins and Pi-provided modules. No installer or network calls.
   No upstream license file was present. Source remains attributed to Scott's repository.
-- ScottRBK/pi-forgetful-extension, base `d9a7c98c74b1ac5aafdd5eb887d994f6ddaf7a91`, with
-  local patch `94f36002c512cf1d82c935edbd373de1e8eb9f5097492381ae91d2a29581066c`. The patch
+- ScottRBK/pi-forgetful-extension, base `d2cff4c1f49a307aea4fa7bdbd169856c4f50803`, with
+  local patch `7476105efcf67c30161f5c68654fdfc8b37bc21d935eb29ff5832140544e7b46`. The patch
   hash is the SHA-256 of `git diff --cached --full-index --binary` in a checkout of the base after
-  copying in the 40 bundled files and running `git add -A`. See the refreshes below.
+  copying in the 41 bundled files and running `git add -A`. See the refreshes below.
   The original 40-file runtime closure was independently approved for inert internal inclusion.
   The runtime-alignment follow-up removes only the Factory-specific host gate from that closure.
   Its new patch hash covers the complete local diff against the same upstream revision. Its managed
@@ -99,6 +99,41 @@ mode. Local checks need an already provisioned model cache. Review and prepare m
 5. Rebuild the zip (sorted names, deflate, 2026-01-01 timestamps, mode 0600). Update the manifest
    revision, patch hash and file hashes. Append every new hash to the history file.
 6. Run the full suite and `update --dry-run` against real factories. Record the evidence here.
+
+## 2026-11-28 pi-forgetful refresh
+
+Moved from base `d9a7c98` to `d2cff4c`, the squash merge of PR #7 (three commits by Scott; GitHub
+reports the merge commit as verified). GitHub `main` is at `d2cff4c`, and its tree is the same as
+the PR head `a5d2c50` in Scott's checkout. The runtime closure grows from 39 to 40 files, plus
+`package.json`, with the same external imports. One file is new, `src/capture-limits.ts`, and four
+change: `capture.ts`, `contracts.ts`, `http.ts` and `http-knowledge.ts`. `package.json`, the npm
+lock, `agentshell` and `hide-tools` bytes are unchanged.
+
+- Capture prompts state Forgetful's own published field limits. The extension reads them once
+  per capture pass from `/.well-known` on the configured server (`getDeployment`, which the
+  planning adapter already uses). A 404 or 405 means no limits, and other read errors are logged
+  at debug level; capture then continues without numbers. Type and field names must match
+  `^[a-z][a-z0-9_]{0,63}$` and bounds must be safe non-negative integers before they reach a
+  prompt. The fixed "at most 2000 characters" merge text is replaced by the published limit.
+- Readback no longer applies the extension's own length and count limits to memory, project and
+  knowledge fields; Forgetful owns them. The response byte limits (1 MB, 14 MB for files) stay.
+- Each model call checks the read permission again just before it starts.
+
+Runtime review: no new external imports, processes, network targets, file writes or environment
+reads. The only new request is the `/.well-known` read above, on the same server.
+
+The old patch hash reproduced from the bundled files against `d9a7c98`. The patch applied to
+`d2cff4c` with `git apply --3way` and no conflicts. Its changed and context lines are identical;
+only blob hashes and hunk line numbers changed, which changes the patch hash.
+
+Validation: strict `tsc --noEmit`, with `factory.ts` added to the project's include list, passes.
+Upstream's 1383 tests give the same result on the patched and plain trees, test by test:
+1002 pass, 0 fail, 381 skipped. Dev dependencies came from Scott's checkout, whose package files
+match `d2cff4c`; nothing was installed. Upstream's architecture script gives the same two
+findings on the old and new patched trees (40 production modules instead of 39). The zip builder
+reproduced the old zip byte for byte before the swap. Read-only `update --dry-run` from the
+source tree, 0 edited in both: dark-business plans 1 addition and 4 replacements; DinoLand plans
+1 addition and 10 replacements, because it did not take the `d9a7c98` refresh.
 
 ## 2026-11-25 pi-forgetful refresh
 

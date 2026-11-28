@@ -45,11 +45,19 @@ has no planning, DoD or orchestration knowledge. Domain code has no raw Git or F
 
 ## Full records and competing claims
 
-Each cycle reads a complete user-wide plan inventory, then full plans, rather than trusting summary
-status. A stale active summary cannot hide a completed full plan; a completed summary cannot
-override an active full plan. An invalid/incomplete inventory permits no deletion. Any unreadable
-full plan, task inventory, full claim-bearing task, malformed ownership/unknown target or required
-namespace identity blocks ALL disposal for that cycle: independent resources cannot be proved.
+Each cycle reads a complete user-wide plan inventory. Each listed row must have Forgetful
+0.5.5 `PlanSummary` types: a positive integer `project_id`, a known `status` and a text or null
+`external_ref`. One bad row fails the whole list with the `cleanup_inventory_read_failed` alert.
+The summary check applies to the whole poll. If no summary shows an open plan (owned, `completed`,
+in scope and without a plan record; see [plan records](#plan-records-and-the-plan-list-fast-path)),
+the poll ends. If any summary shows an open plan, the poll reads all listed full plans, recorded
+ones included. Then each plan's full status decides disposal, also for a plan whose summary still
+says active. A completed summary cannot override an active full plan. When no open plan is listed,
+an active summary delays cleanup until the list shows `completed`. Recorded plans are read and
+supply claims, but they are not disposal candidates. An invalid/incomplete inventory permits no
+deletion. Any unreadable full plan, task inventory, full claim-bearing task, malformed
+ownership/unknown target or required namespace identity blocks ALL disposal for that cycle:
+independent resources cannot be proved.
 Report the affected identity and retry reads next cycle; do not pause otherwise safe issue intake.
 If there is no unconfirmed selected completed candidate, skip the claim index and Git namespaces.
 Cleanup inventory alerts use their own subject/code and clear after recovery. They do not consume
@@ -68,6 +76,7 @@ Readable local identities withhold authority even when their origins are wrong; 
 validation remains mandatory before disposal. Feature-ref and merge-target collisions withhold
 authority from affected resources. Summary duplicate references can also withhold
 authority when a competing detail reply is unreadable; summaries never grant deletion authority.
+They only withhold work: a summary decides if a cycle reads full records, never what it deletes.
 A missing owner cannot authorize its own resources; an unreadable or invalid claim-bearing record
 withholds all disposal, rather than being discarded from the index. No ownership is guessed from
 issue/branch naming. Immediately before each mapping, reread its full owner/mappings and plan
@@ -151,10 +160,11 @@ health check or proof of agent receipt.
 
 `CleanupReceipts` is a factory port. The CLI wires `FileCleanupReceipts` to the separate
 cleanup workflow. The Git adapter only handles Git state. `.factory/cleanup-finished.json` stores
-versioned identities for confirmed sets. Each identity includes the canonical
-workspace, configured native backend target, native plan ID and external reference, canonical work
-source, root, branch and worktree path. Native plan IDs are user-wide: the selected project and
-ownership-task ID are validated before disposal, not mutable parts of a finished set's identity.
+versioned identities for confirmed sets and, from version 2, for finished plans. Each set
+identity includes the canonical workspace, configured native backend target, native plan ID and
+external reference, canonical work source, root, branch and worktree path. Native plan IDs are
+user-wide: the selected project and ownership-task ID are validated before disposal, not mutable
+parts of a finished set's identity.
 Changing only a target branch must not restore authority over a finished set. Same-plan resource
 name reuse with a changed set/backend identity is a conflict requiring reconciliation. Configuration
 aliases and workspace/backend moves do not get automatic migration or guessed backend identity.
@@ -162,12 +172,38 @@ aliases and workspace/backend moves do not get automatic migration or guessed ba
 Every set persists independently after final native absence checks. A sibling failure cannot
 undo that confirmation. A later poll/restart skips the confirmed set even when human local/remote
 refs now use its names. Finished sets no longer supply resource/target claims or cleanup Git work.
-The plan itself is not marked finished: each poll still reads full plans and own mappings, allowing
-pending siblings to be found without building a claim index when none remain.
+When every set of a completed plan has a receipt, the plan gets its own record. Until then, each
+poll reads full plans and own mappings, so pending siblings are found without building a claim
+index when none remain.
 
-The document is a private owned regular file. Symlinks, hardlinks, malformed/duplicate/unknown
-fields, unsupported versions, copied workspace identities, unreadable storage and files above the
-fixed 16 MiB safety limit withhold all disposal, not safe intake. Save by same-directory temporary
+### Plan records and the plan-list fast path
+
+Before this change, each cycle read every full plan and the full tasks of each completed plan,
+even when all were cleaned. One dark-business cycle made about 80 Forgetful CLI calls of 1.3 to
+2.6 s each. Plain watch reads Discord only between cycles, so Discord replies waited minutes.
+
+A plan record holds the workspace, backend identity, plan ID and external reference. Cleanup
+writes it when a full read shows nothing left to dispose for that completed plan in this
+workspace: every mapping has a receipt, including sets confirmed in this cycle, or the plan has
+no mappings. The first cycle after an upgrade records plans that older receipts already cover,
+with no Git work. A plan does not get a record while a set is blocked, failed or unconfirmed, or
+while its records are invalid, missing an owner or ambiguous; it is read again next poll. Before
+a record, the reference must be unique across the listed and full plans of that poll. Plans that
+share a reference get a `cleanup_ownership_conflict` alert and no record. All records of one step
+go in one atomic write. A failed write alerts as `cleanup_receipt_failed` (subject
+`cleanup:plan-records`) and stops that cycle's disposal.
+
+Each cycle then reads the plan list. If no summary shows an open plan, the cycle ends after that
+one call. A recorded plan is not read again (strict skip). Worktrees added to a closed plan after
+its record are not cleaned up. Scott accepted this: they are edge cases and get no guard.
+Recorded plans still supply ownership claims when another plan's cleanup builds the claim index.
+A batch read of tasks would also cut the slow path; see
+[Forgetful issue #257](https://github.com/ScottRBK/forgetful/issues/257).
+
+The document is a private owned regular file. Version 1 files (sets only) still load; each save
+writes version 2. Symlinks, hardlinks, malformed/duplicate/unknown fields, unsupported versions,
+copied workspace identities, unreadable storage and files above the fixed 16 MiB safety limit
+withhold all disposal, not safe intake. Save by same-directory temporary
 file, file fsync, atomic replace and directory fsync. Reading an existing receipt also syncs its
 file/directory, settling a prior lost fsync acknowledgement before accepting terminal authority.
 This uses the existing workspace lease, with no new lock, scheduler service or configuration.

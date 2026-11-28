@@ -7,7 +7,7 @@ import uuid
 from dataclasses import asdict
 
 from forgetful_factory.agents.adapters.agentshell.launch import CONTROLLER
-from forgetful_factory.agents.model import AgentShellLifecycleDeadlines
+from forgetful_factory.agents.model import AgentShellLifecycleDeadlines, ForemanReply
 from forgetful_factory.channels.ports import Channel
 from forgetful_factory.runtime.ports import SessionHost
 from forgetful_factory.shared.errors import FactoryError
@@ -21,8 +21,11 @@ class AgentShellTerminal:
                  resources: dict | None = None, prompt: str | None = None,
                  cwd: str | None = None, model: str | None = None, effort: str | None = None,
                  deadlines: AgentShellLifecycleDeadlines = AgentShellLifecycleDeadlines(), *,
-                 host: SessionHost, channel: Channel):
+                 host: SessionHost, channel: Channel, replies: bool = False):
         self.python = python
+        # Ask the controller for the Foreman's replies; they wait here until wait() returns them.
+        self.replies = replies
+        self.received: list[ForemanReply] = []
         self.host = host
         self.channel = channel
         self.environment = environment
@@ -57,11 +60,44 @@ class AgentShellTerminal:
                 except OSError as error:
                     raise FactoryError('AgentShell input closed; Pi delivery failed.') from error
 
+    def _receive(self) -> None:
+        chunk = os.read(self.process.stdout.fileno(), 65536)
+        if not chunk:
+            raise FactoryError('AgentShell controller exited; check its error output.')
+        self.buffer += chunk
+
+    def _take(self) -> dict | None:
+        """The next buffered controller message. Foreman replies are kept for wait()."""
+        while b'\n' in self.buffer:
+            line, self.buffer = self.buffer.split(b'\n', 1)
+            try:
+                reply = json.loads(line)
+                if not isinstance(reply, dict):
+                    raise ValueError('Expected an object')
+            except ValueError as error:
+                raise FactoryError('Invalid AgentShell controller response.') from error
+            if reply.get('kind') != 'reply':
+                return reply
+            text, error = reply.get('text'), reply.get('error')
+            if not isinstance(text, str) or not isinstance(error, (str, type(None))):
+                raise FactoryError('Invalid AgentShell controller response.')
+            self.received.append(ForemanReply(text, error))
+        return None
+
+    @staticmethod
+    def _expect(reply: dict, expected: str) -> dict:
+        if reply.get('kind') == 'error':
+            raise FactoryError(f'AgentShell: {reply.get("message", "terminal failed")}')
+        if reply.get('kind') != expected:
+            raise FactoryError(f'AgentShell stopped before {expected} acknowledgement; '
+                               'watcher stopped without assuming success.')
+        return reply
+
     def _read(self, timeout: float, expected: str) -> dict:
         deadline = time.monotonic() + timeout
         with selectors.DefaultSelector() as selector:
             selector.register(self.process.stdout, selectors.EVENT_READ)
-            while b'\n' not in self.buffer:
+            while (reply := self._take()) is None:
                 check_watch_stop()
                 if not selector.select(max(0, deadline - time.monotonic())):
                     if expected == 'ready':
@@ -73,23 +109,8 @@ class AgentShellTerminal:
                             'to resolve any trust dialog.')
                     raise FactoryError('Pi send response timed out; submission is uncertain. '
                                        'Check the Pi terminal before restarting watch.')
-                chunk = os.read(self.process.stdout.fileno(), 65536)
-                if not chunk:
-                    raise FactoryError('AgentShell controller exited; check its error output.')
-                self.buffer += chunk
-        line, self.buffer = self.buffer.split(b'\n', 1)
-        try:
-            reply = json.loads(line)
-            if not isinstance(reply, dict):
-                raise ValueError('Expected an object')
-        except ValueError as error:
-            raise FactoryError('Invalid AgentShell controller response.') from error
-        if reply.get('kind') == 'error':
-            raise FactoryError(f'AgentShell: {reply.get("message", "terminal failed")}')
-        if reply.get('kind') != expected:
-            raise FactoryError(f'AgentShell stopped before {expected} acknowledgement; '
-                               'watcher stopped without assuming success.')
-        return reply
+                self._receive()
+        return self._expect(reply, expected)
 
     def start(self) -> None:
         helper = CONTROLLER.resolve()
@@ -106,22 +127,30 @@ class AgentShellTerminal:
         self._write({'cwd': self.cwd, 'model': self.model, 'effort': self.effort,
                      'session_name': self.session_name, 'resources': self.resources,
                      'prompt': self.prompt, 'deadlines': asdict(self.deadlines),
-                     'host': self.host.spec()}, 10)
+                     'host': self.host.spec(), **({'replies': True} if self.replies else {})},
+                    10)
         self._read(self.deadlines.parent_ready, 'ready')
 
     def send(self, message: str) -> None:
         self._write({'text': message}, 10)
         self._read(20, 'sent')
 
-    def wait(self, interval: float) -> None:
+    def wait(self, interval: float) -> list[ForemanReply]:
         check_watch_stop()
         with selectors.DefaultSelector() as selector:
             selector.register(self.process.stdout, selectors.EVENT_READ)
             deadline = time.monotonic() + interval
-            while (remaining := deadline - time.monotonic()) > 0:
+            while True:
+                # Between sends the controller sends only replies, or an error when Pi stops.
+                if (reply := self._take()) is not None:
+                    self._expect(reply, 'error')
+                if (remaining := deadline - time.monotonic()) <= 0:
+                    break
                 check_watch_stop()
                 if selector.select(min(remaining, 60)):
-                    self._read(1, 'error')
+                    self._receive()
+        received, self.received = self.received, []
+        return received
 
     def close(self) -> None:
         if self.process is None:

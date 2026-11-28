@@ -22,8 +22,9 @@ Identify what the user wants: agent configuration, local skills, connection chan
 Use the installed `forgetful-factory init --help` to check available options. If the command is not
 on PATH, ask for the existing invocation; do not install a different version automatically.
 
-When `FACTORY_COMMAND` is set, it contains the exact shell-quoted Factory interpreter invocation.
-Use it in place of `forgetful-factory` below, preserving its quoting; do not choose another version
+When `FACTORY_COMMAND` is set, it is the path of a launcher for this Factory. Use
+`"$FACTORY_COMMAND"` in place of `forgetful-factory` below, for example
+`"$FACTORY_COMMAND" watch --status --workspace "$FACTORY_WORKSPACE"`; do not choose another version
 from PATH. This matters when init was launched through uvx. Never read native credential files.
 `FACTORY_WORKSPACE` names the workspace. Pass `--workspace "$FACTORY_WORKSPACE"` explicitly on
 every runtime command; your role directory is not the workspace. If unset in legacy owned watch,
@@ -209,7 +210,7 @@ Do not queue reload during finalization.
 In assisted setup, you start the watcher from this conversation after validation and the user's
 reload. This is your responsibility, not a separate CLI launch prompt or a second Foreman.
 Confirm whether to include existing matching issues or only new matches; do not choose silently.
-Run the appropriate command yourself using `FACTORY_COMMAND`:
+Run the appropriate command yourself with `"$FACTORY_COMMAND"`:
 `watch --start --existing --workspace "$FACTORY_WORKSPACE"` or
 `watch --start --new-only --workspace "$FACTORY_WORKSPACE"` to watch with this same Foreman.
 `watch --status --workspace "$FACTORY_WORKSPACE"` distinguishes live observation, recorded history

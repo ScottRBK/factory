@@ -131,41 +131,15 @@ Then follow its finalization and reload steps before you start its watcher. See
 [assisted setup](docs/adrs/agent-onboarding.md#assisted-setup-and-persistent-foreman). For
 recovery, see [watcher control](docs/adrs/agent-onboarding.md#operator-commands).
 
-## Configuration and control
+## Configuration
 
-Factory settings live in `.factory/factory.toml`. Each agent has its own `agent.json`.
-The completion agreement lives in `.factory/definition_of_done.md`.
+Factory keeps its settings in `.factory/` in the workspace.
+See [configuration](docs/configuration.md) for:
 
-Repeated `init` preserves saved files; it does not refresh settings or repeat setup.
-Use `init --finalize` to complete or revalidate unfinished first setup. For later edits,
-see the [reload rules](docs/adrs/agent-onboarding.md#maintenance-and-selected-resources).
-You can also ask Foreman for help with `/skill:factory-maintenance`.
-
-After you install a newer Factory, update the bundled role resources in `.factory/resources`.
-Stop Foreman, watch and delegated work first. Preview the changes, then apply them:
-
-```bash
-uvx --refresh --from "$wheel" forgetful-factory update --dry-run \
-  --workspace /absolute/path/to/workspace
-uvx --refresh --from "$wheel" forgetful-factory update --workspace /absolute/path/to/workspace
-```
-
-The update replaces only unedited files and never changes `.factory/agents/` or `.factory/data/`.
-An edited file stops the update; `--force` backs it up, then replaces it. When the new bundle
-changes the AgentShell lock, the update installs the locked packages from PyPI;
-`--no-install-role-runtime` skips that. See the [update ADR](docs/adrs/role-resource-update.md).
-
-Foreman's Forgetful extension reads its settings from `.factory/agents/foreman/forgetful.json`.
-The file takes the extension's own settings and rules, for example:
-
-```json
-{"enabled": true, "capture_mode": "auto", "model": "provider/model-id",
- "context_limit_tokens": 262144, "logging": "debug"}
-```
-
-Factory sets the server, authentication, project and log folder, so the file must not set them.
-Stop Foreman, edit the file, then start Foreman. After a Factory upgrade, run `update` first.
-See [memory settings](docs/adrs/foreman-memory.md#memory-settings).
+- the settings files and how to change them after first setup;
+- updating role resources after you install a newer Factory;
+- Foreman memory settings;
+- the Discord channel: status, replies and messages through Discord with plain watch.
 
 ## Development
 
@@ -187,6 +161,8 @@ commit `uv.lock` with reviewed changes to `pyproject.toml`.
 
 ## Documentation
 
+- [Configuration](docs/configuration.md): settings files, role-resource updates, Foreman memory
+  and Discord.
 - [Factory intent](FACTORY.md): intended behaviour. Older agent fields are superseded by
   the [agent definition contract](docs/adrs/agent-definitions.md).
 - [Architecture](docs/architecture.md): components, boundaries and links to design decisions.
@@ -198,5 +174,7 @@ commit `uv.lock` with reviewed changes to `pyproject.toml`.
   Factory without losing agent customizations.
 - [Completion agreement](docs/adrs/completion-agreement.md): what must happen before a plan closes.
 - [Planning and recovery](docs/adrs/issue-planning.md): saved ownership and worktree handling.
+- [Discord channel](docs/adrs/discord-channel.md): status, replies and messages through Discord
+  with plain watch.
 - [Foreman planning UI and optional memory](docs/adrs/foreman-memory.md): server-only extension;
   automatic memory defaults off and live enablement still needs the capture-URL policy decision.

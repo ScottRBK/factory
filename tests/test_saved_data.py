@@ -138,12 +138,14 @@ class SavedDataTests(CompletedCleanupFixture):
         self.finish_mapping(mapping)
         self.save(message, record)
         # Act
+        receipt = self.workspace / '.factory/cleanup-finished.json'
         process = self.start('--new-only')
-        self.wait_until(process, lambda: (self.workspace / '.factory/cleanup-finished.json')
-                        .exists(), timeout=15)
+        # The plan record is written last, after the set's receipt.
+        self.wait_until(process, lambda: receipt.exists() and bool(
+            json.loads(receipt.read_text())['plans']), timeout=15)
         self.stop(process)
         # Assert
-        raw = (self.workspace / '.factory/cleanup-finished.json').read_text()
+        raw = receipt.read_text()
         self.assertEqual(json.dumps(json.loads(raw), indent=2) + '\n', raw)
         assert_fixture(self, 'cleanup_receipts', self.normalize(json.loads(raw)))
 

@@ -1,20 +1,24 @@
-import shlex
 import sys
+from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
+from forgetful_factory.agents.adapters.agentshell.foreman_runtime import factory_launcher
 from forgetful_factory.agents.adapters.agentshell.owner_client import AgentShellOwner
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
 from forgetful_factory.agents.adapters.pi.agent_team import PiAgentTeam
 from forgetful_factory.agents.adapters.pi.runtime_install import PiInstall
+from forgetful_factory.channels.adapters.discord.link import DiscordLink
 from forgetful_factory.channels.adapters.terminal import TerminalChannel
+from forgetful_factory.channels.model import secret_names
 from forgetful_factory.cli.deadlines import DeadlinePolicy
 from forgetful_factory.configuration import load_configuration
 from forgetful_factory.factory.adapters.cleanup_receipts import FileCleanupReceipts
 from forgetful_factory.factory.adapters.toml_configuration import TomlConfigurationStore
 from forgetful_factory.factory.adapters.watch_status import ObservedTerminal, plain_watch_status
 from forgetful_factory.factory.model.configuration import FactoryConfiguration
+from forgetful_factory.factory.services.chat_relay import CHAT_INTERVAL
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.initialise_factory import InitialiseFactory, missing_tools
 from forgetful_factory.factory.services.scaffold_issue import ScaffoldIssue
@@ -28,6 +32,7 @@ from forgetful_factory.planning.adapters.forgetful.plan_store import ForgetfulPl
 from forgetful_factory.planning.adapters.forgetful.setup import ForgetfulSetup
 from forgetful_factory.planning.model import ForgetfulConnection
 from forgetful_factory.runtime.adapters.tmux import TmuxHost, TmuxInstall
+from forgetful_factory.shared.env_file import DEFAULT_ENV_FILE
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.ticketing.adapters.github import GitHubTicketing
 from forgetful_factory.ticketing.ports import Ticketing
@@ -63,7 +68,8 @@ def build_tools(workspace: Path, connection: ForgetfulConnection, term_grace: fl
 
 def build_team(workspace: Path, term_grace: float = 3) -> PiAgentTeam:
     return PiAgentTeam(workspace, term_grace,
-                       role_environment=partial(role_environment, workspace),
+                       role_environment=partial(role_environment, workspace,
+                                                hidden=secret_names(None)),
                        missing_tools=lambda connection: missing_tools(
                            build_tools(workspace, connection, term_grace)))
 
@@ -96,9 +102,24 @@ def select_ticketing(config: FactoryConfiguration, command_timeout: float) -> Ti
     return next(iter(adapters.values()))
 
 
+def _warn(message: str) -> None:
+    print(f'Warning: {message}', file=sys.stderr, flush=True)
+
+
+def build_chat(config: FactoryConfiguration,
+               warn: Callable[[str], None] = _warn) -> DiscordLink | None:
+    """The chat room linked to the Foreman, when the settings name one."""
+    if config.discord is None:
+        return None
+    explicit = config.env_file is not None
+    env_file = Path(config.env_file) if explicit else DEFAULT_ENV_FILE.expanduser()
+    return DiscordLink(config.discord, env_file, explicit_env_file=explicit, warn=warn)
+
+
 def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                   terminal=None, deadlines: DeadlinePolicy = DeadlinePolicy(),
-                  observation=None) -> WatchFactory:
+                  observation=None, warn: Callable[[str], None] = _warn,
+                  chat_interval: float = CHAT_INTERVAL) -> WatchFactory:
     ticketing = select_ticketing(config, deadlines.external_command)
     if config.forgetful is None:
         raise FactoryError('Shared Forgetful settings are missing; run init in a fresh factory. '
@@ -109,9 +130,14 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
     notice = profile.managed_memory_notice()
     if notice is not None:
         print(notice, flush=True)
+    chat = None
+    if terminal is None:
+        chat = build_chat(config, warn)
+    elif config.discord is not None:
+        warn('Discord works with plain watch only; this managed watcher does not use [discord].')
     terminal = terminal or AgentShellTerminal(
         python, environment, **launch, deadlines=deadlines.agentshell, host=build_host(),
-        channel=build_channel())
+        channel=build_channel(), replies=chat is not None)
     if observation is not None:
         terminal = ObservedTerminal(terminal, observation)
     planning = ForgetfulPlanStore(workspace, config.forgetful,
@@ -123,7 +149,8 @@ def build_watcher(python: str, config: FactoryConfiguration, workspace: Path,
                              ticketing)
     return WatchFactory(ticketing, terminal, scaffold,
                         CleanupCompleted(scaffold.records, scaffold.worktrees,
-                                         FileCleanupReceipts(workspace), ticketing))
+                                         FileCleanupReceipts(workspace), ticketing), chat,
+                        chat_interval)
 
 
 def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, complete=True,
@@ -134,8 +161,11 @@ def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, com
     if complete:
         profile.validate_completion()
     launch = profile.selected_launch(config.foreman_agent_file, config.forgetful)
-    environment = role_environment(workspace, config.forgetful, profile.pi_home())
-    environment['FACTORY_COMMAND'] = shlex.join([sys.executable, '-m', 'forgetful_factory'])
+    # Pi and its agents never receive a chat token.
+    environment = role_environment(workspace, config.forgetful, profile.pi_home(),
+                                   hidden=secret_names(config.discord))
+    # One path, so the Foreman can quote it; it runs this Factory on any machine.
+    environment['FACTORY_COMMAND'] = str(factory_launcher(workspace, sys.executable))
     environment['FACTORY_WORKSPACE'] = str(workspace)
     environment['PI_AGENTSHELL_ROSTER_FILE'] = config.foreman_agent_file
     environment['FACTORY_FOREMAN_AGENT_FILE'] = str(

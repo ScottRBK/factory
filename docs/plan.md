@@ -70,6 +70,9 @@ DoD or prove that a model followed it. Existing factories are not automatically 
   durable receipts are implemented. The isolated unchanged-CLI trial took 50.455 seconds versus
   112.445 seconds for three sets. This is one local measurement, not a latency guarantee.
   [Validation](plans/cleanup-performance.md#final-parent-validation-and-cleanup).
+  Plan records (receipt version 2) let a cycle with no open completed plan stop after one plan
+  list call. Local tests only; not yet run in a live factory.
+  [Plan records](plans/cleanup-performance.md#plan-records-and-the-plan-list-fast-path).
 
 ### Remaining work
 
@@ -89,6 +92,11 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 
 ### Recent delivered changes
 
+- Factory launcher: `FACTORY_COMMAND` is now one path,
+  `.factory/runtime/foreman/forgetful-factory`, which Factory writes at each Foreman start. It
+  runs the Factory that started the Foreman. The earlier value, `<python> -m forgetful_factory`,
+  failed when the Foreman put it in quotes (seen live on 2026-11-28). See
+  [operator commands](adrs/agent-onboarding.md#operator-commands).
 - [Memory settings](plans/memory-settings.md) for issue #5: Foreman's `forgetful.json` takes the
   extension's own settings, such as `context_limit_tokens` and `logging`, with the extension's
   rules. Factory refuses only the keys it sets and unknown keys. `init` leaves out `model` when
@@ -96,8 +104,8 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 - [Role-resource update](plans/role-resource-update.md) adds `forgetful-factory update` for
   issue #4. It replaces unedited bundled resources from earlier releases, refuses edited files
   unless `--force` backs them up, and preserves agent definitions. The bundle now carries
-  `pi-forgetful` `d9a7c98` with the private-task compaction, summary-reply and 404-rejection
-  fixes.
+  `pi-forgetful` `d2cff4c` with the private-task compaction, summary-reply and 404-rejection
+  fixes and Forgetful's published field limits in capture prompts.
   `update` no longer takes `--delegated-work-stopped`; it checks the lease and Foreman state
   only. It installs a changed AgentShell runtime lock unless `--no-install-role-runtime`. Live
   factory updates are Scott's next step. Removal of files that a bundle drops is deferred.
@@ -222,8 +230,9 @@ met.
   local/remote feature refs, including dirty/ignored content and extra commits. Native state drives
   partial retries/restart recovery; closed/new-only intake and GitHub failures do not hide cleanup.
   Save evidence elsewhere first. Resource names remain reserved until durable cleanup confirmation.
-  Preserve cleanup receipts; confirmed sets are not deleted again. DinoLand adoption is recorded
-  above; automatic migration of other factories is not provided.
+  Preserve cleanup receipts; confirmed sets are not deleted again, and recorded plans are not
+  read again. DinoLand adoption is recorded above; automatic migration of other factories is not
+  provided.
 - The [cleanup ADR](adrs/completed-plan-cleanup.md) records shared identity checks, target_branch,
   conflict isolation and explicit review of older completed mappings before enabling this version.
 - Automated tests check setup/recovery, not model compliance. One independent review and the final
@@ -250,6 +259,15 @@ AgentShell [0.5.0 supports attachment][agentshell-release]; [issue #25][attach] 
 upstream discussion. Factory's setup-owner integration does not use arbitrary-pane attachment.
 Connection cannot change an agent's settings or prove receipt; see the
 [attachment docs][attach-contract].
+
+### Slice 9: Discord channel (implemented; live check pending)
+
+Plain `watch` starts a Discord relay child. It posts 🟢 and 🔴 (with the stop reason) and every
+Foreman reply, so a stop is seen away from the machine. Allowed users can write to the Foreman
+from Discord, and a restart counts the messages that came while watch was off. Tests use fake
+Discord and fake AgentShell; a check on a real Discord server is still to do. See the
+[decision](adrs/discord-channel.md), the [work plan](plans/discord-channel.md) and the
+[discord.py audit](plans/discord-py-audit.md).
 
 ### Later slice: CLI-backed Foreman extension and local Forgetful support
 

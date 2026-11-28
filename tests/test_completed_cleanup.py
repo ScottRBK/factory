@@ -18,6 +18,12 @@ os.execvp('git', ['git', command.removeprefix('git-'), remotes[repository]])
 '''
 
 
+def plan_records(workspace):
+    """The plan records in a workspace's cleanup receipt file; none when it has no file."""
+    receipt = workspace / '.factory/cleanup-finished.json'
+    return json.loads(receipt.read_text()).get('plans', []) if receipt.exists() else []
+
+
 class CompletedCleanupFixture(PlanningWatchFixture):
     def setUp(self):
         super().setUp()

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from forgetful_factory.channels.model import DiscordSettings, discord_from_mapping
 from forgetful_factory.factory.model.repositories import RepositoryReference
 from forgetful_factory.planning.model import ForgetfulConnection, connection_from_mapping
 from forgetful_factory.shared.errors import FactoryError
@@ -14,6 +15,9 @@ class FactoryConfiguration:
     repository: tuple[RepositoryReference, ...]
     forgetful: ForgetfulConnection | None = None
     execution_enabled: bool = False
+    # The factory's secrets file; None means the default file. Loading makes it absolute.
+    env_file: str | None = None
+    discord: DiscordSettings | None = None
 
 
 def validate(configuration: FactoryConfiguration) -> None:
@@ -22,6 +26,8 @@ def validate(configuration: FactoryConfiguration) -> None:
         raise FactoryError('execution_enabled must be a boolean.')
     if configuration.forgetful is not None:
         configuration.forgetful.validate()
+    if configuration.env_file is not None:
+        nonblank(configuration.env_file, 'env_file')
     if not configuration.watcher_label:
         raise FactoryError('watcher_label must contain at least one nonblank string.')
     for label in configuration.watcher_label:
@@ -47,7 +53,7 @@ def from_mapping(data: dict) -> FactoryConfiguration:
                            'Replace each [repositories."path"] header with [[repository]] '
                            'in .factory/factory.toml, keeping its fields, then rerun init.')
     allowed = {'watcher_label', 'foreman_agent_file', 'execution_enabled',
-               'repository', 'forgetful'}
+               'repository', 'forgetful', 'env_file', 'discord'}
     if set(data) - allowed:
         raise FactoryError('Unknown Factory settings. Agent choices belong in agent.json, '
                            'not factory.toml; existing files were preserved.')
@@ -68,6 +74,8 @@ def from_mapping(data: dict) -> FactoryConfiguration:
     configuration = FactoryConfiguration(
         tuple(labels), data.get('foreman_agent_file'), tuple(references),
         connection_from_mapping(data.get('forgetful')), data.get('execution_enabled', False),
+        data.get('env_file'),
+        discord_from_mapping(data['discord']) if 'discord' in data else None,
     )
     validate(configuration)
     return configuration

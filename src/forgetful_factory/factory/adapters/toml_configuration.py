@@ -47,6 +47,10 @@ class TomlConfigurationStore:
                     executable = (self.path.parent.parent / executable).resolve()
                     configuration = replace(configuration, forgetful=replace(
                         connection, executable=str(executable)))
+            if configuration.env_file is not None:
+                # ~ is the user's home; a relative path is relative to the workspace.
+                env_file = self.path.parent.parent / Path(configuration.env_file).expanduser()
+                configuration = replace(configuration, env_file=os.path.abspath(env_file))
             return configuration
         except (OSError, ValueError) as error:
             raise FactoryError(f'Cannot load {self.path}: {error}') from error
@@ -64,6 +68,8 @@ class TomlConfigurationStore:
             'foreman_agent_file = ' + quote(str(definition)),
             'execution_enabled = ' + ('true' if configuration.execution_enabled else 'false'),
         ]
+        if configuration.env_file is not None:
+            lines.append('env_file = ' + quote(configuration.env_file))
         for repository in configuration.repository:
             lines.extend(['', '[[repository]]',
                           'local_dir = ' + quote(repository.local_dir),
@@ -75,6 +81,11 @@ class TomlConfigurationStore:
             lines.extend(f'{key} = {value if type(value) is int else quote(value)}'
                          for key, value in asdict(configuration.forgetful).items()
                          if value is not None)
+        if configuration.discord is not None:
+            discord = configuration.discord
+            lines.extend(['', '[discord]', 'channel_id = ' + quote(discord.channel_id),
+                          'allowed_users = [' + ', '.join(map(quote, discord.allowed_users)) + ']',
+                          'token_variable = ' + quote(discord.token_variable)])
         self.path.parent.mkdir(exist_ok=True)
         directory = os.open(self.path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
         temporary = f'.factory-{uuid4().hex}.tmp'

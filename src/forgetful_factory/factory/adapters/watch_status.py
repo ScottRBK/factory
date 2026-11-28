@@ -11,7 +11,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
 from pathlib import Path
 
-from forgetful_factory.agents.model import unknown_status
+from forgetful_factory.agents.model import ForemanReply, unknown_status
 from forgetful_factory.agents.ports import ForemanTerminal
 from forgetful_factory.shared.errors import FactoryError
 from forgetful_factory.shared.resource_files import (
@@ -263,8 +263,8 @@ class ObservedTerminal:
     def send(self, message: str) -> None:
         self.terminal.send(message)
 
-    def wait(self, interval: float) -> None:
-        self.terminal.wait(interval)
+    def wait(self, interval: float) -> list[ForemanReply]:
+        return self.terminal.wait(interval)
 
     def close(self) -> None:
         self.observation.update(phase='stopping', watcher='stopping', foreman='unknown')

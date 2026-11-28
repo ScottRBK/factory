@@ -409,8 +409,9 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.assertTrue(any(a.get('plan_id') == broken['id'] for a in self.alerts()))
         self.assertEqual(self._messages(), [])
 
-    def test_active_summary_cannot_hide_a_completed_full_plan(self):
-        # Arrange: completion discovery must not use a stale summary as the status authority.
+    def test_active_summary_withholds_cleanup_of_a_completed_full_plan(self):
+        # Arrange: the plan list can withhold cleanup, never authorize it. A plan that the
+        # list shows as active waits, even when its full record is completed.
         message, record = self.recorded()
         mapping = record['worktrees'][0]
         self.finish_mapping(mapping)
@@ -422,11 +423,51 @@ class CompletedCleanupRecoveryTests(CompletedCleanupFixture):
         self.env['PROFILE_PLANNING_CONTROL'] = str(control)
         # Act
         process = self.start('--new-only')
+        self.wait_until(process, lambda: self.polls() >= 3)
+        self.stop(process)
+        # Assert
+        self.assertTrue(Path(mapping['path']).is_dir())
+        self.assertTrue(self.branch_exists(mapping, remote=True))
+        self.assertFalse((self.workspace / '.factory/cleanup-finished.json').exists())
+        # Act: the list now agrees with the full record.
+        control.write_text('{}')
+        self.terminal_log.unlink()
+        process = self.start('--new-only')
         self.wait_until(process, lambda: not self.branch_exists(mapping, remote=True))
         self.stop(process)
         # Assert
         self.assert_disposed(mapping)
-        self.assertEqual(self._messages(), [])
+
+    def test_a_malformed_listed_plan_is_reported_and_withholds_all_cleanup(self):
+        # Arrange: the fields the plan-list check uses must have Forgetful's types.
+        message, record = self.recorded()
+        mapping = record['worktrees'][0]
+        self.finish_mapping(mapping)
+        self.save(message, record)
+        plan = self.planning_call('get_plan', plan_id=message['plan_id'])
+        control = self.workspace / 'native-control.json'
+        self.env['PROFILE_PLANNING_CONTROL'] = str(control)
+        for fields in ({'project_id': None}, {'project_id': '12'}, {'status': 'done'},
+                       {'status': None}, {'external_ref': 5}):
+            with self.subTest(fields=fields):
+                control.write_text(json.dumps({'responses': {'list_plans': {
+                    'plans': [dict(plan, **fields)], 'total_count': 1}}}))
+                # Act
+                process = self.start('--new-only')
+                self.wait_until(process, lambda: any(
+                    a['code'] == 'cleanup_inventory_read_failed' for a in self.alerts()))
+                self.stop(process)
+                # Assert
+                self.assertTrue(Path(mapping['path']).is_dir())
+                self.assertTrue(self.branch_exists(mapping, remote=True))
+                self.terminal_log.unlink()
+        # Act: a valid list lets cleanup run.
+        control.write_text('{}')
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: not self.branch_exists(mapping, remote=True))
+        self.stop(process)
+        # Assert
+        self.assert_disposed(mapping)
 
     def test_duplicate_reference_with_unreadable_details_cannot_authorize_a_primary_plan(self):
         # Arrange: complete inventory reports a competing identity, whose full reply is invalid.

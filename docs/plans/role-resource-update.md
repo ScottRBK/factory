@@ -124,6 +124,13 @@ back to the model as a rejection, and `/forgetful project init` shows Forgetful'
 8 bundled files changed; the Factory patch applied without conflicts. The audit and evidence
 are in [ROLE-SOURCES.md][refresh-d9a].
 
+### pi-forgetful `d2cff4c`
+
+The bundle moved to upstream `d2cff4c` (PR #7). Capture prompts now state Forgetful's published
+field limits, read from `/.well-known` on the same server. One bundled file is new and four
+changed; the Factory patch applied without conflicts. The audit and evidence are in
+[ROLE-SOURCES.md][refresh-d2c].
+
 ## Not done
 
 - Hosted CI for the exact commit.
@@ -137,3 +144,5 @@ are in [ROLE-SOURCES.md][refresh-d9a].
   ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-23-pi-forgetful-refresh
 [refresh-d9a]:
   ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-25-pi-forgetful-refresh
+[refresh-d2c]:
+  ../../src/forgetful_factory/resources/ROLE-SOURCES.md#2026-11-28-pi-forgetful-refresh

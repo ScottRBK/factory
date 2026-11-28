@@ -1,6 +1,7 @@
 """Delegate authentication and connection checks to their owning CLI, never handle tokens."""
 import json
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
 from forgetful_factory.planning.model import ForgetfulConnection
@@ -11,7 +12,8 @@ from forgetful_factory.shared.watch_stop import check_watch_stop
 
 
 def role_environment(workspace: Path, connection: ForgetfulConnection,
-                     pi_home: str | None = None) -> dict[str, str]:
+                     pi_home: str | None = None, *, hidden: Iterable[str] = ()) -> dict[str, str]:
+    """The environment for a role. Variables named in hidden (other secrets) are removed."""
     role = workspace / '.factory'
     env = dict(os.environ, FACTORY_ROLE_DIR=str(role),
                FACTORY_FORGETFUL_DIR=str(role),
@@ -29,6 +31,8 @@ def role_environment(workspace: Path, connection: ForgetfulConnection,
         env.setdefault('HF_HUB_OFFLINE', '1')
     # Do not implicitly import a personal Forgetful target or bearer credential.
     env.pop('FORGETFUL_TOKEN', None)
+    for name in hidden:
+        env.pop(name, None)
     # The audited Pi runtime uses Undici's standard parser, not its experimental Milo backend.
     env.pop('UNDICI_USE_MILO', None)
     if connection.instance == 'local':

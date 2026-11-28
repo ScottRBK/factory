@@ -64,7 +64,8 @@ inside the Foreman owner, so the owner check covers it.
 Python cannot prove that detached delegated work stopped (AgentShell issue #28). The first version
 required `--delegated-work-stopped` as the user's confirmation, but the flag checked nothing.
 Scott removed it on 2026-11-23: stopping delegated workers is the user's step, stated in the
-README. `init --finalize` keeps its own flag.
+[configuration guide](../configuration.md#update-role-resources). `init --finalize` keeps its own
+flag.
 
 `--dry-run` prints each planned change and writes nothing. It takes no lease, so it also works
 while the factory runs. It exits 1 when edited files would stop
