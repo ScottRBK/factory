@@ -504,3 +504,55 @@ manually replayed. There was no automatic profile migration or generic runtime-r
 The installation evidence was retained at `/tmp/ffi.lErTWo/result.md`; the facts above remain useful
 if that temporary path is later removed. Later hosted results are in the
 [CI record](ci-test-runtime.md#current-hosted-results).
+
+## Plan records and the plan-list fast path
+
+Date: 2026-11-28. Branch `feat/discord-channel`, on top of `55f88e1`. Not committed or installed.
+
+**Problem.** In the first live Discord run on dark-business, all 6 completed plans (10, 11, 12,
+13, 19 and 20) were already cleaned. Each cycle still read about 20 full plans and about 60 full
+tasks: about 80 Forgetful CLI calls of 1.3 to 2.6 s each. Plain watch reads Discord only between
+cycles, so replies waited minutes.
+
+**Scott's decisions.** Plan records only, with a strict skip. No guard for worktrees added to a
+closed plan: "we should not worry about people adding work trees to closed plans, those are edge
+cases and we should not eningeer for it". The cleanup interval does not change. A batch
+`get_task` is requested in [Forgetful issue #257](https://github.com/ScottRBK/forgetful/issues/257).
+
+**Change.**
+
+- `.factory/cleanup-finished.json` version 2 adds `plans`: workspace, backend, plan ID and
+  external reference. Version 1 still loads; a save writes version 2. Validation stays strict.
+- After the plan list, cleanup reads full plans only if a summary shows an owned, completed,
+  in-scope plan with no record. Otherwise the cycle ends after that one call.
+- Cleanup writes the record when a full read shows every mapping has a receipt, or no mappings.
+  Blocked, failed, unconfirmed or invalid plans get no record and are read again next poll.
+- The first cycle after an upgrade records plans that older receipts cover, with no Git work.
+
+**Tests changed to the new rule.** Five watcher-alert tests expected a `cleanup_read_failed`
+alert from full reads of active plans; cleanup no longer reads them. The old
+`test_active_summary_cannot_hide_a_completed_full_plan` now checks that an active summary
+withholds cleanup, and cleanup runs when the list agrees. The saved-data fixture
+`cleanup_receipts.json` is version 2.
+
+**Review fixes (Codex `gpt-6.2-astra` and SonarQube).**
+
+- A plan record needs a reference that is unique across the listed and full plans of the poll.
+  Plans that share a reference get `cleanup_ownership_conflict` and no record.
+- Listed rows must have Forgetful 0.5.5 `PlanSummary` types for `project_id`, `status` and
+  `external_ref`. A bad row fails the list with `cleanup_inventory_read_failed`, not a silent
+  skip. Intake keeps its own handling. Three intake alert tests now also expect that notice.
+- `confirm_plans` writes all records of one step in one atomic write.
+- The per-poll test counts `list_plans` calls by provider poll. Two mutations (a second list
+  call, and no call once a record exists) make it fail.
+- `plan_records` is one module-level helper in `tests/test_completed_cleanup.py` (Sonar S5899).
+
+**New tests.**
+
+- `tests/test_cleanup_receipts.py`: `CleanupPlanRecordTests` (upgrade from version 1 with no Git
+  cleanup command, no record while a set fails, zero-mapping and out-of-scope plans) and
+  `CleanupReceiptFileTests` (version 1 load, version 2 save, 14 refused documents).
+- `tests/test_cleanup_performance.py`: `CleanupPlanRecordTests` (one `list_plans` per poll once
+  recorded; a completed summary with an active full plan neither disposes nor records).
+- `CleanupPlanReferenceTests` (shared reference), `test_several_plans_are_recorded_in_one_write`
+  and `test_a_malformed_listed_plan_is_reported_and_withholds_all_cleanup`.

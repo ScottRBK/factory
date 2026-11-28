@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+from forgetful_factory.factory.ports import FinishedCleanup
 from forgetful_factory.factory.services.cleanup_completed import CleanupCompleted
 from forgetful_factory.factory.services.factory_records import FactoryRecords
 from forgetful_factory.forge.adapters.github import GitHubForge
@@ -51,7 +52,7 @@ class DamagedReferenceTests(unittest.TestCase):
             worktrees = Mock()
             worktrees.repository_identity.return_value = 'fixture'
             receipts = Mock()
-            receipts.load.return_value = set()
+            receipts.load.return_value = FinishedCleanup(frozenset(), frozenset())
             alerts = Mock()
             cleanup = CleanupCompleted(records, worktrees, receipts, ticketing)
             cleanup.poll(alerts, lambda text: None)

@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import test_watcher_cancellation as cancellation
-from test_completed_cleanup import CompletedCleanupFixture
+from test_completed_cleanup import CompletedCleanupFixture, plan_records
 
 from forgetful_factory.cli.deadlines import DeadlinePolicy
 
@@ -241,6 +241,61 @@ class CleanupBatchTests(CleanupPerformanceFixture):
             self.assertTrue(self.branch_exists(mappings[1]))
             self.assertTrue(self.branch_exists(mappings[1], remote=True))
             self.assertTrue(any(a['code'] == 'cleanup_receipt_failed' for a in self.alerts()))
+
+
+class CleanupPlanRecordTests(CleanupPerformanceFixture):
+    def log_planning_calls(self):
+        """Log each native planning call with the number of provider polls made before it."""
+        executable = self.bin / 'forgetful'
+        source = executable.read_text()
+        needle = "        if control.get('incomplete') == tool:"
+        self.assertEqual(source.count(needle), 1)
+        log = self.workspace / 'planning-calls.jsonl'
+        provider = str(self.state_path)
+        logging = (
+            f"        provider = json.loads(Path({provider!r}).read_text())\n"
+            f"        with open({str(log)!r}, 'a') as stream:\n"
+            "            stream.write(json.dumps([provider.get('counts', {}).get('team/app', 0),"
+            " tool, values]) + '\\n')\n")
+        executable.write_text(source.replace(needle, logging + needle))
+        return log
+
+    def test_recorded_plans_need_one_plan_list_each_poll(self):
+        # Arrange: dispose both sets, so the plan is recorded.
+        _, _, mappings = self.completed_sets(2)
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: bool(plan_records(self.workspace)), timeout=15)
+        self.stop(process)
+        for mapping in mappings:
+            self.assert_disposed(mapping)
+        self.terminal_log.unlink()
+        self.script({'team/app': [[[]]]})
+        log = self.log_planning_calls()
+        # Act
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: self.polls() >= 3)
+        self.stop(process)
+        # Assert: each cycle runs cleanup, then polls the provider. Polls 0 to 2 are complete.
+        # Poll 0 also has the one startup inventory list.
+        calls = [json.loads(line) for line in log.read_text().splitlines()]
+        complete = [(poll, tool, values) for poll, tool, values in calls if poll < 3]
+        self.assertTrue(all(tool == 'list_plans' and values == {}
+                            for _, tool, values in complete), calls)
+        self.assertEqual([poll for poll, _, _ in complete], [0, 0, 1, 2], calls)
+
+    def test_a_completed_summary_alone_neither_disposes_nor_records(self):
+        # Arrange: the plan list says completed; the full plan says active.
+        message, _, mappings = self.completed_sets(1)
+        self.read_replies([{'tool': 'get_plan', 'arguments': {'plan_id': message['plan_id']},
+                            'fields': {'status': 'active'}}])
+        # Act
+        process = self.start('--new-only')
+        self.wait_until(process, lambda: self.polls() >= 3)
+        self.stop(process)
+        # Assert
+        self.assertTrue(Path(mappings[0]['path']).is_dir())
+        self.assertTrue(self.branch_exists(mappings[0], remote=True))
+        self.assertEqual(plan_records(self.workspace), [])
 
 
 class CleanupCancellationTests(CleanupPerformanceFixture):

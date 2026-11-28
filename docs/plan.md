@@ -70,6 +70,9 @@ DoD or prove that a model followed it. Existing factories are not automatically 
   durable receipts are implemented. The isolated unchanged-CLI trial took 50.455 seconds versus
   112.445 seconds for three sets. This is one local measurement, not a latency guarantee.
   [Validation](plans/cleanup-performance.md#final-parent-validation-and-cleanup).
+  Plan records (receipt version 2) let a cycle with no open completed plan stop after one plan
+  list call. Local tests only; not yet run in a live factory.
+  [Plan records](plans/cleanup-performance.md#plan-records-and-the-plan-list-fast-path).
 
 ### Remaining work
 
@@ -222,8 +225,9 @@ met.
   local/remote feature refs, including dirty/ignored content and extra commits. Native state drives
   partial retries/restart recovery; closed/new-only intake and GitHub failures do not hide cleanup.
   Save evidence elsewhere first. Resource names remain reserved until durable cleanup confirmation.
-  Preserve cleanup receipts; confirmed sets are not deleted again. DinoLand adoption is recorded
-  above; automatic migration of other factories is not provided.
+  Preserve cleanup receipts; confirmed sets are not deleted again, and recorded plans are not
+  read again. DinoLand adoption is recorded above; automatic migration of other factories is not
+  provided.
 - The [cleanup ADR](adrs/completed-plan-cleanup.md) records shared identity checks, target_branch,
   conflict isolation and explicit review of older completed mappings before enabling this version.
 - Automated tests check setup/recovery, not model compliance. One independent review and the final

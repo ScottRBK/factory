@@ -423,11 +423,11 @@ class WatcherAlertTests(PlanningWatchFixture):
         original, = self.seed((1,))
         self.fault(fail='get_plan')
         process = self.start('--existing')
-        self.wait_until(process, lambda: len(self.alerts()) == 2)
-        self.wait_until(process, lambda: self.alerts()[1]['retry'] == 'read_only')
-        self.assert_cleanup_read_notice('cleanup_read_failed')
-        self.assertEqual(self.alerts()[1]['scope'], 'factory')
-        self.assertEqual(self.alerts()[1]['code'], 'recovery_read_failed')
+        # Cleanup reads no full plan: the plan list shows no completed plan.
+        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: self.alerts()[0]['retry'] == 'read_only')
+        self.assertEqual(self.alerts()[0]['scope'], 'factory')
+        self.assertEqual(self.alerts()[0]['code'], 'recovery_read_failed')
         self.assertIsNone(process.poll())
         self.assertEqual(self._messages(), [])
         self.fault()
@@ -654,8 +654,10 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.planning_call('update_plan', plan_id=1, status=None)
         self.script({'team/app': [[[self.issue(1, updated_at='same-revision')]]]})
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.alerts()) == 1 and len(self._messages()) == 1)
-        self.assertEqual(self.alerts()[0]['code'], 'plan_status_invalid')
+        # The invalid listed status also withholds all cleanup, with its own notice.
+        self.wait_until(process, lambda: len(self.alerts()) == 2 and len(self._messages()) == 1)
+        self.assert_cleanup_read_notice('cleanup_inventory_read_failed')
+        self.assertEqual(self.alerts()[1]['code'], 'plan_status_invalid')
         self.assertEqual(self._messages()[0]['plan_id'], healthy['plan_id'])
         self.planning_call('update_plan', plan_id=1, status='active')
         self.wait_until(process, lambda: len(self._messages()) == 2)
@@ -669,7 +671,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.script({'team/app': [[[]]]})
         process = self.start('--new-only')
         self.wait_until(process, lambda: len(self.alerts()) == 2)
-        self.assert_cleanup_read_notice('cleanup_read_failed')
+        self.assert_cleanup_read_notice('cleanup_inventory_read_failed')
         self.assertEqual(self.alerts()[1]['scope'], 'factory')
         self.assertEqual(self.alerts()[1]['retry'], 'read_only')
         self.assertEqual(self._messages(), [])
@@ -724,12 +726,11 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.planning_call('update_plan', plan_id=1, status='active')
         self.fault(responses={'get_plan': dict(plan, id=999, status='active')})
         self.script({'team/app': [[[self.issue(1, updated_at='revision-2')]]]})
-        self.wait_until(process, lambda: len(self.alerts()) == 2)
-        self.assert_cleanup_read_notice('cleanup_read_failed')
-        self.assertEqual(self.alerts()[1]['scope'], 'factory')
-        self.assertEqual(self.alerts()[1]['code'], 'recovery_read_failed')
-        self.assertEqual(self.alerts()[1]['retry'], 'read_only')
-        self.assertEqual(self.alerts()[1]['plan_id'], 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.assertEqual(self.alerts()[0]['scope'], 'factory')
+        self.assertEqual(self.alerts()[0]['code'], 'recovery_read_failed')
+        self.assertEqual(self.alerts()[0]['retry'], 'read_only')
+        self.assertEqual(self.alerts()[0]['plan_id'], 1)
         self.assertEqual(self._messages(), [])
         self.fault()
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -751,7 +752,8 @@ class WatcherAlertTests(PlanningWatchFixture):
 
     def assert_invalid_full_record_pauses(self, tool, response):
         # Arrange: only the external reply is corrupted; saved records remain unchanged.
-        expected = 2 if tool in ('list_plans', 'get_plan') else 1
+        # Cleanup reads the plan list each poll, but full records only for completed plans.
+        expected = 2 if tool == 'list_plans' else 1
         before = self.planning_call('get_task', task_id=1)
         log = self.workspace / 'record-reads.jsonl'
         log.unlink(missing_ok=True)
@@ -770,8 +772,7 @@ class WatcherAlertTests(PlanningWatchFixture):
             self.assertEqual(self._messages(), [])
             self.assertEqual(len(self.alerts()), expected)
             if expected == 2:
-                self.assert_cleanup_read_notice('cleanup_inventory_read_failed'
-                                                if tool == 'list_plans' else 'cleanup_read_failed')
+                self.assert_cleanup_read_notice('cleanup_inventory_read_failed')
             self.assertEqual(self.alerts()[-1]['scope'], 'factory')
             self.assertEqual(self.alerts()[-1]['retry'], 'read_only')
             self.assertNotIn('TOP_SECRET', json.dumps(self.alerts()))
@@ -846,9 +847,10 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.planning_call('update_plan', plan_id=1, status='actve')
         self.script({'team/app': [[[]]]})
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.alerts()) == 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 2)
         self.wait_until(process, lambda: self.polls() >= 3)
-        self.assertEqual(self.alerts()[0]['code'], 'plan_status_invalid')
+        self.assert_cleanup_read_notice('cleanup_inventory_read_failed')
+        self.assertEqual(self.alerts()[1]['code'], 'plan_status_invalid')
         self.assertEqual(self._messages(), [])
         self.planning_call('update_plan', plan_id=1, status='active')
         self.wait_until(process, lambda: len(self._messages()) == 1)
@@ -973,17 +975,16 @@ class WatcherAlertTests(PlanningWatchFixture):
             'result': {'plans': [], 'total_count': 0}}])
         self.script({'team/app': [[[]]]})
         process = self.start('--new-only')
-        self.wait_until(process, lambda: len(self.alerts()) == 2 and len(self._messages()) == 1)
+        self.wait_until(process, lambda: len(self.alerts()) == 1 and len(self._messages()) == 1)
         self.wait_until(process, lambda: self.polls() >= 3)
-        self.assert_cleanup_read_notice('cleanup_read_failed')
-        self.assertEqual(self.alerts()[1]['scope'], 'plan')
-        self.assertEqual(self.alerts()[1]['code'], 'plan_identity_changed')
+        self.assertEqual(self.alerts()[0]['scope'], 'plan')
+        self.assertEqual(self.alerts()[0]['code'], 'plan_identity_changed')
         self.assertEqual(self._messages()[0]['plan_id'], healthy['plan_id'])
         current = json.loads(state_path.read_text())
-        # Independent completion discovery still reads full plans. The absent recovery lookup
-        # cannot use that failing detail read as authority or replay planning writes.
-        self.assertGreater(sum(c == ['get_plan', {'plan_id': 1}] for c in current['calls']),
-                           sum(c == ['get_plan', {'plan_id': 1}] for c in before['calls']))
+        # The absent recovery lookup does not use the failing detail read as authority or
+        # replay planning writes. Cleanup reads no detail: no completed plan is listed.
+        self.assertEqual(sum(c == ['get_plan', {'plan_id': 1}] for c in current['calls']),
+                         sum(c == ['get_plan', {'plan_id': 1}] for c in before['calls']))
         self.assertEqual([c for c in current['calls'] if c[0].startswith(('create_', 'update_'))],
                          [c for c in before['calls'] if c[0].startswith(('create_', 'update_'))])
         self.assertEqual(current['plans'], before['plans'])
@@ -995,7 +996,7 @@ class WatcherAlertTests(PlanningWatchFixture):
         self.wait_until(process, lambda: self.polls() >= target)
         code, _, errors = self.stop(process)
         self.assertEqual(code, 130, errors)
-        self.assertEqual(len(self.alerts()), 2)
+        self.assertEqual(len(self.alerts()), 1)
         self.assertEqual(len(self._messages()), 2)
         self.assertEqual(self._messages()[-1]['plan_id'], original['plan_id'])
         self.assertEqual(self._messages()[-1]['ownership_task_id'], original['ownership_task_id'])

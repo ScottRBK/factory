@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from forgetful_factory.factory.model.watcher_problems import ScaffoldProblem, WatcherAlerts
-from forgetful_factory.factory.ports import CleanupReceipts, CleanupSet
+from forgetful_factory.factory.ports import CleanupPlan, CleanupReceipts, CleanupSet
 from forgetful_factory.factory.services.factory_records import FactoryRecords
 from forgetful_factory.planning.ports import PlanningReadError
 from forgetful_factory.shared.errors import FactoryError
@@ -14,6 +14,8 @@ from forgetful_factory.ticketing.ports import Ticketing
 from forgetful_factory.workspace.ports import Worktrees
 
 _TARGET_KEYS = ('target', 'common-target', 'remote-target')
+# Forgetful 0.5.5 PlanSummary: project_id is an int, status a PlanStatus, external_ref str | None.
+_PLAN_STATES = ('draft', 'active', 'completed', 'archived')
 _RECEIPTS_ALERT_SUBJECT = 'cleanup:receipts'
 _SETS_PER_CYCLE = 3
 
@@ -43,37 +45,49 @@ class CleanupCompleted:
         self.owners: dict[int, int] = {}
         self.receipts = receipts
         self.confirmed: set[CleanupSet] = set()
+        self.finished_plans: frozenset[CleanupPlan] = frozenset()
         self.cursor: tuple | None = None
 
     def poll(self, alerts: WatcherAlerts, report) -> None:
         try:
-            self.confirmed = self.receipts.load()
+            finished = self.receipts.load()
         except FactoryError as error:
             alerts.send(_RECEIPTS_ALERT_SUBJECT, error, scope='cleanup',
                         code='cleanup_receipt_failed', retry='next_poll')
             return
+        self.confirmed = set(finished.sets)
+        self.finished_plans = finished.plans
         alerts.clear(_RECEIPTS_ALERT_SUBJECT)
         try:
             inventory = self.records.planning.plans()
+            self._check_summaries(inventory)
         except FactoryError as error:
             alerts.send('cleanup:inventory', error, scope='cleanup',
                         code='cleanup_inventory_read_failed', retry='next_poll')
             return
         alerts.clear('cleanup:inventory')
+        # Summaries only withhold work: without an open completed plan, no full read is made.
+        # A recorded plan is not read again, even if its records change later.
+        if not any(self._open(summary) for summary in inventory):
+            return
         plans = self._read_plans(inventory, alerts)
-        if plans is None or not any(self._in_scope(plan) for plan in plans):
+        if plans is None or not any(self._open(plan) for plan in plans):
             return
         tasks: dict[int, list[dict]] = {}
         candidates = self._candidates(plans, tasks, alerts)
         if candidates is None:
             return
         try:
-            candidates = [w for w in candidates if any(
-                not self._is_confirmed(w.plan_id, w.reference, m) for m in w.mappings)]
+            done = [w for w in candidates if all(
+                self._is_confirmed(w.plan_id, w.reference, m) for m in w.mappings)]
         except FactoryError as error:
             alerts.send(_RECEIPTS_ALERT_SUBJECT, error, scope='cleanup',
                         code='cleanup_receipt_failed', retry='next_poll')
             return
+        references = self._references(inventory, plans)
+        if not self._finish_plans(done, references, alerts):
+            return
+        candidates = [w for w in candidates if w not in done]
         if not candidates:
             return
         identities = self._repository_identities(alerts)
@@ -95,17 +109,78 @@ class CleanupCompleted:
             if not self._dispose(work, mapping, claims, references, identities, alerts, report):
                 # Unknown fresh ownership/status withholds the rest of this cycle's authority.
                 break
+        self._finish_plans([w for w in candidates if all(
+            self._mapping_identity(w.plan_id, w.reference, m) in self.confirmed
+            for m in w.mappings)], references, alerts)
 
-    def _claim_indexes(self, inventory: list[dict], plans: list[dict],
-                       tasks: dict[int, list[dict]], identities: dict[str, str],
-                       alerts: WatcherAlerts) -> tuple[dict, dict] | None:
-        claims = defaultdict(set)
+    @staticmethod
+    def _check_summaries(inventory: list[dict]) -> None:
+        """The plan-list check trusts these fields, so a bad row fails the whole list."""
+        bad = [summary['id'] for summary in inventory
+               if type(summary.get('project_id')) is not int or summary['project_id'] < 1
+               or summary.get('status') not in _PLAN_STATES
+               or not isinstance(summary.get('external_ref', ''), (str, type(None)))]
+        if bad:
+            raise PlanningReadError(f'Forgetful listed plans {bad} with an invalid project, '
+                                    'status or reference; reconcile the native plan list '
+                                    'before cleanup.')
+
+    @staticmethod
+    def _references(inventory: list[dict], plans: list[dict]) -> dict[str, set[int]]:
         references = defaultdict(set)
         # Summary conflicts can withhold authority, never grant it. An unreadable duplicate
         # does not make the other visible plan the primary identity.
         for summary in [*inventory, *plans]:
             if isinstance(summary.get('external_ref'), str):
                 references[summary['external_ref']].add(summary['id'])
+        return references
+
+    def _open(self, plan: dict) -> bool:
+        """In scope and not yet recorded as finished. On a summary, this only withholds."""
+        return (self._in_scope(plan) and self._plan_identity(plan['id'], plan['external_ref'])
+                not in self.finished_plans)
+
+    def _plan_identity(self, plan_id: int, reference: str) -> CleanupPlan:
+        return CleanupPlan(str(self.records.workspace),
+                           self.records.planning.backend_identity(), plan_id, reference)
+
+    def _finish_plans(self, done: list[CompletedWork], references: dict[str, set[int]],
+                      alerts: WatcherAlerts) -> bool:
+        """Record plans whose every set is confirmed, so later polls skip their full reads.
+
+        A plan whose reference other plans also use gets no record, and is reported.
+        """
+        unique = []
+        for work in done:
+            owners = tuple(sorted(references[work.reference]))
+            if owners == (work.plan_id,):
+                unique.append(work)
+                continue
+            alerts.send(f'cleanup:{work.plan_id}', ScaffoldProblem(
+                'cleanup_ownership_conflict', 'Several plans use this reference; reconcile '
+                'them. Its plan record waits.', plan_ids=owners), scope='cleanup',
+                code='cleanup_ownership_conflict', retry='next_poll', plan_id=work.plan_id,
+                issue_id=work.reference, plan_ids=owners)
+        if not unique:
+            return True
+        try:
+            self.receipts.confirm_plans(
+                [self._plan_identity(work.plan_id, work.reference) for work in unique])
+        except FactoryError as error:
+            alerts.send('cleanup:plan-records', error, scope='cleanup',
+                        code='cleanup_receipt_failed', retry='next_poll',
+                        plan_ids=tuple(work.plan_id for work in unique))
+            return False
+        alerts.clear('cleanup:plan-records')
+        for work in unique:
+            alerts.clear(f'cleanup:{work.plan_id}')
+        return True
+
+    def _claim_indexes(self, inventory: list[dict], plans: list[dict],
+                       tasks: dict[int, list[dict]], identities: dict[str, str],
+                       alerts: WatcherAlerts) -> tuple[dict, dict] | None:
+        claims = defaultdict(set)
+        references = self._references(inventory, plans)
         for plan in plans:
             try:
                 if plan['id'] not in tasks:
@@ -131,7 +206,7 @@ class CleanupCompleted:
                     alerts: WatcherAlerts) -> list[CompletedWork] | None:
         candidates = []
         for plan in plans:
-            if not self._in_scope(plan):
+            if not self._open(plan):
                 continue
             try:
                 tasks[plan['id']] = self.records.planning.tasks(plan['id'])

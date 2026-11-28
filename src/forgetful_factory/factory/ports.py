@@ -1,4 +1,5 @@
 """What the factory's own workflows need from storage, the agreement and tool installs."""
+from collections.abc import Collection
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Protocol
@@ -34,12 +35,31 @@ class CleanupSet:
                   (self.local_dir == other.local_dir or self.repository == other.repository))))
 
 
-class CleanupReceipts(Protocol):
-    """Terminal confirmation for a resource set, never progress through deletion steps."""
+@dataclass(frozen=True)
+class CleanupPlan:
+    """A completed plan with nothing left to dispose in this workspace."""
+    workspace: str
+    backend: str
+    plan_id: int
+    external_ref: str
 
-    def load(self) -> set[CleanupSet]: ...
+
+@dataclass(frozen=True)
+class FinishedCleanup:
+    sets: frozenset[CleanupSet]
+    plans: frozenset[CleanupPlan]
+
+
+class CleanupReceipts(Protocol):
+    """Terminal confirmation for a resource set or a whole plan, never progress through
+    deletion steps."""
+
+    def load(self) -> FinishedCleanup: ...
 
     def confirm(self, resource: CleanupSet) -> None: ...
+
+    def confirm_plans(self, plans: Collection[CleanupPlan]) -> None:
+        """Record several finished plans in one atomic write."""
 
 
 class AgreementStore(Protocol):

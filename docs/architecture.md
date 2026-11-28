@@ -25,7 +25,7 @@ installation evidence and remaining validation work.
   engine or deployment service.
 - The watcher independently discovers completed plans and removes their recorded worktrees and
   local/remote feature refs. Cleanup uses exact ownership/identity checks, fresh selected-plan
-  evidence and durable per-set receipts. Each cycle attempts up to three distinct sets fairly;
+  evidence and durable set and plan receipts. Each cycle attempts up to three distinct sets fairly;
   CLI reads stay serial. The completed state authorizes disposal of dirty files and extra commits.
 - Plain watch owns and closes its Foreman. A managed watcher borrows the persistent setup or
   standalone Foreman's connection. General attachment to arbitrary terminals remains planned.
@@ -193,9 +193,9 @@ import or call graph.
   intake. One run-scoped record keeps the distinct maps and flags; a local enum communicates
   continue/read-pause/manual-pause outcomes. Submission stays outside recoverable-operation
   exception handlers, so failed delivery still terminates rather than entering a retry loop.
-- Every cycle, including startup, `CleanupCompleted` reads full plans from the complete native
-  inventory independently of issue polling, unfinished recovery and manual intake pauses. Only
-  selected completed Factory plans with full valid ownership/mappings authorize disposal. Shared
+- Every cycle, including startup, `CleanupCompleted` reads the complete native plan list, apart
+  from issue polling, recovery and intake pauses. Full plans are read only if a listed completed
+  plan has no plan record. Only full valid completed plans and mappings authorize disposal. Shared
   `FactoryRecords` checks keep identity validation out of Git adapters and avoid a second copy in
   scaffolding. Path, shared Git-directory and canonical remote-source claims protect other plans
   and targets; unreadable/invalid claims or namespaces block all disposal, not safe intake. Mappings
@@ -203,7 +203,7 @@ import or call graph.
   protects configured main roots, validates origin, registration/common gitdir and protected refs,
   then removes worktree, local branch and remote ref in order. Dirty/ignored content and extra
   commits are disposable until durable per-set confirmation ends authority across restarts.
-  A cleanup receipt port persists terminal identities; up to three distinct sets get fair turns.
+  A cleanup receipt port persists set and plan identities; up to three distinct sets get turns.
   Discovery shares foreign claims across the batch; disposal rereads selected owner/tasks/plan.
   Defaults cache per root at first use each cycle, shared across sets; CLI reads stay serial.
   The [cleanup ADR](adrs/completed-plan-cleanup.md) covers authority, failures, repairs and bounds;
@@ -376,9 +376,9 @@ Paths below are relative to `src/forgetful_factory/`:
   Shared identity/repository checks: `factory/services/factory_records.py`, lines 17–135;
   pre-create checks: `factory/services/scaffold_issue.py`, line 89; read-only lookup/recovery:
   lines 177 and 233; placeholder creation: line 189; worktree names: line 32.
-  Cleanup: `factory/services/cleanup_completed.py`, lines 48–117, 292–387; ticket scope: line 190;
-  receipt contract: `factory/ports.py`, lines 20–42; durable storage:
-  `factory/adapters/cleanup_receipts.py`, lines 40–100.
+  Cleanup: `factory/services/cleanup_completed.py`, lines 51–192, 367–462; ticket scope: line 265;
+  receipt contract: `factory/ports.py`, lines 20–62; durable storage:
+  `factory/adapters/cleanup_receipts.py`, lines 60–129.
 - Planning: `planning/ports.py`, lines 7 and 11 (`PlanStore` adds `owns` and `backend_identity`);
   `planning/adapters/forgetful/plan_store.py`, line 13; read classification/validation: lines 26–81;
   shared scope/checks: `planning/adapters/forgetful/connection.py`, lines 14 and 128; project
@@ -399,7 +399,7 @@ Paths below are relative to `src/forgetful_factory/`:
   `PlanningSetup` in `planning/ports.py`, line 38 (`planning/adapters/forgetful/setup.py`, line 9).
   Bundle reads/update: `agents/adapters/pi/role_resources.py`, lines 23, 48 and 80; update command:
   `cli/resource_update.py`, line 22; stale-file check: line 90 in the team.
-- Tool installs: `ToolInstaller` in `factory/ports.py`, line 61; one installer per
+- Tool installs: `ToolInstaller` in `factory/ports.py`, line 81; one installer per
   tool: `agents/adapters/pi/runtime_install.py`, `agents/adapters/agentshell/runtime_install.py`,
   `runtime/adapters/tmux.py` and `planning/adapters/forgetful/install.py`; plumbing:
   `shared/installation.py`. Init offers absent tools before unready ones
@@ -443,8 +443,8 @@ Paths below are relative to `src/forgetful_factory/`:
   `tests/test_definition_of_done_watch.py` checks unchanged unfinished verification recovery.
   `tests/test_completed_cleanup.py` and `tests/test_completed_cleanup_recovery.py` check completed
   disposal/isolation/retry through public watch, real Git, shared namespaces and bare remotes.
-  `tests/test_cleanup_review.py` checks claims/auth; receipts/scheduling cover durable fairness.
-  `tests/test_cleanup_performance.py` checks read reuse, batches, fresh checks and cancellation;
+  `tests/test_cleanup_review.py` checks claims/auth; receipts: set/plan records; scheduling: turns.
+  `tests/test_cleanup_performance.py` checks reads, plan-list skip, batches and cancellation;
   `tests/test_watch_stop.py` checks one-signal stop.
   `tests/test_foreman_memory_setup.py` checks opt-in, model choices and preference preservation.
   `tests/test_foreman_issue_intake.py` checks delivered label/consent guidance and preservation.
