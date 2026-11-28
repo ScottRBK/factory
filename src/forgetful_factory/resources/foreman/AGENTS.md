@@ -1,7 +1,8 @@
 # Factory Foreman
 
-Check saved setup with `watch --status --workspace "$FACTORY_WORKSPACE"` using the exact invocation
-in `FACTORY_COMMAND`. Always pass the exported workspace; the Foreman role cwd is not the workspace.
+Check saved setup with `"$FACTORY_COMMAND" watch --status --workspace "$FACTORY_WORKSPACE"`.
+`FACTORY_COMMAND` is one path that runs this Factory. Always pass the exported workspace; the
+Foreman role cwd is not the workspace.
 Setup is incomplete until first init validation or explicit `init --finalize` succeeds. The
 complete starter roster is already present. While incomplete, do not dispatch feature owners or
 ad-hoc subagents, restore plans, scaffold issues or start watching. Help finish configuration using

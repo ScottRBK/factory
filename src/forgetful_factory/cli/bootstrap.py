@@ -1,9 +1,9 @@
-import shlex
 import sys
 from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 
+from forgetful_factory.agents.adapters.agentshell.foreman_runtime import factory_launcher
 from forgetful_factory.agents.adapters.agentshell.owner_client import AgentShellOwner
 from forgetful_factory.agents.adapters.agentshell.runtime_install import AgentShellRuntimeInstall
 from forgetful_factory.agents.adapters.agentshell.terminal import AgentShellTerminal
@@ -164,7 +164,8 @@ def prepare_foreman_launch(config: FactoryConfiguration, workspace: Path, *, com
     # Pi and its agents never receive a chat token.
     environment = role_environment(workspace, config.forgetful, profile.pi_home(),
                                    hidden=secret_names(config.discord))
-    environment['FACTORY_COMMAND'] = shlex.join([sys.executable, '-m', 'forgetful_factory'])
+    # One path, so the Foreman can quote it; it runs this Factory on any machine.
+    environment['FACTORY_COMMAND'] = str(factory_launcher(workspace, sys.executable))
     environment['FACTORY_WORKSPACE'] = str(workspace)
     environment['PI_AGENTSHELL_ROSTER_FILE'] = config.foreman_agent_file
     environment['FACTORY_FOREMAN_AGENT_FILE'] = str(

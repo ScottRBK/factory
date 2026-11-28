@@ -14,7 +14,7 @@ Mode: exclude.
 Saved detector version: 2.
 Test paths: `tests`.
 Keep paths: none.
-Calls removed by test filtering: 5978. Type relationships removed: 125.
+Calls removed by test filtering: 5990. Type relationships removed: 125.
 
 - `tests/agentshell_support.py`: 2 source occurrences (test-path).
 - `tests/check_package.py`: 2 source occurrences (test-path).
@@ -62,6 +62,7 @@ Calls removed by test filtering: 5978. Type relationships removed: 125.
 - `tests/test_discord_relay.py`: 31 source occurrences (test-path).
 - `tests/test_discord_watch.py`: 20 source occurrences (test-path).
 - `tests/test_env_file.py`: 11 source occurrences (test-path).
+- `tests/test_factory_launcher.py`: 10 source occurrences (test-path).
 - `tests/test_factory_maintenance.py`: 9 source occurrences (test-path).
 - `tests/test_foreman_issue_intake.py`: 4 source occurrences (test-path).
 - `tests/test_foreman_memory_setup.py`: 21 source occurrences (test-path).
@@ -173,6 +174,7 @@ classDiagram
     class c0004["src/forgetful_factory/agents/adapters/agentshell/foreman_runtime.py"] {
         <<module>>
         +runtime_directory(workspace: Path, create: bool) Path
+        +factory_launcher(workspace: Path, python: str) Path
     }
     class c0005["src/forgetful_factory/agents/adapters/agentshell/model_catalog.py"] {
         <<module>>
@@ -1502,7 +1504,10 @@ classDiagram
     c0003 ..> c0003 : 20 relationships (see list)
     c0003 ..> c0012 : 2 relationships (see list)
     c0003 ..> c0101 : 5 relationships (see list)
-    c0004 ..> c0115 : runtime_directory() constructs FactoryError
+    c0004 ..> c0004 : factory_launcher() calls runtime_directory()
+    c0004 ..> c0049 : factory_launcher() calls write()
+    c0004 ..> c0051 : factory_launcher() calls quote()
+    c0004 ..> c0115 : 2 relationships (see list)
     c0004 ..> c0118 : runtime_directory() calls check_real_path()
     c0005 ..> c0014 : main() calls list_models()
     c0006 ..> c0000 : 11 relationships (see list)
@@ -1629,6 +1634,7 @@ classDiagram
     c0037 ..> c0115 : discord_from_mapping() constructs FactoryError
     c0039 ..> c0034 : type in receive
     c0039 ..> c0035 : type in mark
+    c0040 ..> c0004 : prepare_foreman_launch() calls factory_launcher()
     c0040 ..> c0008 : 2 relationships (see list)
     c0040 ..> c0010 : build_tools() constructs AgentShellRuntimeInstall
     c0040 ..> c0011 : build_watcher() constructs AgentShellTerminal
@@ -2258,6 +2264,10 @@ classDiagram
 - c0003 ..> c0101: `main() calls create_task()`
 - c0003 ..> c0101: `replace_failed_exit_task() calls create_task()`
 - c0003 ..> c0101: `supervise_session() calls create_task()`
+- c0004 ..> c0004: `factory_launcher() calls runtime_directory()`
+- c0004 ..> c0049: `factory_launcher() calls write()`
+- c0004 ..> c0051: `factory_launcher() calls quote()`
+- c0004 ..> c0115: `factory_launcher() constructs FactoryError`
 - c0004 ..> c0115: `runtime_directory() constructs FactoryError`
 - c0004 ..> c0118: `runtime_directory() calls check_real_path()`
 - c0005 ..> c0014: `main() calls list_models()`
@@ -2637,6 +2647,7 @@ classDiagram
 - c0037 ..> c0115: `discord_from_mapping() constructs FactoryError`
 - c0039 ..> c0034: `type in receive`
 - c0039 ..> c0035: `type in mark`
+- c0040 ..> c0004: `prepare_foreman_launch() calls factory_launcher()`
 - c0040 ..> c0008: `build_owner() constructs AgentShellOwner`
 - c0040 ..> c0008: `type in build_owner`
 - c0040 ..> c0010: `build_tools() constructs AgentShellRuntimeInstall`

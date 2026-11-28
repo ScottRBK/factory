@@ -421,7 +421,7 @@ Paths below are relative to `src/forgetful_factory/`:
   synchronous lock/startup: lines 63 and 80; process entrypoint: line 464;
   client: `agents/adapters/agentshell/owner_client.py`, line 112;
   borrowed terminal: `agents/adapters/agentshell/borrowed_terminal.py`, line 11;
-  private runtime directory: `agents/adapters/agentshell/foreman_runtime.py`, line 10.
+  private runtime and launcher: `agents/adapters/agentshell/foreman_runtime.py`, lines 11 and 24.
 - Lifecycle status: `factory/services/watch_status.py`, line 10; owner report:
   `agents/adapters/agentshell/owner_client.py`, line 201; plain watcher:
   `factory/adapters/watch_status.py`, lines 87, 124, 225 and 247. Optional observer startup follows

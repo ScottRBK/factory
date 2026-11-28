@@ -169,8 +169,11 @@ watcher cannot alter Foreman's settings or prove that it processed a submitted n
 
 ### Operator commands
 
-Use the Factory invocation printed during setup. In a Foreman shell, `FACTORY_COMMAND` identifies
-that invocation and `FACTORY_WORKSPACE` identifies the workspace. Do not substitute a different
+Use the Factory invocation printed during setup. In a Foreman shell, `FACTORY_COMMAND` is the path
+of a launcher that runs that Factory, and `FACTORY_WORKSPACE` identifies the workspace. Factory
+writes the launcher to `.factory/runtime/foreman/forgetful-factory` at each Foreman start. It is one
+path, so `"$FACTORY_COMMAND" watch --status` works with or without the quotes; the earlier value,
+`<python> -m forgetful_factory`, failed when a model quoted it. Do not substitute a different
 installed version. The examples below assume `forgetful-factory` resolves to that installation;
 for a local wheel, use the `uvx --refresh --from "$wheel" forgetful-factory` prefix from the README.
 

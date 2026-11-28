@@ -5,6 +5,7 @@ import select
 import signal
 import subprocess
 import sys
+from pathlib import Path
 
 from lifecycle_support import LifecycleFixture, pidfd_open
 from test_init import INIT_SETTINGS
@@ -293,7 +294,7 @@ class AssistedLifecycleTests(LifecycleFixture):
         self.assertEqual(len([line for line in lines if 'started' in line]), 1)
         delivered = ''.join(line.get('input', '') for line in lines)
         self.assertIn('Factory issue notification', delivered)
-        self.assertIn(sys.executable, lines[0]['command'])
+        self.assertIn(sys.executable, Path(lines[0]['command']).read_text())
         self.assertEqual(self.status(repo)['target'], original['target'])
         self.send_and_wait_for_exit(repo, original['target'])
 

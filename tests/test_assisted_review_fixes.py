@@ -221,8 +221,14 @@ class AssistedReviewFixes(LifecycleFixture):
             launch = json.loads((self.workspace / 'pi.jsonl').read_text().splitlines()[0])
             # Assert
             self.assertEqual(launch['workspace'], str(repo))
-            self.assertEqual(shlex.split(launch['command']),
-                             [sys.executable, '-m', 'forgetful_factory'])
+            # One path, so the Foreman can quote it; it runs this Factory.
+            launcher = repo / '.factory/runtime/foreman/forgetful-factory'
+            self.assertEqual(launch['command'], str(launcher))
+            status = subprocess.run([launch['command'], 'watch', '--status', '--workspace',
+                                     str(repo)], env=self.env, capture_output=True, text=True,
+                                    timeout=30)
+            self.assertEqual(status.returncode, 0, status.stderr)
+            self.assertIn('"process_role"', status.stdout)
         finally:
             process.terminate()
             stdout, stderr = process.communicate(timeout=15)

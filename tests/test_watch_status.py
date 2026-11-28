@@ -225,7 +225,8 @@ class WatchStatusTests(WatchFixture):
         process = self.start('--new-only')
         self.wait_until(process, lambda: any(e['kind'] == 'ready' for e in self.events()))
         owner = self.workspace / '.factory/runtime/foreman/owner.json'
-        owner.parent.mkdir(parents=True, mode=0o700)
+        # Plain watch already made this folder for the Factory launcher.
+        owner.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
 
         # Act / Assert: live plain evidence wins without changing either record or lifetime.
         for content in ('{invalid', json.dumps(dict(workspace=str(self.workspace),

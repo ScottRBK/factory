@@ -92,6 +92,11 @@ DoD or prove that a model followed it. Existing factories are not automatically 
 
 ### Recent delivered changes
 
+- Factory launcher: `FACTORY_COMMAND` is now one path,
+  `.factory/runtime/foreman/forgetful-factory`, which Factory writes at each Foreman start. It
+  runs the Factory that started the Foreman. The earlier value, `<python> -m forgetful_factory`,
+  failed when the Foreman put it in quotes (seen live on 2026-11-28). See
+  [operator commands](adrs/agent-onboarding.md#operator-commands).
 - [Memory settings](plans/memory-settings.md) for issue #5: Foreman's `forgetful.json` takes the
   extension's own settings, such as `context_limit_tokens` and `logging`, with the extension's
   rules. Factory refuses only the keys it sets and unknown keys. `init` leaves out `model` when
