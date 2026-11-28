@@ -95,6 +95,9 @@
     "58e3cd62630656f385647f44caa0ea7ad53d8ad93f038adf21133bb3987424b0",
     "b71541a7e673a47669702f777575be4987481737fe53c22b7936c49f24c2f1e4"
   ],
+  "pi-forgetful/src/capture-limits.ts": [
+    "2e71f80b442f458a4a8e1dde6901b38a0cff2d7b8f351f5a71ac9e01b4ed2bea"
+  ],
   "pi-forgetful/src/capture-links.ts": [
     "27fe53c18d449d0741ba13862f31d3f550e40a263fc0daaeb6a3c4eff7817c3f",
     "1fece3d63b76a3c9a0c39d7da17aaad04caa3f8b72a903b348508f976631bf43"
@@ -106,7 +109,8 @@
   "pi-forgetful/src/capture.ts": [
     "898cddde28518bb61fefdda1628dd5597d3543e88a810fe209e57d9780021e8a",
     "e54406138197e8dc7c51e2b44cc00663a37a24c56ae9c08be1d8d1f6d10302ee",
-    "4f9cba30e4e25e430247c565e9a8d5af48cdf6a64cb4593fd19c783a11142ab3"
+    "4f9cba30e4e25e430247c565e9a8d5af48cdf6a64cb4593fd19c783a11142ab3",
+    "9ca75aa25b0ac8b69eeeb9d1ff8340bdddc93035652d1bfc413c60768aca347a"
   ],
   "pi-forgetful/src/concurrency.ts": [
     "42a31beb15c5d7933336cacdf520f293fb9f5a50f0d0e139294e19dd1df93272"
@@ -117,7 +121,8 @@
   ],
   "pi-forgetful/src/contracts.ts": [
     "a4238b5fc636dbc0878ef302da33f14b6257a673841711b043a728714471576e",
-    "193bdea3f8317305ec6cd4bdbf114e0547d3232449463e5ec4130bf4776bc436"
+    "193bdea3f8317305ec6cd4bdbf114e0547d3232449463e5ec4130bf4776bc436",
+    "d97595032c3a1633a8b5cadabad3a7dacfe6807eaa22705a89c5055e03795764"
   ],
   "pi-forgetful/src/domain/planning.ts": [
     "11dc5132be38224bf1f72a8de4c8302f90f35d36bd0c8fd32382428312a8769e"
@@ -132,10 +137,12 @@
     "fdeaeb8c15166a7e2ae072527c8eaff956fcc83031a2040935f1af0ddea9905c"
   ],
   "pi-forgetful/src/http-knowledge.ts": [
-    "8a3764bc1be7314cda4fec89c90cbda1375ee938a83e3fd2d37f0c0a2b068cc4"
+    "8a3764bc1be7314cda4fec89c90cbda1375ee938a83e3fd2d37f0c0a2b068cc4",
+    "971bb156ab348f306954b0dfee40d97a58d1045b9457478c277e5291d7a5acd6"
   ],
   "pi-forgetful/src/http.ts": [
-    "5e0141ba54b3567fdf8ca085d93239a5928391b615ad779de7716ee4ba9ff749"
+    "5e0141ba54b3567fdf8ca085d93239a5928391b615ad779de7716ee4ba9ff749",
+    "a8d95aec7f1355a90cf5c6304bba090e661c75b56636d5720c8300cda36ffef8"
   ],
   "pi-forgetful/src/knowledge-read.ts": [
     "53401d4976cc8446f0fa6ae747f30e18113ac56242d1ba64d87463e7b7f75fdc"

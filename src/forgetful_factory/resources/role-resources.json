@@ -28,8 +28,8 @@
   },
   "pi-forgetful": {
     "repository": "git@github.com:ScottRBK/pi-forgetful-extension.git",
-    "revision": "d9a7c98c74b1ac5aafdd5eb887d994f6ddaf7a91",
-    "local_patch_sha256": "94f36002c512cf1d82c935edbd373de1e8eb9f5097492381ae91d2a29581066c",
+    "revision": "d2cff4c1f49a307aea4fa7bdbd169856c4f50803",
+    "local_patch_sha256": "7476105efcf67c30161f5c68654fdfc8b37bc21d935eb29ff5832140544e7b46",
     "distribution": "Authorized internal use only; no upstream license grant",
     "files": {
       "index.ts": "2202bfe1be97b9d58f381d712bd7ddbeb21459a4b18280012aebe0fcf3a8acc0",
@@ -47,15 +47,15 @@
       "src/capture-feedback.ts": "b71541a7e673a47669702f777575be4987481737fe53c22b7936c49f24c2f1e4",
       "src/capture-links.ts": "1fece3d63b76a3c9a0c39d7da17aaad04caa3f8b72a903b348508f976631bf43",
       "src/capture-merge.ts": "a6648a5999e72c5fd6cd2cf9ae90148334817611cc81ee3517518102b9219ed9",
-      "src/capture.ts": "4f9cba30e4e25e430247c565e9a8d5af48cdf6a64cb4593fd19c783a11142ab3",
+      "src/capture.ts": "9ca75aa25b0ac8b69eeeb9d1ff8340bdddc93035652d1bfc413c60768aca347a",
       "src/concurrency.ts": "42a31beb15c5d7933336cacdf520f293fb9f5a50f0d0e139294e19dd1df93272",
       "src/config.ts": "48cc93599a367e05154cf2984960e0c7f3c72ffbb6c5d16abe8920fe2ca8807b",
-      "src/contracts.ts": "193bdea3f8317305ec6cd4bdbf114e0547d3232449463e5ec4130bf4776bc436",
+      "src/contracts.ts": "d97595032c3a1633a8b5cadabad3a7dacfe6807eaa22705a89c5055e03795764",
       "src/domain/planning.ts": "11dc5132be38224bf1f72a8de4c8302f90f35d36bd0c8fd32382428312a8769e",
       "src/extension.ts": "05b908df82a0e9ea615c354d6bcc89db70329fbe3d1a671f9d5f58fd48839597",
       "src/foreground-tools.ts": "fdeaeb8c15166a7e2ae072527c8eaff956fcc83031a2040935f1af0ddea9905c",
-      "src/http-knowledge.ts": "8a3764bc1be7314cda4fec89c90cbda1375ee938a83e3fd2d37f0c0a2b068cc4",
-      "src/http.ts": "5e0141ba54b3567fdf8ca085d93239a5928391b615ad779de7716ee4ba9ff749",
+      "src/http-knowledge.ts": "971bb156ab348f306954b0dfee40d97a58d1045b9457478c277e5291d7a5acd6",
+      "src/http.ts": "a8d95aec7f1355a90cf5c6304bba090e661c75b56636d5720c8300cda36ffef8",
       "src/knowledge-read.ts": "53401d4976cc8446f0fa6ae747f30e18113ac56242d1ba64d87463e7b7f75fdc",
       "src/knowledge-tools.ts": "8664f04e89e447ec0eb5f80c14a2ad598710271c292dbafabc290db56b22963e",
       "src/knowledge-write.ts": "6e7b5a5c8579b6d267ec9a4d1c224c2615eaba802b08595aa6e1a455c92e7e53",
@@ -71,7 +71,8 @@
       "src/repository.ts": "b98f0a26fdbcff8fbdd68c49b0fbe674a79cc6e6bc89a648782f9452b79336a0",
       "src/setup.ts": "9b30099f75c355d3e468fd065c78d02e06f75acbf46700cc54658908a74dc0c7",
       "src/snapshot.ts": "8ba9c686e922413dbd0789279c51c5194360bff5e85ef2034bdd16379d724346",
-      "src/source-inspection.ts": "4f66f535c39786b7026ea31c046f156ad5c68c1fbc79067227e66f054b0614fe"
+      "src/source-inspection.ts": "4f66f535c39786b7026ea31c046f156ad5c68c1fbc79067227e66f054b0614fe",
+      "src/capture-limits.ts": "2e71f80b442f458a4a8e1dde6901b38a0cff2d7b8f351f5a71ac9e01b4ed2bea"
     }
   }
 }
